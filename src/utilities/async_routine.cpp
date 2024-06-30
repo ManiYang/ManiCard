@@ -23,8 +23,7 @@ void AsyncRoutine::start() {
         QTimer::singleShot(0, this, [this]() { invokeStep(0); });
 }
 
-void AsyncRoutine::nextStep()
-{
+void AsyncRoutine::nextStep() {
     QTimer::singleShot(0, this, [this]() {
         Q_ASSERT(isStarted);
         Q_ASSERT(steps.size() != 0);
@@ -42,8 +41,7 @@ void AsyncRoutine::nextStep()
     });
 }
 
-void AsyncRoutine::skipToFinalStep()
-{
+void AsyncRoutine::skipToFinalStep() {
     QTimer::singleShot(0, this, [this]() {
         Q_ASSERT(isStarted);
         Q_ASSERT(steps.size() != 0);

@@ -21,6 +21,10 @@ class AsyncRoutine : public QObject
 public:
     AsyncRoutine();
 
+    //!
+    //! \param func
+    //! \param context: the same meaning as in QTimer::singleShot(msec, context, functor)
+    //!
     AsyncRoutine &addStep(std::function<void ()> func, QPointer<QObject> context);
 
     //!
