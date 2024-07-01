@@ -1,4 +1,4 @@
-QT       += core gui
+QT       += core gui network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -11,13 +11,17 @@ CONFIG += c++17
 SOURCES += \
     main.cpp \
     main_window.cpp \
+    neo4j_http_api_client.cpp \
     utilities/async_routine.cpp \
     utilities/async_task.cpp
 
 HEADERS += \
     main_window.h \
+    neo4j_http_api_client.h \
     utilities/async_routine.h \
-    utilities/async_task.h
+    utilities/async_task.h \
+    utilities/functor.h \
+    utilities/json_util.h
 
 FORMS += \
     main_windowdow.ui
@@ -26,3 +30,6 @@ FORMS += \
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+
+DEFINES += QT_MESSAGELOGCONTEXT
