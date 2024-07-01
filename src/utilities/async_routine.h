@@ -9,8 +9,8 @@
 //! An utility class for scheduling a sequence of steps (such sequence is called a routine here).
 //! Each step consists of a task that can be asynchronous.
 //!
-//! When a task is completed, call \c nextStep() or \c skipToFinalStep() to let the routine schedule the
-//! next step (or last) step in the sequence, or finish if there's no step remaining.
+//! When a task is completed, call \c nextStep() or \c skipToFinalStep() to let the routine schedule
+//! the next step (or last) step in the sequence, or finish if there's no step remaining.
 //!
 //! Instance of this class auto-deletes itself when finished.
 //!
@@ -22,8 +22,9 @@ public:
     AsyncRoutine();
 
     //!
-    //! \param func
-    //! \param context: the same meaning as in QTimer::singleShot(msec, context, functor)
+    //! \e Func will be invoked in the thread of \e context. If \e context is destroyed before
+    //! the step starts, \e func will not be invoked (but you should take care that objects used
+    //! in \e func are still alive when it is invoked).
     //!
     AsyncRoutine &addStep(std::function<void ()> func, QPointer<QObject> context);
 
