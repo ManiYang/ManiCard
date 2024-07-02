@@ -44,10 +44,14 @@ public: // types
         //! \return \c Undefined if not found.
         //!
         QJsonValue valueAt(const int row, const int column) const;
-        QJsonValue valueAt(const int row, const QString &columnName);
+        QJsonValue valueAt(const int row, const QString &columnName) const;
 
         //
-        static QueryResult fromApiResponse(const QJsonValue &resultJsonValue);
+
+        //!
+        //! Parses result object in API response.
+        //!
+        static QueryResult fromApiResponse(const QJsonObject &resultObject);
 
     private:
         struct Row
@@ -66,24 +70,51 @@ public: // types
         QString message;
     };
 
-    struct QueryResponse
+    class QueryResponseBase
     {
-        QueryResponse() {}
-        QueryResponse(
+    public:
+        bool hasNetworkError {false};
+        QVector<DbError> dbErrors;
+
+    protected:
+        QueryResponseBase() {}
+        QueryResponseBase(
                 const bool hasNetworkError_, const QVector<DbError> &dbErrors_,
                 const QVector<QueryResult> &results_)
             : hasNetworkError(hasNetworkError_), dbErrors(dbErrors_), results(results_) {}
 
-        bool hasNetworkError {false};
-        QVector<DbError> dbErrors;
         QVector<QueryResult> results; // [i]: result of ith query statement
+    };
+
+    struct QueryResponse : public QueryResponseBase
+    {
+        QueryResponse() : QueryResponseBase() {}
+        QueryResponse(
+                const bool hasNetworkError_, const QVector<DbError> &dbErrors_,
+                const QVector<QueryResult> &results_);
+
+        QVector<QueryResult> getResults() const;
+    };
+
+    struct QueryResponseSingleResult : public QueryResponseBase
+    {
+        QueryResponseSingleResult() : QueryResponseBase() {}
+
+        //!
+        //! Elements of \e results_ at index > 0 (if any) are ignored
+        //!
+        QueryResponseSingleResult(
+                const bool hasNetworkError_, const QVector<DbError> &dbErrors_,
+                const QVector<QueryResult> &results_);
+
+        std::optional<QueryResult> getResult() const;
     };
 
 public:
     //!
     //! \param dbHostUrl_
     //! \param dbName_
-    //! \param dbAuthFilePath_: a text file with username in 1st line and password in 2nd line
+    //! \param dbAuthFilePath_: a text file with username as 1st line and password as 2nd line
     //! \param networkAccessManager_
     //!
     explicit Neo4jHttpApiClient(
@@ -102,6 +133,16 @@ public:
             QPointer<QObject> callbackContext);
 
     //!
+    //! The query is wrapped in an implicit transaction. (Use \e INeo4jTransaction for explicit
+    //! transactions.)
+    //! The request has no time-out and is not retried if there's network error.
+    //!
+    void queryDb(
+            const QueryStatement &queryStatements,
+            std::function<void (const QueryResponseSingleResult &response)> callback,
+            QPointer<QObject> callbackContext);
+
+    //!
     //! \return The returned transaction is not yet opened, and has no parent QObject.
     //!
     Neo4jTransaction *getTransaction();
@@ -113,6 +154,15 @@ private:
     QNetworkAccessManager *networkAccessManager;
 };
 
+//!
+//! An instance of this class can be obtained with \c Neo4jTransaction::getTransaction() .
+//!
+//! Although the transaction is kept alive (before commit/rollback), it is better not to have long
+//! periods of inactivity (by, e.g., having long-running computations) between queries.
+//! If a query results in an error, the transaction is rolled back.
+//!
+//! All HTTP requests have no time-out mechanism, and are not retried if there's network error.
+//!
 class Neo4jTransaction : public QObject
 {
     Q_OBJECT
@@ -126,11 +176,9 @@ public:
 
     using QueryStatement = Neo4jHttpApiClient::QueryStatement;
     using QueryResponse = Neo4jHttpApiClient::QueryResponse;
+    using QueryResponseSingleResult = Neo4jHttpApiClient::QueryResponseSingleResult;
 
     //!
-    //! Although the transaction is kept alive, it is better not to have long periods of inactivity
-    //! (by, e.g., having long-running computations) between queries.
-    //! If a query results in an error, the transaction is rolled back.
     //! \param statements
     //! \param callback: argument \e response may not contain all errors that occurred
     //! \param callbackContext
@@ -138,6 +186,16 @@ public:
     void query(
             const QVector<QueryStatement> &queryStatements,
             std::function<void (bool ok, const QueryResponse &response)> callback,
+            QPointer<QObject> callbackContext);
+
+    //!
+    //! \param queryStatement
+    //! \param callback: argument \e response may not contain all errors that occurred
+    //! \param callbackContext
+    //!
+    void query(
+            const QueryStatement &queryStatement,
+            std::function<void (bool ok, const QueryResponseSingleResult &response)> callback,
             QPointer<QObject> callbackContext);
 
     void commit(std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
@@ -151,7 +209,7 @@ public:
     //!           + rolled back (explicitly or because of error), or
     //!           + awaiting server response
     //!
-    bool isOpened() const;
+    bool canQuery() const;
 
 private:
     const QString hostUrl;

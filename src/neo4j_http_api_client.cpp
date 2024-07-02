@@ -1,6 +1,7 @@
 #include <QByteArray>
 #include <QDebug>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QMetaObject>
@@ -76,35 +77,42 @@ void logDbErrorMessages(const QVector<Neo4jHttpApiClient::DbError> &errors)
 
 Neo4jHttpApiClient::QueryResponse handleApiResponse(
         QNetworkReply *reply, QString *transactionId = nullptr) {
+    const QByteArray replyBody = reply->readAll();
+
+    //
     if (reply->error() != QNetworkReply::NoError) {
-        const auto msg
-                = QString("Network error while sending request to %1 -- %2")
-                  .arg(reply->request().url().toString(), reply->errorString());
-        qWarning().noquote() << msg;
+        qWarning().noquote()
+                << QString("Network error while sending request to %1 -- %2")
+                    .arg(reply->request().url().toString(), reply->errorString());
+        qWarning().noquote()
+                << QString("  | response body: %1")
+                    .arg(QString::fromUtf8(replyBody).left(200));
         return Neo4jHttpApiClient::QueryResponse(true, {}, {});
     }
 
     //
-    const QByteArray replyBody = reply->readAll();
-
     const auto replyObject = QJsonDocument::fromJson(replyBody).object();
     const auto resultsArray = replyObject.value("results").toArray();
     const auto errorsArray = replyObject.value("errors").toArray();
     const QString commitUrl = replyObject.value("commit").toString();
 
     //
-    Neo4jHttpApiClient::QueryResponse queryResponse(false, {}, {});
+    constexpr bool hasNetworkError = false;
+    QVector<Neo4jHttpApiClient::DbError> dbErrors;
+    QVector<Neo4jHttpApiClient::QueryResult> queryResults;
 
     for (const QJsonValue &result: resultsArray)
-        queryResponse.results << Neo4jHttpApiClient::QueryResult::fromApiResponse(result);
+        queryResults << Neo4jHttpApiClient::QueryResult::fromApiResponse(result.toObject());
 
     for (const QJsonValue &error: errorsArray) {
         const auto errorObject = error.toObject();
-        queryResponse.dbErrors << Neo4jHttpApiClient::DbError {
+        dbErrors << Neo4jHttpApiClient::DbError {
                 errorObject.value("code").toString(),
                 errorObject.value("message").toString()
         };
     }
+    if (!dbErrors.isEmpty())
+        logDbErrorMessages(dbErrors);
 
     if (transactionId != nullptr) {
         *transactionId = "";
@@ -120,7 +128,7 @@ Neo4jHttpApiClient::QueryResponse handleApiResponse(
         }
     }
 
-    return queryResponse;
+    return Neo4jHttpApiClient::QueryResponse(hasNetworkError, dbErrors, queryResults);
 }
 
 } // namespace
@@ -135,7 +143,10 @@ Neo4jHttpApiClient::Neo4jHttpApiClient(const QString &dbHostUrl_, const QString 
     , dbName(dbName_)
     , dbAuthFilePath(dbAuthFilePath_)
     , networkAccessManager(networkAccessManager_)
-{}
+{
+    if (!QFileInfo::exists(dbAuthFilePath))
+        qWarning().noquote() << QString("file not found: %1").arg(dbAuthFilePath);
+}
 
 void Neo4jHttpApiClient::queryDb(const QVector<QueryStatement> &queryStatements,
         std::function<void (const QueryResponse &)> callback,
@@ -161,8 +172,30 @@ void Neo4jHttpApiClient::queryDb(const QVector<QueryStatement> &queryStatements,
         invokeAction(callbackContext, [queryResponse, callback]() {
             callback(queryResponse);
         });
-
     });
+}
+
+void Neo4jHttpApiClient::queryDb(
+        const QueryStatement &queryStatements,
+        std::function<void (const QueryResponseSingleResult &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    queryDb(
+            QVector<QueryStatement> {queryStatements},
+            // callback:
+            [callback](const QueryResponse &response) {
+                if (response.getResults().count() > 1) {
+                    qWarning().noquote()
+                            << "There are more than one results in the QueryResponse, "
+                               "while at most one is expected.";
+                }
+
+                QueryResponseSingleResult responseSingleResult(
+                        response.hasNetworkError, response.dbErrors, response.getResults());
+                callback(responseSingleResult);
+            },
+            callbackContext
+    );
 }
 
 Neo4jTransaction *Neo4jHttpApiClient::getTransaction()
@@ -190,7 +223,7 @@ Neo4jTransaction::Neo4jTransaction(
             return;
         // send empty query for keep-alive
         query(
-                {},
+                QVector<QueryStatement>(),
                 [](bool /*ok*/, const QueryResponse &/*response*/) {},
                 this
         );
@@ -239,17 +272,10 @@ void Neo4jTransaction::open(
         const QueryResponse queryResponse = handleApiResponse(reply, &mTransactionId);
         reply->deleteLater();
 
-        bool openOk = true;
-        if (queryResponse.hasNetworkError) {
-            openOk = false;
-        }
-        else if (!queryResponse.dbErrors.isEmpty()) {
-            logDbErrorMessages(queryResponse.dbErrors);
-            openOk = false;
-        }
-        else if (mTransactionId.isEmpty()) {
-            openOk = false;
-        }
+        const bool openOk
+                = !queryResponse.hasNetworkError
+                  && queryResponse.dbErrors.isEmpty()
+                  && !mTransactionId.isEmpty();
 
         // update state
         if (openOk) {
@@ -294,17 +320,10 @@ void Neo4jTransaction::query(
         const QueryResponse queryResponse = handleApiResponse(reply, &transactionId);
         reply->deleteLater();
 
-        bool requestOk = true;
-        if (queryResponse.hasNetworkError) {
-            requestOk = false;
-        }
-        else if (!queryResponse.dbErrors.isEmpty()) {
-            logDbErrorMessages(queryResponse.dbErrors);
-            requestOk = false;
-        }
-        else if (transactionId.isEmpty()) {
-            requestOk = false;
-        }
+        const bool requestOk
+                = !queryResponse.hasNetworkError
+                  && queryResponse.dbErrors.isEmpty()
+                  && !transactionId.isEmpty();
 
         // update state
         if (!requestOk) {
@@ -312,6 +331,7 @@ void Neo4jTransaction::query(
             mTimerSendKeepAlive->stop();
         }
         else {
+            mState = State::Opened;
             mTimerSendKeepAlive->start();
         }
 
@@ -320,6 +340,28 @@ void Neo4jTransaction::query(
             callback(requestOk, queryResponse);
         });
     });
+}
+
+void Neo4jTransaction::query(
+        const QueryStatement &queryStatement,
+        std::function<void (bool, const QueryResponseSingleResult &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    query(
+            QVector<QueryStatement> {queryStatement},
+            // callback:
+            [callback](bool ok, const QueryResponse &response) {
+                if (response.getResults().count() > 1) {
+                    qWarning().noquote()
+                            << "There are more than one results in the QueryResponse, "
+                               "while at most one is expected.";
+                }
+                QueryResponseSingleResult responseSingleResult(
+                        response.hasNetworkError, response.dbErrors, response.getResults());
+                callback(ok, responseSingleResult);
+            },
+            callbackContext
+    );
 }
 
 void Neo4jTransaction::commit(
@@ -345,14 +387,7 @@ void Neo4jTransaction::commit(
         const QueryResponse queryResponse = handleApiResponse(reply);
         reply->deleteLater();
 
-        bool commitOk = true;
-        if (queryResponse.hasNetworkError) {
-            commitOk = false;
-        }
-        else if (!queryResponse.dbErrors.isEmpty()) {
-            logDbErrorMessages(queryResponse.dbErrors);
-            commitOk = false;
-        }
+        const bool commitOk = !queryResponse.hasNetworkError && queryResponse.dbErrors.isEmpty();
 
         // update state
         if (commitOk) {
@@ -395,14 +430,7 @@ void Neo4jTransaction::rollback(
         const QueryResponse queryResponse = handleApiResponse(reply);
         reply->deleteLater();
 
-        bool commitOk = true;
-        if (queryResponse.hasNetworkError) {
-            commitOk = false;
-        }
-        else if (!queryResponse.dbErrors.isEmpty()) {
-            logDbErrorMessages(queryResponse.dbErrors);
-            commitOk = false;
-        }
+        const bool commitOk = !queryResponse.hasNetworkError && queryResponse.dbErrors.isEmpty();
 
         // update state
         if (commitOk)
@@ -419,7 +447,7 @@ void Neo4jTransaction::rollback(
     });
 }
 
-bool Neo4jTransaction::isOpened() const {
+bool Neo4jTransaction::canQuery() const {
     return mState == State::Opened;
 }
 
@@ -514,7 +542,7 @@ QJsonValue Neo4jHttpApiClient::QueryResult::valueAt(const int row, const int col
     return rows.at(row).values.value(column, QJsonValue::Undefined);
 }
 
-QJsonValue Neo4jHttpApiClient::QueryResult::valueAt(const int row, const QString &columnName)
+QJsonValue Neo4jHttpApiClient::QueryResult::valueAt(const int row, const QString &columnName) const
 {
     if (!columnNameToIndex.contains(columnName))
         return QJsonValue::Undefined;
@@ -522,16 +550,14 @@ QJsonValue Neo4jHttpApiClient::QueryResult::valueAt(const int row, const QString
 }
 
 Neo4jHttpApiClient::QueryResult Neo4jHttpApiClient::QueryResult::fromApiResponse(
-        const QJsonValue &resultJsonValue) {
+        const QJsonObject &resultObject) {
     QueryResult queryResult;
 
-    const auto resultObj = resultJsonValue.toObject();
-
-    const auto columnsArray = resultObj.value("columns").toArray();
+    const auto columnsArray = resultObject.value("columns").toArray();
     for (int i = 0; i < columnsArray.count(); ++i)
         queryResult.columnNameToIndex.insert(columnsArray.at(i).toString(), i);
 
-    const auto recordsArray = resultObj.value("data").toArray();
+    const auto recordsArray = resultObject.value("data").toArray();
     queryResult.rows.reserve(recordsArray.count());
     for (const QJsonValue &record: recordsArray)
     {
@@ -542,7 +568,7 @@ Neo4jHttpApiClient::QueryResult Neo4jHttpApiClient::QueryResult::fromApiResponse
         if (metaArray.count() < valueArray.count())
         {
             qWarning().noquote() << "array `meta` has fewer elements than array `row`";
-            qWarning().noquote() << QString("  | the result is: %1").arg(printJson(resultObj));
+            qWarning().noquote() << QString("  | the result is: %1").arg(printJson(resultObject));
         }
 
         Row row;
@@ -560,4 +586,35 @@ Neo4jHttpApiClient::QueryResult Neo4jHttpApiClient::QueryResult::fromApiResponse
     }
 
     return queryResult;
+}
+
+//====
+
+Neo4jHttpApiClient::QueryResponse::QueryResponse(
+        const bool hasNetworkError_, const QVector<DbError> &dbErrors_,
+        const QVector<QueryResult> &results_)
+    : QueryResponseBase(hasNetworkError_, dbErrors_, results_)
+{}
+
+QVector<Neo4jHttpApiClient::QueryResult> Neo4jHttpApiClient::QueryResponse::getResults() const {
+    return results;
+}
+
+//====
+
+Neo4jHttpApiClient::QueryResponseSingleResult::QueryResponseSingleResult(
+        const bool hasNetworkError_, const QVector<DbError> &dbErrors_,
+        const QVector<QueryResult> &results_)
+    : QueryResponseBase(
+            hasNetworkError_,
+            dbErrors_,
+            results_.isEmpty() ? QVector<QueryResult> {} : results_.mid(0, 1)
+      ) {
+}
+
+std::optional<Neo4jHttpApiClient::QueryResult>
+Neo4jHttpApiClient::QueryResponseSingleResult::getResult() const {
+    if (results.isEmpty())
+        return std::nullopt;
+    return results.at(0);
 }

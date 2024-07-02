@@ -1,0 +1,7 @@
+{
+    "neo4j_db": {
+        "http_url": "http://localhost:7474",
+        "database": "neo4j",
+        "auth_file": "/path/to/neo4j_user_password.txt"
+    }
+}
