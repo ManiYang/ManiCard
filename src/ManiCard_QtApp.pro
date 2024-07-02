@@ -13,7 +13,6 @@ SOURCES += \
     main_window.cpp \
     neo4j_http_api_client.cpp \
     utilities/async_routine.cpp \
-    utilities/async_task.cpp \
     utilities/json_util.cpp \
     utilities/logging.cpp
 
@@ -22,7 +21,6 @@ HEADERS += \
     main_window.h \
     neo4j_http_api_client.h \
     utilities/async_routine.h \
-    utilities/async_task.h \
     utilities/functor.h \
     utilities/json_util.h \
     utilities/logging.h
