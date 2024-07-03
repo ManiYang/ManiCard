@@ -2,21 +2,24 @@
 #define JSON_UTIL_H
 
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QStringList>
-
-inline QString printJson(const QJsonObject &object, const bool compact = true) {
-    return QJsonDocument(object).toJson(compact ? QJsonDocument::Compact : QJsonDocument::Indented);
-}
-
-inline QString printJson(const QJsonArray &array, const bool compact = true) {
-    return QJsonDocument(array).toJson(compact ? QJsonDocument::Compact : QJsonDocument::Indented);
-}
 
 //!
 //! \return a null document if failed
 //!
 QJsonDocument readJsonFile(const QString &filePath, QString *errorMsg = nullptr);
+
+QJsonObject parseAsJsonObject(const QString &json, QString *errorMsg = nullptr);
+QJsonArray parseAsJsonArray(const QString &json, QString *errorMsg = nullptr);
+
+inline QString printJson(const QJsonObject &object, const bool compact = true) {
+    return QJsonDocument(object).toJson(compact ? QJsonDocument::Compact : QJsonDocument::Indented);
+}
+inline QString printJson(const QJsonArray &array, const bool compact = true) {
+    return QJsonDocument(array).toJson(compact ? QJsonDocument::Compact : QJsonDocument::Indented);
+}
 
 //!
 //! For example, if \e pathOfKeys is {"a", "b", "c"}, this method returns \c object["a"]["b"]["c"].
@@ -25,6 +28,25 @@ QJsonDocument readJsonFile(const QString &filePath, QString *errorMsg = nullptr)
 //!
 QJsonValue getNestedValue(const QJsonObject &object, const QStringList &pathOfKeys);
 
+//!
+//! Usage examples:
+//!   Suppose \c obj is
+//!   \code{.json}
+//!     {
+//!       "a": {
+//!         "b": [1, {"c": 2}]
+//!       }
+//!     }
+//!   \endcode
+//!   Then
+//!   \code
+//!     JsonReader(obj)["a"]["b"][0].getInt(); // 1
+//!     JsonReader(obj)["a"]["b"][1].get(); // object {"c": 2}
+//!     JsonReader(obj)["a"]["b"][1]["c"].getInt(); // 2
+//!     JsonReader(obj)["x"]["y"].get(); // QJsonValue::Undefined
+//!     JsonReader(obj)[0].get(); // QJsonValue::Undefined
+//!   \endcode
+//!
 class JsonReader
 {
 public:
@@ -52,7 +74,5 @@ public:
 private:
     QJsonValue currentValue;
 };
-
-
 
 #endif // JSON_UTIL_H

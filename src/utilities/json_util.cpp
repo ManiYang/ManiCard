@@ -2,8 +2,7 @@
 #include <QJsonArray>
 #include "json_util.h"
 
-QJsonDocument readJsonFile(const QString &filePath, QString *errorMsg)
-{
+QJsonDocument readJsonFile(const QString &filePath, QString *errorMsg) {
     QFile file(filePath);
     const bool ok = file.open(QIODevice::ReadOnly);
     if (!ok) {
@@ -19,6 +18,38 @@ QJsonDocument readJsonFile(const QString &filePath, QString *errorMsg)
     return doc;
 }
 
+QJsonObject parseAsJsonObject(const QString &json, QString *errorMsg) {
+    QJsonParseError err;
+    const auto doc = QJsonDocument::fromJson(json.toUtf8(), &err);
+    if (err.error != QJsonParseError::NoError) {
+        if (errorMsg)
+            *errorMsg = err.errorString();
+        return {};
+    }
+    if (!doc.isObject()) {
+        if (errorMsg)
+            *errorMsg = "the JSON document is not an object";
+        return {};
+    }
+    return doc.object();
+}
+
+QJsonArray parseAsJsonArray(const QString &json, QString *errorMsg) {
+    QJsonParseError err;
+    const auto doc = QJsonDocument::fromJson(json.toUtf8(), &err);
+    if (err.error != QJsonParseError::NoError) {
+        if (errorMsg)
+            *errorMsg = err.errorString();
+        return {};
+    }
+    if (!doc.isArray()) {
+        if (errorMsg)
+            *errorMsg = "the JSON document is not an array";
+        return {};
+    }
+    return doc.array();
+}
+
 QJsonValue getNestedValue(const QJsonObject &object, const QStringList &pathOfKeys) {
     QJsonValue v = object;
     for (const QString &key: pathOfKeys) {
@@ -30,10 +61,6 @@ QJsonValue getNestedValue(const QJsonObject &object, const QStringList &pathOfKe
 }
 
 //====
-
-QJsonValue JsonReader::get() const {
-    return currentValue;
-}
 
 JsonReader &JsonReader::operator [](const QString &key) {
     if (currentValue.isObject())
@@ -51,4 +78,8 @@ JsonReader &JsonReader::operator [](const int index) {
         currentValue = QJsonValue::Undefined;
 
     return *this;
+}
+
+QJsonValue JsonReader::get() const {
+    return currentValue;
 }
