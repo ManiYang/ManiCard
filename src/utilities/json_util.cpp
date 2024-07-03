@@ -2,6 +2,27 @@
 #include <QJsonArray>
 #include "json_util.h"
 
+QJsonArray toJsonArray(const QStringList &list) {
+    QJsonArray array;
+    for (const auto &item: list)
+        array << item;
+    return array;
+}
+
+QJsonArray toJsonArray(const QSet<int> &set) {
+    QJsonArray array;
+    for (const auto &item: set)
+        array << item;
+    return array;
+}
+
+QStringList toStringList(const QJsonArray &array, const QString &defaultValue) {
+    QStringList result;
+    for (const QJsonValue &v: array)
+        result << v.toString(defaultValue);
+    return result;
+}
+
 QJsonDocument readJsonFile(const QString &filePath, QString *errorMsg) {
     QFile file(filePath);
     const bool ok = file.open(QIODevice::ReadOnly);
@@ -83,3 +104,4 @@ JsonReader &JsonReader::operator [](const int index) {
 QJsonValue JsonReader::get() const {
     return currentValue;
 }
+

@@ -4,7 +4,13 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QSet>
 #include <QStringList>
+
+QJsonArray toJsonArray(const QStringList &list);
+QJsonArray toJsonArray(const QSet<int> &set);
+
+QStringList toStringList(const QJsonArray &array, const QString &defaultValue);
 
 //!
 //! \return a null document if failed
