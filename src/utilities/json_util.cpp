@@ -1,6 +1,8 @@
+#include <type_traits>
 #include <QFile>
 #include <QJsonArray>
 #include "json_util.h"
+#include "utilities/numbers_util.h"
 
 QJsonArray toJsonArray(const QStringList &list) {
     QJsonArray array;
@@ -83,7 +85,17 @@ QJsonValue getNestedValue(const QJsonObject &object, const QStringList &pathOfKe
 
 //====
 
+JsonReader::JsonReader(const QJsonObject &obj) : currentValue(obj) {
+    currentPath.reserve(8);
+}
+
+JsonReader::JsonReader(const QJsonArray &arr) : currentValue(arr) {
+    currentPath.reserve(8);
+}
+
 JsonReader &JsonReader::operator [](const QString &key) {
+    currentPath << key;
+
     if (currentValue.isObject())
         currentValue = currentValue.toObject().value(key);
     else
@@ -93,6 +105,8 @@ JsonReader &JsonReader::operator [](const QString &key) {
 }
 
 JsonReader &JsonReader::operator [](const int index) {
+    currentPath << index;
+
     if (currentValue.isArray())
         currentValue = currentValue.toArray().at(index);
     else
@@ -105,3 +119,86 @@ QJsonValue JsonReader::get() const {
     return currentValue;
 }
 
+QJsonValue JsonReader::getOrThrow() const {
+    throwIfCurrentValueUndefined();
+    return currentValue;
+}
+
+QString JsonReader::getString() const {
+    return currentValue.toString();
+}
+
+QString JsonReader::getStringOrThrow() const {
+    throwIfCurrentValueUndefined();
+    if (!currentValue.isString()) {
+        const auto errMsg = QString("value at %1 is not a string").arg(getCurrentPathString());
+        throw JsonReaderException(errMsg.toStdString());
+    }
+    return currentValue.toString();
+}
+
+int JsonReader::getInt() const {
+    return currentValue.toInt();
+}
+
+int JsonReader::getIntOrThrow() const {
+    throwIfCurrentValueUndefined();
+    if (!currentValue.isDouble() || !isInteger(currentValue.toDouble())) {
+        const auto errMsg = QString("value at %1 is not an integer").arg(getCurrentPathString());
+        throw JsonReaderException(errMsg.toStdString());
+    }
+    return currentValue.toInt();
+}
+
+double JsonReader::getDouble() const {
+    return currentValue.toDouble();
+}
+
+double JsonReader::getDoubleOrThrow() const {
+    throwIfCurrentValueUndefined();
+    if (!currentValue.isDouble()) {
+        const auto errMsg = QString("value at %1 is not a number").arg(getCurrentPathString());
+        throw JsonReaderException(errMsg.toStdString());
+    }
+    return currentValue.toDouble();
+}
+
+bool JsonReader::getBool() const {
+    return currentValue.toBool();
+}
+
+bool JsonReader::getBoolOrThrow() const {
+    throwIfCurrentValueUndefined();
+    if (!currentValue.isBool()) {
+        const auto errMsg = QString("value at %1 is not a Boolean").arg(getCurrentPathString());
+        throw JsonReaderException(errMsg.toStdString());
+    }
+    return currentValue.toBool();
+}
+
+void JsonReader::throwIfCurrentValueUndefined() const {
+    if (currentValue.isUndefined()) {
+        const auto errMsg = QString("could not find value at %1").arg(getCurrentPathString());
+        throw JsonReaderException(errMsg.toStdString());
+    }
+}
+
+QString JsonReader::getCurrentPathString() const {
+    QStringList parts;
+    for (const auto &item: currentPath) {
+        QString keyOrIndex;
+        if (std::holds_alternative<int>(item)) {
+            keyOrIndex = QString::number(std::get<int>(item));
+        }
+        else if (std::holds_alternative<QString>(item)) {
+            keyOrIndex = QString("\"%1\"").arg(std::get<QString>(item));
+        }
+        else {
+            Q_ASSERT(false); // not implemented
+            keyOrIndex = "?";
+        }
+
+        parts << QString("[%1]").arg(keyOrIndex);
+    }
+    return parts.join("");
+}
