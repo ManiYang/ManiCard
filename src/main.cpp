@@ -1,10 +1,12 @@
 #include <iostream>
 #include <QApplication>
 #include <QDebug>
+#include <QMessageBox>
 #include <QPointer>
 #include <QTimer>
 #include "global_constants.h"
 #include "main_window.h"
+#include "services.h"
 #include "utilities/app_instances_shared_memory.h"
 #include "utilities/logging.h"
 
@@ -82,16 +84,15 @@ int main(int argc, char *argv[]) {
         });
         timerReadSharedMemActivateFlag->start(1000);
 
-//        // initialize services
-//        QString errorMsg;
-//        bool ok = Services::instance()->initialize(errorMsg);
-//        if (!ok)
-//        {
-//            QMessageBox::critical(nullptr, "Error", errorMsg);
-
-//            app.quit();
-//            return;
-//        }
+        // initialize services
+        QString errorMsg;
+        bool ok = Services::instance()->initialize(&errorMsg);
+        if (!ok)
+        {
+            QMessageBox::critical(nullptr, "Error", errorMsg);
+            app.quit();
+            return;
+        }
 
         //
         mainWindow = new MainWindow;

@@ -19,6 +19,7 @@ SOURCES += \
     models/card.cpp \
     models/relationship.cpp \
     neo4j_http_api_client.cpp \
+    services.cpp \
     utilities/app_instances_shared_memory.cpp \
     utilities/async_routine.cpp \
     utilities/json_util.cpp \
@@ -36,12 +37,14 @@ HEADERS += \
     models/node_labels.h \
     models/relationship.h \
     neo4j_http_api_client.h \
+    services.h \
     utilities/app_instances_shared_memory.h \
     utilities/async_routine.h \
     utilities/functor.h \
     utilities/hash.h \
     utilities/json_util.h \
-    utilities/logging.h
+    utilities/logging.h \
+    utilities/numbers_util.h
 
 FORMS += \
     main_windowdow.ui
