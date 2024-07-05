@@ -75,4 +75,20 @@ TEST(JsonUtil, JsonReader) {
 
     value = JsonReader(obj)[0].get();
     EXPECT_TRUE(value.isUndefined());
+
+    bool hasError = false;
+    try {
+        JsonReader(obj)["f"][2].getOrThrow();
+    } catch (JsonReaderError &e) {
+        hasError = true;
+    }
+    EXPECT_TRUE(hasError);
+
+    hasError = false;
+    try {
+        JsonReader(obj)["b"]["c"]["d"].getStringOrThrow();
+    } catch (JsonReaderError &e) {
+        hasError = true;
+    }
+    EXPECT_TRUE(hasError);
 }

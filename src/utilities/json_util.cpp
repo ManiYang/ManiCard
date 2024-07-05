@@ -30,7 +30,7 @@ QJsonDocument readJsonFile(const QString &filePath, QString *errorMsg) {
     const bool ok = file.open(QIODevice::ReadOnly);
     if (!ok) {
         if (errorMsg)
-            *errorMsg = "could not open file";
+            *errorMsg = QString("could not open file %1").arg(filePath);
         return {};
     }
 
@@ -132,7 +132,7 @@ QString JsonReader::getStringOrThrow() const {
     throwIfCurrentValueUndefined();
     if (!currentValue.isString()) {
         const auto errMsg = QString("value at %1 is not a string").arg(getCurrentPathString());
-        throw JsonReaderException(errMsg.toStdString());
+        throw JsonReaderError(errMsg.toStdString());
     }
     return currentValue.toString();
 }
@@ -145,7 +145,7 @@ int JsonReader::getIntOrThrow() const {
     throwIfCurrentValueUndefined();
     if (!currentValue.isDouble() || !isInteger(currentValue.toDouble())) {
         const auto errMsg = QString("value at %1 is not an integer").arg(getCurrentPathString());
-        throw JsonReaderException(errMsg.toStdString());
+        throw JsonReaderError(errMsg.toStdString());
     }
     return currentValue.toInt();
 }
@@ -158,7 +158,7 @@ double JsonReader::getDoubleOrThrow() const {
     throwIfCurrentValueUndefined();
     if (!currentValue.isDouble()) {
         const auto errMsg = QString("value at %1 is not a number").arg(getCurrentPathString());
-        throw JsonReaderException(errMsg.toStdString());
+        throw JsonReaderError(errMsg.toStdString());
     }
     return currentValue.toDouble();
 }
@@ -171,7 +171,7 @@ bool JsonReader::getBoolOrThrow() const {
     throwIfCurrentValueUndefined();
     if (!currentValue.isBool()) {
         const auto errMsg = QString("value at %1 is not a Boolean").arg(getCurrentPathString());
-        throw JsonReaderException(errMsg.toStdString());
+        throw JsonReaderError(errMsg.toStdString());
     }
     return currentValue.toBool();
 }
@@ -179,7 +179,7 @@ bool JsonReader::getBoolOrThrow() const {
 void JsonReader::throwIfCurrentValueUndefined() const {
     if (currentValue.isUndefined()) {
         const auto errMsg = QString("could not find value at %1").arg(getCurrentPathString());
-        throw JsonReaderException(errMsg.toStdString());
+        throw JsonReaderError(errMsg.toStdString());
     }
 }
 

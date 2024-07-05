@@ -1,4 +1,5 @@
 #include <QCoreApplication>
+#include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
@@ -6,7 +7,7 @@
 #include "services.h"
 #include "utilities/json_util.h"
 
-constexpr char configFilePath[] = "./config.json";
+constexpr char configFile[] = "config.json";
 
 Services::Services() {}
 
@@ -21,7 +22,9 @@ bool Services::initialize(QString *errorMsg) {
     try {
         // read config file (see src/config.example.json)
         QString err;
-        auto doc = readJsonFile(configFilePath, &err);
+        auto doc = readJsonFile(
+                QDir(qApp->applicationDirPath()).filePath(configFile),
+                &err);
         if (doc.isNull())
             throw std::runtime_error(err.toStdString());
         const QJsonObject config = doc.object();
@@ -31,17 +34,15 @@ bool Services::initialize(QString *errorMsg) {
 
         try {
             neo4jHttpApiClient = new Neo4jHttpApiClient(
-                    JsonReader(config)["neo4j_db"]["http_url"].getString(),
-                    JsonReader(config)["neo4j_db"]["database"].getString(),
-                    JsonReader(config)["neo4j_db"]["auth_file"].getString(),
+                    JsonReader(config)["neo4j_db"]["http_url"].getStringOrThrow(),
+                    JsonReader(config)["neo4j_db"]["database"].getStringOrThrow(),
+                    JsonReader(config)["neo4j_db"]["auth_file"].getStringOrThrow(),
                     networkAccessManager,
                     qApp);
         }
-        catch (JsonReaderException &e) {
-//            ....
-
-
-
+        catch (JsonReaderError &e) {
+            throw std::runtime_error(
+                    QString("error in reading config: %1").arg(e.what()).toStdString());
         }
 
 
@@ -49,7 +50,7 @@ bool Services::initialize(QString *errorMsg) {
     }
     catch (std::runtime_error &e) {
         if (errorMsg)
-            *errorMsg = QString::fromStdString(e.what());
+            *errorMsg = e.what();
         return false;
     }
 

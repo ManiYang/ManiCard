@@ -97,10 +97,10 @@ private:
     QString getCurrentPathString() const;
 };
 
-class JsonReaderException : public std::runtime_error
+class JsonReaderError : public std::runtime_error
 {
 public:
-    explicit JsonReaderException(const std::string &whatArg)
+    explicit JsonReaderError(const std::string &whatArg)
         : std::runtime_error(whatArg) {}
 };
 
