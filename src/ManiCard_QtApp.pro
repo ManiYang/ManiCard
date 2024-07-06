@@ -13,8 +13,8 @@ SOURCES += \
     db_access/abstract_cards_data_access.cpp \
     db_access/boards_data_access.cpp \
     db_access/cards_data_access.cpp \
+    db_access/queued_db_access.cpp \
     main.cpp \
-    main_window.cpp \
     models/board.cpp \
     models/card.cpp \
     models/relationship.cpp \
@@ -23,15 +23,16 @@ SOURCES += \
     utilities/app_instances_shared_memory.cpp \
     utilities/async_routine.cpp \
     utilities/json_util.cpp \
-    utilities/logging.cpp
+    utilities/logging.cpp \
+    widgets/main_window.cpp
 
 HEADERS += \
     db_access/abstract_boards_data_access.h \
     db_access/abstract_cards_data_access.h \
     db_access/boards_data_access.h \
     db_access/cards_data_access.h \
+    db_access/queued_db_access.h \
     global_constants.h \
-    main_window.h \
     models/board.h \
     models/card.h \
     models/node_labels.h \
@@ -44,10 +45,11 @@ HEADERS += \
     utilities/hash.h \
     utilities/json_util.h \
     utilities/logging.h \
-    utilities/numbers_util.h
+    utilities/numbers_util.h \
+    widgets/main_window.h
 
 FORMS += \
-    main_windowdow.ui
+    widgets/main_window.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

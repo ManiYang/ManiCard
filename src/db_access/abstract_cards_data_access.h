@@ -6,11 +6,10 @@
 #include "models/card.h"
 #include "models/relationship.h"
 
-class AbstractCardsDataAccessReadOnly : public QObject
+class AbstractCardsDataAccessReadOnly
 {
-    Q_OBJECT
 public:
-    explicit AbstractCardsDataAccessReadOnly(QObject *parent = nullptr);
+    explicit AbstractCardsDataAccessReadOnly();
 
     //!
     //! \param cardIds
@@ -47,9 +46,8 @@ private:
 
 class AbstractCardsDataAccess : public AbstractCardsDataAccessReadOnly
 {
-    Q_OBJECT
 public:
-    explicit AbstractCardsDataAccess(QObject *parent = nullptr);
+    explicit AbstractCardsDataAccess();
 
 };
 

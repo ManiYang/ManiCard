@@ -5,10 +5,10 @@
 #include <QPointer>
 #include <QTimer>
 #include "global_constants.h"
-#include "main_window.h"
 #include "services.h"
 #include "utilities/app_instances_shared_memory.h"
 #include "utilities/logging.h"
+#include "widgets/main_window.h"
 
 namespace {
 

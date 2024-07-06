@@ -5,9 +5,8 @@
 
 class BoardsDataAccess : public AbstractBoardsDataAccess
 {
-    Q_OBJECT
 public:
-    BoardsDataAccess(QObject *parent = nullptr);
+    BoardsDataAccess();
 };
 
 #endif // BOARDSDATAACCESS_H

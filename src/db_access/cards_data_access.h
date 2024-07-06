@@ -7,10 +7,8 @@ class Neo4jHttpApiClient;
 
 class CardsDataAccess : public AbstractCardsDataAccess
 {
-    Q_OBJECT
 public:
-    explicit CardsDataAccess(
-            Neo4jHttpApiClient *neo4jHttpApiClient, QObject *parent = nullptr);
+    explicit CardsDataAccess(Neo4jHttpApiClient *neo4jHttpApiClient);
 
     // ==== read ====
 

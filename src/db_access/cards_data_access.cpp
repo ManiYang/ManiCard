@@ -2,9 +2,8 @@
 #include "neo4j_http_api_client.h"
 #include "utilities/json_util.h"
 
-CardsDataAccess::CardsDataAccess(
-        Neo4jHttpApiClient *neo4jHttpApiClient, QObject *parent)
-    : AbstractCardsDataAccess(parent)
+CardsDataAccess::CardsDataAccess(Neo4jHttpApiClient *neo4jHttpApiClient)
+    : AbstractCardsDataAccess()
     , neo4jHttpApiClient(neo4jHttpApiClient)
 {}
 
