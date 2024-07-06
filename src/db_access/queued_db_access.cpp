@@ -19,6 +19,7 @@ void QueuedDbAccess::queryCards(
         std::function<void (bool, const QHash<int, Card> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
+    constexpr bool isReadOnlyAccess = true;
 
     auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
         if (failDirectly) {
@@ -26,7 +27,7 @@ void QueuedDbAccess::queryCards(
                 callback(false, {}); // (callback params)
             });
             if (thisPtr)
-                thisPtr->onResponse(false);
+                thisPtr->onResponse(false, isReadOnlyAccess);
             return;
         }
 
@@ -41,7 +42,7 @@ void QueuedDbAccess::queryCards(
                         callback(ok, result); // (callback params)
                     });
                     if (thisPtr)
-                        thisPtr->onResponse(ok);
+                        thisPtr->onResponse(ok, isReadOnlyAccess);
                 },
                 thisPtr.data()
         );
@@ -54,6 +55,7 @@ void QueuedDbAccess::traverseFromCard(
         const int startCardId, std::function<void (bool, const QHash<int, Card> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
+    constexpr bool isReadOnlyAccess = true;
 
     auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
         if (failDirectly) {
@@ -61,7 +63,7 @@ void QueuedDbAccess::traverseFromCard(
                 callback(false, {}); // (callback params)
             });
             if (thisPtr)
-                thisPtr->onResponse(false);
+                thisPtr->onResponse(false, isReadOnlyAccess);
             return;
         }
 
@@ -76,7 +78,7 @@ void QueuedDbAccess::traverseFromCard(
                         callback(ok, result); // (callback params)
                     });
                     if (thisPtr)
-                        thisPtr->onResponse(ok);
+                        thisPtr->onResponse(ok, isReadOnlyAccess);
                 },
                 thisPtr.data()
         );
@@ -90,6 +92,7 @@ void QueuedDbAccess::queryRelationshipsFromToCards(
         std::function<void (bool, const QHash<RelId, RelProperties> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
+    constexpr bool isReadOnlyAccess = true;
 
     auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
         if (failDirectly) {
@@ -97,7 +100,7 @@ void QueuedDbAccess::queryRelationshipsFromToCards(
                 callback(false, {}); // (callback params)
             });
             if (thisPtr)
-                thisPtr->onResponse(false);
+                thisPtr->onResponse(false, isReadOnlyAccess);
             return;
         }
 
@@ -112,7 +115,7 @@ void QueuedDbAccess::queryRelationshipsFromToCards(
                         callback(ok, result);  // (callback params)
                     });
                     if (thisPtr)
-                        thisPtr->onResponse(ok);
+                        thisPtr->onResponse(ok, isReadOnlyAccess);
                 },
                 thisPtr.data()
         );
@@ -130,8 +133,8 @@ void QueuedDbAccess::addToQueue(std::function<void (const bool)> func) {
     }
 }
 
-void QueuedDbAccess::onResponse(const bool ok) {
-    if (!ok) {
+void QueuedDbAccess::onResponse(const bool ok, const bool isReadOnlyAccess) {
+    if (!isReadOnlyAccess && !ok) {
         if (!errorFlag) {
             errorFlag = true;
             // let all remaining task fail directly (without data access)

@@ -9,6 +9,7 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    cached_data_access.cpp \
     db_access/abstract_boards_data_access.cpp \
     db_access/abstract_cards_data_access.cpp \
     db_access/boards_data_access.cpp \
@@ -24,9 +25,11 @@ SOURCES += \
     utilities/async_routine.cpp \
     utilities/json_util.cpp \
     utilities/logging.cpp \
+    widgets/board_view.cpp \
     widgets/main_window.cpp
 
 HEADERS += \
+    cached_data_access.h \
     db_access/abstract_boards_data_access.h \
     db_access/abstract_cards_data_access.h \
     db_access/boards_data_access.h \
@@ -46,6 +49,7 @@ HEADERS += \
     utilities/json_util.h \
     utilities/logging.h \
     utilities/numbers_util.h \
+    widgets/board_view.h \
     widgets/main_window.h
 
 FORMS += \
