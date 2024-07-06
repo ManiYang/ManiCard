@@ -1,5 +1,8 @@
 #include <QApplication>
+#include <QCloseEvent>
 #include <QDebug>
+#include <QKeySequence>
+#include <QShortcut>
 #include "main_window.h"
 #include "widgets/board_view.h"
 #include "ui_main_window.h"
@@ -9,11 +12,9 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-
-    setWindowTitle(qApp->applicationName());
-
     setUpWidgets();
     setUpConnections();
+    setKeyboardShortcuts();
 }
 
 MainWindow::~MainWindow() {
@@ -27,12 +28,19 @@ void MainWindow::showEvent(QShowEvent */*event*/) {
     }
 }
 
+void MainWindow::closeEvent(QCloseEvent *event) {
+    event->accept();
+}
+
 void MainWindow::setUpWidgets() {
-    ui->frameLeftSideBar->setMinimumWidth(leftSideBarWidthMin);
+    this->setWindowTitle(qApp->applicationName());
 
     // prevent left sidebar from resizing when the window resizes
     ui->splitter->setStretchFactor(0, 0); // (index, factor)
     ui->splitter->setStretchFactor(1, 1);
+
+    //
+    ui->frameLeftSideBar->setMinimumWidth(leftSideBarWidthMin);
 
     // set up ui->frameCentralArea
     {
@@ -46,6 +54,13 @@ void MainWindow::setUpWidgets() {
 }
 
 void MainWindow::setUpConnections() {
+}
+
+void MainWindow::setKeyboardShortcuts() {
+    {
+        auto *shortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q), this);
+        connect(shortcut, &QShortcut::activated, [this]() { close(); });
+    }
 }
 
 void MainWindow::onShownForFirstTime() {

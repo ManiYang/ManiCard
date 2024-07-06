@@ -3,14 +3,20 @@
 
 #include <QFrame>
 
+class QGraphicsView;
+
 class BoardView : public QFrame
 {
     Q_OBJECT
 public:
     BoardView(QWidget *parent = nullptr);
 
-
 private:
+    // component widgets:
+    QGraphicsView *graphicsView {nullptr};
+
+    // setup
+    void setUpWidgets();
     QString styleSheet();
 };
 

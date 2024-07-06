@@ -18,11 +18,10 @@ public:
 
 protected:
     void showEvent(QShowEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
 
 private:
     Ui::MainWindow *ui;
-    void setUpWidgets();
-    void setUpConnections();
 
     // component widgets
     BoardView *boardView {nullptr};
@@ -33,8 +32,15 @@ private:
 
     bool isEverShown {false};
 
+    // setup
+    void setUpWidgets();
+    void setUpConnections();
+    void setKeyboardShortcuts();
+
     // event handlers
     void onShownForFirstTime();
+
+
 
 };
 
