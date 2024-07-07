@@ -26,6 +26,7 @@ SOURCES += \
     utilities/json_util.cpp \
     utilities/logging.cpp \
     widgets/board_view.cpp \
+    widgets/components/graphics_scene.cpp \
     widgets/main_window.cpp
 
 HEADERS += \
@@ -50,6 +51,7 @@ HEADERS += \
     utilities/logging.h \
     utilities/numbers_util.h \
     widgets/board_view.h \
+    widgets/components/graphics_scene.h \
     widgets/main_window.h
 
 FORMS += \
