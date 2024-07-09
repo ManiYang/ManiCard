@@ -34,7 +34,12 @@ BoardView::BoardView(QWidget *parent)
         nodeRect->setRect({0, 0, 150, 200}); // x,y,w,h
         nodeRect->setNodeLabel(":Test");
         nodeRect->setCardId(123);
-
+        nodeRect->setTitle("Test Card with Long Card Title");
+        nodeRect->setText(
+                "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod "
+                "tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, "
+                "quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.");
+        nodeRect->setEditable(true);
     }
 
 
@@ -57,6 +62,9 @@ void BoardView::showEvent(QShowEvent */*event*/) {
 }
 
 void BoardView::setUpWidgets() {
+    const QColor sceneBackgroundColor(235, 235, 235);
+
+    //
     this->setFrameShape(QFrame::NoFrame);
 
     // set up layout
@@ -71,6 +79,7 @@ void BoardView::setUpWidgets() {
 
     // set up `graphicsView`
     graphicsScene = new GraphicsScene(this);
+    graphicsScene->setBackgroundBrush(sceneBackgroundColor);
     graphicsView->setScene(graphicsScene);
 
     graphicsView->setRenderHint(QPainter::Antialiasing, true);

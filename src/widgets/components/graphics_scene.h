@@ -24,6 +24,7 @@ protected:
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
     void focusOutEvent(QFocusEvent *event) override;
+    void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
 
 private:
     enum class State {
@@ -45,6 +46,8 @@ private:
 
     QGraphicsView *getView() const; // can be nullptr
     QPointF getViewCenterInScene() const;
+
+
 };
 
 #endif // GRAPHICSSCENE_H

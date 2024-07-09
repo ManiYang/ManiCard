@@ -3,6 +3,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
 #include <QKeyEvent>
+#include <QTimer>
 #include "graphics_scene.h"
 #include "utilities/numbers_util.h"
 
@@ -84,9 +85,8 @@ void GraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
             mousePressScreenPos = event->screenPos();
             viewCenterBeforeDragScroll = getViewCenterInScene();
             mState = State::RightPressed;
-
-            QGraphicsScene::mousePressEvent(event); // perform default behavior
         }
+        QGraphicsScene::mousePressEvent(event); // perform default behavior
         return;
 
     case State::RightPressed:
@@ -171,7 +171,11 @@ void GraphicsScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
     case State::RightDragScrolling:
         if (event->button() == Qt::RightButton) {
             endDragScolling();
-            mState = State::Normal;
+            QTimer::singleShot(0, this, [this]() {
+                mState = State::Normal;
+            });
+            // (Use singleShot() so that the handler of contextMenuEvent following this event
+            // still sees mState = State::RightDragScrolling)
         }
         event->accept();
         return;
@@ -234,6 +238,11 @@ void GraphicsScene::focusOutEvent(QFocusEvent *event) {
     }
 
     QGraphicsScene::focusOutEvent(event);
+}
+
+void GraphicsScene::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
+    if (mState == State::Normal)
+        QGraphicsScene::contextMenuEvent(event);
 }
 
 void GraphicsScene::startDragScrolling() {

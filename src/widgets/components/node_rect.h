@@ -4,7 +4,10 @@
 #include <QColor>
 #include <QGraphicsRectItem>
 #include <QGraphicsObject>
+#include <QGraphicsProxyWidget>
 #include <QGraphicsSimpleTextItem>
+#include "widgets/components/graphics_text_item.h"
+#include "widgets/components/text_edit.h"
 
 class NodeRect : public QGraphicsObject
 {
@@ -18,6 +21,10 @@ public:
     void setBorderWidth(const double width);
     void setNodeLabel(const QString &label);
     void setCardId(const int cardId_);
+    void setTitle(const QString &title_);
+    void setText(const QString &text_);
+
+    void setEditable(const bool editable);
 
     //
     QRectF boundingRect() const override;
@@ -30,18 +37,34 @@ private:
     double borderWidth {5.0};
     QString nodeLabel;
     int cardId {-1};
+    QString title;
+    QString text;
+
+    bool isEditable {true};
+
+    bool handleTitleItemContentChanged {true};
 
     // child items
-    QGraphicsRectItem *captionBarItem;
+    QGraphicsRectItem *captionBarItem; // also serves as move handle
     QGraphicsSimpleTextItem *nodeLabelItem;
     QGraphicsSimpleTextItem *cardIdItem;
+    QGraphicsRectItem *contentsRectItem;
+    // -- title
+    GraphicsTextItem *titleItem;
+    // -- text
+    //    Use QTextEdit (rather than QGraphicsTextItem, which does not have scrolling
+    //    functionality)
+    TextEdit *textEdit;
+    QGraphicsProxyWidget *textEditProxyWidget;
 
     //
+    void setUpConnections();
+
     void redraw() {
         update(); // re-paint
         adjustChildItems();
     }
-    void adjustChildItems();
+    void adjustChildItems(const bool setTitleText = true);
 
 };
 
