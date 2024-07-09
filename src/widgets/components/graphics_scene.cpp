@@ -124,14 +124,14 @@ void GraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         if (vectorLength(displacement) >= bufferDistance) {
             mState = State::RightDragScrolling;
             startDragScrolling();
-            onDragScrolled(viewCenterBeforeDragScroll, displacement);
+            dragScroll(viewCenterBeforeDragScroll, displacement);
         }
 
         QGraphicsScene::mouseMoveEvent(event); // perform default behavior
         return;
     }
     case State::RightDragScrolling:
-        onDragScrolled(viewCenterBeforeDragScroll, event->screenPos() - mousePressScreenPos);
+        dragScroll(viewCenterBeforeDragScroll, event->screenPos() - mousePressScreenPos);
         event->accept();
         return;
 
@@ -139,13 +139,13 @@ void GraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         if (isSpaceKeyPressed && isLeftButtonPressed) {
             mState = State::LeftDragScrolling;
             startDragScrolling();
-            onDragScrolled(viewCenterBeforeDragScroll, event->screenPos() - mousePressScreenPos);
+            dragScroll(viewCenterBeforeDragScroll, event->screenPos() - mousePressScreenPos);
         }
         event->accept();
         return;
 
     case State::LeftDragScrolling:
-        onDragScrolled(viewCenterBeforeDragScroll, event->screenPos() - mousePressScreenPos);
+        dragScroll(viewCenterBeforeDragScroll, event->screenPos() - mousePressScreenPos);
         event->accept();
         return;
     }
@@ -241,7 +241,7 @@ void GraphicsScene::startDragScrolling() {
         view->setCursor(Qt::ClosedHandCursor);
 }
 
-void GraphicsScene::onDragScrolled(
+void GraphicsScene::dragScroll(
         const QPointF &viewCenterBeforeDragScroll, const QPoint &dragDisplacement) {
     QGraphicsView *view = getView();
     if (view == nullptr)

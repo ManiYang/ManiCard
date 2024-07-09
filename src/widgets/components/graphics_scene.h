@@ -3,6 +3,10 @@
 
 #include <QGraphicsScene>
 
+//!
+//! A Subclass of QGraphicsScene that handles mouse and keyboard events for drag-scrolling
+//! (scrolling by mouse dragging) the QGraphicsView.
+//!
 class GraphicsScene : public QGraphicsScene
 {
     Q_OBJECT
@@ -35,7 +39,7 @@ private:
     bool isLeftButtonPressed {false};
 
     void startDragScrolling();
-    void onDragScrolled(
+    void dragScroll(
             const QPointF &viewCenterBeforeDragScroll, const QPoint &dragDisplacement);
     void endDragScolling();
 

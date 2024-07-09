@@ -14,6 +14,9 @@ public:
 
     bool eventFilter(QObject *watched, QEvent *event) override;
 
+protected:
+    void showEvent(QShowEvent *event) override;
+
 private:
     // component widgets:
     QGraphicsView *graphicsView {nullptr};
@@ -21,13 +24,19 @@ private:
     //
     GraphicsScene *graphicsScene {nullptr};
 
+    //
+    bool isEverShown {false};
+
     // setup
     void setUpWidgets();
-    void installEventFilters();
+    void installEventFiltersOnComponents();
     QString styleSheet();
 
     // event handlers
+    void onShownForFirstTime();
     void onGraphicsViewResize();
+
+
 
 };
 

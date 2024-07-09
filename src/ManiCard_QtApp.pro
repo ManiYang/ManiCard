@@ -27,6 +27,7 @@ SOURCES += \
     utilities/logging.cpp \
     widgets/board_view.cpp \
     widgets/components/graphics_scene.cpp \
+    widgets/components/node_rect.cpp \
     widgets/main_window.cpp
 
 HEADERS += \
@@ -52,6 +53,7 @@ HEADERS += \
     utilities/numbers_util.h \
     widgets/board_view.h \
     widgets/components/graphics_scene.h \
+    widgets/components/node_rect.h \
     widgets/main_window.h
 
 FORMS += \

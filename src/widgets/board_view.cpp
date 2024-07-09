@@ -7,25 +7,36 @@
 
 #include <QGraphicsRectItem>
 #include <QTimer>
+#include "widgets/components/node_rect.h"
 
 BoardView::BoardView(QWidget *parent)
     : QFrame(parent)
 {
     setUpWidgets();
-    installEventFilters();
+    installEventFiltersOnComponents();
     setStyleSheet(styleSheet());
 
 
     // test...
-    QTimer::singleShot(1000, this, [this]() {
-        auto *rect1 = new QGraphicsRectItem(0, 0, 100, 200); // x,y,w,h
-        graphicsScene->addItem(rect1);
-
-        auto *rect2 = new QGraphicsRectItem(200, 100, 200, 80); // x,y,w,h
+//    {
+//        auto *rect1 = new QGraphicsRectItem(0, 0, 100, 200); // x,y,w,h
+//        rect1->setPen({QBrush(Qt::red), 1.0});
+//        graphicsScene->addItem(rect1);
+//    }
+    {
+        auto *rect2 = new QGraphicsRectItem(160, 100, 200, 100); // x,y,w,h
         graphicsScene->addItem(rect2);
+    }
+    {
+        auto *nodeRect = new NodeRect;
+        graphicsScene->addItem(nodeRect);
 
-        onGraphicsViewResize();
-    });
+        nodeRect->setRect({0, 0, 150, 200}); // x,y,w,h
+        nodeRect->setNodeLabel(":Test");
+        nodeRect->setCardId(123);
+
+    }
+
 
 
 }
@@ -36,6 +47,13 @@ bool BoardView::eventFilter(QObject *watched, QEvent *event) {
             onGraphicsViewResize();
     }
     return false;
+}
+
+void BoardView::showEvent(QShowEvent */*event*/) {
+    if (!isEverShown) {
+        isEverShown = true;
+        onShownForFirstTime();
+    }
 }
 
 void BoardView::setUpWidgets() {
@@ -55,12 +73,15 @@ void BoardView::setUpWidgets() {
     graphicsScene = new GraphicsScene(this);
     graphicsView->setScene(graphicsScene);
 
+    graphicsView->setRenderHint(QPainter::Antialiasing, true);
+    graphicsView->setRenderHint(QPainter::SmoothPixmapTransform, true);
+
     graphicsView->setFrameShape(QFrame::NoFrame);
     graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 }
 
-void BoardView::installEventFilters() {
+void BoardView::installEventFiltersOnComponents() {
     graphicsView->installEventFilter(this);
 }
 
@@ -68,6 +89,14 @@ QString BoardView::styleSheet() {
     return
         "BoardView {"
         "}";
+}
+
+void BoardView::onShownForFirstTime() {
+    // adjust view's center to the center of contents
+    {
+        const auto contentsCenter = graphicsScene->itemsBoundingRect().center();
+        graphicsView->centerOn(contentsCenter.isNull() ? QPointF(0, 0) : contentsCenter);
+    }
 }
 
 void BoardView::onGraphicsViewResize() {
