@@ -7,25 +7,33 @@
 #include <QPen>
 #include <QGraphicsView>
 #include "node_rect.h"
+#include "widgets/components/graphics_item_move_resize.h"
 
 NodeRect::NodeRect(QGraphicsItem *parent)
-    : QGraphicsObject(parent)
-    , captionBarItem(new QGraphicsRectItem(this))
-    , nodeLabelItem(new QGraphicsSimpleTextItem(this))
-    , cardIdItem(new QGraphicsSimpleTextItem(this))
-    , contentsRectItem(new QGraphicsRectItem(this))
-    , titleItem(new GraphicsTextItem(this))
-    , textEdit(new TextEdit(nullptr))
-    , textEditProxyWidget(new QGraphicsProxyWidget(this))
-{
+        : QGraphicsObject(parent)
+        , captionBarItem(new QGraphicsRectItem(this))
+        , nodeLabelItem(new QGraphicsSimpleTextItem(this))
+        , cardIdItem(new QGraphicsSimpleTextItem(this))
+        , contentsRectItem(new QGraphicsRectItem(this))
+        , titleItem(new GraphicsTextItem(this))
+        , textEdit(new TextEdit(nullptr))
+        , textEditProxyWidget(new QGraphicsProxyWidget(this))
+        , moveResizeHelper(new GraphicsItemMoveResize(this)) {
     textEdit->setVisible(false);
     textEdit->setReadOnly(true);
     textEditProxyWidget->setWidget(textEdit);
 
     setFlag(QGraphicsItem::ItemClipsChildrenToShape, true);
+    setAcceptHoverEvents(true);
 
     setUpConnections();
     adjustChildItems();
+}
+
+void NodeRect::initialize() {
+    Q_ASSERT(scene() != nullptr);
+    moveResizeHelper->setMoveHandle(captionBarItem);
+    moveResizeHelper->setResizeHandle(this, borderWidth, minSizeForResizing);
 }
 
 void NodeRect::setRect(const QRectF rect_) {
@@ -102,6 +110,51 @@ void NodeRect::setUpConnections() {
             constexpr bool setTitleText = false;
             adjustChildItems(setTitleText);
         }
+    });
+
+    //
+    connect(moveResizeHelper, &GraphicsItemMoveResize::getTargetItemPosition,
+            this, [this](QPointF *pos) {
+        *pos = enclosingRect.topLeft();
+    }, Qt::DirectConnection);
+
+    connect(moveResizeHelper, &GraphicsItemMoveResize::setTargetItemPosition,
+            this, [this](const QPointF &pos) {
+        prepareGeometryChange();
+        enclosingRect.moveTopLeft(pos);
+        redraw();
+
+        scene()->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
+        // this is to deal with the QGraphicsView problem
+        // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
+    });
+
+    connect(moveResizeHelper, &GraphicsItemMoveResize::movingEnded, this, [this]() {
+        emit movedOrResized();
+    });
+
+    connect(moveResizeHelper, &GraphicsItemMoveResize::getTargetItemRect,
+            this, [this](QRectF *rect) {
+        *rect = enclosingRect;
+    }, Qt::DirectConnection);
+
+    connect(moveResizeHelper, &GraphicsItemMoveResize::setTargetItemRect,
+            this, [this](const QRectF &rect) {
+        prepareGeometryChange();
+        enclosingRect = rect;
+        redraw();
+    });
+
+    connect(moveResizeHelper, &GraphicsItemMoveResize::resizingEnded, this, [this]() {
+        emit movedOrResized();
+    });
+
+    connect(moveResizeHelper, &GraphicsItemMoveResize::setCursorShape,
+            this, [this](const std::optional<Qt::CursorShape> cursorShape) {
+        if (cursorShape.has_value())
+            setCursor(cursorShape.value());
+        else
+            unsetCursor();
     });
 }
 

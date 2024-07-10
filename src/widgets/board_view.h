@@ -3,8 +3,9 @@
 
 #include <QFrame>
 
-class QGraphicsView;
 class GraphicsScene;
+class QGraphicsRectItem;
+class QGraphicsView;
 
 class BoardView : public QFrame
 {

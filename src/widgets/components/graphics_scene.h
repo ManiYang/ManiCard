@@ -32,7 +32,7 @@ private:
         RightPressed, RightDragScrolling,
         LeftDragScrollStandby, LeftDragScrolling
     };
-    State mState {State::Normal};
+    State state {State::Normal};
 
     QPoint mousePressScreenPos {0, 0};
     QPointF viewCenterBeforeDragScroll; // center of view in scene coordinates

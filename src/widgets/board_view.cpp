@@ -10,12 +10,10 @@
 #include "widgets/components/node_rect.h"
 
 BoardView::BoardView(QWidget *parent)
-    : QFrame(parent)
-{
+        : QFrame(parent) {
     setUpWidgets();
     installEventFiltersOnComponents();
     setStyleSheet(styleSheet());
-
 
     // test...
 //    {
@@ -30,6 +28,7 @@ BoardView::BoardView(QWidget *parent)
     {
         auto *nodeRect = new NodeRect;
         graphicsScene->addItem(nodeRect);
+        nodeRect->initialize();
 
         nodeRect->setRect({0, 0, 150, 200}); // x,y,w,h
         nodeRect->setNodeLabel(":Test");
@@ -40,6 +39,8 @@ BoardView::BoardView(QWidget *parent)
                 "tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, "
                 "quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.");
         nodeRect->setEditable(true);
+
+
     }
 
 
@@ -124,6 +125,5 @@ void BoardView::onGraphicsViewResize() {
 
     const auto sceneRect
             = contentsRect.marginsAdded(QMarginsF(marginX, marginY,marginX, marginY));
-
     graphicsView->setSceneRect(sceneRect);
 }

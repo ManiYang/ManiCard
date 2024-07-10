@@ -26,6 +26,7 @@ SOURCES += \
     utilities/json_util.cpp \
     utilities/logging.cpp \
     widgets/board_view.cpp \
+    widgets/components/graphics_item_move_resize.cpp \
     widgets/components/graphics_scene.cpp \
     widgets/components/graphics_text_item.cpp \
     widgets/components/node_rect.cpp \
@@ -54,6 +55,7 @@ HEADERS += \
     utilities/logging.h \
     utilities/numbers_util.h \
     widgets/board_view.h \
+    widgets/components/graphics_item_move_resize.h \
     widgets/components/graphics_scene.h \
     widgets/components/graphics_text_item.h \
     widgets/components/node_rect.h \

@@ -8,8 +8,8 @@
 #include "utilities/numbers_util.h"
 
 GraphicsScene::GraphicsScene(QObject *parent)
-    : QGraphicsScene(parent)
-{}
+        : QGraphicsScene(parent) {
+}
 
 void GraphicsScene::keyPressEvent(QKeyEvent *event) {
     const bool isSpaceKeyPressEvent
@@ -18,14 +18,14 @@ void GraphicsScene::keyPressEvent(QKeyEvent *event) {
         isSpaceKeyPressed = true;
 
     //
-    switch (mState) {
+    switch (state) {
     case State::Normal:
         QGraphicsScene::keyPressEvent(event); // perform default behavior
         if (!event->isAccepted()
                 && isSpaceKeyPressEvent
                 && qApp->keyboardModifiers() == Qt::NoModifier
                 && !isLeftButtonPressed) {
-            mState = State::LeftDragScrollStandby;
+            state = State::LeftDragScrollStandby;
             qDebug().noquote() << "enter LeftDragScrollStandby";
             event->accept();
         }
@@ -51,7 +51,7 @@ void GraphicsScene::keyReleaseEvent(QKeyEvent *event) {
         isSpaceKeyPressed = false;
 
     //
-    switch (mState) {
+    switch (state) {
     case State::Normal: [[fallthrough]];
     case State::RightPressed:
         QGraphicsScene::keyReleaseEvent(event); // perform default behavior
@@ -63,7 +63,7 @@ void GraphicsScene::keyReleaseEvent(QKeyEvent *event) {
 
     case State::LeftDragScrollStandby:
         if (isSpaceKeyReleaseEvent && !isLeftButtonPressed)
-            mState = State::Normal;
+            state = State::Normal;
         event->accept();
         return;
 
@@ -79,12 +79,12 @@ void GraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
         isLeftButtonPressed = true;
 
     //
-    switch (mState) {
+    switch (state) {
     case State::Normal:
         if (event->button() == Qt::RightButton) {
             mousePressScreenPos = event->screenPos();
             viewCenterBeforeDragScroll = getViewCenterInScene();
-            mState = State::RightPressed;
+            state = State::RightPressed;
         }
         QGraphicsScene::mousePressEvent(event); // perform default behavior
         return;
@@ -112,7 +112,7 @@ void GraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void GraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-    switch (mState) {
+    switch (state) {
     case State::Normal:
         QGraphicsScene::mouseMoveEvent(event); // perform default behavior
         return;
@@ -122,7 +122,7 @@ void GraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         constexpr double bufferDistance = 4.0;
         const auto displacement = event->screenPos() - mousePressScreenPos;
         if (vectorLength(displacement) >= bufferDistance) {
-            mState = State::RightDragScrolling;
+            state = State::RightDragScrolling;
             startDragScrolling();
             dragScroll(viewCenterBeforeDragScroll, displacement);
         }
@@ -131,13 +131,17 @@ void GraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         return;
     }
     case State::RightDragScrolling:
-        dragScroll(viewCenterBeforeDragScroll, event->screenPos() - mousePressScreenPos);
+    {
+        const auto displacement = event->screenPos() - mousePressScreenPos;
+        qDebug() << "displacement =" << displacement;
+        dragScroll(viewCenterBeforeDragScroll, displacement);
         event->accept();
         return;
+    }
 
     case State::LeftDragScrollStandby:
         if (isSpaceKeyPressed && isLeftButtonPressed) {
-            mState = State::LeftDragScrolling;
+            state = State::LeftDragScrolling;
             startDragScrolling();
             dragScroll(viewCenterBeforeDragScroll, event->screenPos() - mousePressScreenPos);
         }
@@ -157,14 +161,14 @@ void GraphicsScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
         isLeftButtonPressed = false;
 
     //
-    switch (mState) {
+    switch (state) {
     case State::Normal:
         QGraphicsScene::mouseReleaseEvent(event); // perform default behavior
         return;
 
     case State::RightPressed:
         if (event->button() == Qt::RightButton)
-            mState = State::Normal;
+            state = State::Normal;
         QGraphicsScene::mouseReleaseEvent(event); // perform default behavior
         return;
 
@@ -172,7 +176,7 @@ void GraphicsScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
         if (event->button() == Qt::RightButton) {
             endDragScolling();
             QTimer::singleShot(0, this, [this]() {
-                mState = State::Normal;
+                state = State::Normal;
             });
             // (Use singleShot() so that the handler of contextMenuEvent following this event
             // still sees mState = State::RightDragScrolling)
@@ -182,7 +186,7 @@ void GraphicsScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 
     case State::LeftDragScrollStandby:
         if (event->button() == Qt::LeftButton && !isSpaceKeyPressed)
-            mState = State::Normal;
+            state = State::Normal;
         event->accept();
         return;
 
@@ -190,9 +194,9 @@ void GraphicsScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
         if (event->button() == Qt::LeftButton) {
             endDragScolling();
             if (isSpaceKeyPressed)
-                mState = State::LeftDragScrollStandby;
+                state = State::LeftDragScrollStandby;
             else
-                mState = State::Normal;
+                state = State::Normal;
         }
         event->accept();
         return;
@@ -201,7 +205,7 @@ void GraphicsScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void GraphicsScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
-    switch (mState) {
+    switch (state) {
     case State::Normal: [[fallthrough]];
     case State::RightPressed:
         QGraphicsScene::mouseDoubleClickEvent(event); // perform default behavior
@@ -217,23 +221,23 @@ void GraphicsScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void GraphicsScene::focusOutEvent(QFocusEvent *event) {
-    switch (mState) {
+    switch (state) {
     case State::Normal: [[fallthrough]];
     case State::RightPressed:
         break;
 
     case State::RightDragScrolling:
         endDragScolling();
-        mState = State::Normal;
+        state = State::Normal;
         break;
 
     case State::LeftDragScrollStandby:
-        mState = State::Normal;
+        state = State::Normal;
         break;
 
     case State::LeftDragScrolling:
         endDragScolling();
-        mState = State::Normal;
+        state = State::Normal;
         break;
     }
 
@@ -241,7 +245,7 @@ void GraphicsScene::focusOutEvent(QFocusEvent *event) {
 }
 
 void GraphicsScene::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
-    if (mState == State::Normal)
+    if (state == State::Normal)
         QGraphicsScene::contextMenuEvent(event);
 }
 
@@ -289,5 +293,5 @@ QPointF GraphicsScene::getViewCenterInScene() const {
     QGraphicsView *view = getView();
     if (view == nullptr)
         return {0.0, 0.0};
-    return view->mapToScene(view->width() / 2, view->height() / 2);
+    return view->mapToScene(view->viewport()->width() / 2, view->viewport()->height() / 2);
 }
