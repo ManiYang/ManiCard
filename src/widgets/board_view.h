@@ -2,10 +2,10 @@
 #define BOARDVIEW_H
 
 #include <QFrame>
+#include <QGraphicsView>
+#include <QMenu>
 
 class GraphicsScene;
-class QGraphicsRectItem;
-class QGraphicsView;
 
 class BoardView : public QFrame
 {
@@ -25,11 +25,20 @@ private:
     //
     GraphicsScene *graphicsScene {nullptr};
 
+    struct ContextMenuData
+    {
+        QPointF requestScenePos;
+    };
+    QMenu *contextMenu;
+    ContextMenuData contextMenuData;
+
     //
     bool isEverShown {false};
 
     // setup
     void setUpWidgets();
+    void setUpContextMenu();
+    void setUpConnections();
     void installEventFiltersOnComponents();
     QString styleSheet();
 
@@ -37,8 +46,11 @@ private:
     void onShownForFirstTime();
     void onGraphicsViewResize();
 
+    void userToOpenExistingCard(const QPointF &scenePos);
+    void openExistingCard(const int cardId, const QPointF &scenePos);
 
-
+    // tools
+    QPoint getScreenPosFromScenePos(const QPointF &scenePos);
 };
 
 #endif // BOARDVIEW_H

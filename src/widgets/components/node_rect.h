@@ -41,6 +41,9 @@ public:
 signals:
     void movedOrResized();
 
+protected:
+    void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
+
 private:
     QSizeF minSizeForResizing {100, 60};
 
@@ -78,7 +81,6 @@ private:
         adjustChildItems();
     }
     void adjustChildItems(const bool setTitleText = true);
-
 };
 
 #endif // NODERECT_H

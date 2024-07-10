@@ -53,6 +53,7 @@ HEADERS += \
     utilities/hash.h \
     utilities/json_util.h \
     utilities/logging.h \
+    utilities/maps_util.h \
     utilities/numbers_util.h \
     widgets/board_view.h \
     widgets/components/graphics_item_move_resize.h \
@@ -72,3 +73,6 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 
 DEFINES += QT_MESSAGELOGCONTEXT
+
+RESOURCES += \
+    resources.qrc

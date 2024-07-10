@@ -245,8 +245,14 @@ void GraphicsScene::focusOutEvent(QFocusEvent *event) {
 }
 
 void GraphicsScene::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
-    if (state == State::Normal)
+    if (state == State::Normal) {
         QGraphicsScene::contextMenuEvent(event);
+
+        if (!event->isAccepted()) {
+            emit contextMenuRequestedOnScene(event->scenePos());
+            event->accept();
+        }
+    }
 }
 
 void GraphicsScene::startDragScrolling() {

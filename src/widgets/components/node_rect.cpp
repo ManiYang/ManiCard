@@ -5,6 +5,7 @@
 #include <QGraphicsScene>
 #include <QPainter>
 #include <QPen>
+#include <QGraphicsSceneContextMenuEvent>
 #include <QGraphicsView>
 #include "node_rect.h"
 #include "widgets/components/graphics_item_move_resize.h"
@@ -95,6 +96,10 @@ void NodeRect::paint(
 
     //
     painter->restore();
+}
+
+void NodeRect::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
+    event->accept();
 }
 
 void NodeRect::setUpConnections() {

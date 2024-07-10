@@ -15,6 +15,7 @@ public:
 
 signals:
     void dragScrollingEnded();
+    void contextMenuRequestedOnScene(const QPointF &scenePos);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;

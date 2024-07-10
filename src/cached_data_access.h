@@ -2,14 +2,36 @@
 #define CACHEDDATAACCESS_H
 
 #include <QObject>
+#include <QPointer>
+#include "models/card.h"
+
+class QueuedDbAccess;
 
 class CachedDataAccess : public QObject
 {
     Q_OBJECT
 public:
-    explicit CachedDataAccess(QObject *parent = nullptr);
+    explicit CachedDataAccess(QueuedDbAccess *queuedDbAccess_, QObject *parent = nullptr);
+
+    // ==== read ====
+
+    void queryCards(
+            const QSet<int> &cardIds,
+            std::function<void (bool, const QHash<int, Card> &)> callback,
+            QPointer<QObject> callbackContext);
+
+    // ==== write ====
+
 
 private:
+    QueuedDbAccess *queuedDbAccess;
+
+    // data cache
+    struct Cache
+    {
+        QHash<int, Card> cards;
+    };
+    Cache cache;
 
 
 };

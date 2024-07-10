@@ -3,6 +3,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
+#include "cached_data_access.h"
+#include "db_access/boards_data_access.h"
+#include "db_access/cards_data_access.h"
+#include "db_access/queued_db_access.h"
 #include "neo4j_http_api_client.h"
 #include "services.h"
 #include "utilities/json_util.h"
@@ -45,8 +49,13 @@ bool Services::initialize(QString *errorMsg) {
                     QString("error in reading config: %1").arg(e.what()).toStdString());
         }
 
+        boardsDataAccess = std::make_shared<BoardsDataAccess>();
 
+        cardsDataAccess = std::make_shared<CardsDataAccess>(neo4jHttpApiClient);
 
+        queuedDbAccess = new QueuedDbAccess(boardsDataAccess, cardsDataAccess, qApp);
+
+        cachedDataAccess = new CachedDataAccess(queuedDbAccess, qApp);
     }
     catch (std::runtime_error &e) {
         if (errorMsg)
@@ -55,4 +64,9 @@ bool Services::initialize(QString *errorMsg) {
     }
 
     return true;
+}
+
+CachedDataAccess *Services::getCachedDataAccess() {
+    Q_ASSERT(cachedDataAccess != nullptr);
+    return cachedDataAccess;
 }

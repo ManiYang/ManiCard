@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="open_in_new_black_24">resources/icons/open_in_new_black_24.png</file>
+    </qresource>
+</RCC>

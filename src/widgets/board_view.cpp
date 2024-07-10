@@ -1,8 +1,11 @@
 #include <QDebug>
 #include <QGraphicsView>
+#include <QInputDialog>
 #include <QResizeEvent>
 #include <QVBoxLayout>
 #include "board_view.h"
+#include "cached_data_access.h"
+#include "services.h"
 #include "widgets/components/graphics_scene.h"
 
 #include <QGraphicsRectItem>
@@ -12,6 +15,8 @@
 BoardView::BoardView(QWidget *parent)
         : QFrame(parent) {
     setUpWidgets();
+    setUpContextMenu();
+    setUpConnections();
     installEventFiltersOnComponents();
     setStyleSheet(styleSheet());
 
@@ -91,6 +96,25 @@ void BoardView::setUpWidgets() {
     graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 }
 
+void BoardView::setUpContextMenu() {
+    contextMenu = new QMenu(this);
+    {
+        QAction *action = contextMenu->addAction(
+                QIcon(":/icons/open_in_new_black_24"), "Open Existing Card...");
+        connect(action, &QAction::triggered, this, [this]() {
+            userToOpenExistingCard(contextMenuData.requestScenePos);
+        });
+    }
+}
+
+void BoardView::setUpConnections() {
+    connect(graphicsScene, &GraphicsScene::contextMenuRequestedOnScene,
+            this, [this](const QPointF &scenePos) {
+        contextMenuData.requestScenePos = scenePos;
+        contextMenu->popup(getScreenPosFromScenePos(scenePos));
+    });
+}
+
 void BoardView::installEventFiltersOnComponents() {
     graphicsView->installEventFilter(this);
 }
@@ -126,4 +150,56 @@ void BoardView::onGraphicsViewResize() {
     const auto sceneRect
             = contentsRect.marginsAdded(QMarginsF(marginX, marginY,marginX, marginY));
     graphicsView->setSceneRect(sceneRect);
+}
+
+void BoardView::userToOpenExistingCard(const QPointF &scenePos) {
+    constexpr int minValue = 0;
+    constexpr int step = 1;
+
+    bool ok;
+    const int cardId = QInputDialog::getInt(
+            this, "Open Card", "Card ID to open:", 0, minValue, INT_MAX, step, &ok);
+    if (!ok)
+        return;
+
+//    //
+//    if (mCardIdToNodeRectId.contains(cardId))
+//    {
+//        QMessageBox::information(this, "info", QString("Card %1 already opened.").arg(cardId));
+//        return;
+//    }
+
+    //
+    openExistingCard(cardId, scenePos);
+}
+
+void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
+    Services::instance()->getCachedDataAccess()->queryCards(
+            {cardId},
+            // callback
+            [this, cardId](bool ok, const QHash<int, Card> &cards) {
+                if (!cards.contains(cardId)) {
+                    // card not found ...
+
+
+                }
+                else {
+                    const Card &cardData = cards.value(cardId);
+
+                    // create a NodeRect that display `cardData` ....
+
+
+
+
+
+                }
+            },
+            this
+    );
+}
+
+QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {
+
+    QPoint posInViewport = graphicsView->mapFromScene(scenePos);
+    return graphicsView->viewport()->mapToGlobal(posInViewport);
 }
