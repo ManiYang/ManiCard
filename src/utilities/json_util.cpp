@@ -1,6 +1,8 @@
 #include <type_traits>
 #include <QFile>
 #include <QJsonArray>
+#include <QSet>
+#include <QString>
 #include "json_util.h"
 #include "utilities/numbers_util.h"
 
@@ -12,6 +14,13 @@ QJsonArray toJsonArray(const QStringList &list) {
 }
 
 QJsonArray toJsonArray(const QSet<int> &set) {
+    QJsonArray array;
+    for (const auto &item: set)
+        array << item;
+    return array;
+}
+
+QJsonArray toJsonArray(const QSet<QString> &set) {
     QJsonArray array;
     for (const auto &item: set)
         array << item;

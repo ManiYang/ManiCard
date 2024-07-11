@@ -11,6 +11,7 @@
 
 QJsonArray toJsonArray(const QStringList &list);
 QJsonArray toJsonArray(const QSet<int> &set);
+QJsonArray toJsonArray(const QSet<QString> &set);
 
 QStringList toStringList(const QJsonArray &array, const QString &defaultValue);
 

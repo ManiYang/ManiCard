@@ -27,30 +27,10 @@ BoardView::BoardView(QWidget *parent)
 //        rect1->setPen({QBrush(Qt::red), 1.0});
 //        graphicsScene->addItem(rect1);
 //    }
-    {
-        auto *rect2 = new QGraphicsRectItem(160, 100, 200, 100); // x,y,w,h
-        graphicsScene->addItem(rect2);
-    }
-    {
-        auto *nodeRect = new NodeRect;
-        graphicsScene->addItem(nodeRect);
-        nodeRect->initialize();
-
-        nodeRect->setRect({0, 0, 150, 200}); // x,y,w,h
-        nodeRect->setNodeLabels({":Test"});
-        nodeRect->setCardId(123);
-        nodeRect->setTitle("Test Card with Long Card Title");
-        nodeRect->setText(
-                "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod "
-                "tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, "
-                "quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.");
-        nodeRect->setEditable(true);
-
-
-    }
-
-
-
+//    {
+//        auto *rect2 = new QGraphicsRectItem(160, 100, 200, 100); // x,y,w,h
+//        graphicsScene->addItem(rect2);
+//    }
 }
 
 bool BoardView::eventFilter(QObject *watched, QEvent *event) {
@@ -193,6 +173,7 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
                 auto *nodeRect = createNodeRect(cardId, cardData);
                 const QSizeF defaultNodeRectSize {200, 120};
                 nodeRect->setRect(QRectF(scenePos, defaultNodeRectSize));
+                nodeRect->setEditable(true);
             },
             this
     );

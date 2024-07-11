@@ -58,7 +58,6 @@ private:
     //! Returned NodeRect is added to the scene.
     //!
     NodeRect *createNodeRect(const int cardId, const Card &cardData);
-
 };
 
 #endif // BOARDVIEW_H

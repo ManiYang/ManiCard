@@ -11,7 +11,11 @@
 #include "models/node_labels.h"
 #include "node_rect.h"
 #include "utilities/margins_util.h"
+#include "widgets/components/custom_text_edit.h"
 #include "widgets/components/graphics_item_move_resize.h"
+
+
+constexpr int savingInterval = 2500;
 
 NodeRect::NodeRect(QGraphicsItem *parent)
         : QGraphicsObject(parent)
@@ -20,9 +24,10 @@ NodeRect::NodeRect(QGraphicsItem *parent)
         , cardIdItem(new QGraphicsSimpleTextItem(this))
         , contentsRectItem(new QGraphicsRectItem(this))
         , titleItem(new GraphicsTextItem(contentsRectItem))
-        , textEdit(new TextEdit(nullptr))
+        , textEdit(new CustomTextEdit(nullptr))
         , textEditProxyWidget(new QGraphicsProxyWidget(contentsRectItem))
-        , moveResizeHelper(new GraphicsItemMoveResize(this)) {
+        , moveResizeHelper(new GraphicsItemMoveResize(this))
+        , propertiesSaving(new SavingDebouncer(savingInterval, this)) {
     textEdit->setVisible(false);
     textEdit->setReadOnly(true);
     textEditProxyWidget->setWidget(textEdit);
@@ -75,12 +80,15 @@ void NodeRect::setCardId(const int cardId_) {
 }
 
 void NodeRect::setTitle(const QString &title_) {
-    title = title_;
+    handleTitleItemContentChanged = false;
+    titleItem->setPlainText(title_);
+    handleTitleItemContentChanged = true;
+
     adjustChildItems();
 }
 
 void NodeRect::setText(const QString &text_) {
-    text = text_;
+    textEdit->setPlainText(text_);
     adjustChildItems();
 }
 
@@ -121,17 +129,21 @@ void NodeRect::setUpConnections() {
         if (!handleTitleItemContentChanged)
             return;
 
-        const QString newTitle = titleItem->toPlainText();
-        if (newTitle != title)
-            title = newTitle;
+        titleEdited = true;
+        propertiesSaving->setUpdated();
 
-        if (heightChanged) {
-            constexpr bool setTitleText = false;
-            adjustChildItems(setTitleText);
-        }
+        if (heightChanged)
+            adjustChildItems();
     });
 
     //
+    connect(textEdit, &CustomTextEdit::textEdited, this, [this]() {
+        textEdited = true;
+        propertiesSaving->setUpdated();
+    });
+
+    // ==== moveResizeHelper ====
+
     connect(moveResizeHelper, &GraphicsItemMoveResize::getTargetItemPosition,
             this, [this](QPointF *pos) {
         *pos = enclosingRect.topLeft();
@@ -175,9 +187,43 @@ void NodeRect::setUpConnections() {
         else
             unsetCursor();
     });
+
+    // ==== propertiesSaving ====
+
+    connect(propertiesSaving, &SavingDebouncer::saveCurrentState, this, [this]() {
+        // [test]
+        if (titleEdited)
+            qDebug() << "save title...";
+        if (textEdited)
+            qDebug() << "save text...";
+
+        QTimer::singleShot(100, this, [this]() {
+           propertiesSaving->savingFinished();
+        });
+
+
+
+
+
+        //
+        titleEdited = false;
+        textEdited = false;
+    });
+
+    connect(propertiesSaving, &SavingDebouncer::savingScheduled, this, [this]() {
+        qDebug() << "saving scheduled";
+
+
+    });
+
+    connect(propertiesSaving, &SavingDebouncer::cleared, this, [this]() {
+        qDebug() << "saving cleared";
+
+
+    });
 }
 
-void NodeRect::adjustChildItems(const bool setTitleText) {
+void NodeRect::adjustChildItems() {
     qDebug().noquote() << "adjustChildItems()";
 
     // get view's font
@@ -272,8 +318,6 @@ void NodeRect::adjustChildItems(const bool setTitleText) {
         handleTitleItemContentChanged = false;
         titleItem->setTextWidth(
                 std::max(borderInnerRect.width() - padding * 2, 0.0));
-        if (setTitleText)
-            titleItem->setPlainText(title);
         titleItem->setFont(font);
         titleItem->setDefaultTextColor(textColor);
         titleItem->setPos(
@@ -304,9 +348,7 @@ void NodeRect::adjustChildItems(const bool setTitleText) {
         }
         else {
             textEditProxyWidget->resize(contentsRectItem->rect().width() - leftPadding, height);
-            textEdit->setPlainText(text);
             textEditProxyWidget->setFont(font);
-
             textEditProxyWidget->setVisible(true);
         }
 

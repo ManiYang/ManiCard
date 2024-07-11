@@ -6,12 +6,16 @@
 #include "models/card.h"
 
 class QueuedDbAccess;
+class UnsavedUpdateRecordsFile;
 
 class CachedDataAccess : public QObject
 {
     Q_OBJECT
 public:
-    explicit CachedDataAccess(QueuedDbAccess *queuedDbAccess_, QObject *parent = nullptr);
+    explicit CachedDataAccess(
+            QueuedDbAccess *queuedDbAccess_,
+            std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile_,
+            QObject *parent = nullptr);
 
     // ==== read ====
 
@@ -22,9 +26,20 @@ public:
 
     // ==== write ====
 
+    // If a write operation failed, a record of unsaved update is added.
+
+    void updateCardProperties(
+            const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+
+    void updateCardLabels(
+            const int cardId, const QSet<QString> &updatedLabels,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+
 
 private:
     QueuedDbAccess *queuedDbAccess;
+    std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile;
 
     // data cache
     struct Cache

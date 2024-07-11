@@ -133,7 +133,6 @@ void GraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     case State::RightDragScrolling:
     {
         const auto displacement = event->screenPos() - mousePressScreenPos;
-        qDebug() << "displacement =" << displacement;
         dragScroll(viewCenterBeforeDragScroll, displacement);
         event->accept();
         return;

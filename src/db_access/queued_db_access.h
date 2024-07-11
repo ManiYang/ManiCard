@@ -48,6 +48,16 @@ public:
 
     // write operations
 
+    void updateCardProperties(
+            const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+    void updateCardLabels(
+            const int cardId, const QSet<QString> &updatedLabels,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+
+
     // ==== AbstractBoardsDataAccess interface ====
 
     // read operations

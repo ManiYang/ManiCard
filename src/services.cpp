@@ -7,6 +7,7 @@
 #include "db_access/boards_data_access.h"
 #include "db_access/cards_data_access.h"
 #include "db_access/queued_db_access.h"
+#include "file_access/unsaved_update_records_file.h"
 #include "neo4j_http_api_client.h"
 #include "services.h"
 #include "utilities/json_util.h"
@@ -55,7 +56,9 @@ bool Services::initialize(QString *errorMsg) {
 
         queuedDbAccess = new QueuedDbAccess(boardsDataAccess, cardsDataAccess, qApp);
 
-        cachedDataAccess = new CachedDataAccess(queuedDbAccess, qApp);
+        unsavedUpdateRecordsFile = std::make_shared<UnsavedUpdateRecordsFile>();
+
+        cachedDataAccess = new CachedDataAccess(queuedDbAccess, unsavedUpdateRecordsFile, qApp);
     }
     catch (std::runtime_error &e) {
         if (errorMsg)

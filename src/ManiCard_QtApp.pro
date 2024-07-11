@@ -15,6 +15,7 @@ SOURCES += \
     db_access/boards_data_access.cpp \
     db_access/cards_data_access.cpp \
     db_access/queued_db_access.cpp \
+    file_access/unsaved_update_records_file.cpp \
     main.cpp \
     models/board.cpp \
     models/card.cpp \
@@ -25,12 +26,13 @@ SOURCES += \
     utilities/async_routine.cpp \
     utilities/json_util.cpp \
     utilities/logging.cpp \
+    utilities/saving_debouncer.cpp \
     widgets/board_view.cpp \
+    widgets/components/custom_text_edit.cpp \
     widgets/components/graphics_item_move_resize.cpp \
     widgets/components/graphics_scene.cpp \
     widgets/components/graphics_text_item.cpp \
     widgets/components/node_rect.cpp \
-    widgets/components/text_edit.cpp \
     widgets/main_window.cpp
 
 HEADERS += \
@@ -40,6 +42,7 @@ HEADERS += \
     db_access/boards_data_access.h \
     db_access/cards_data_access.h \
     db_access/queued_db_access.h \
+    file_access/unsaved_update_records_file.h \
     global_constants.h \
     models/board.h \
     models/card.h \
@@ -56,12 +59,13 @@ HEADERS += \
     utilities/maps_util.h \
     utilities/margins_util.h \
     utilities/numbers_util.h \
+    utilities/saving_debouncer.h \
     widgets/board_view.h \
+    widgets/components/custom_text_edit.h \
     widgets/components/graphics_item_move_resize.h \
     widgets/components/graphics_scene.h \
     widgets/components/graphics_text_item.h \
     widgets/components/node_rect.h \
-    widgets/components/text_edit.h \
     widgets/main_window.h
 
 FORMS += \

@@ -19,12 +19,12 @@ void QueuedDbAccess::queryCards(
         std::function<void (bool, const QHash<int, Card> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
-    constexpr bool isReadOnlyAccess = true;
+    constexpr bool isReadOnlyAccess = true; // <--
 
     auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
         if (failDirectly) {
             invokeAction(callbackContext, [callback]() {
-                callback(false, {}); // (callback params)
+                callback(false, {}); // <-- callback params
             });
             if (thisPtr)
                 thisPtr->onResponse(false, isReadOnlyAccess);
@@ -33,13 +33,13 @@ void QueuedDbAccess::queryCards(
 
         if (thisPtr.isNull())
             return;
-        thisPtr->cardsDataAccess->queryCards( // (method)
-                cardIds, // (input params)
+        thisPtr->cardsDataAccess->queryCards( // <-- method
+                cardIds, // <-- input params
                 // callback:
                 [thisPtr, callback, callbackContext]
-                        (bool ok, const QHash<int, Card> &result) { // (callback params)
+                        (bool ok, const QHash<int, Card> &result) { // <-- callback params
                     invokeAction(callbackContext, [=]() {
-                        callback(ok, result); // (callback params)
+                        callback(ok, result); // <-- callback params
                     });
                     if (thisPtr)
                         thisPtr->onResponse(ok, isReadOnlyAccess);
@@ -55,12 +55,12 @@ void QueuedDbAccess::traverseFromCard(
         const int startCardId, std::function<void (bool, const QHash<int, Card> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
-    constexpr bool isReadOnlyAccess = true;
+    constexpr bool isReadOnlyAccess = true; // <--
 
     auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
         if (failDirectly) {
             invokeAction(callbackContext, [callback]() {
-                callback(false, {}); // (callback params)
+                callback(false, {}); // <-- callback params
             });
             if (thisPtr)
                 thisPtr->onResponse(false, isReadOnlyAccess);
@@ -69,13 +69,13 @@ void QueuedDbAccess::traverseFromCard(
 
         if (thisPtr.isNull())
             return;
-        thisPtr->cardsDataAccess->traverseFromCard( // (method)
-                startCardId, // (input params)
+        thisPtr->cardsDataAccess->traverseFromCard( // <-- method
+                startCardId, // <-- input params
                 // callback:
                 [thisPtr, callback, callbackContext]
-                        (bool ok, const QHash<int, Card> &result) { // (callback params)
+                        (bool ok, const QHash<int, Card> &result) { // <-- callback params
                     invokeAction(callbackContext, [=]() {
-                        callback(ok, result); // (callback params)
+                        callback(ok, result); // <-- callback params
                     });
                     if (thisPtr)
                         thisPtr->onResponse(ok, isReadOnlyAccess);
@@ -92,12 +92,12 @@ void QueuedDbAccess::queryRelationshipsFromToCards(
         std::function<void (bool, const QHash<RelId, RelProperties> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
-    constexpr bool isReadOnlyAccess = true;
+    constexpr bool isReadOnlyAccess = true; // <--
 
     auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
         if (failDirectly) {
             invokeAction(callbackContext, [callback]() {
-                callback(false, {}); // (callback params)
+                callback(false, {}); // <-- callback params
             });
             if (thisPtr)
                 thisPtr->onResponse(false, isReadOnlyAccess);
@@ -106,13 +106,83 @@ void QueuedDbAccess::queryRelationshipsFromToCards(
 
         if (thisPtr.isNull())
             return;
-        thisPtr->cardsDataAccess->queryRelationshipsFromToCards( // (method)
-                cardIds, // (input params)
+        thisPtr->cardsDataAccess->queryRelationshipsFromToCards( // <-- method
+                cardIds, // <-- input params
                 // callback:
                 [thisPtr, callback, callbackContext]
-                        (bool ok, const QHash<RelId, RelProperties> &result) { // (callback params)
+                        (bool ok, const QHash<RelId, RelProperties> &result) { // <-- callback params
                     invokeAction(callbackContext, [=]() {
-                        callback(ok, result);  // (callback params)
+                        callback(ok, result);  // <-- callback params
+                    });
+                    if (thisPtr)
+                        thisPtr->onResponse(ok, isReadOnlyAccess);
+                },
+                thisPtr.data()
+        );
+    };
+    addToQueue(func);
+}
+
+void QueuedDbAccess::updateCardProperties(
+        const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    constexpr bool isReadOnlyAccess = false; // <--
+
+    auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
+        if (failDirectly) {
+            invokeAction(callbackContext, [callback]() {
+                callback(false); // <-- callback params
+            });
+            if (thisPtr)
+                thisPtr->onResponse(false, isReadOnlyAccess);
+            return;
+        }
+
+        if (thisPtr.isNull())
+            return;
+        thisPtr->cardsDataAccess->updateCardProperties( // <-- method
+                cardId, cardPropertiesUpdate, // <-- input params
+                // callback:
+                [thisPtr, callback, callbackContext]
+                        (bool ok) { // <-- callback params
+                    invokeAction(callbackContext, [=]() {
+                        callback(ok);  // <-- callback params
+                    });
+                    if (thisPtr)
+                        thisPtr->onResponse(ok, isReadOnlyAccess);
+                },
+                thisPtr.data()
+        );
+    };
+    addToQueue(func);
+}
+
+void QueuedDbAccess::updateCardLabels(
+        const int cardId, const QSet<QString> &updatedLabels,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    constexpr bool isReadOnlyAccess = false; // <--
+
+    auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
+        if (failDirectly) {
+            invokeAction(callbackContext, [callback]() {
+                callback(false); // <-- callback params
+            });
+            if (thisPtr)
+                thisPtr->onResponse(false, isReadOnlyAccess);
+            return;
+        }
+
+        if (thisPtr.isNull())
+            return;
+        thisPtr->cardsDataAccess->updateCardLabels( // <-- method
+                cardId, updatedLabels, // <-- input params
+                // callback:
+                [thisPtr, callback, callbackContext]
+                        (bool ok) { // <-- callback params
+                    invokeAction(callbackContext, [=]() {
+                        callback(ok);  // <-- callback params
                     });
                     if (thisPtr)
                         thisPtr->onResponse(ok, isReadOnlyAccess);

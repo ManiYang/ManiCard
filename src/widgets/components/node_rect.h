@@ -7,9 +7,10 @@
 #include <QGraphicsProxyWidget>
 #include <QGraphicsSimpleTextItem>
 #include <QSet>
+#include "utilities/saving_debouncer.h"
 #include "widgets/components/graphics_text_item.h"
-#include "widgets/components/text_edit.h"
 
+class CustomTextEdit;
 class GraphicsItemMoveResize;
 
 class NodeRect : public QGraphicsObject
@@ -57,8 +58,7 @@ private:
     double borderWidth {5.0};
     QSet<QString> nodeLabels;
     int cardId {-1};
-    QString title;
-    QString text;
+//    QString text;
 
     bool isEditable {true};
 
@@ -69,14 +69,20 @@ private:
     QGraphicsRectItem *contentsRectItem;
     // -- title
     GraphicsTextItem *titleItem;
-    bool handleTitleItemContentChanged {true};
+    bool handleTitleItemContentChanged {true}; // <----------- use subclass
     // -- text
     //    Use QTextEdit rather than QGraphicsTextItem. The latter does not have scrolling
     //    functionality.
-    TextEdit *textEdit;
+    CustomTextEdit *textEdit;
+//    bool handleTextEditTextChanged {true}; // <----------- use subclass
     QGraphicsProxyWidget *textEditProxyWidget;
 
     GraphicsItemMoveResize *moveResizeHelper;
+
+    //
+    SavingDebouncer *propertiesSaving;
+    bool titleEdited {false};
+    bool textEdited {false};
 
     //
     void setUpConnections();
@@ -85,7 +91,7 @@ private:
         update(); // re-paint
         adjustChildItems();
     }
-    void adjustChildItems(const bool setTitleText = true);
+    void adjustChildItems();
 
     static QString getNodeLabelsString(const QSet<QString> &labels);
 };
