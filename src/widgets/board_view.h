@@ -5,7 +5,9 @@
 #include <QGraphicsView>
 #include <QMenu>
 
+class Card;
 class GraphicsScene;
+class NodeRect;
 
 class BoardView : public QFrame
 {
@@ -42,7 +44,7 @@ private:
     void installEventFiltersOnComponents();
     QString styleSheet();
 
-    // event handlers
+    //
     void onShownForFirstTime();
     void onGraphicsViewResize();
 
@@ -51,6 +53,12 @@ private:
 
     // tools
     QPoint getScreenPosFromScenePos(const QPointF &scenePos);
+
+    //!
+    //! Returned NodeRect is added to the scene.
+    //!
+    NodeRect *createNodeRect(const int cardId, const Card &cardData);
+
 };
 
 #endif // BOARDVIEW_H

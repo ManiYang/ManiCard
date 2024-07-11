@@ -35,13 +35,13 @@ public:
 
     //!
     //! Schedules the next step, or finishes the routine if no step remaining.
-    //! This method is thread-safe, and must be called only after started.
+    //! This method is thread-safe, and can only be called at the very end of a step.
     //!
     void nextStep();
 
     //!
     //! Schedules the last step, or finishes the routine if no step remaining.
-    //! This method is thread-safe, and must be called only after started.
+    //! This method is thread-safe, and can only be called at the very end of a step.
     //!
     void skipToFinalStep();
 

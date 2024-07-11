@@ -54,6 +54,7 @@ HEADERS += \
     utilities/json_util.h \
     utilities/logging.h \
     utilities/maps_util.h \
+    utilities/margins_util.h \
     utilities/numbers_util.h \
     widgets/board_view.h \
     widgets/components/graphics_item_move_resize.h \

@@ -27,6 +27,16 @@ public:
             std::function<void (bool ok, const QHash<RelId, RelProperties> &)> callback,
             QPointer<QObject> callbackContext) override;
 
+    // ==== write ====
+
+    void updateCardProperties(
+            const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+    void updateCardLabels(
+            const int cardId, const QSet<QString> &updatedLabels,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
 private:
     Neo4jHttpApiClient *neo4jHttpApiClient;
 };

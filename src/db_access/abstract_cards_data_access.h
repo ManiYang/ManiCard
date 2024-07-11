@@ -49,6 +49,19 @@ class AbstractCardsDataAccess : public AbstractCardsDataAccessReadOnly
 public:
     explicit AbstractCardsDataAccess();
 
+    //!
+    //! The card must exist. This operation is atomic.
+    //!
+    virtual void updateCardProperties(
+            const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    //!
+    //! The card must exist. This operation is atomic and idempotent.
+    //!
+    virtual void updateCardLabels(
+            const int cardId, const QSet<QString> &updatedLabels,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 };
 
 #endif // ABSTRACT_CARDS_DATA_ACCESS_H

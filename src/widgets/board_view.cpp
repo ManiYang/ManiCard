@@ -1,16 +1,17 @@
 #include <QDebug>
 #include <QGraphicsView>
 #include <QInputDialog>
+#include <QMessageBox>
 #include <QResizeEvent>
 #include <QVBoxLayout>
 #include "board_view.h"
 #include "cached_data_access.h"
 #include "services.h"
 #include "widgets/components/graphics_scene.h"
+#include "widgets/components/node_rect.h"
 
 #include <QGraphicsRectItem>
 #include <QTimer>
-#include "widgets/components/node_rect.h"
 
 BoardView::BoardView(QWidget *parent)
         : QFrame(parent) {
@@ -36,7 +37,7 @@ BoardView::BoardView(QWidget *parent)
         nodeRect->initialize();
 
         nodeRect->setRect({0, 0, 150, 200}); // x,y,w,h
-        nodeRect->setNodeLabel(":Test");
+        nodeRect->setNodeLabels({":Test"});
         nodeRect->setCardId(123);
         nodeRect->setTitle("Test Card with Long Card Title");
         nodeRect->setText(
@@ -162,7 +163,7 @@ void BoardView::userToOpenExistingCard(const QPointF &scenePos) {
     if (!ok)
         return;
 
-//    //
+//    // check already opened
 //    if (mCardIdToNodeRectId.contains(cardId))
 //    {
 //        QMessageBox::information(this, "info", QString("Card %1 already opened.").arg(cardId));
@@ -177,22 +178,21 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
     Services::instance()->getCachedDataAccess()->queryCards(
             {cardId},
             // callback
-            [this, cardId](bool ok, const QHash<int, Card> &cards) {
+            [=](bool ok, const QHash<int, Card> &cards) {
+                if (!ok) {
+                    QMessageBox::warning(this, " ", "Could not open card. See logs for details.");
+                    return;
+                }
+
                 if (!cards.contains(cardId)) {
-                    // card not found ...
-
-
+                    QMessageBox::information(this, " ", QString("Card %1 not found.").arg(cardId));
+                    return;
                 }
-                else {
-                    const Card &cardData = cards.value(cardId);
 
-                    // create a NodeRect that display `cardData` ....
-
-
-
-
-
-                }
+                const Card &cardData = cards.value(cardId);
+                auto *nodeRect = createNodeRect(cardId, cardData);
+                const QSizeF defaultNodeRectSize {200, 120};
+                nodeRect->setRect(QRectF(scenePos, defaultNodeRectSize));
             },
             this
     );
@@ -202,4 +202,17 @@ QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {
 
     QPoint posInViewport = graphicsView->mapFromScene(scenePos);
     return graphicsView->viewport()->mapToGlobal(posInViewport);
+}
+
+NodeRect *BoardView::createNodeRect(const int cardId, const Card &cardData) {
+    auto *nodeRect = new NodeRect;
+    graphicsScene->addItem(nodeRect);
+    nodeRect->initialize();
+
+    nodeRect->setCardId(cardId);
+    nodeRect->setNodeLabels(cardData.getLabels());
+    nodeRect->setTitle(cardData.title);
+    nodeRect->setText(cardData.text);
+
+    return nodeRect;
 }

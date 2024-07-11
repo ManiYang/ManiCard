@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <QBrush>
 #include <QDebug>
 #include <QFont>
@@ -7,7 +8,9 @@
 #include <QPen>
 #include <QGraphicsSceneContextMenuEvent>
 #include <QGraphicsView>
+#include "models/node_labels.h"
 #include "node_rect.h"
+#include "utilities/margins_util.h"
 #include "widgets/components/graphics_item_move_resize.h"
 
 NodeRect::NodeRect(QGraphicsItem *parent)
@@ -16,9 +19,9 @@ NodeRect::NodeRect(QGraphicsItem *parent)
         , nodeLabelItem(new QGraphicsSimpleTextItem(this))
         , cardIdItem(new QGraphicsSimpleTextItem(this))
         , contentsRectItem(new QGraphicsRectItem(this))
-        , titleItem(new GraphicsTextItem(this))
+        , titleItem(new GraphicsTextItem(contentsRectItem))
         , textEdit(new TextEdit(nullptr))
-        , textEditProxyWidget(new QGraphicsProxyWidget(this))
+        , textEditProxyWidget(new QGraphicsProxyWidget(contentsRectItem))
         , moveResizeHelper(new GraphicsItemMoveResize(this)) {
     textEdit->setVisible(false);
     textEdit->setReadOnly(true);
@@ -33,8 +36,11 @@ NodeRect::NodeRect(QGraphicsItem *parent)
 
 void NodeRect::initialize() {
     Q_ASSERT(scene() != nullptr);
+
     moveResizeHelper->setMoveHandle(captionBarItem);
-    moveResizeHelper->setResizeHandle(this, borderWidth, minSizeForResizing);
+
+    constexpr double resizeAreaMaxWidth = 6.0;
+    moveResizeHelper->setResizeHandle(this, resizeAreaMaxWidth, minSizeForResizing);
 }
 
 void NodeRect::setRect(const QRectF rect_) {
@@ -48,13 +54,18 @@ void NodeRect::setColor(const QColor color_) {
     redraw();
 }
 
+void NodeRect::setMarginWidth(const double width) {
+    marginWidth = width;
+    redraw();
+}
+
 void NodeRect::setBorderWidth(const double width) {
     borderWidth = width;
     redraw();
 }
 
-void NodeRect::setNodeLabel(const QString &label) {
-    nodeLabel = label;
+void NodeRect::setNodeLabels(const QSet<QString> &labels) {
+    nodeLabels = labels;
     adjustChildItems();
 }
 
@@ -92,7 +103,10 @@ void NodeRect::paint(
     // background rect
     painter->setBrush(color);
     painter->setPen(Qt::NoPen);
-    painter->drawRoundedRect(enclosingRect, borderWidth, borderWidth);
+    const double radius = borderWidth;
+    painter->drawRoundedRect(
+            enclosingRect.marginsRemoved(uniformMargins(marginWidth)),
+            radius, radius);
 
     //
     painter->restore();
@@ -176,8 +190,8 @@ void NodeRect::adjustChildItems(const bool setTitleText) {
     }
 
     //
-    const auto borderInnerRect = enclosingRect.marginsRemoved(
-            {borderWidth, borderWidth, borderWidth, borderWidth});
+    const auto borderInnerRect
+            = enclosingRect.marginsRemoved(uniformMargins(marginWidth + borderWidth));
 
     // caption bar
     double captionHeight = 0;
@@ -208,7 +222,7 @@ void NodeRect::adjustChildItems(const bool setTitleText) {
         captionHeight = captionRect.height();
 
         // node label
-        nodeLabelItem->setText(nodeLabel);
+        nodeLabelItem->setText(getNodeLabelsString(nodeLabels));
         nodeLabelItem->setFont(boldFont);
         nodeLabelItem->setBrush(textColor);
         nodeLabelItem->setPos(captionRect.topLeft() + QPointF(padding, padding));
@@ -232,9 +246,10 @@ void NodeRect::adjustChildItems(const bool setTitleText) {
     //
     {
         contentsRectItem->setRect(
-                borderInnerRect.marginsRemoved({0.0, captionHeight, 0.0, 0.0}));
+                borderInnerRect.marginsRemoved({0.0, captionHeight, 0.0, 0.0})); // L,T,R,B
         contentsRectItem->setPen(Qt::NoPen);
         contentsRectItem->setBrush(Qt::white);
+        contentsRectItem->setFlag(QGraphicsItem::ItemClipsChildrenToShape);
     }
 
     // title
@@ -308,4 +323,15 @@ void NodeRect::adjustChildItems(const bool setTitleText) {
                 "}"
         );
     }
+}
+
+QString NodeRect::getNodeLabelsString(const QSet<QString> &labels) {
+    QStringList nodeLabelsList(labels.constBegin(), labels.constEnd());
+    std::sort(nodeLabelsList.begin(), nodeLabelsList.end());
+
+    for (QString &label: nodeLabelsList) {
+        label = ":" + label;
+    }
+
+    return nodeLabelsList.join(" ");
 }

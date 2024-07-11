@@ -16,14 +16,14 @@ public:
     void setMoveHandle(QGraphicsItem *item);
 
     //!
-    //! The resize activation region is the visible part of \e item minus the area given by
-    //! item->boundingRect().marginRemoved(borderWidth) .
+    //! The resize activation region is the visible part of \e item, subtracted by the area
+    //! given by \c item->boundingRect().marginRemoved(maxWidth) .
     //! \param item: must accept hover event and mouse left-button events
-    //! \param borderWidth
+    //! \param maxWidth
     //! \param targetItemMinimumSize
     //!
     void setResizeHandle(
-            QGraphicsItem *item, const double borderWidth,
+            QGraphicsItem *item, const double maxWidth,
             const QSizeF &targetItemMinimumSize);
 
     //

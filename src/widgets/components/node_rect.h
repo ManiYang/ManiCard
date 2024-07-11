@@ -6,6 +6,7 @@
 #include <QGraphicsObject>
 #include <QGraphicsProxyWidget>
 #include <QGraphicsSimpleTextItem>
+#include <QSet>
 #include "widgets/components/graphics_text_item.h"
 #include "widgets/components/text_edit.h"
 
@@ -22,11 +23,14 @@ public:
     //!
     void initialize();
 
-    // call these methods only after this item is added to a scene:
+    // Call these methods only after this item is added to a scene:
+
     void setRect(const QRectF rect_);
     void setColor(const QColor color_);
+    void setMarginWidth(const double width);
     void setBorderWidth(const double width);
-    void setNodeLabel(const QString &label);
+
+    void setNodeLabels(const QSet<QString> &labels);
     void setCardId(const int cardId_);
     void setTitle(const QString &title_);
     void setText(const QString &text_);
@@ -48,9 +52,10 @@ private:
     QSizeF minSizeForResizing {100, 60};
 
     QRectF enclosingRect {QPointF(0, 0), QSizeF(90, 150)};
-    QColor color {128, 128, 128};
-    double borderWidth {6.0};
-    QString nodeLabel;
+    QColor color {160, 160, 160};
+    double marginWidth {1.0};
+    double borderWidth {5.0};
+    QSet<QString> nodeLabels;
     int cardId {-1};
     QString title;
     QString text;
@@ -66,8 +71,8 @@ private:
     GraphicsTextItem *titleItem;
     bool handleTitleItemContentChanged {true};
     // -- text
-    //    Use QTextEdit (rather than QGraphicsTextItem, which does not have scrolling
-    //    functionality)
+    //    Use QTextEdit rather than QGraphicsTextItem. The latter does not have scrolling
+    //    functionality.
     TextEdit *textEdit;
     QGraphicsProxyWidget *textEditProxyWidget;
 
@@ -81,6 +86,8 @@ private:
         adjustChildItems();
     }
     void adjustChildItems(const bool setTitleText = true);
+
+    static QString getNodeLabelsString(const QSet<QString> &labels);
 };
 
 #endif // NODERECT_H

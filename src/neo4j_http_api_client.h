@@ -75,6 +75,7 @@ public: // types
     public:
         bool hasNetworkError {false};
         QVector<DbError> dbErrors;
+        bool hasNetworkOrDbError() const { return hasNetworkError || !dbErrors.isEmpty(); }
 
     protected:
         QueryResponseBase() {}
