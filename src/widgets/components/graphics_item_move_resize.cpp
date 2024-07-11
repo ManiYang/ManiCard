@@ -93,6 +93,10 @@ bool GraphicsItemMoveResize::eventFilterForMoveHandle(QEvent *event) {
                 emit movingEnded();
                 return true;
             }
+            else if (state == State::BeforeMove) {
+                state = State::Normal;
+                return true;
+            }
         }
     }
 

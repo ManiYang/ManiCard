@@ -74,7 +74,6 @@ private:
     //    Use QTextEdit rather than QGraphicsTextItem. The latter does not have scrolling
     //    functionality.
     CustomTextEdit *textEdit;
-//    bool handleTextEditTextChanged {true}; // <----------- use subclass
     QGraphicsProxyWidget *textEditProxyWidget;
 
     GraphicsItemMoveResize *moveResizeHelper;

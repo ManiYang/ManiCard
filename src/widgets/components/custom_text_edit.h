@@ -15,6 +15,10 @@ public:
     void setPlainText(const QString &text);
 
     void setReadOnly(const bool readonly);
+
+    //!
+    //! Sets context-menu policy for the wrapped QTextEdit.
+    //!
     void setContextMenuPolicy(Qt::ContextMenuPolicy policy);
 
 signals:

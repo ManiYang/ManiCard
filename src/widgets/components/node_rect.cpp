@@ -97,6 +97,8 @@ void NodeRect::setEditable(const bool editable) {
 
     titleItem->setTextInteractionFlags(
             isEditable ? Qt::TextEditorInteraction : Qt::NoTextInteraction);
+    titleItem->setCursor(isEditable ? Qt::IBeamCursor : Qt::ArrowCursor);
+
     textEdit->setReadOnly(!isEditable);
 }
 
