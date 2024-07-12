@@ -41,6 +41,10 @@ void CustomTextEdit::setContextMenuPolicy(Qt::ContextMenuPolicy policy) {
     textEdit->setContextMenuPolicy(policy);
 }
 
+QString CustomTextEdit::toPlainText() const {
+    return textEdit->toPlainText();
+}
+
 //====
 
 TextEditTweak::TextEditTweak(QWidget *parent)

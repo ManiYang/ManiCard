@@ -28,10 +28,10 @@ SOURCES += \
     utilities/logging.cpp \
     utilities/saving_debouncer.cpp \
     widgets/board_view.cpp \
+    widgets/components/custom_graphics_text_item.cpp \
     widgets/components/custom_text_edit.cpp \
     widgets/components/graphics_item_move_resize.cpp \
     widgets/components/graphics_scene.cpp \
-    widgets/components/graphics_text_item.cpp \
     widgets/components/node_rect.cpp \
     widgets/main_window.cpp
 
@@ -61,10 +61,10 @@ HEADERS += \
     utilities/numbers_util.h \
     utilities/saving_debouncer.h \
     widgets/board_view.h \
+    widgets/components/custom_graphics_text_item.h \
     widgets/components/custom_text_edit.h \
     widgets/components/graphics_item_move_resize.h \
     widgets/components/graphics_scene.h \
-    widgets/components/graphics_text_item.h \
     widgets/components/node_rect.h \
     widgets/main_window.h
 

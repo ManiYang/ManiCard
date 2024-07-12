@@ -13,7 +13,7 @@
 #include "utilities/margins_util.h"
 #include "widgets/components/custom_text_edit.h"
 #include "widgets/components/graphics_item_move_resize.h"
-
+#include "widgets/components/custom_graphics_text_item.h"
 
 constexpr int savingInterval = 2500;
 
@@ -23,7 +23,7 @@ NodeRect::NodeRect(QGraphicsItem *parent)
         , nodeLabelItem(new QGraphicsSimpleTextItem(this))
         , cardIdItem(new QGraphicsSimpleTextItem(this))
         , contentsRectItem(new QGraphicsRectItem(this))
-        , titleItem(new GraphicsTextItem(contentsRectItem))
+        , titleItem(new CustomGraphicsTextItem(contentsRectItem))
         , textEdit(new CustomTextEdit(nullptr))
         , textEditProxyWidget(new QGraphicsProxyWidget(contentsRectItem))
         , moveResizeHelper(new GraphicsItemMoveResize(this))
@@ -80,10 +80,7 @@ void NodeRect::setCardId(const int cardId_) {
 }
 
 void NodeRect::setTitle(const QString &title_) {
-    handleTitleItemContentChanged = false;
     titleItem->setPlainText(title_);
-    handleTitleItemContentChanged = true;
-
     adjustChildItems();
 }
 
@@ -95,11 +92,20 @@ void NodeRect::setText(const QString &text_) {
 void NodeRect::setEditable(const bool editable) {
     isEditable = editable;
 
-    titleItem->setTextInteractionFlags(
-            isEditable ? Qt::TextEditorInteraction : Qt::NoTextInteraction);
-    titleItem->setCursor(isEditable ? Qt::IBeamCursor : Qt::ArrowCursor);
-
+    titleItem->setEditable(editable);
     textEdit->setReadOnly(!isEditable);
+}
+
+int NodeRect::getCardId() const {
+    return cardId;
+}
+
+QString NodeRect::getTitle() const {
+    return titleItem->toPlainText();
+}
+
+QString NodeRect::getText() const {
+    return textEdit->toPlainText();
 }
 
 QRectF NodeRect::boundingRect() const {
@@ -127,13 +133,9 @@ void NodeRect::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 }
 
 void NodeRect::setUpConnections() {
-    connect(titleItem, &GraphicsTextItem::contentChanged, this, [this](bool heightChanged) {
-        if (!handleTitleItemContentChanged)
-            return;
-
+    connect(titleItem, &CustomGraphicsTextItem::textEdited, this, [this](bool heightChanged) {
         titleEdited = true;
         propertiesSaving->setUpdated();
-
         if (heightChanged)
             adjustChildItems();
     });
@@ -196,6 +198,7 @@ void NodeRect::setUpConnections() {
         // [test]
         if (titleEdited)
             qDebug() << "save title...";
+
         if (textEdited)
             qDebug() << "save text...";
 
@@ -317,14 +320,12 @@ void NodeRect::adjustChildItems() {
         const double minHeight = QFontMetrics(font).height();
 
         //
-        handleTitleItemContentChanged = false;
         titleItem->setTextWidth(
                 std::max(borderInnerRect.width() - padding * 2, 0.0));
         titleItem->setFont(font);
         titleItem->setDefaultTextColor(textColor);
         titleItem->setPos(
                 contentsRectItem->rect().topLeft() + QPointF(padding, padding));
-        handleTitleItemContentChanged = true;
 
         titleBottom
                 = contentsRectItem->rect().top()

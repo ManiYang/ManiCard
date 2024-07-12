@@ -21,6 +21,9 @@ public:
     //!
     void setContextMenuPolicy(Qt::ContextMenuPolicy policy);
 
+    //
+    QString toPlainText() const;
+
 signals:
     void textEdited(); // by user
 

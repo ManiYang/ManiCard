@@ -8,9 +8,9 @@
 #include <QGraphicsSimpleTextItem>
 #include <QSet>
 #include "utilities/saving_debouncer.h"
-#include "widgets/components/graphics_text_item.h"
 
 class CustomTextEdit;
+class CustomGraphicsTextItem;
 class GraphicsItemMoveResize;
 
 class NodeRect : public QGraphicsObject
@@ -39,6 +39,11 @@ public:
     void setEditable(const bool editable);
 
     //
+    int getCardId() const;
+    QString getTitle() const;
+    QString getText() const;
+
+    //
     QRectF boundingRect() const override;
     void paint(
             QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -58,7 +63,6 @@ private:
     double borderWidth {5.0};
     QSet<QString> nodeLabels;
     int cardId {-1};
-//    QString text;
 
     bool isEditable {true};
 
@@ -68,8 +72,7 @@ private:
     QGraphicsSimpleTextItem *cardIdItem;
     QGraphicsRectItem *contentsRectItem;
     // -- title
-    GraphicsTextItem *titleItem;
-    bool handleTitleItemContentChanged {true}; // <----------- use subclass
+    CustomGraphicsTextItem *titleItem;
     // -- text
     //    Use QTextEdit rather than QGraphicsTextItem. The latter does not have scrolling
     //    functionality.
