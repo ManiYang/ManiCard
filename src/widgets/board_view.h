@@ -62,7 +62,7 @@ private:
     QPoint getScreenPosFromScenePos(const QPointF &scenePos);
 
     //!
-    //! Returned NodeRect is added to the scene.
+    //! Returned NodeRect is already added to the scene.
     //!
     NodeRect *createNodeRect(const int cardId, const Card &cardData);
 };

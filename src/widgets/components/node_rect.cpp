@@ -8,6 +8,7 @@
 #include <QPen>
 #include <QGraphicsSceneContextMenuEvent>
 #include <QGraphicsView>
+#include <QMessageBox>
 #include "models/node_labels.h"
 #include "node_rect.h"
 #include "utilities/margins_util.h"
@@ -28,6 +29,7 @@ NodeRect::NodeRect(const int cardId_, QGraphicsItem *parent)
         , textEdit(new CustomTextEdit(nullptr))
         , textEditProxyWidget(new QGraphicsProxyWidget(contentsRectItem))
         , moveResizeHelper(new GraphicsItemMoveResize(this))
+        , contextMenu(new QMenu)
         , propertiesSaveDebouncer(new SaveDebouncer(savingInterval, this)) {
     textEdit->setVisible(false);
     textEdit->setReadOnly(true);
@@ -36,8 +38,13 @@ NodeRect::NodeRect(const int cardId_, QGraphicsItem *parent)
     setFlag(QGraphicsItem::ItemClipsChildrenToShape, true);
     setAcceptHoverEvents(true);
 
+    setUpContextMenu();
     setUpConnections();
     adjustChildItems();
+}
+
+NodeRect::~NodeRect() {
+    contextMenu->deleteLater();
 }
 
 void NodeRect::initialize() {
@@ -47,6 +54,9 @@ void NodeRect::initialize() {
 
     constexpr double resizeAreaMaxWidth = 6.0;
     moveResizeHelper->setResizeHandle(this, resizeAreaMaxWidth, minSizeForResizing);
+
+    //
+    installEventFilterOnChildItems();
 }
 
 void NodeRect::setRect(const QRectF rect_) {
@@ -138,6 +148,43 @@ void NodeRect::paint(
 
 void NodeRect::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
     event->accept();
+}
+
+bool NodeRect::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
+    if (event->type() == QEvent::GraphicsSceneContextMenu) {
+        if (watched == captionBarItem || watched == nodeLabelItem || watched == cardIdItem) {
+            auto *e = dynamic_cast<QGraphicsSceneContextMenuEvent *>(event);
+            const auto pos = e->screenPos();
+            contextMenu->popup(pos);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void NodeRect::installEventFilterOnChildItems() {
+    captionBarItem->installSceneEventFilter(this);
+    nodeLabelItem->installSceneEventFilter(this);
+    cardIdItem->installSceneEventFilter(this);
+}
+
+void NodeRect::setUpContextMenu() {
+    {
+        auto *action = contextMenu->addAction(QIcon(":/icons/close_box_black_24"), "Close");
+        connect(action, &QAction::triggered, this, [this]() {
+            QString msg;
+            if (!canClose())
+                msg = "Saving in progress. Close the card anyway?";
+            else
+                msg = "Close the card?";
+
+            const auto r = QMessageBox::question(
+                    getView(), " ", msg, QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+            if (r == QMessageBox::Yes)
+                emit closeByUser();
+        });
+    }
 }
 
 void NodeRect::setUpConnections() {
@@ -367,6 +414,16 @@ void NodeRect::adjustChildItems() {
                 "}"
         );
     }
+}
+
+QGraphicsView *NodeRect::getView() {
+    if (scene() == nullptr)
+        return nullptr;
+
+    if (const auto views = scene()->views(); !views.isEmpty())
+        return views.at(0);
+    else
+        return nullptr;
 }
 
 QString NodeRect::getNodeLabelsString(const QSet<QString> &labels) {

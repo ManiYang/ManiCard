@@ -7,6 +7,8 @@
 #include <QGraphicsObject>
 #include <QGraphicsProxyWidget>
 #include <QGraphicsSimpleTextItem>
+#include <QGraphicsView>
+#include <QMenu>
 #include <QSet>
 #include "utilities/save_debouncer.h"
 
@@ -21,6 +23,7 @@ class NodeRect : public QGraphicsObject
     Q_OBJECT
 public:
     explicit NodeRect(const int cardId, QGraphicsItem *parent = nullptr);
+    ~NodeRect();
 
     //!
     //! Call this after this item is added to a scene.
@@ -65,8 +68,11 @@ signals:
     //!
     void savePropertiesUpdate(const StringOpt &updatedTitle, const StringOpt &updatedText);
 
+    void closeByUser();
+
 protected:
     void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
+    bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) override;
 
 private:
     QSizeF minSizeForResizing {100, 60};
@@ -87,20 +93,22 @@ private:
     QGraphicsRectItem *contentsRectItem;
     // -- title
     CustomGraphicsTextItem *titleItem;
-    // -- text
-    //    Use QTextEdit rather than QGraphicsTextItem. The latter does not have scrolling
-    //    functionality.
+    // -- text (Use QTextEdit rather than QGraphicsTextItem. The latter does not have scrolling
+    //    functionality.)
     CustomTextEdit *textEdit;
     QGraphicsProxyWidget *textEditProxyWidget;
 
-    GraphicsItemMoveResize *moveResizeHelper;
-
     //
+    GraphicsItemMoveResize *moveResizeHelper;
+    QMenu *contextMenu;
+
     SaveDebouncer *propertiesSaveDebouncer;
     bool titleEdited {false};
     bool textEdited {false};
 
     //
+    void installEventFilterOnChildItems();
+    void setUpContextMenu();
     void setUpConnections();
 
     void redraw() {
@@ -109,6 +117,8 @@ private:
     }
     void adjustChildItems();
 
+    // tools
+    QGraphicsView *getView(); // can be nullptr
     static QString getNodeLabelsString(const QSet<QString> &labels);
 };
 

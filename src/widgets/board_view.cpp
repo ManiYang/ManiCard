@@ -323,5 +323,12 @@ NodeRect *BoardView::createNodeRect(const int cardId, const Card &cardData) {
         );
     });
 
+    connect(nodeRect, &NodeRect::closeByUser, this, [this, nodeRectPtr]() {
+        if (!nodeRectPtr)
+            return;
+        graphicsScene->removeItem(nodeRectPtr.data());
+        nodeRectPtr->deleteLater();
+    });
+
     return nodeRect;
 }
