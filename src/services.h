@@ -27,7 +27,8 @@ public:
     //!
     bool initialize(QString *errorMsg = nullptr);
 
-    CachedDataAccess *getCachedDataAccess();
+    CachedDataAccess *getCachedDataAccess() const;
+    QString getUnsavedUpdateFilePath() const;
 
 private:
     QNetworkAccessManager *networkAccessManager {nullptr};
@@ -38,6 +39,7 @@ private:
     std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile;
     CachedDataAccess *cachedDataAccess {nullptr};
 
+    QString unsavedUpdateFilePath;
 };
 
 #endif // SERVICES_H

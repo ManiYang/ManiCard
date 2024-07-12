@@ -29,6 +29,14 @@ public:
 
     // ==== write ====
 
+    void requestNewCardId(
+            std::function<void (std::optional<int> cardId)> callback,
+            QPointer<QObject> callbackContext) override;
+
+    void createNewCardWithId(
+            const int cardId, const Card &card,
+            std::function<void (bool)> callback, QPointer<QObject> callbackContext) override;
+
     void updateCardProperties(
             const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;

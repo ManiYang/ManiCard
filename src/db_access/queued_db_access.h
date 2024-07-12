@@ -46,7 +46,15 @@ public:
             std::function<void (bool, const QHash<RelId, RelProperties> &)> callback,
             QPointer<QObject> callbackContext) override;
 
+    void requestNewCardId(
+            std::function<void (std::optional<int> cardId)> callback,
+            QPointer<QObject> callbackContext) override;
+
     // write operations
+
+    void createNewCardWithId(
+            const int cardId, const Card &card,
+            std::function<void (bool)> callback, QPointer<QObject> callbackContext) override;
 
     void updateCardProperties(
             const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,

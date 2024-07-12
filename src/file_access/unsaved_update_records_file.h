@@ -6,7 +6,7 @@
 class UnsavedUpdateRecordsFile
 {
 public:
-    UnsavedUpdateRecordsFile();
+    explicit UnsavedUpdateRecordsFile(const QString &filePath);
 
     void append(const QString &time, const QString &title, const QString &details);
 

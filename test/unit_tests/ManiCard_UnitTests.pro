@@ -14,6 +14,7 @@ SOURCES += \
         ../../src/utilities/json_util.cpp \
         main.cpp         \
         utilities/async_routine_unittest.cpp \
+        utilities/async_routine_with_error_flag_unittest.cpp \
         utilities/json_util_unittest.cpp
 
 

@@ -1,13 +1,13 @@
+#include <QApplication>
 #include <QDebug>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include "unsaved_update_records_file.h"
 #include "utilities/json_util.h"
 
-constexpr char filePath_[] = "./unsaved_updates.txt";
-
-UnsavedUpdateRecordsFile::UnsavedUpdateRecordsFile()
+UnsavedUpdateRecordsFile::UnsavedUpdateRecordsFile(const QString &filePath_)
     : filePath(filePath_) {
 }
 

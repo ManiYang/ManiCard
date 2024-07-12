@@ -50,6 +50,21 @@ public:
     explicit AbstractCardsDataAccess();
 
     //!
+    //! \param callback: argument \e cardId will be \c nullopt if operation failed
+    //! \param callbackContext
+    //!
+    virtual void requestNewCardId(
+            std::function<void (std::optional<int> cardId)> callback,
+            QPointer<QObject> callbackContext) = 0;
+
+    //!
+    //! Card with \e cardId must not already exist. This operation is atomic.
+    //!
+    virtual void createNewCardWithId(
+            const int cardId, const Card &card,
+            std::function<void (bool)> callback, QPointer<QObject> callbackContext) = 0;
+
+    //!
     //! The card must exist. This operation is atomic.
     //!
     virtual void updateCardProperties(

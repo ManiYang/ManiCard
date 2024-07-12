@@ -24,9 +24,17 @@ public:
             std::function<void (bool, const QHash<int, Card> &)> callback,
             QPointer<QObject> callbackContext);
 
+    void requestNewCardId(
+            std::function<void (std::optional<int> cardId)> callback,
+            QPointer<QObject> callbackContext);
+
     // ==== write ====
 
     // If a write operation failed, a record of unsaved update is added.
+
+    void createNewCardWithId(
+            const int cardId, const Card &card,
+            std::function<void (bool)> callback, QPointer<QObject> callbackContext);
 
     void updateCardProperties(
             const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,

@@ -6,6 +6,7 @@
 #include <QMenu>
 
 class Card;
+class CardPropertiesUpdate;
 class GraphicsScene;
 class NodeRect;
 
@@ -21,6 +22,8 @@ protected:
     void showEvent(QShowEvent *event) override;
 
 private:
+    const QSizeF defaultNewNodeRectSize {200, 120};
+
     // component widgets:
     QGraphicsView *graphicsView {nullptr};
 
@@ -50,6 +53,10 @@ private:
 
     void userToOpenExistingCard(const QPointF &scenePos);
     void openExistingCard(const int cardId, const QPointF &scenePos);
+    void userToCreateNewCard(const QPointF &scenePos);
+    void saveCardPropertiesUpdate(
+            NodeRect *nodeRect, const CardPropertiesUpdate &propertiesUpdate,
+            std::function<void ()> callback); // callback will be called in context of `this`
 
     // tools
     QPoint getScreenPosFromScenePos(const QPointF &scenePos);

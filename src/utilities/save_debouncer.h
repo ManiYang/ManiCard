@@ -1,27 +1,27 @@
-#ifndef SAVING_DEBOUNCER_H
-#define SAVING_DEBOUNCER_H
+#ifndef SAVE_DEBOUNCER_H
+#define SAVE_DEBOUNCER_H
 
 #include <QTimer>
 
-class SavingDebouncer : public QObject
+class SaveDebouncer : public QObject
 {
     Q_OBJECT
 public:
-    explicit SavingDebouncer(const int checkInterval, QObject *parent = nullptr);
+    explicit SaveDebouncer(const int delayInterval, QObject *parent = nullptr);
 
     void setUpdated();
-    void savingFinished();
+    void saveFinished();
 
     bool isCleared() const;
 
 signals:
     //!
     //! Receiver should save its current state (synchronously or asynchronously). When the
-    //! saving finished, call \c savingFinished() .
+    //! saving finished, call \c saveFinished() .
     //!
     void saveCurrentState();
 
-    void savingScheduled();
+    void saveScheduled();
     void cleared();
 
 private:
@@ -34,4 +34,4 @@ private:
     void onTimerTimeout();
 };
 
-#endif // SAVING_DEBOUNCER_H
+#endif // SAVE_DEBOUNCER_H

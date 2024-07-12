@@ -2,7 +2,9 @@
 #include <QTimer>
 #include "async_routine.h"
 
-AsyncRoutine::AsyncRoutine() : QObject(nullptr) {}
+AsyncRoutine::AsyncRoutine()
+        : QObject(nullptr) {
+}
 
 AsyncRoutine &AsyncRoutine::addStep(std::function<void ()> func, QPointer<QObject> context) {
     Q_ASSERT(!isStarted);
@@ -74,4 +76,39 @@ void AsyncRoutine::finish() {
         isFinished = true;
         this->deleteLater();
     }
+}
+
+//====
+
+AsyncRoutineWithErrorFlag::AsyncRoutineWithErrorFlag()
+    : AsyncRoutine() {
+}
+
+AsyncRoutineWithErrorFlag::Context AsyncRoutineWithErrorFlag::continuationContext() {
+    return Context(this);
+}
+
+//====
+
+AsyncRoutineWithErrorFlag::Context::Context(AsyncRoutineWithErrorFlag *routine_)
+    : routine(routine_) {
+}
+
+AsyncRoutineWithErrorFlag::Context::~Context() {
+    if (routine->errorFlag)
+        routine->AsyncRoutine::skipToFinalStep();
+    else
+        routine->AsyncRoutine::nextStep();
+}
+
+AsyncRoutineWithErrorFlag::Context &AsyncRoutineWithErrorFlag::Context::setErrorFlag() {
+    routine->errorFlag = true;
+    return *this;
+}
+
+AsyncRoutineWithErrorFlag::Context &AsyncRoutineWithErrorFlag::Context::setErrorFlagWhen(
+        const bool b) {
+    if (b)
+        routine->errorFlag = true;
+    return *this;
 }

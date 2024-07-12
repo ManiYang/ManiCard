@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/icons">
         <file alias="open_in_new_black_24">resources/icons/open_in_new_black_24.png</file>
+        <file alias="add_box_black_24">resources/icons/add_box_black_24.png</file>
     </qresource>
 </RCC>

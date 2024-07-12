@@ -17,7 +17,6 @@
 class AsyncRoutine : public QObject
 {
     Q_OBJECT
-
 public:
     AsyncRoutine();
 
@@ -60,6 +59,36 @@ private:
     void invokeStep(const size_t i);
 
     void finish();
+};
+
+
+class AsyncRoutineWithErrorFlag : public AsyncRoutine
+{
+    Q_OBJECT
+public:
+    AsyncRoutineWithErrorFlag();
+
+    void nextStep() = delete;
+    void skipToFinalStep() = delete;
+
+    bool errorFlag {false};
+
+    //
+    struct Context
+    {
+        Context(AsyncRoutineWithErrorFlag *routine);
+        ~Context();
+        Context &setErrorFlag();
+        Context &setErrorFlagWhen(const bool b);
+    private:
+        AsyncRoutineWithErrorFlag *routine;
+    };
+
+    //!
+    //! The returned object will call nextStep() or skipToFinalStep(), depending on the value of
+    //! \e errorFlag, in its destructor.
+    //!
+    [[nodiscard]] Context continuationContext();
 };
 
 #endif // ASYNC_ROUTINE_H

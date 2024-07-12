@@ -1,13 +1,16 @@
 #ifndef NODERECT_H
 #define NODERECT_H
 
+#include <optional>
 #include <QColor>
 #include <QGraphicsRectItem>
 #include <QGraphicsObject>
 #include <QGraphicsProxyWidget>
 #include <QGraphicsSimpleTextItem>
 #include <QSet>
-#include "utilities/saving_debouncer.h"
+#include "utilities/save_debouncer.h"
+
+using StringOpt = std::optional<QString>;
 
 class CustomTextEdit;
 class CustomGraphicsTextItem;
@@ -17,7 +20,7 @@ class NodeRect : public QGraphicsObject
 {
     Q_OBJECT
 public:
-    explicit NodeRect(QGraphicsItem *parent = nullptr);
+    explicit NodeRect(const int cardId, QGraphicsItem *parent = nullptr);
 
     //!
     //! Call this after this item is added to a scene.
@@ -32,24 +35,35 @@ public:
     void setBorderWidth(const double width);
 
     void setNodeLabels(const QSet<QString> &labels);
-    void setCardId(const int cardId_);
-    void setTitle(const QString &title_);
-    void setText(const QString &text_);
+    void setTitle(const QString &title);
+    void setText(const QString &text);
 
     void setEditable(const bool editable);
+
+    //
+    void finishedSavePropertiesUpdate(); // cf. signal savePropertiesUpdate()
 
     //
     int getCardId() const;
     QString getTitle() const;
     QString getText() const;
 
+    bool canClose() const;
+
     //
     QRectF boundingRect() const override;
     void paint(
-            QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+            QPainter *painter, const QStyleOptionGraphicsItem *option,
+            QWidget *widget) override;
 
 signals:
     void movedOrResized();
+
+    //!
+    //! The receiver should start saving the properties update, and call
+    //! \c finishedSavePropertiesUpdate() when finished saving.
+    //!
+    void savePropertiesUpdate(const StringOpt &updatedTitle, const StringOpt &updatedText);
 
 protected:
     void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
@@ -62,7 +76,7 @@ private:
     double marginWidth {1.0};
     double borderWidth {5.0};
     QSet<QString> nodeLabels;
-    int cardId {-1};
+    const int cardId;
 
     bool isEditable {true};
 
@@ -82,7 +96,7 @@ private:
     GraphicsItemMoveResize *moveResizeHelper;
 
     //
-    SavingDebouncer *propertiesSaving;
+    SaveDebouncer *propertiesSaveDebouncer;
     bool titleEdited {false};
     bool textEdited {false};
 

@@ -3,6 +3,7 @@
 #include "neo4j_http_api_client.h"
 #include "utilities/async_routine.h"
 #include "utilities/json_util.h"
+#include "utilities/strings_util.h"
 
 CardsDataAccess::CardsDataAccess(Neo4jHttpApiClient *neo4jHttpApiClient)
     : AbstractCardsDataAccess()
@@ -206,6 +207,99 @@ void CardsDataAccess::queryRelationshipsFromToCards(
     );
 }
 
+void CardsDataAccess::requestNewCardId(
+        std::function<void (std::optional<int>)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (n:LastUsedId {itemType: 'Card'})
+                    SET n.value = n.value + 1
+                    RETURN n.value AS cardId
+                )!",
+                QJsonObject {}
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value())
+                {
+                    callback(std::nullopt);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                const int cardId = result.valueAt(0, "cardId").toInt(-1);
+                if (cardId == -1) {
+                    qWarning().noquote()
+                            << QString("\"cardId\" value not found or has unexpected type");
+                    callback(std::nullopt);
+                    return;
+                }
+
+                callback(cardId);
+            },
+            callbackContext
+    );
+}
+
+void CardsDataAccess::createNewCardWithId(
+        const int cardId, const Card &card,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    QString labelsInSetClause = "";
+    if (!card.getLabels().isEmpty())
+        labelsInSetClause = QString("c:%1,").arg(joinStringSet(card.getLabels(), ":"));
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                QString(R"!(
+                    MERGE (c:Card {id: $cardId})
+                    ON CREATE
+                        SET #LabelsInSetClause# c += $propertiesMap, c._is_created_ = true
+                    ON MATCH
+                        SET c._is_created_ = false
+                    WITH c, c._is_created_ AS isCreated
+                    REMOVE c._is_created_
+                    RETURN isCreated
+                )!")
+                    .replace("#LabelsInSetClause#", labelsInSetClause),
+                QJsonObject {
+                    {"cardId", cardId},
+                    {"propertiesMap", card.getPropertiesJson()}
+                }
+            },
+            // callback
+            [callback, cardId](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                QJsonValue isCreatedValue = result.valueAt(0, "isCreated");
+                if (!isCreatedValue.isBool()) {
+                    qWarning().noquote()
+                            << QString("\"isCreated\" value not found or has unexpected type");
+                    callback(false);
+                    return;
+                }
+
+                if (isCreatedValue.toBool()) {
+                    qInfo().noquote() << QString("created card with ID %1").arg(cardId);
+                    callback(true);
+                }
+                else {
+                    qWarning().noquote()
+                            << QString("card with ID %1 already exists").arg(cardId);
+                    callback(false);
+                }
+            },
+            callbackContext
+    );
+}
+
 void CardsDataAccess::updateCardProperties(
         const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
@@ -251,15 +345,12 @@ void CardsDataAccess::updateCardLabels(
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
-    class AsyncRoutineWithVars : public AsyncRoutine
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
         // variables used by the steps of the routine:
-        bool hasError {false};
         Neo4jTransaction *transaction {nullptr};
         QSet<QString> oldLabels; // other than "Card"
-
-        void setErrorAndSkipToFinalStep() { hasError = true; skipToFinalStep(); }
     };
     auto *routine = new AsyncRoutineWithVars;
 
@@ -270,10 +361,7 @@ void CardsDataAccess::updateCardLabels(
         routine->transaction->open(
                 // callback:
                 [routine](bool ok) {
-                    if (ok)
-                        routine->nextStep();
-                    else
-                        routine->setErrorAndSkipToFinalStep();
+                    auto context = routine->continuationContext().setErrorFlagWhen(!ok);
                 },
                 routine
         );
@@ -294,8 +382,10 @@ void CardsDataAccess::updateCardLabels(
                 },
                 // callback:
                 [routine](bool ok, const QueryResponseSingleResult &queryResponse) {
+                    auto context = routine->continuationContext();
+
                     if (!ok || !queryResponse.getResult().has_value()) {
-                        routine->setErrorAndSkipToFinalStep();
+                        context.setErrorFlag();
                         return;
                     }
 
@@ -305,7 +395,7 @@ void CardsDataAccess::updateCardLabels(
                     if (!labelsValue.isArray()) {
                         qWarning().noquote()
                                 << QString("card not found or \"labels\" value has unexpected type");
-                        routine->setErrorAndSkipToFinalStep();
+                        context.setErrorFlag();
                         return;
                     }
 
@@ -314,7 +404,6 @@ void CardsDataAccess::updateCardLabels(
                         if (label != NodeLabel::card && !label.isEmpty())
                             routine->oldLabels << label;
                     }
-                    routine->nextStep();
                 },
                 routine
         );
@@ -349,13 +438,12 @@ void CardsDataAccess::updateCardLabels(
                 },
                 // callback:
                 [routine](bool ok, const QueryResponseSingleResult &queryResponse) {
+                    auto context = routine->continuationContext();
+
                     const bool good
                             = ok && queryResponse.getResult().has_value()
                               && !queryResponse.getResult().value().isEmpty();
-                    if (!good)
-                        routine->setErrorAndSkipToFinalStep();
-                    else
-                        routine->nextStep();
+                    context.setErrorFlagWhen(!good);
                 },
                 routine
         );
@@ -366,10 +454,7 @@ void CardsDataAccess::updateCardLabels(
         routine->transaction->commit(
                 // callback:
                 [routine](bool ok) {
-                    if (!ok)
-                        routine->setErrorAndSkipToFinalStep();
-                    else
-                        routine->nextStep();
+                    auto context = routine->continuationContext().setErrorFlagWhen(!ok);
                 },
                 routine
         );
@@ -377,9 +462,9 @@ void CardsDataAccess::updateCardLabels(
 
     routine->addStep([callback, routine]() {
         // 5. (final step) call `callback` and clean up
-        callback(!routine->hasError);
+        auto context = routine->continuationContext();
+        callback(!routine->errorFlag);
         routine->transaction->deleteLater();
-        routine->nextStep();
     }, callbackContext);
 
     routine->start();

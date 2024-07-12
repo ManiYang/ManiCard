@@ -1,24 +1,22 @@
-#include "saving_debouncer.h"
+#include "save_debouncer.h"
 
-SavingDebouncer::SavingDebouncer(const int checkInterval, QObject *parent)
+SaveDebouncer::SaveDebouncer(const int delayInterval, QObject *parent)
         : QObject(parent)
         , timer(new QTimer(this)) {
-    timer->setInterval(checkInterval);
-    connect(timer, &QTimer::timeout, this, [this]() {
-        onTimerTimeout();
-    });
+    timer->setInterval(delayInterval);
+    connect(timer, &QTimer::timeout, this, [this]() { onTimerTimeout(); });
 }
 
-void SavingDebouncer::setUpdated() {
+void SaveDebouncer::setUpdated() {
     updated = true;
     if (state == State::Clear) {
         timer->start();
         state = State::Pending;
-        emit savingScheduled();
+        emit saveScheduled();
     }
 }
 
-void SavingDebouncer::savingFinished() {
+void SaveDebouncer::saveFinished() {
     if (updated) {
         state = State::Pending;
     }
@@ -29,17 +27,17 @@ void SavingDebouncer::savingFinished() {
     }
 }
 
-bool SavingDebouncer::isCleared() const {
+bool SaveDebouncer::isCleared() const {
     return state == State::Clear;
 }
 
-void SavingDebouncer::onTimerTimeout() {
+void SaveDebouncer::onTimerTimeout() {
     if (state == State::Pending) {
         updated = false;
         state = State::Saving;
 
         emit saveCurrentState();
-        // this goes last because the receiver of this signal may call savingFinished()
+        // this goes last because the receiver of this signal may call saveFinished()
         // synchronously
     }
 }

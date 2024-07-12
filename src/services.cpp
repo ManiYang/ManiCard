@@ -56,7 +56,11 @@ bool Services::initialize(QString *errorMsg) {
 
         queuedDbAccess = new QueuedDbAccess(boardsDataAccess, cardsDataAccess, qApp);
 
-        unsavedUpdateRecordsFile = std::make_shared<UnsavedUpdateRecordsFile>();
+        unsavedUpdateFilePath
+                = QDir(qApp->applicationDirPath()).filePath("unsaved_updates.txt");
+
+        unsavedUpdateRecordsFile
+                = std::make_shared<UnsavedUpdateRecordsFile>(unsavedUpdateFilePath);
 
         cachedDataAccess = new CachedDataAccess(queuedDbAccess, unsavedUpdateRecordsFile, qApp);
     }
@@ -69,7 +73,11 @@ bool Services::initialize(QString *errorMsg) {
     return true;
 }
 
-CachedDataAccess *Services::getCachedDataAccess() {
+CachedDataAccess *Services::getCachedDataAccess() const {
     Q_ASSERT(cachedDataAccess != nullptr);
     return cachedDataAccess;
+}
+
+QString Services::getUnsavedUpdateFilePath() const {
+    return unsavedUpdateFilePath;
 }

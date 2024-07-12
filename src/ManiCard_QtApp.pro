@@ -26,7 +26,9 @@ SOURCES += \
     utilities/async_routine.cpp \
     utilities/json_util.cpp \
     utilities/logging.cpp \
-    utilities/saving_debouncer.cpp \
+    utilities/message_box.cpp \
+    utilities/save_debouncer.cpp \
+    utilities/strings_util.cpp \
     widgets/board_view.cpp \
     widgets/components/custom_graphics_text_item.cpp \
     widgets/components/custom_text_edit.cpp \
@@ -58,8 +60,10 @@ HEADERS += \
     utilities/logging.h \
     utilities/maps_util.h \
     utilities/margins_util.h \
+    utilities/message_box.h \
     utilities/numbers_util.h \
-    utilities/saving_debouncer.h \
+    utilities/save_debouncer.h \
+    utilities/strings_util.h \
     widgets/board_view.h \
     widgets/components/custom_graphics_text_item.h \
     widgets/components/custom_text_edit.h \

@@ -17,8 +17,9 @@
 
 constexpr int savingInterval = 2500;
 
-NodeRect::NodeRect(QGraphicsItem *parent)
+NodeRect::NodeRect(const int cardId_, QGraphicsItem *parent)
         : QGraphicsObject(parent)
+        , cardId(cardId_)
         , captionBarItem(new QGraphicsRectItem(this))
         , nodeLabelItem(new QGraphicsSimpleTextItem(this))
         , cardIdItem(new QGraphicsSimpleTextItem(this))
@@ -27,7 +28,7 @@ NodeRect::NodeRect(QGraphicsItem *parent)
         , textEdit(new CustomTextEdit(nullptr))
         , textEditProxyWidget(new QGraphicsProxyWidget(contentsRectItem))
         , moveResizeHelper(new GraphicsItemMoveResize(this))
-        , propertiesSaving(new SavingDebouncer(savingInterval, this)) {
+        , propertiesSaveDebouncer(new SaveDebouncer(savingInterval, this)) {
     textEdit->setVisible(false);
     textEdit->setReadOnly(true);
     textEditProxyWidget->setWidget(textEdit);
@@ -74,18 +75,13 @@ void NodeRect::setNodeLabels(const QSet<QString> &labels) {
     adjustChildItems();
 }
 
-void NodeRect::setCardId(const int cardId_) {
-    cardId = cardId_;
+void NodeRect::setTitle(const QString &title) {
+    titleItem->setPlainText(title);
     adjustChildItems();
 }
 
-void NodeRect::setTitle(const QString &title_) {
-    titleItem->setPlainText(title_);
-    adjustChildItems();
-}
-
-void NodeRect::setText(const QString &text_) {
-    textEdit->setPlainText(text_);
+void NodeRect::setText(const QString &text) {
+    textEdit->setPlainText(text);
     adjustChildItems();
 }
 
@@ -94,6 +90,14 @@ void NodeRect::setEditable(const bool editable) {
 
     titleItem->setEditable(editable);
     textEdit->setReadOnly(!isEditable);
+}
+
+void NodeRect::finishedSavePropertiesUpdate() {
+    QTimer::singleShot(0, this, [this]() {
+        propertiesSaveDebouncer->saveFinished();
+    });
+    // use singleShot() in case the receiver of signal savePropertiesUpdate() calls this method
+    // synchronously
 }
 
 int NodeRect::getCardId() const {
@@ -106,6 +110,10 @@ QString NodeRect::getTitle() const {
 
 QString NodeRect::getText() const {
     return textEdit->toPlainText();
+}
+
+bool NodeRect::canClose() const {
+    return propertiesSaveDebouncer->isCleared();
 }
 
 QRectF NodeRect::boundingRect() const {
@@ -135,7 +143,7 @@ void NodeRect::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 void NodeRect::setUpConnections() {
     connect(titleItem, &CustomGraphicsTextItem::textEdited, this, [this](bool heightChanged) {
         titleEdited = true;
-        propertiesSaving->setUpdated();
+        propertiesSaveDebouncer->setUpdated();
         if (heightChanged)
             adjustChildItems();
     });
@@ -143,7 +151,7 @@ void NodeRect::setUpConnections() {
     //
     connect(textEdit, &CustomTextEdit::textEdited, this, [this]() {
         textEdited = true;
-        propertiesSaving->setUpdated();
+        propertiesSaveDebouncer->setUpdated();
     });
 
     // ==== moveResizeHelper ====
@@ -194,37 +202,28 @@ void NodeRect::setUpConnections() {
 
     // ==== propertiesSaving ====
 
-    connect(propertiesSaving, &SavingDebouncer::saveCurrentState, this, [this]() {
-        // [test]
+    connect(propertiesSaveDebouncer, &SaveDebouncer::saveCurrentState, this, [this]() {
+        std::optional<QString> updatedTitle;
         if (titleEdited)
-            qDebug() << "save title...";
+            updatedTitle = titleItem->toPlainText();
 
+        std::optional<QString> updatedText;
         if (textEdited)
-            qDebug() << "save text...";
+            updatedText = textEdit->toPlainText();
 
-        QTimer::singleShot(100, this, [this]() {
-           propertiesSaving->savingFinished();
-        });
-
-
-
-
+        emit savePropertiesUpdate(updatedTitle, updatedText);
 
         //
         titleEdited = false;
         textEdited = false;
     });
 
-    connect(propertiesSaving, &SavingDebouncer::savingScheduled, this, [this]() {
-        qDebug() << "saving scheduled";
-
-
+    connect(propertiesSaveDebouncer, &SaveDebouncer::saveScheduled, this, [this]() {
+        qDebug().noquote() << QString("card %1 save scheduled").arg(cardId);
     });
 
-    connect(propertiesSaving, &SavingDebouncer::cleared, this, [this]() {
-        qDebug() << "saving cleared";
-
-
+    connect(propertiesSaveDebouncer, &SaveDebouncer::cleared, this, [this]() {
+        qDebug().noquote() << QString("card %1 save cleared").arg(cardId);
     });
 }
 

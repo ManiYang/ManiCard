@@ -1,17 +1,20 @@
 #include <QDebug>
 #include <QGraphicsView>
 #include <QInputDialog>
-#include <QMessageBox>
 #include <QResizeEvent>
 #include <QVBoxLayout>
 #include "board_view.h"
 #include "cached_data_access.h"
 #include "services.h"
+#include "utilities/async_routine.h"
+#include "utilities/message_box.h"
 #include "widgets/components/graphics_scene.h"
 #include "widgets/components/node_rect.h"
 
 #include <QGraphicsRectItem>
 #include <QTimer>
+
+using StringOpt = std::optional<QString>;
 
 BoardView::BoardView(QWidget *parent)
         : QFrame(parent) {
@@ -84,6 +87,13 @@ void BoardView::setUpContextMenu() {
                 QIcon(":/icons/open_in_new_black_24"), "Open Existing Card...");
         connect(action, &QAction::triggered, this, [this]() {
             userToOpenExistingCard(contextMenuData.requestScenePos);
+        });
+    }
+    {
+        QAction *action = contextMenu->addAction(
+                QIcon(":/icons/add_box_black_24"), "Create New Card");
+        connect(action, &QAction::triggered, this, [this]() {
+            userToCreateNewCard(contextMenuData.requestScenePos);
         });
     }
 }
@@ -160,20 +170,117 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
             // callback
             [=](bool ok, const QHash<int, Card> &cards) {
                 if (!ok) {
-                    QMessageBox::warning(this, " ", "Could not open card. See logs for details.");
+                    createWarningMessageBox(
+                            this, " ", "Could not open card. See logs for details.")->exec();
                     return;
                 }
 
                 if (!cards.contains(cardId)) {
-                    QMessageBox::information(this, " ", QString("Card %1 not found.").arg(cardId));
+                    createInformationMessageBox(
+                            this, " ", QString("Card %1 not found.").arg(cardId))->exec();
                     return;
                 }
 
                 const Card &cardData = cards.value(cardId);
+
                 auto *nodeRect = createNodeRect(cardId, cardData);
-                const QSizeF defaultNodeRectSize {200, 120};
-                nodeRect->setRect(QRectF(scenePos, defaultNodeRectSize));
+                nodeRect->setRect(QRectF(scenePos, defaultNewNodeRectSize));
                 nodeRect->setEditable(true);
+            },
+            this
+    );
+}
+
+void BoardView::userToCreateNewCard(const QPointF &scenePos) {
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        int newCardId;
+        Card card;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([routine]() {
+        // 1. request new card ID
+        Services::instance()->getCachedDataAccess()->requestNewCardId(
+                // callback:
+                [routine](std::optional<int> cardId) {
+                    auto context = routine->continuationContext();
+                    if (cardId.has_value()) {
+                        routine->newCardId = cardId.value();
+                    }
+                    else {
+                        context.setErrorFlag();
+                        routine->errorMsg = "Could not create new card. See logs for details.";
+                    }
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([this, routine, scenePos]() {
+        // 2. create new NodeRect
+        auto context = routine->continuationContext();
+
+        routine->card.title = "New Card";
+        routine->card.text = "";
+
+        NodeRect *nodeRect = createNodeRect(routine->newCardId, routine->card);
+        nodeRect->setRect(QRectF(scenePos, defaultNewNodeRectSize));
+        nodeRect->setEditable(true);
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // 3. write DB
+        Services::instance()->getCachedDataAccess()->createNewCardWithId(
+                routine->newCardId, routine->card,
+                // callback
+                [routine](bool ok) {
+                    auto context = routine->continuationContext();
+
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg
+                                = QString("Could not save created card to DB.\n\n"
+                                          "There is unsaved update. See %1")
+                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // 4. (final step)
+        auto context = routine->continuationContext();
+
+        if (routine->errorFlag)
+            createWarningMessageBox(this, " ", routine->errorMsg)->exec();
+
+    }, this);
+
+    routine->start();
+}
+
+void BoardView::saveCardPropertiesUpdate(
+        NodeRect *nodeRect, const CardPropertiesUpdate &propertiesUpdate,
+        std::function<void ()> callback) {
+    Services::instance()->getCachedDataAccess()->updateCardProperties(
+            nodeRect->getCardId(), propertiesUpdate,
+            // callback
+            [this, callback](bool ok) {
+                if (!ok) {
+                    const auto msg
+                            = QString("Could not save card properties to DB.\n\n"
+                                      "There is unsaved update. See %1")
+                              .arg(Services::instance()->getUnsavedUpdateFilePath());
+                    createWarningMessageBox(this, " ", msg)->exec();
+                }
+
+                if (callback)
+                    callback();
             },
             this
     );
@@ -186,14 +293,35 @@ QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {
 }
 
 NodeRect *BoardView::createNodeRect(const int cardId, const Card &cardData) {
-    auto *nodeRect = new NodeRect;
+    auto *nodeRect = new NodeRect(cardId);
     graphicsScene->addItem(nodeRect);
     nodeRect->initialize();
 
-    nodeRect->setCardId(cardId);
     nodeRect->setNodeLabels(cardData.getLabels());
     nodeRect->setTitle(cardData.title);
     nodeRect->setText(cardData.text);
+
+    QPointer<NodeRect> nodeRectPtr(nodeRect);
+    connect(nodeRect, &NodeRect::savePropertiesUpdate,
+            this,
+            [this, nodeRectPtr](const StringOpt &updatedTitle, const StringOpt &updatedText) {
+        if (!nodeRectPtr)
+            return;
+
+        CardPropertiesUpdate propertiesUpdate;
+        {
+            propertiesUpdate.title = updatedTitle;
+            propertiesUpdate.text = updatedText;
+        }
+        saveCardPropertiesUpdate(
+                nodeRectPtr.data(), propertiesUpdate,
+                // callback:
+                [nodeRectPtr]() {
+                    if (nodeRectPtr)
+                        nodeRectPtr->finishedSavePropertiesUpdate();
+                }
+        );
+    });
 
     return nodeRect;
 }
