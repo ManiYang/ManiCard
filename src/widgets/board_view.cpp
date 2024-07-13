@@ -157,7 +157,7 @@ bool BoardView::eventFilter(QObject *watched, QEvent *event) {
 }
 
 void BoardView::setUpWidgets() {
-    const QColor sceneBackgroundColor(235, 235, 235);
+    const QColor sceneBackgroundColor(230, 230, 230);
 
     //
     this->setFrameShape(QFrame::NoFrame);

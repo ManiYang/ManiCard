@@ -8,6 +8,7 @@ namespace Ui {
 class MainWindow;
 }
 
+class BoardsList;
 class BoardView;
 
 class MainWindow : public QMainWindow
@@ -25,6 +26,7 @@ private:
     Ui::MainWindow *ui;
 
     // component widgets
+    BoardsList *boardsList {nullptr};
     BoardView *boardView {nullptr};
     QLabel *noBoardOpenSign {nullptr};
 

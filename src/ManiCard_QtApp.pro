@@ -31,7 +31,9 @@ SOURCES += \
     utilities/save_debouncer.cpp \
     utilities/strings_util.cpp \
     widgets/board_view.cpp \
+    widgets/boards_list.cpp \
     widgets/components/custom_graphics_text_item.cpp \
+    widgets/components/custom_list_widget.cpp \
     widgets/components/custom_text_edit.cpp \
     widgets/components/graphics_item_move_resize.cpp \
     widgets/components/graphics_scene.cpp \
@@ -59,6 +61,7 @@ HEADERS += \
     utilities/functor.h \
     utilities/hash.h \
     utilities/json_util.h \
+    utilities/lists_vectors_util.h \
     utilities/logging.h \
     utilities/maps_util.h \
     utilities/margins_util.h \
@@ -67,7 +70,9 @@ HEADERS += \
     utilities/save_debouncer.h \
     utilities/strings_util.h \
     widgets/board_view.h \
+    widgets/boards_list.h \
     widgets/components/custom_graphics_text_item.h \
+    widgets/components/custom_list_widget.h \
     widgets/components/custom_text_edit.h \
     widgets/components/graphics_item_move_resize.h \
     widgets/components/graphics_scene.h \

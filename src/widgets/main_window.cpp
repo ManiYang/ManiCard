@@ -5,6 +5,7 @@
 #include <QShortcut>
 #include "main_window.h"
 #include "widgets/board_view.h"
+#include "widgets/boards_list.h"
 #include "ui_main_window.h"
 
 MainWindow::MainWindow(QWidget *parent)
@@ -50,6 +51,12 @@ void MainWindow::setUpWidgets() {
     //
     ui->frameLeftSideBar->setMinimumWidth(leftSideBarWidthMin);
 
+    // set up ui->frameLeftSideBar
+    {
+        boardsList = new BoardsList;
+        ui->frameLeftSideBar->layout()->addWidget(boardsList);
+    }
+
     // set up ui->frameCentralArea
     {
         auto *layout = new QVBoxLayout;
@@ -80,7 +87,7 @@ void MainWindow::setUpConnections() {
 void MainWindow::setKeyboardShortcuts() {
     {
         auto *shortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q), this);
-        connect(shortcut, &QShortcut::activated, [this]() { close(); });
+        connect(shortcut, &QShortcut::activated, this, [this]() { close(); });
     }
 }
 

@@ -3,5 +3,8 @@
         <file alias="open_in_new_black_24">resources/icons/open_in_new_black_24.png</file>
         <file alias="add_box_black_24">resources/icons/add_box_black_24.png</file>
         <file alias="close_box_black_24">resources/icons/close_box_black_24.png</file>
+        <file alias="add_black_24">resources/icons/add_black_24.png</file>
+        <file alias="delete_black_24">resources/icons/delete_black_24.png</file>
+        <file alias="edit_square_black_24">resources/icons/edit_square_black_24.png</file>
     </qresource>
 </RCC>
