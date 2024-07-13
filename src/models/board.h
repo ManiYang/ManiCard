@@ -8,6 +8,8 @@
 #include "models/node_rect_data.h"
 #include "relationship.h"
 
+struct BoardNodePropertiesUpdate;
+
 struct Board {
     // properties of Board node in DB
     QString name;
@@ -20,12 +22,14 @@ struct Board {
 //    QHash<int, VisualEdgeData> visualEdgesIdToData;
 
     //
-    void setNodeProperties(const QJsonObject &obj);
     QJsonObject getNodePropertiesJson() const;
+
+    void updateNodeProperties(const QJsonObject &obj);
+    void updateNodeProperties(const BoardNodePropertiesUpdate &update);
 };
 
 
-struct BoardNodePropertyUpdate
+struct BoardNodePropertiesUpdate
 {
     std::optional<QString> name;
     std::optional<QPointF> topLeftPos;

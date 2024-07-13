@@ -37,7 +37,7 @@ BoardView::BoardView(QWidget *parent)
 }
 
 bool BoardView::canClose() const {
-    return false; // [temp]....
+    return true; // [temp]....
 }
 
 void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> callback) {
@@ -382,8 +382,9 @@ void BoardView::saveCardPropertiesUpdate(
 }
 
 void BoardView::closeAllCards() {
-    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it)
-        closeNodeRect(it.key());
+    const QSet<int> cardIds = keySet(cardIdToNodeRect);
+    for (const int &cardId: cardIds)
+        closeNodeRect(cardId);
 }
 
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {

@@ -9,11 +9,28 @@
 #include <QSet>
 #include <QStringList>
 
-QJsonArray toJsonArray(const QStringList &list);
-QJsonArray toJsonArray(const QSet<int> &set);
-QJsonArray toJsonArray(const QSet<QString> &set);
+//QJsonArray toJsonArray(const QStringList &list);
+//QJsonArray toJsonArray(const QSet<int> &set);
+//QJsonArray toJsonArray(const QVector<int> &vector);
+//QJsonArray toJsonArray(const QSet<QString> &set);
+
+template <class Container>
+QJsonArray toJsonArray(const Container &c) {
+    static_assert(
+        std::is_same_v<typename Container::value_type, bool>
+        || std::is_same_v<typename Container::value_type, int>
+        || std::is_same_v<typename Container::value_type, double>
+        || std::is_same_v<typename Container::value_type, QString>
+    );
+
+    QJsonArray array;
+    for (const auto &item: c)
+        array << item;
+    return array;
+}
 
 QStringList toStringList(const QJsonArray &array, const QString &defaultValue);
+QVector<int> toIntVector(const QJsonArray &array, const int defaultValue);
 QVector<double> toDoubleVector(const QJsonArray &array, const double defaultValue);
 
 //!

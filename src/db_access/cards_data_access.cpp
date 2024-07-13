@@ -317,7 +317,7 @@ void CardsDataAccess::updateCardProperties(
                 }
             },
             // callback:
-            [callback](const QueryResponseSingleResult &queryResponse) {
+            [callback, cardId](const QueryResponseSingleResult &queryResponse) {
                 if (!queryResponse.getResult().has_value()) {
                     callback(false);
                     return;
@@ -330,7 +330,7 @@ void CardsDataAccess::updateCardProperties(
 
                 const auto queryResult = queryResponse.getResult().value();
                 if (queryResult.isEmpty()) {
-                    qWarning().noquote() << "card not found";
+                    qWarning().noquote() << QString("card %1 not found").arg(cardId);
                     hasError = true;
                 }
 

@@ -6,31 +6,46 @@
 #include "json_util.h"
 #include "utilities/numbers_util.h"
 
-QJsonArray toJsonArray(const QStringList &list) {
-    QJsonArray array;
-    for (const auto &item: list)
-        array << item;
-    return array;
-}
+//QJsonArray toJsonArray(const QStringList &list) {
+//    QJsonArray array;
+//    for (const auto &item: list)
+//        array << item;
+//    return array;
+//}
 
-QJsonArray toJsonArray(const QSet<int> &set) {
-    QJsonArray array;
-    for (const auto &item: set)
-        array << item;
-    return array;
-}
+//QJsonArray toJsonArray(const QSet<int> &set) {
+//    QJsonArray array;
+//    for (const auto &item: set)
+//        array << item;
+//    return array;
+//}
 
-QJsonArray toJsonArray(const QSet<QString> &set) {
-    QJsonArray array;
-    for (const auto &item: set)
-        array << item;
-    return array;
-}
+//QJsonArray toJsonArray(const QVector<int> &vector) {
+//    QJsonArray array;
+//    for (const auto &item: vector)
+//        array << item;
+//    return array;
+//}
+
+//QJsonArray toJsonArray(const QSet<QString> &set) {
+//    QJsonArray array;
+//    for (const auto &item: set)
+//        array << item;
+//    return array;
+//}
 
 QStringList toStringList(const QJsonArray &array, const QString &defaultValue) {
     QStringList result;
     for (const QJsonValue &v: array)
         result << v.toString(defaultValue);
+    return result;
+}
+
+QVector<int> toIntVector(const QJsonArray &array, const int defaultValue) {
+    QVector<int> result;
+    result.reserve(array.count());
+    for (const QJsonValue &v: array)
+        result << v.toInt(defaultValue);
     return result;
 }
 

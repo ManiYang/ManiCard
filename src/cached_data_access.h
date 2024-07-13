@@ -29,6 +29,14 @@ public:
             std::function<void (std::optional<int> cardId)> callback,
             QPointer<QObject> callbackContext);
 
+    void getBoardIdsAndNames(
+            std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
+            QPointer<QObject> callbackContext);
+
+    void getBoardsOrdering(
+            std::function<void (bool ok, const QVector<int> &boardsOrdering)> callback,
+            QPointer<QObject> callbackContext);
+
     void getBoardData(
             const int boardId,
             std::function<void (bool ok, std::optional<Board> board)> callback,
@@ -48,6 +56,14 @@ public:
 
     void updateCardLabels(
             const int cardId, const QSet<QString> &updatedLabels,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+
+    void updateBoardsOrdering(
+            const QVector<int> boardsOrdering,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+    void updateBoardNodeProperties(
+            const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
 
 

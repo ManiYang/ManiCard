@@ -41,8 +41,9 @@ private:
     void setUpConnections();
     void setKeyboardShortcuts();
 
-    // event handlers
+    //
     void onShownForFirstTime();
+    void startUp();
 };
 
 #endif // MAIN_WINDOW_H

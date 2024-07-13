@@ -58,11 +58,11 @@ int BoardsList::selectedBoardId() const {
 void BoardsList::setUpWidgets() {
     auto *rootVLayout = new QVBoxLayout;
     setLayout(rootVLayout);
-    rootVLayout->setContentsMargins(0, 6, 0, 0);
+    rootVLayout->setContentsMargins(0, 0, 0, 0);
     {
         auto *topHLayout = new QHBoxLayout;
         rootVLayout->addLayout(topHLayout);
-        topHLayout->setContentsMargins(20, 0, 0, 0);
+        topHLayout->setContentsMargins(14, 0, 0, 0);
         {
             buttonNewBoard = new QPushButton(QIcon(":/icons/add_black_24"), "New Board");
             topHLayout->addWidget(buttonNewBoard);
@@ -78,6 +78,7 @@ void BoardsList::setUpWidgets() {
     //
     listWidget->setStyleSheet(
             "QListWidget {"
+            "  font-size: 11pt;"
             "  background: transparent;"
             "}");
 

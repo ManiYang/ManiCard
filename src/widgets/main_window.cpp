@@ -2,11 +2,16 @@
 #include <QCloseEvent>
 #include <QDebug>
 #include <QKeySequence>
+#include <QMessageBox>
 #include <QShortcut>
+#include "cached_data_access.h"
 #include "main_window.h"
+#include "services.h"
+#include "ui_main_window.h"
+#include "utilities/async_routine.h"
+#include "utilities/message_box.h"
 #include "widgets/board_view.h"
 #include "widgets/boards_list.h"
-#include "ui_main_window.h"
 
 MainWindow::MainWindow(QWidget *parent)
         : QMainWindow(parent)
@@ -16,14 +21,7 @@ MainWindow::MainWindow(QWidget *parent)
     setUpConnections();
     setKeyboardShortcuts();
 
-    // [temp]
-    boardView->loadBoard(0, [](bool ok) {
-        qInfo().noquote() << QString("load board %1").arg(ok ? "successful" : "failed");
-    });
-    noBoardOpenSign->setVisible(false);
-    boardView->setVisible(true);
-
-
+    startUp();
 }
 
 MainWindow::~MainWindow() {
@@ -82,6 +80,46 @@ void MainWindow::setUpWidgets() {
 }
 
 void MainWindow::setUpConnections() {
+    connect(boardsList, &BoardsList::boardSelected,
+            this, [this](int newBoardId, int previousBoardId) {
+        // boardView->canClose() ...
+
+        noBoardOpenSign->setVisible(false);
+        boardView->setVisible(true);
+
+        boardView->loadBoard(newBoardId, [](bool ok) {
+            qInfo().noquote() << QString("load board %1").arg(ok ? "successful" : "failed");
+        });
+    });
+
+    connect(boardsList, &BoardsList::userRenamedBoard,
+            this, [this](int boardId, QString name) {
+        BoardNodePropertiesUpdate update;
+        update.name = name;
+
+        Services::instance()->getCachedDataAccess()->updateBoardNodeProperties(
+                boardId, update,
+                // callback
+                [this](bool ok) {
+                    if (!ok) {
+                        const auto msg
+                                = QString("Could not save board name to DB.\n\n"
+                                          "There is unsaved update. See %1")
+                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        createWarningMessageBox(this, " ", msg)->exec();
+                    }
+                },
+                this
+        );
+    });
+
+//    boardsOrderChanged(QVector<int> boardIds);
+//    userToCreateNewBoard();
+//    userToRemoveBoard(int boardId);
+
+
+
+
 }
 
 void MainWindow::setKeyboardShortcuts() {
@@ -106,4 +144,67 @@ void MainWindow::onShownForFirstTime() {
             Q_ASSERT(false);
         }
     }
+}
+
+void MainWindow::startUp() {
+//    // [temp]
+//    boardView->loadBoard(0, [](bool ok) {
+//        qInfo().noquote() << QString("load board %1").arg(ok ? "successful" : "failed");
+//    });
+//    noBoardOpenSign->setVisible(false);
+//    boardView->setVisible(true);
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QVector<int> boardsOrdering;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    routine->addStep([this, routine]() {
+        // get boards ordering
+        Services::instance()->getCachedDataAccess()->getBoardsOrdering(
+                [routine](bool ok, const QVector<int> &ordering) {
+                    auto context = routine->continuationContext();
+
+                    if (!ok) {
+                        routine->errorMsg = "Could not get boards data. See logs for details.";
+                        context.setErrorFlag();
+                    }
+                    else {
+                        routine->boardsOrdering = ordering;
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // get board IDs
+        Services::instance()->getCachedDataAccess()->getBoardIdsAndNames(
+                [this, routine](bool ok, const QHash<int, QString> &idToName) {
+                    auto context = routine->continuationContext();
+
+                    if (!ok) {
+                        routine->errorMsg = "Could not get list of boards. See logs for details.";
+                        context.setErrorFlag();
+                    }
+                    else {
+                        // populate `boardsList`
+                        boardsList->resetBoards(idToName, routine->boardsOrdering);
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // (final step)
+        auto context = routine->continuationContext();
+        if (routine->errorFlag)
+            createWarningMessageBox(this, " ", routine->errorMsg)->exec();
+    }, this);
+
+    routine->start();
 }

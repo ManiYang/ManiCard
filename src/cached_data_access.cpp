@@ -83,6 +83,34 @@ void CachedDataAccess::requestNewCardId(
     );
 }
 
+void CachedDataAccess::getBoardIdsAndNames(
+        std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    queuedDbAccess->getBoardIdsAndNames(
+            // callback
+            [callback](bool ok, const QHash<int, QString> &idToName) {
+                callback(ok, idToName);
+            },
+            callbackContext
+    );
+}
+
+void CachedDataAccess::getBoardsOrdering(
+        std::function<void (bool, const QVector<int> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    queuedDbAccess->getBoardsOrdering(
+            // callback
+            [callback](bool ok, const QVector<int> &ordering) {
+                callback(ok, ordering);
+            },
+            callbackContext
+    );
+}
+
 void CachedDataAccess::getBoardData(
         const int boardId, std::function<void (bool, std::optional<Board>)> callback,
         QPointer<QObject> callbackContext) {
@@ -208,6 +236,8 @@ void CachedDataAccess::createNewCardWithId(
 void CachedDataAccess::updateCardProperties(
         const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
     class AsyncRoutineWithVars : public AsyncRoutine
     {
     public:
@@ -259,6 +289,8 @@ void CachedDataAccess::updateCardProperties(
 void CachedDataAccess::updateCardLabels(
         const int cardId, const QSet<QString> &updatedLabels,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
     class AsyncRoutineWithVars : public AsyncRoutine
     {
     public:
@@ -301,6 +333,73 @@ void CachedDataAccess::updateCardLabels(
     routine->addStep([routine, callback]() {
         callback(routine->dbWriteOk);
         routine->nextStep();
+    }, callbackContext);
+
+    routine->start();
+}
+
+void CachedDataAccess::updateBoardsOrdering(
+        const QVector<int> boardsOrdering, std::function<void (bool)> callback,
+        QPointer<QObject> callbackContext) {
+    // write DB
+    // + if failed, add to unsaved updates
+
+
+
+
+
+}
+
+void CachedDataAccess::updateBoardNodeProperties(
+        const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    // 1. update cache
+    if (cache.boards.contains(boardId))
+        cache.boards[boardId].updateNodeProperties(propertiesUpdate);
+
+    //
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        // variables used by the steps of the routine:
+        bool dbWriteOk;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    // 2. write DB
+    routine->addStep([this, routine, boardId, propertiesUpdate]() {
+        queuedDbAccess->updateBoardNodeProperties(
+                boardId, propertiesUpdate,
+                // callback
+                [routine](bool ok) {
+                    auto context = routine->continuationContext();
+                    routine->dbWriteOk = ok;
+                },
+                this
+        );
+    }, this);
+
+    // 3. if step 2 failed, add to unsaved updates
+    routine->addStep([this, routine, boardId, propertiesUpdate]() {
+        auto context = routine->continuationContext();
+
+        if (!routine->dbWriteOk) {
+            const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+            const QString updateTitle = "updateBoardNodeProperties";
+            const QString updateDetails = printJson(QJsonObject {
+                {"boardId", boardId},
+                {"propertiesUpdate", propertiesUpdate.toJson()}
+            }, false);
+            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+        }
+    }, this);
+
+    // 4.
+    routine->addStep([routine, callback]() {
+        auto context = routine->continuationContext();
+        callback(routine->dbWriteOk);
     }, callbackContext);
 
     routine->start();

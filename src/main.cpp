@@ -26,6 +26,12 @@ int main(int argc, char *argv[]) {
     app.setApplicationName("ManiCard");
     app.setQuitOnLastWindowClosed(true);
 
+    {
+        QFont font = app.font();
+        font.setPointSize(10);
+        app.setFont(font);
+    }
+
     // set up logging
     if constexpr (buildInReleaseMode) {
         const auto logDirOpt = createLogDir(app.applicationDirPath(), "logs");
