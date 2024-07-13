@@ -14,6 +14,7 @@ QJsonArray toJsonArray(const QSet<int> &set);
 QJsonArray toJsonArray(const QSet<QString> &set);
 
 QStringList toStringList(const QJsonArray &array, const QString &defaultValue);
+QVector<double> toDoubleVector(const QJsonArray &array, const double defaultValue);
 
 //!
 //! \return a null document if failed

@@ -7,6 +7,7 @@
 #include "cached_data_access.h"
 #include "services.h"
 #include "utilities/async_routine.h"
+#include "utilities/maps_util.h"
 #include "utilities/message_box.h"
 #include "widgets/components/graphics_scene.h"
 #include "widgets/components/node_rect.h"
@@ -22,7 +23,6 @@ BoardView::BoardView(QWidget *parent)
     setUpContextMenu();
     setUpConnections();
     installEventFiltersOnComponents();
-    setStyleSheet(styleSheet());
 
     // test...
 //    {
@@ -33,22 +33,127 @@ BoardView::BoardView(QWidget *parent)
 //    {
 //        auto *rect2 = new QGraphicsRectItem(160, 100, 200, 100); // x,y,w,h
 //        graphicsScene->addItem(rect2);
-//    }
+    //    }
+}
+
+bool BoardView::canClose() const {
+    return false; // [temp]....
+}
+
+void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> callback) {
+    if (boardId == boardIdToLoad) {
+        callback(true);
+        return;
+    }
+
+    // close all cards
+    if (boardId != -1) {
+        if (!canClose()) {
+            callback(false);
+            return;
+        }
+
+        closeAllCards();
+        boardId = -1;
+    }
+
+    if (boardIdToLoad == -1) {
+        callback(true);
+        return;
+    }
+
+    //
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        Board board;
+        QHash<int, Card> cardsData;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    routine->addStep([this, routine, boardIdToLoad]() {
+        // 1. get board data
+        Services::instance()->getCachedDataAccess()->getBoardData(
+                boardIdToLoad,
+                // callback
+                [routine](bool ok, std::optional<Board> board) {
+                    auto context = routine->continuationContext();
+
+                    if (!ok || !board.has_value())
+                        context.setErrorFlag();
+                    else
+                        routine->board = board.value();
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine, boardIdToLoad]() {
+        // 2. get cards data
+        const QSet<int> cardIds = keySet(routine->board.cardIdToNodeRectData);
+        Services::instance()->getCachedDataAccess()->queryCards(
+                cardIds,
+                // callback
+                [routine, cardIds, boardIdToLoad](bool ok, const QHash<int, Card> &cards) {
+                    auto context = routine->continuationContext();
+
+                    if (!ok) {
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    if (keySet(cards) != cardIds) {
+                        qWarning().noquote()
+                                << QString("not all cards exist for board %1").arg(boardIdToLoad);
+                    }
+                    routine->cardsData = cards;
+                },
+                this
+        );
+    }, this);
+
+
+    routine->addStep([this, routine, boardIdToLoad]() {
+        // 3. open cards
+        auto context = routine->continuationContext();
+
+        for (auto it = routine->cardsData.constBegin(); it != routine->cardsData.constEnd(); ++it) {
+            const int &cardId = it.key();
+            const Card &cardData = it.value();
+
+            const NodeRectData nodeRectData = routine->board.cardIdToNodeRectData.value(cardId);
+
+            NodeRect *nodeRect = createNodeRect(cardId, cardData);
+            nodeRect->setRect(nodeRectData.rect);
+            nodeRect->setColor(nodeRectData.color);
+            nodeRect->setEditable(true);
+        }
+
+        //
+        boardId = boardIdToLoad;
+        adjustSceneRect();
+        setViewTopLeftPos(routine->board.topLeftPos);
+    }, this);
+
+    routine->addStep([routine, callback]() {
+        // 4. (final step)
+        auto context = routine->continuationContext();
+        callback(!routine->errorFlag);
+    }, this);
+
+    routine->start();
+}
+
+int BoardView::getBoardId() const {
+    return boardId;
 }
 
 bool BoardView::eventFilter(QObject *watched, QEvent *event) {
     if (watched == graphicsView) {
         if (event->type() == QEvent::Resize)
-            onGraphicsViewResize();
+            adjustSceneRect();
     }
     return false;
-}
-
-void BoardView::showEvent(QShowEvent */*event*/) {
-    if (!isEverShown) {
-        isEverShown = true;
-        onShownForFirstTime();
-    }
 }
 
 void BoardView::setUpWidgets() {
@@ -110,21 +215,7 @@ void BoardView::installEventFiltersOnComponents() {
     graphicsView->installEventFilter(this);
 }
 
-QString BoardView::styleSheet() {
-    return
-        "BoardView {"
-        "}";
-}
-
-void BoardView::onShownForFirstTime() {
-    // adjust view's center to the center of contents
-    {
-        const auto contentsCenter = graphicsScene->itemsBoundingRect().center();
-        graphicsView->centerOn(contentsCenter.isNull() ? QPointF(0, 0) : contentsCenter);
-    }
-}
-
-void BoardView::onGraphicsViewResize() {
+void BoardView::adjustSceneRect() {
     QGraphicsScene *scene = graphicsView->scene();
     if (scene == nullptr)
         return;
@@ -138,6 +229,7 @@ void BoardView::onGraphicsViewResize() {
     const double marginX = graphicsView->width() * fraction;
     const double marginY = graphicsView->height() * fraction;
 
+    //
     const auto sceneRect
             = contentsRect.marginsAdded(QMarginsF(marginX, marginY,marginX, marginY));
     graphicsView->setSceneRect(sceneRect);
@@ -153,12 +245,11 @@ void BoardView::userToOpenExistingCard(const QPointF &scenePos) {
     if (!ok)
         return;
 
-//    // check already opened
-//    if (mCardIdToNodeRectId.contains(cardId))
-//    {
-//        QMessageBox::information(this, "info", QString("Card %1 already opened.").arg(cardId));
-//        return;
-//    }
+    // check already opened
+    if (cardIdToNodeRect.contains(cardId)) {
+        QMessageBox::information(this, " ", QString("Card %1 already opened.").arg(cardId));
+        return;
+    }
 
     //
     openExistingCard(cardId, scenePos);
@@ -186,6 +277,8 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
                 auto *nodeRect = createNodeRect(cardId, cardData);
                 nodeRect->setRect(QRectF(scenePos, defaultNewNodeRectSize));
                 nodeRect->setEditable(true);
+
+                adjustSceneRect();
             },
             this
     );
@@ -230,6 +323,8 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
         NodeRect *nodeRect = createNodeRect(routine->newCardId, routine->card);
         nodeRect->setRect(QRectF(scenePos, defaultNewNodeRectSize));
         nodeRect->setEditable(true);
+
+        adjustSceneRect();
     }, this);
 
     routine->addStep([this, routine]() {
@@ -286,14 +381,28 @@ void BoardView::saveCardPropertiesUpdate(
     );
 }
 
+void BoardView::closeAllCards() {
+    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it)
+        closeNodeRect(it.key());
+}
+
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {
 
     QPoint posInViewport = graphicsView->mapFromScene(scenePos);
     return graphicsView->viewport()->mapToGlobal(posInViewport);
 }
 
+void BoardView::setViewTopLeftPos(const QPointF &scenePos) {
+    const double centerX = scenePos.x() + graphicsView->viewport()->width() * 0.5;
+    const double centerY = scenePos.y() + graphicsView->viewport()->height() * 0.5;
+    graphicsView->centerOn(centerX, centerY);
+}
+
 NodeRect *BoardView::createNodeRect(const int cardId, const Card &cardData) {
+    Q_ASSERT(!cardIdToNodeRect.contains(cardId));
+
     auto *nodeRect = new NodeRect(cardId);
+    cardIdToNodeRect.insert(cardId, nodeRect);
     graphicsScene->addItem(nodeRect);
     nodeRect->initialize();
 
@@ -326,9 +435,16 @@ NodeRect *BoardView::createNodeRect(const int cardId, const Card &cardData) {
     connect(nodeRect, &NodeRect::closeByUser, this, [this, nodeRectPtr]() {
         if (!nodeRectPtr)
             return;
-        graphicsScene->removeItem(nodeRectPtr.data());
-        nodeRectPtr->deleteLater();
+        closeNodeRect(nodeRectPtr->getCardId());
     });
 
     return nodeRect;
+}
+
+void BoardView::closeNodeRect(const int cardId) {
+    NodeRect *nodeRect = cardIdToNodeRect.take(cardId);
+    if (nodeRect == nullptr)
+        return;
+    graphicsScene->removeItem(nodeRect);
+    nodeRect->deleteLater();
 }

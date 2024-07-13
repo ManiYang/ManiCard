@@ -262,6 +262,41 @@ void QueuedDbAccess::updateCardLabels(
     addToQueue(func);
 }
 
+void QueuedDbAccess::getBoardData(
+        const int boardId, std::function<void (bool, std::optional<Board>)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    constexpr bool isReadOnlyAccess = true; // <--
+
+    auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
+        if (failDirectly) {
+            invokeAction(callbackContext, [callback]() {
+                callback(false, {}); // <-- callback params
+            });
+            if (thisPtr)
+                thisPtr->onResponse(false, isReadOnlyAccess);
+            return;
+        }
+
+        if (thisPtr.isNull())
+            return;
+        thisPtr->boardsDataAccess->getBoardData( // <-- method
+                boardId, // <-- input params
+                // callback:
+                [thisPtr, callback, callbackContext]
+                        (bool ok, std::optional<Board> board) { // <-- callback params
+                    invokeAction(callbackContext, [=]() {
+                        callback(ok, board);  // <-- callback params
+                    });
+                    if (thisPtr)
+                        thisPtr->onResponse(ok, isReadOnlyAccess);
+                },
+                thisPtr.data()
+        );
+    };
+    addToQueue(func);
+}
+
 void QueuedDbAccess::addToQueue(std::function<void (const bool)> func) {
     const bool failDirectly = errorFlag;
     queue << Task {func, failDirectly};

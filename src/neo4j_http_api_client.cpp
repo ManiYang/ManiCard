@@ -10,6 +10,7 @@
 #include "neo4j_http_api_client.h"
 #include "utilities/functor.h"
 #include "utilities/json_util.h"
+#include "utilities/numbers_util.h"
 
 namespace {
 
@@ -60,16 +61,14 @@ QByteArray prepareQueryRequestBody(const QVector<Neo4jHttpApiClient::QueryStatem
     return QJsonDocument(QJsonObject {{"statements", statementsArray}}).toJson();
 }
 
-void logSslErrors(const QList<QSslError> &errors)
-{
+void logSslErrors(const QList<QSslError> &errors) {
     QString errMsg = "SSL error(s):";
     for (const QSslError &error: errors)
         errMsg += QString("\n    %1 (code: %2)").arg(error.errorString()).arg(error.error());
     qWarning().noquote() << errMsg;
 }
 
-void logDbErrorMessages(const QVector<Neo4jHttpApiClient::DbError> &errors)
-{
+void logDbErrorMessages(const QVector<Neo4jHttpApiClient::DbError> &errors) {
     qWarning().noquote() << QString("errors from DB:");
     for (const auto &error: errors)
         qWarning().noquote() << QString("  + %1 -- %2").arg(error.code, error.message);
@@ -138,12 +137,11 @@ Neo4jHttpApiClient::QueryResponse handleApiResponse(
 Neo4jHttpApiClient::Neo4jHttpApiClient(const QString &dbHostUrl_, const QString &dbName_,
         const QString &dbAuthFilePath_, QNetworkAccessManager *networkAccessManager_,
         QObject *parent)
-    : QObject(parent)
-    , hostUrl(removeSlashAtEnd(dbHostUrl_))
-    , dbName(dbName_)
-    , dbAuthFilePath(dbAuthFilePath_)
-    , networkAccessManager(networkAccessManager_)
-{
+            : QObject(parent)
+            , hostUrl(removeSlashAtEnd(dbHostUrl_))
+            , dbName(dbName_)
+            , dbAuthFilePath(dbAuthFilePath_)
+            , networkAccessManager(networkAccessManager_) {
     if (!QFileInfo::exists(dbAuthFilePath))
         qWarning().noquote() << QString("file not found: %1").arg(dbAuthFilePath);
 }
@@ -198,8 +196,7 @@ void Neo4jHttpApiClient::queryDb(
     );
 }
 
-Neo4jTransaction *Neo4jHttpApiClient::getTransaction()
-{
+Neo4jTransaction *Neo4jHttpApiClient::getTransaction() {
     return new Neo4jTransaction(hostUrl, dbName, dbAuthFilePath, networkAccessManager, nullptr);
 }
 
@@ -208,13 +205,12 @@ Neo4jTransaction *Neo4jHttpApiClient::getTransaction()
 Neo4jTransaction::Neo4jTransaction(
         const QString &dbHostUrl_, const QString &dbName_, const QString &dbAuthFilePath_,
         QNetworkAccessManager *networkAccessManager_, QObject *parent)
-    : QObject(parent)
-    , hostUrl(removeSlashAtEnd(dbHostUrl_))
-    , dbName(dbName_)
-    , dbAuthFilePath(dbAuthFilePath_)
-    , networkAccessManager(networkAccessManager_)
-    , mTimerSendKeepAlive(new QTimer(this))
-{
+            : QObject(parent)
+            , hostUrl(removeSlashAtEnd(dbHostUrl_))
+            , dbName(dbName_)
+            , dbAuthFilePath(dbAuthFilePath_)
+            , networkAccessManager(networkAccessManager_)
+            , mTimerSendKeepAlive(new QTimer(this)) {
     // set up `mTimerSendKeepAlive`
     constexpr int intervalSendKeepAliveQuery = 1500;
     mTimerSendKeepAlive->setInterval(intervalSendKeepAliveQuery);
@@ -452,8 +448,7 @@ bool Neo4jTransaction::canQuery() const {
 }
 
 QNetworkReply *Neo4jTransaction::sendRequest(
-        const QString &url, const HttpMethod method, const QByteArray &postBody)
-{
+        const QString &url, const HttpMethod method, const QByteArray &postBody) {
     QNetworkRequest request;
     request.setUrl(QUrl(url));
     addCommonHeadersToRequest(request, getBasicAuthData(dbAuthFilePath));
@@ -481,8 +476,7 @@ QNetworkReply *Neo4jTransaction::sendRequest(
     return reply;
 }
 
-QString Neo4jTransaction::stateDescription(const State s)
-{
+QString Neo4jTransaction::stateDescription(const State s) {
     switch (s) {
     case State::NotOpenedYet:
         return "transaction is not opened yet";
@@ -516,8 +510,7 @@ bool Neo4jHttpApiClient::QueryResult::isEmpty() const {
 }
 
 std::pair<QJsonValue, QJsonValue> Neo4jHttpApiClient::QueryResult::valueAndMetaAt(
-        const int row, const int column) const
-{
+        const int row, const int column) const {
     if (row < 0 || row >= rows.count())
         return {QJsonValue::Undefined, QJsonValue::Undefined};
 
@@ -528,25 +521,121 @@ std::pair<QJsonValue, QJsonValue> Neo4jHttpApiClient::QueryResult::valueAndMetaA
 }
 
 std::pair<QJsonValue, QJsonValue> Neo4jHttpApiClient::QueryResult::valueAndMetaAt(
-        const int row, const QString &columnName) const
-{
+        const int row, const QString &columnName) const {
     if (!columnNameToIndex.contains(columnName))
         return {QJsonValue::Undefined, QJsonValue::Undefined};
     return valueAndMetaAt(row, columnNameToIndex.value(columnName));
 }
 
-QJsonValue Neo4jHttpApiClient::QueryResult::valueAt(const int row, const int column) const
-{
+QJsonValue Neo4jHttpApiClient::QueryResult::valueAt(
+        const int row, const int column) const {
     if (row < 0 || row >= rows.count())
         return QJsonValue::Undefined;
     return rows.at(row).values.value(column, QJsonValue::Undefined);
 }
 
-QJsonValue Neo4jHttpApiClient::QueryResult::valueAt(const int row, const QString &columnName) const
-{
+QJsonValue Neo4jHttpApiClient::QueryResult::valueAt(
+        const int row, const QString &columnName) const {
     if (!columnNameToIndex.contains(columnName))
         return QJsonValue::Undefined;
     return valueAt(row, columnNameToIndex.value(columnName));
+}
+
+namespace  {
+void logWarningOnValueNotFound(const QString &columnName) {
+    qWarning().noquote()
+            << QString("\"%1\" value not found in query result").arg(columnName);
+}
+void logWarningOnValueNotOfType(const QString &columnName, const QString &typeName) {
+    qWarning().noquote()
+            << QString("\"%1\" value in query result is not of %2 type")
+               .arg(columnName, typeName);
+}
+} // namespace
+
+std::optional<bool> Neo4jHttpApiClient::QueryResult::boolValueAt(
+        const int row, const QString &columnName) const {
+    const QJsonValue value = valueAt(row, columnName);
+    if (value.isUndefined()) {
+        logWarningOnValueNotFound(columnName);
+        return std::nullopt;
+    }
+    if (!value.isBool()) {
+        logWarningOnValueNotOfType(columnName, "boolean");
+        return std::nullopt;
+    }
+    return value.toBool();
+}
+
+std::optional<int> Neo4jHttpApiClient::QueryResult::intValueAt(
+        const int row, const QString &columnName) const {
+    const QJsonValue value = valueAt(row, columnName);
+    if (value.isUndefined()) {
+        logWarningOnValueNotFound(columnName);
+        return std::nullopt;
+    }
+    if (!value.isDouble() || !isInteger(value.toDouble())) {
+        logWarningOnValueNotOfType(columnName, "integer");
+        return std::nullopt;
+    }
+    return value.toInt();
+}
+
+std::optional<double> Neo4jHttpApiClient::QueryResult::doubleValueAt(
+        const int row, const QString &columnName) const {
+    const QJsonValue value = valueAt(row, columnName);
+    if (value.isUndefined()) {
+        logWarningOnValueNotFound(columnName);
+        return std::nullopt;
+    }
+    if (!value.isDouble()) {
+        logWarningOnValueNotOfType(columnName, "number");
+        return std::nullopt;
+    }
+    return value.toDouble();
+}
+
+std::optional<QString> Neo4jHttpApiClient::QueryResult::stringValueAt(
+        const int row, const QString &columnName) const
+{
+    const QJsonValue value = valueAt(row, columnName);
+    if (value.isUndefined()) {
+        logWarningOnValueNotFound(columnName);
+        return std::nullopt;
+    }
+    if (!value.isString()) {
+        logWarningOnValueNotOfType(columnName, "string");
+        return std::nullopt;
+    }
+    return value.toString();
+}
+
+std::optional<QJsonArray> Neo4jHttpApiClient::QueryResult::arrayValueAt(
+        const int row, const QString &columnName) const {
+    const QJsonValue value = valueAt(row, columnName);
+    if (value.isUndefined()) {
+        logWarningOnValueNotFound(columnName);
+        return std::nullopt;
+    }
+    if (!value.isArray()) {
+        logWarningOnValueNotOfType(columnName, "array");
+        return std::nullopt;
+    }
+    return value.toArray();
+}
+
+std::optional<QJsonObject> Neo4jHttpApiClient::QueryResult::objectValueAt(
+        const int row, const QString &columnName) const {
+    const QJsonValue value = valueAt(row, columnName);
+    if (value.isUndefined()) {
+        logWarningOnValueNotFound(columnName);
+        return std::nullopt;
+    }
+    if (!value.isObject()) {
+        logWarningOnValueNotOfType(columnName, "object");
+        return std::nullopt;
+    }
+    return value.toObject();
 }
 
 Neo4jHttpApiClient::QueryResult Neo4jHttpApiClient::QueryResult::fromApiResponse(
@@ -593,8 +682,8 @@ Neo4jHttpApiClient::QueryResult Neo4jHttpApiClient::QueryResult::fromApiResponse
 Neo4jHttpApiClient::QueryResponse::QueryResponse(
         const bool hasNetworkError_, const QVector<DbError> &dbErrors_,
         const QVector<QueryResult> &results_)
-    : QueryResponseBase(hasNetworkError_, dbErrors_, results_)
-{}
+            : QueryResponseBase(hasNetworkError_, dbErrors_, results_) {
+}
 
 QVector<Neo4jHttpApiClient::QueryResult> Neo4jHttpApiClient::QueryResponse::getResults() const {
     return results;
@@ -605,11 +694,11 @@ QVector<Neo4jHttpApiClient::QueryResult> Neo4jHttpApiClient::QueryResponse::getR
 Neo4jHttpApiClient::QueryResponseSingleResult::QueryResponseSingleResult(
         const bool hasNetworkError_, const QVector<DbError> &dbErrors_,
         const QVector<QueryResult> &results_)
-    : QueryResponseBase(
-            hasNetworkError_,
-            dbErrors_,
-            results_.isEmpty() ? QVector<QueryResult> {} : results_.mid(0, 1)
-      ) {
+            : QueryResponseBase(
+                    hasNetworkError_,
+                    dbErrors_,
+                    results_.isEmpty() ? QVector<QueryResult> {} : results_.mid(0, 1)
+              ) {
 }
 
 std::optional<Neo4jHttpApiClient::QueryResult>

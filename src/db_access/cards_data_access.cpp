@@ -5,13 +5,13 @@
 #include "utilities/json_util.h"
 #include "utilities/strings_util.h"
 
+using QueryStatement = Neo4jHttpApiClient::QueryStatement;
+using QueryResponseSingleResult = Neo4jHttpApiClient::QueryResponseSingleResult;
+
 CardsDataAccess::CardsDataAccess(Neo4jHttpApiClient *neo4jHttpApiClient)
     : AbstractCardsDataAccess()
     , neo4jHttpApiClient(neo4jHttpApiClient)
 {}
-
-using QueryStatement = Neo4jHttpApiClient::QueryStatement;
-using QueryResponseSingleResult = Neo4jHttpApiClient::QueryResponseSingleResult;
 
 void CardsDataAccess::queryCards(
         const QSet<int> &cardIds,

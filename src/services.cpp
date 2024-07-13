@@ -50,7 +50,7 @@ bool Services::initialize(QString *errorMsg) {
                     QString("error in reading config: %1").arg(e.what()).toStdString());
         }
 
-        boardsDataAccess = std::make_shared<BoardsDataAccess>();
+        boardsDataAccess = std::make_shared<BoardsDataAccess>(neo4jHttpApiClient);
 
         cardsDataAccess = std::make_shared<CardsDataAccess>(neo4jHttpApiClient);
 

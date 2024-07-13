@@ -30,7 +30,7 @@ public:
     //!
     void initialize();
 
-    // Call these methods only after this item is added to a scene:
+    // Call these "set" methods only after this item is added to a scene:
 
     void setRect(const QRectF rect_);
     void setColor(const QColor color_);

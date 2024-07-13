@@ -1,6 +1,7 @@
 #ifndef MAIN_WINDOW_H
 #define MAIN_WINDOW_H
 
+#include <QLabel>
 #include <QMainWindow>
 
 namespace Ui {
@@ -25,6 +26,7 @@ private:
 
     // component widgets
     BoardView *boardView {nullptr};
+    QLabel *noBoardOpenSign {nullptr};
 
     // states & constants
     const int leftSideBarWidthMin {60};
@@ -39,9 +41,6 @@ private:
 
     // event handlers
     void onShownForFirstTime();
-
-
-
 };
 
 #endif // MAIN_WINDOW_H

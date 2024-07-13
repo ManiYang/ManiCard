@@ -20,6 +20,8 @@ void CachedDataAccess::queryCards(
         const QSet<int> &cardIds,
         std::function<void (bool, const QHash<int, Card> &)> callback,
         QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
     class AsyncRoutineWithVars : public AsyncRoutine
     {
     public:
@@ -70,6 +72,8 @@ void CachedDataAccess::queryCards(
 
 void CachedDataAccess::requestNewCardId(
         std::function<void (std::optional<int>)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
     queuedDbAccess->requestNewCardId(
             // callback
             [callback](std::optional<int> cardId) {
@@ -77,6 +81,60 @@ void CachedDataAccess::requestNewCardId(
             },
             callbackContext
     );
+}
+
+void CachedDataAccess::getBoardData(
+        const int boardId, std::function<void (bool, std::optional<Board>)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    // 1. get the parts that are already cached
+    if (cache.boards.contains(boardId)) {
+        const auto board = cache.boards.value(boardId);
+        invokeAction(callbackContext, [callback, board]() {
+            callback(true, board);
+        });
+        return;
+    }
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        // variables used by the steps of the routine:
+        std::optional<Board> boardResult;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    // 2. query DB
+    routine->addStep([this, routine, boardId]() {
+        queuedDbAccess->getBoardData(
+                boardId,
+                // callback
+                [this, routine, boardId](bool ok, std::optional<Board> board) {
+                    auto context = routine->continuationContext();
+                    if (ok) {
+                        routine->boardResult = board;
+
+                        // update cache
+                        if (board.has_value())
+                            cache.boards.insert(boardId, board.value());
+                    }
+                    else {
+                        context.setErrorFlag();
+                    }
+                },
+                this
+        );
+    }, this);
+
+    //
+    routine->addStep([routine, callback]() {
+         auto context = routine->continuationContext();
+         callback(!routine->errorFlag, routine->boardResult);
+    }, callbackContext);
+
+    //
+    routine->start();
 }
 
 void CachedDataAccess::createNewCardWithId(

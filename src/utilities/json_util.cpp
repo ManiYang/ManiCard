@@ -34,6 +34,14 @@ QStringList toStringList(const QJsonArray &array, const QString &defaultValue) {
     return result;
 }
 
+QVector<double> toDoubleVector(const QJsonArray &array, const double defaultValue) {
+    QVector<double> result;
+    result.reserve(array.count());
+    for (const QJsonValue &v: array)
+        result << v.toDouble(defaultValue);
+    return result;
+}
+
 QJsonDocument readJsonFile(const QString &filePath, QString *errorMsg) {
     QFile file(filePath);
     const bool ok = file.open(QIODevice::ReadOnly);
@@ -211,3 +219,4 @@ QString JsonReader::getCurrentPathString() const {
     }
     return parts.join("");
 }
+

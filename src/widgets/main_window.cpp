@@ -8,13 +8,21 @@
 #include "ui_main_window.h"
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
-{
+        : QMainWindow(parent)
+        , ui(new Ui::MainWindow) {
     ui->setupUi(this);
     setUpWidgets();
     setUpConnections();
     setKeyboardShortcuts();
+
+    // [temp]
+    boardView->loadBoard(0, [](bool ok) {
+        qInfo().noquote() << QString("load board %1").arg(ok ? "successful" : "failed");
+    });
+    noBoardOpenSign->setVisible(false);
+    boardView->setVisible(true);
+
+
 }
 
 MainWindow::~MainWindow() {
@@ -50,7 +58,20 @@ void MainWindow::setUpWidgets() {
 
         boardView = new BoardView;
         layout->addWidget(boardView);
+        boardView->setVisible(false);
+
+        noBoardOpenSign = new QLabel("No board is open");
+        layout->addWidget(noBoardOpenSign);
+        layout->setAlignment(noBoardOpenSign, Qt::AlignCenter);
     }
+
+    //
+    noBoardOpenSign->setStyleSheet(
+            "QLabel {"
+            "  color: #808080;"
+            "  font-size: 14pt;"
+            "  font-weight: bold;"
+            "}");
 }
 
 void MainWindow::setUpConnections() {

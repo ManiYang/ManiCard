@@ -174,13 +174,20 @@ void NodeRect::setUpContextMenu() {
         auto *action = contextMenu->addAction(QIcon(":/icons/close_box_black_24"), "Close");
         connect(action, &QAction::triggered, this, [this]() {
             QString msg;
-            if (!canClose())
+            bool defaultNo = false;
+            if (!canClose()) {
                 msg = "Saving in progress. Close the card anyway?";
-            else
+                defaultNo = true;
+            }
+            else {
                 msg = "Close the card?";
+                defaultNo = false;
+            }
 
             const auto r = QMessageBox::question(
-                    getView(), " ", msg, QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+                    getView(), " ", msg,
+                    QMessageBox::Yes | QMessageBox::No,
+                    defaultNo ? QMessageBox::No : QMessageBox::Yes);
             if (r == QMessageBox::Yes)
                 emit closeByUser();
         });
@@ -275,7 +282,7 @@ void NodeRect::setUpConnections() {
 }
 
 void NodeRect::adjustChildItems() {
-    qDebug().noquote() << "adjustChildItems()";
+//    qDebug().noquote() << "adjustChildItems()";
 
     // get view's font
     QFont fontOfView;

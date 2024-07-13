@@ -70,6 +70,11 @@ public:
 
     // read operations
 
+    void getBoardData(
+                const int boardId,
+                std::function<void (bool ok, std::optional<Board> board)> callback,
+                QPointer<QObject> callbackContext) override;
+
     // write operations
 
 

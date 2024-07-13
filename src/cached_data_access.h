@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QPointer>
+#include "models/board.h"
 #include "models/card.h"
 
 class QueuedDbAccess;
@@ -26,6 +27,11 @@ public:
 
     void requestNewCardId(
             std::function<void (std::optional<int> cardId)> callback,
+            QPointer<QObject> callbackContext);
+
+    void getBoardData(
+            const int boardId,
+            std::function<void (bool ok, std::optional<Board> board)> callback,
             QPointer<QObject> callbackContext);
 
     // ==== write ====
@@ -53,10 +59,9 @@ private:
     struct Cache
     {
         QHash<int, Card> cards;
+        QHash<int, Board> boards;
     };
     Cache cache;
-
-
 };
 
 /*

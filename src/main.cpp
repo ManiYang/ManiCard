@@ -110,7 +110,7 @@ int main(int argc, char *argv[]) {
     delete sharedMemActivateFlag;
     delete timerReadSharedMemActivateFlag;
 
-    if (buildInReleaseMode)
+    if constexpr (buildInReleaseMode)
         closeLogFileStream(logFileStream);
 
     return returnCode;

@@ -1,6 +1,7 @@
 #ifndef NEO4JHTTPAPICLIENT_H
 #define NEO4JHTTPAPICLIENT_H
 
+#include <optional>
 #include <QByteArray>
 #include <QHash>
 #include <QJsonObject>
@@ -45,6 +46,16 @@ public: // types
         //!
         QJsonValue valueAt(const int row, const int column) const;
         QJsonValue valueAt(const int row, const QString &columnName) const;
+
+        //!
+        //! \return \c nullopt if value is not found or is of different type.
+        //!
+        std::optional<bool> boolValueAt(const int row, const QString &columnName) const;
+        std::optional<int> intValueAt(const int row, const QString &columnName) const;
+        std::optional<double> doubleValueAt(const int row, const QString &columnName) const;
+        std::optional<QString> stringValueAt(const int row, const QString &columnName) const;
+        std::optional<QJsonArray> arrayValueAt(const int row, const QString &columnName) const;
+        std::optional<QJsonObject> objectValueAt(const int row, const QString &columnName) const;
 
         //
 

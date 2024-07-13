@@ -1,6 +1,8 @@
+#include <QDebug>
 #include <QMetaObject>
 #include <QTimer>
 #include "async_routine.h"
+#include "global_constants.h"
 
 AsyncRoutine::AsyncRoutine()
         : QObject(nullptr) {
@@ -12,6 +14,14 @@ AsyncRoutine &AsyncRoutine::addStep(std::function<void ()> func, QPointer<QObjec
     Q_ASSERT(!context.isNull());
 
     steps.push_back(Step {func, context});
+
+    if constexpr (!buildInReleaseMode) {
+        QTimer::singleShot(0, this, [this]() {
+            if (!isStarted)
+                qWarning().noquote() << QString("Did you forget to call AsyncRoutine::start()?");
+        });
+    }
+
     return *this;
 }
 

@@ -19,6 +19,7 @@ SOURCES += \
     main.cpp \
     models/board.cpp \
     models/card.cpp \
+    models/node_rect_data.cpp \
     models/relationship.cpp \
     neo4j_http_api_client.cpp \
     services.cpp \
@@ -49,6 +50,7 @@ HEADERS += \
     models/board.h \
     models/card.h \
     models/node_labels.h \
+    models/node_rect_data.h \
     models/relationship.h \
     neo4j_http_api_client.h \
     services.h \
