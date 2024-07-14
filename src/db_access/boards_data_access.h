@@ -16,8 +16,8 @@ public:
             std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
             QPointer<QObject> callbackContext) override;
 
-    void getBoardsOrdering(
-            std::function<void (bool ok, const QVector<int> &boardsOrdering)> callback,
+    void getBoardsListProperties(
+            std::function<void (bool ok, BoardsListProperties properties)> callback,
             QPointer<QObject> callbackContext) override;
 
     void getBoardData(
@@ -25,10 +25,10 @@ public:
             std::function<void (bool ok, std::optional<Board> board)> callback,
             QPointer<QObject> callbackContext) override;
 
-    // ==== read operations ====
+    // ==== write operations ====
 
-    void updateBoardsOrdering(
-            const QVector<int> boardsOrdering,
+    void updateBoardsListProperties(
+            const BoardsListPropertiesUpdate &propertiesUpdate,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
     void updateBoardNodeProperties(

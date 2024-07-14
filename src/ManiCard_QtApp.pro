@@ -18,6 +18,7 @@ SOURCES += \
     file_access/unsaved_update_records_file.cpp \
     main.cpp \
     models/board.cpp \
+    models/boards_list_properties.cpp \
     models/card.cpp \
     models/node_rect_data.cpp \
     models/relationship.cpp \
@@ -50,6 +51,7 @@ HEADERS += \
     file_access/unsaved_update_records_file.h \
     global_constants.h \
     models/board.h \
+    models/boards_list_properties.h \
     models/card.h \
     models/node_labels.h \
     models/node_rect_data.h \

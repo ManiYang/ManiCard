@@ -19,12 +19,14 @@ public:
     bool canClose() const;
 
     //!
+    //! The BoardView must be visible before method this called.
     //! \param boardId_: if = -1, will only close the board
     //! \param callback
     //!
     void loadBoard(const int boardIdToLoad, std::function<void (bool ok)> callback);
 
     int getBoardId() const; // can be -1
+    QPointF getViewTopLeftPos() const;
 
     //
     bool eventFilter(QObject *watched, QEvent *event) override;

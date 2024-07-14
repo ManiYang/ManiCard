@@ -9,11 +9,6 @@
 #include <QSet>
 #include <QStringList>
 
-//QJsonArray toJsonArray(const QStringList &list);
-//QJsonArray toJsonArray(const QSet<int> &set);
-//QJsonArray toJsonArray(const QVector<int> &vector);
-//QJsonArray toJsonArray(const QSet<QString> &set);
-
 template <class Container>
 QJsonArray toJsonArray(const Container &c) {
     static_assert(
@@ -54,6 +49,7 @@ inline QString printJson(const QJsonArray &array, const bool compact = true) {
 //! Returns \e object itself if \a pathOfKeys is empty.
 //!
 QJsonValue getNestedValue(const QJsonObject &object, const QStringList &pathOfKeys);
+
 
 //!
 //! Usage examples:
@@ -115,6 +111,7 @@ private:
     //!
     QString getCurrentPathString() const;
 };
+
 
 class JsonReaderError : public std::runtime_error
 {

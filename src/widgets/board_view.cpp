@@ -23,17 +23,6 @@ BoardView::BoardView(QWidget *parent)
     setUpContextMenu();
     setUpConnections();
     installEventFiltersOnComponents();
-
-    // test...
-//    {
-//        auto *rect1 = new QGraphicsRectItem(0, 0, 100, 200); // x,y,w,h
-//        rect1->setPen({QBrush(Qt::red), 1.0});
-//        graphicsScene->addItem(rect1);
-//    }
-//    {
-//        auto *rect2 = new QGraphicsRectItem(160, 100, 200, 100); // x,y,w,h
-//        graphicsScene->addItem(rect2);
-    //    }
 }
 
 bool BoardView::canClose() const {
@@ -146,6 +135,10 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
 
 int BoardView::getBoardId() const {
     return boardId;
+}
+
+QPointF BoardView::getViewTopLeftPos() const {
+    return graphicsView->mapToScene(0, 0);
 }
 
 bool BoardView::eventFilter(QObject *watched, QEvent *event) {
@@ -387,18 +380,6 @@ void BoardView::closeAllCards() {
         closeNodeRect(cardId);
 }
 
-QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {
-
-    QPoint posInViewport = graphicsView->mapFromScene(scenePos);
-    return graphicsView->viewport()->mapToGlobal(posInViewport);
-}
-
-void BoardView::setViewTopLeftPos(const QPointF &scenePos) {
-    const double centerX = scenePos.x() + graphicsView->viewport()->width() * 0.5;
-    const double centerY = scenePos.y() + graphicsView->viewport()->height() * 0.5;
-    graphicsView->centerOn(centerX, centerY);
-}
-
 NodeRect *BoardView::createNodeRect(const int cardId, const Card &cardData) {
     Q_ASSERT(!cardIdToNodeRect.contains(cardId));
 
@@ -448,4 +429,16 @@ void BoardView::closeNodeRect(const int cardId) {
         return;
     graphicsScene->removeItem(nodeRect);
     nodeRect->deleteLater();
+}
+
+QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {
+
+    QPoint posInViewport = graphicsView->mapFromScene(scenePos);
+    return graphicsView->viewport()->mapToGlobal(posInViewport);
+}
+
+void BoardView::setViewTopLeftPos(const QPointF &scenePos) {
+    const double centerX = scenePos.x() + graphicsView->viewport()->width() * 0.5;
+    const double centerY = scenePos.y() + graphicsView->viewport()->height() * 0.5;
+    graphicsView->centerOn(centerX, centerY);
 }

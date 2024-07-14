@@ -68,9 +68,6 @@ class AsyncRoutineWithErrorFlag : public AsyncRoutine
 public:
     AsyncRoutineWithErrorFlag();
 
-    void nextStep() = delete;
-    void skipToFinalStep() = delete;
-
     bool errorFlag {false};
 
     //

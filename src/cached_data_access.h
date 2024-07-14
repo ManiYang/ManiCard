@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QPointer>
 #include "models/board.h"
+#include "models/boards_list_properties.h"
 #include "models/card.h"
 
 class QueuedDbAccess;
@@ -33,8 +34,8 @@ public:
             std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
             QPointer<QObject> callbackContext);
 
-    void getBoardsOrdering(
-            std::function<void (bool ok, const QVector<int> &boardsOrdering)> callback,
+    void getBoardsListProperties(
+            std::function<void (bool ok, BoardsListProperties properties)> callback,
             QPointer<QObject> callbackContext);
 
     void getBoardData(
@@ -58,9 +59,9 @@ public:
             const int cardId, const QSet<QString> &updatedLabels,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
 
-    void updateBoardsOrdering(
-            const QVector<int> boardsOrdering,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+    void updateBoardsListProperties(
+            const BoardsListPropertiesUpdate &propertiesUpdate,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
 
     void updateBoardNodeProperties(
             const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,

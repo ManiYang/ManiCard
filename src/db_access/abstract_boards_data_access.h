@@ -5,6 +5,7 @@
 #include <optional>
 #include <QPointer>
 #include "models/board.h"
+#include "models/boards_list_properties.h"
 
 class AbstractBoardsDataAccessReadOnly
 {
@@ -15,13 +16,8 @@ public:
             std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
             QPointer<QObject> callbackContext) = 0;
 
-    //!
-    //! \param callback: argument \e boardsOrdering may not contain all existing board IDs, and
-    //!                  may contain non-existing ID
-    //! \param callbackContext
-    //!
-    virtual void getBoardsOrdering(
-            std::function<void (bool ok, const QVector<int> &boardsOrdering)> callback,
+    virtual void getBoardsListProperties(
+            std::function<void (bool ok, BoardsListProperties properties)> callback,
             QPointer<QObject> callbackContext) = 0;
 
     //!
@@ -43,8 +39,8 @@ public:
     //!
     //! This operation is atomic.
     //!
-    virtual void updateBoardsOrdering(
-            const QVector<int> boardsOrdering,
+    virtual void updateBoardsListProperties(
+            const BoardsListPropertiesUpdate &propertiesUpdate,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 
     //!

@@ -97,15 +97,15 @@ void CachedDataAccess::getBoardIdsAndNames(
     );
 }
 
-void CachedDataAccess::getBoardsOrdering(
-        std::function<void (bool, const QVector<int> &)> callback,
+void CachedDataAccess::getBoardsListProperties(
+        std::function<void (bool, BoardsListProperties properties)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
-    queuedDbAccess->getBoardsOrdering(
+    queuedDbAccess->getBoardsListProperties(
             // callback
-            [callback](bool ok, const QVector<int> &ordering) {
-                callback(ok, ordering);
+            [callback](bool ok, BoardsListProperties properties) {
+                callback(ok, properties);
             },
             callbackContext
     );
@@ -338,16 +338,31 @@ void CachedDataAccess::updateCardLabels(
     routine->start();
 }
 
-void CachedDataAccess::updateBoardsOrdering(
-        const QVector<int> boardsOrdering, std::function<void (bool)> callback,
-        QPointer<QObject> callbackContext) {
-    // write DB
-    // + if failed, add to unsaved updates
+void CachedDataAccess::updateBoardsListProperties(
+        const BoardsListPropertiesUpdate &propertiesUpdate,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
 
+    // Write DB. If failed, add to unsaved updates.
+    queuedDbAccess->updateBoardsListProperties(
+            propertiesUpdate,
+            // callback
+            [this, callback, callbackContext, propertiesUpdate](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "updateBoardsListProperties";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"propertiesUpdate", propertiesUpdate.toJson()}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+                }
 
-
-
-
+                invokeAction(callbackContext, [callback, ok]() {
+                    callback(ok);
+                });
+            },
+            this
+    );
 }
 
 void CachedDataAccess::updateBoardNodeProperties(

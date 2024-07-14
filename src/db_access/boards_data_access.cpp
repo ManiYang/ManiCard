@@ -45,8 +45,8 @@ void BoardsDataAccess::getBoardIdsAndNames(
     );
 }
 
-void BoardsDataAccess::getBoardsOrdering(
-        std::function<void (bool, const QVector<int> &)> callback,
+void BoardsDataAccess::getBoardsListProperties(
+        std::function<void (bool ok, BoardsListProperties properties)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
@@ -54,25 +54,27 @@ void BoardsDataAccess::getBoardsOrdering(
             QueryStatement {
                 R"!(
                     MATCH (n:BoardsList)
-                    RETURN n.boardsOrdering AS ordering;
+                    RETURN n;
                 )!",
                 QJsonObject {}
             },
             // callback
             [callback](const QueryResponseSingleResult &queryResponse) {
                 if (!queryResponse.getResult().has_value()) {
-                    callback(false, {});
+                    callback(false, BoardsListProperties {});
                     return;
                 }
 
                 const auto result = queryResponse.getResult().value();
-                std::optional<QJsonArray> array = result.arrayValueAt(0, "ordering");
-                if (!array.has_value()) {
-                    callback(false, {});
+                std::optional<QJsonObject> propertiesObj = result.objectValueAt(0, "n");
+                if (!propertiesObj.has_value()) {
+                    callback(false, BoardsListProperties {});
                     return;
                 }
 
-                callback(true, toIntVector(array.value(), -1));
+                BoardsListProperties properties;
+                properties.update(propertiesObj.value());
+                callback(true, properties);
             },
             callbackContext
     );
@@ -150,19 +152,19 @@ void BoardsDataAccess::getBoardData(
     );
 }
 
-void BoardsDataAccess::updateBoardsOrdering(
-        const QVector<int> boardsOrdering, std::function<void (bool)> callback,
-        QPointer<QObject> callbackContext) {
+void BoardsDataAccess::updateBoardsListProperties(
+        const BoardsListPropertiesUpdate &propertiesUpdate,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
     neo4jHttpApiClient->queryDb(
             QueryStatement {
                 R"!(
                     MATCH (n:BoardsList)
-                    SET n.boardsOrdering = $orderingArray
+                    SET n += $propertiesMap
                     RETURN n
                 )!",
-                QJsonObject {{"orderingArray", toJsonArray(boardsOrdering)}}
+                QJsonObject {{"propertiesMap", propertiesUpdate.toJson()}}
             },
             // callback
             [callback](const QueryResponseSingleResult &queryResponse) {

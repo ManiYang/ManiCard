@@ -297,8 +297,8 @@ void QueuedDbAccess::getBoardIdsAndNames(
     addToQueue(func);
 }
 
-void QueuedDbAccess::getBoardsOrdering(
-        std::function<void (bool, const QVector<int> &)> callback,
+void QueuedDbAccess::getBoardsListProperties(
+        std::function<void (bool, BoardsListProperties properties)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
     constexpr bool isReadOnlyAccess = true; // <--
@@ -315,13 +315,13 @@ void QueuedDbAccess::getBoardsOrdering(
 
         if (thisPtr.isNull())
             return;
-        thisPtr->boardsDataAccess->getBoardsOrdering( // <-- method
+        thisPtr->boardsDataAccess->getBoardsListProperties( // <-- method
                 // no parameters // <-- input params
                 // callback:
                 [thisPtr, callback, callbackContext]
-                        (bool ok, const QVector<int> &ordering) { // <-- callback params
+                        (bool ok, BoardsListProperties properties) { // <-- callback params
                     invokeAction(callbackContext, [=]() {
-                        callback(ok, ordering);  // <-- callback params
+                        callback(ok, properties);  // <-- callback params
                     });
                     if (thisPtr)
                         thisPtr->onResponse(ok, isReadOnlyAccess);
@@ -367,9 +367,9 @@ void QueuedDbAccess::getBoardData(
     addToQueue(func);
 }
 
-void QueuedDbAccess::updateBoardsOrdering(
-        const QVector<int> boardsOrdering, std::function<void (bool)> callback,
-        QPointer<QObject> callbackContext) {
+void QueuedDbAccess::updateBoardsListProperties(
+        const BoardsListPropertiesUpdate &propertiesUpdate,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
     constexpr bool isReadOnlyAccess = false; // <--
 
@@ -385,8 +385,8 @@ void QueuedDbAccess::updateBoardsOrdering(
 
         if (thisPtr.isNull())
             return;
-        thisPtr->boardsDataAccess->updateBoardsOrdering( // <-- method
-                boardsOrdering, // <-- input params
+        thisPtr->boardsDataAccess->updateBoardsListProperties( // <-- method
+                propertiesUpdate, // <-- input params
                 // callback:
                 [thisPtr, callback, callbackContext]
                         (bool ok) { // <-- callback params

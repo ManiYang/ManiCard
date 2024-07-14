@@ -36,6 +36,9 @@ private:
 
     bool isEverShown {false};
 
+    enum ClosingState {NotClosing, Closing, CloseNow};
+    ClosingState closingState {ClosingState::NotClosing};
+
     // setup
     void setUpWidgets();
     void setUpConnections();
@@ -44,6 +47,10 @@ private:
     //
     void onShownForFirstTime();
     void startUp();
+    void saveDataOnClose();
+
+    void onBoardSelectedByUser(const int boardId);
+    void saveTopLeftPosOfCurrentBoard(std::function<void (bool ok)> callback);
 };
 
 #endif // MAIN_WINDOW_H
