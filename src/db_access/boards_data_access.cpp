@@ -1,7 +1,9 @@
 #include "boards_data_access.h"
 #include "neo4j_http_api_client.h"
+#include "utilities/async_routine.h"
 #include "utilities/json_util.h"
 
+using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 using QueryStatement = Neo4jHttpApiClient::QueryStatement;
 using QueryResponseSingleResult = Neo4jHttpApiClient::QueryResponseSingleResult;
 
@@ -181,6 +183,78 @@ void BoardsDataAccess::updateBoardsListProperties(
     );
 }
 
+void BoardsDataAccess::requestNewBoardId(
+        std::function<void (std::optional<int>)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (n:LastUsedId {itemType: 'Board'})
+                    SET n.value = n.value + 1
+                    RETURN n.value AS boardId
+                )!",
+                QJsonObject {}
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value())
+                {
+                    callback(std::nullopt);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                const std::optional<int> boardId = result.intValueAt(0, "boardId");
+                if (!boardId.has_value()) {
+                    callback(std::nullopt);
+                    return;
+                }
+
+                callback(boardId.value());
+            },
+            callbackContext
+    );
+}
+
+void BoardsDataAccess::createNewBoardWithId(
+        const int boardId, const Board &board, std::function<void (bool)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    Q_ASSERT(board.cardIdToNodeRectData.isEmpty()); // new board should have no NodeRect
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    CREATE (b:Board {id: $boardId})
+                    SET b += $propertiesMap
+                    RETURN b.id AS id
+                )!",
+                QJsonObject {
+                    {"boardId", boardId},
+                    {"propertiesMap", board.getNodePropertiesJson()}
+                }
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                if (result.isEmpty()) {
+                    callback(false);
+                    return;
+                }
+
+                callback(true);
+            },
+            callbackContext
+    );
+}
+
 void BoardsDataAccess::updateBoardNodeProperties(
         const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
@@ -217,6 +291,223 @@ void BoardsDataAccess::updateBoardNodeProperties(
                 }
 
                 callback(!hasError);
+            },
+            callbackContext
+    );
+}
+
+void BoardsDataAccess::removeBoard(
+        const int boardId, std::function<void (bool)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        Neo4jTransaction *transaction {nullptr};
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // 1. open transaction
+        routine->transaction = neo4jHttpApiClient->getTransaction();
+        routine->transaction->open(
+                // callback
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, boardId]() {
+        // 2. remove NodeRect nodes
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (:Board {id: $boardId})-[:HAS]->(n:NodeRect)
+                        DETACH DELETE n
+                    )!",
+                    QJsonObject {{"boardId", boardId}}
+                },
+                // callback
+                [routine](bool ok, const QueryResponseSingleResult &/*queryResponse*/) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, boardId]() {
+        // 3. remove board node
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (b:Board {id: $boardId})
+                        DETACH DELETE b
+                    )!",
+                    QJsonObject {{"boardId", boardId}}
+                },
+                // callback
+                [routine](bool ok, const QueryResponseSingleResult &/*queryResponse*/) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine]() {
+        // 4. commit transaction
+        routine->transaction->commit(
+                // callback
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, callback]() {
+        // 5. final step
+        ContinuationContext context(routine);
+        routine->transaction->deleteLater();
+        callback(!routine->errorFlag);
+    }, callbackContext);
+
+    //
+    routine->start();
+}
+
+void BoardsDataAccess::updateNodeRectProperties(
+        const int boardId, const int cardId, const NodeRectDataUpdate &update,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (b:Board {id: $boardId})
+                            -[:HAS]->(n:NodeRect)
+                            -[:SHOWS]->(c:Card {id: $cardId})
+                    SET n += $propertiesMap
+                    RETURN n
+                )!",
+                QJsonObject {
+                    {"boardId", boardId},
+                    {"cardId", cardId},
+                    {"propertiesMap", update.toJson()}
+                }
+            },
+            // callback
+            [callback, boardId, cardId](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                bool hasError = false;
+                if (result.isEmpty()) {
+                    hasError = true;
+                    qWarning().noquote()
+                            << QString("NodeRect for board %1 & card %2 is not found")
+                               .arg(boardId).arg(cardId);
+
+                }
+
+                callback(!hasError);
+            },
+            callbackContext
+    );
+}
+
+void BoardsDataAccess::createNodeRect(
+        const int boardId, const int cardId, const NodeRectData &nodeRectData,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (b:Board {id: $boardId})
+                    MATCH (c:Card {id: $cardId})
+                    MERGE (b)-[:HAS]->(n:NodeRect)-[:SHOWS]->(c)
+                    ON CREATE
+                        SET n += $propertiesMap, n._is_created_ = true
+                    ON MATCH
+                        SET n._is_created_ = false
+                    WITH n, n._is_created_ AS isCreated
+                    REMOVE n._is_created_
+                    RETURN isCreated
+                )!",
+                QJsonObject {
+                    {"boardId", boardId},
+                    {"cardId", cardId},
+                    {"propertiesMap", nodeRectData.toJson()}
+                }
+            },
+            // callback
+            [callback, boardId, cardId](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                std::optional<bool> isCreated = result.boolValueAt(0, "isCreated");
+                if (!isCreated.has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                bool hasError = false;
+                if (!isCreated.value()) {
+                    qWarning().noquote()
+                            << QString("NodeRect for board %1 & card %2 already exists")
+                               .arg(boardId).arg(cardId);
+                    callback(false);
+                }
+
+                callback(!hasError);
+            },
+            callbackContext
+    );
+}
+
+void BoardsDataAccess::removeNodeRect(
+        const int boardId, const int cardId, std::function<void (bool)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (:Board {id: $boardId})
+                          -[:HAS]->(n:NodeRect)
+                          -[:SHOWS]->(:Card {id: $cardId})
+                    DETACH DELETE n
+                )!",
+                QJsonObject {
+                    {"boardId", boardId},
+                    {"cardId", cardId}
+                }
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+                callback(true);
             },
             callbackContext
     );

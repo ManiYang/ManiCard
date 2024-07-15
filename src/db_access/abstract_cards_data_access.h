@@ -58,7 +58,7 @@ public:
             QPointer<QObject> callbackContext) = 0;
 
     //!
-    //! Card with \e cardId must not already exist. This operation is atomic.
+    //! Card with ID \e cardId must not already exist. This operation is atomic.
     //!
     virtual void createNewCardWithId(
             const int cardId, const Card &card,

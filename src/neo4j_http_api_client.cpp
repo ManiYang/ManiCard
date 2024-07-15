@@ -277,7 +277,6 @@ void Neo4jTransaction::open(
         if (openOk) {
             mState = State::Opened;
             mTimerSendKeepAlive->start();
-            qInfo().noquote() << QString("opened transaction ID %1").arg(mTransactionId);
         }
         else {
             mState = State::Error;
@@ -386,13 +385,10 @@ void Neo4jTransaction::commit(
         const bool commitOk = !queryResponse.hasNetworkError && queryResponse.dbErrors.isEmpty();
 
         // update state
-        if (commitOk) {
+        if (commitOk)
             mState = State::Committed;
-            qInfo().noquote() << QString("committed transaction ID %1").arg(mTransactionId);
-        }
-        else {
+        else
             mState = State::Error;
-        }
 
         mTimerSendKeepAlive->stop();
 

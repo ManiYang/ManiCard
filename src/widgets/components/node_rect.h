@@ -47,6 +47,8 @@ public:
     void finishedSavePropertiesUpdate(); // cf. signal savePropertiesUpdate()
 
     //
+    QRectF getRect() const;
+
     int getCardId() const;
     QString getTitle() const;
     QString getText() const;

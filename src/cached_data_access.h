@@ -43,6 +43,10 @@ public:
             std::function<void (bool ok, std::optional<Board> board)> callback,
             QPointer<QObject> callbackContext);
 
+    void requestNewBoardId(
+            std::function<void (std::optional<int> boardId)> callback,
+            QPointer<QObject> callbackContext);
+
     // ==== write ====
 
     // If a write operation failed, a record of unsaved update is added.
@@ -63,10 +67,29 @@ public:
             const BoardsListPropertiesUpdate &propertiesUpdate,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
 
+    void createNewBoardWithId(
+            const int boardId, const Board &board,
+            std::function<void (bool)> callback, QPointer<QObject> callbackContext);
+
     void updateBoardNodeProperties(
             const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
 
+    void removeBoard(
+            const int boardId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+
+    void updateNodeRectProperties(
+            const int boardId, const int cardId, const NodeRectDataUpdate &update,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+
+    void createNodeRect(
+            const int boardId, const int cardId, const NodeRectData &nodeRectData,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+
+    void removeNodeRect(
+            const int boardId, const int cardId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
 
 private:
     QueuedDbAccess *queuedDbAccess;

@@ -110,6 +110,10 @@ void NodeRect::finishedSavePropertiesUpdate() {
     // synchronously
 }
 
+QRectF NodeRect::getRect() const {
+    return enclosingRect;
+}
+
 int NodeRect::getCardId() const {
     return cardId;
 }

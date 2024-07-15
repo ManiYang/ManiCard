@@ -50,6 +50,9 @@ private:
     void saveDataOnClose();
 
     void onBoardSelectedByUser(const int boardId);
+    void onUserToCreateNewBoard();
+    void onUserToRemoveBoard(const int boardId);
+
     void saveTopLeftPosOfCurrentBoard(std::function<void (bool ok)> callback);
 };
 

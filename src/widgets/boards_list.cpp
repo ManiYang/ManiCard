@@ -35,6 +35,11 @@ void BoardsList::setBoardName(const int boardId, const QString &name) {
     listWidget->setItemText(boardId, name);
 }
 
+void BoardsList::startEditBoardName(const int boardId) {
+    listWidget->ensureItemVisible(boardId);
+    listWidget->startEditItem(boardId);
+}
+
 void BoardsList::setSelectedBoardId(const int boardId) {
     listWidget->setSelectedItemId(boardId);
 }
@@ -129,7 +134,6 @@ void BoardsList::setUpConnections() {
     connect(buttonNewBoard, &QPushButton::clicked, this, [this]() {
         emit userToCreateNewBoard();
     });
-
 }
 
 void BoardsList::setUpBoardContextMenu() {

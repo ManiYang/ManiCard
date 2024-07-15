@@ -27,3 +27,35 @@ std::optional<NodeRectData> NodeRectData::fromJson(const QJsonObject &obj) {
 
     return data;
 }
+
+void NodeRectData::update(const NodeRectDataUpdate &update) {
+#define UPDATE_PROPERTY(member) \
+        if (update.member.has_value()) \
+            this->member = update.member.value();
+
+    UPDATE_PROPERTY(rect);
+    UPDATE_PROPERTY(color);
+
+#undef UPDATE_PROPERTY
+}
+
+//====
+
+QJsonObject NodeRectDataUpdate::toJson() const {
+    QJsonObject obj;
+
+    if (rect.has_value()) {
+        obj.insert(
+                "rect",
+                QJsonArray {
+                    rect.value().x(), rect.value().y(),
+                    rect.value().width(), rect.value().height()
+                }
+        );
+    }
+
+    if (color.has_value())
+        obj.insert("color", color.value().name(QColor::HexRgb));
+
+    return obj;
+}

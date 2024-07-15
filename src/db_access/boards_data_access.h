@@ -31,9 +31,34 @@ public:
             const BoardsListPropertiesUpdate &propertiesUpdate,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
+    void requestNewBoardId(
+            std::function<void (std::optional<int> boardId)> callback,
+            QPointer<QObject> callbackContext) override;
+
+    void createNewBoardWithId(
+            const int boardId, const Board &board,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
     void updateBoardNodeProperties(
             const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+    void removeBoard(
+            const int boardId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+    void updateNodeRectProperties(
+            const int boardId, const int cardId, const NodeRectDataUpdate &update,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+    void createNodeRect(
+            const int boardId, const int cardId, const NodeRectData &nodeRectData,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+    void removeNodeRect(
+            const int boardId, const int cardId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
 
 private:
     Neo4jHttpApiClient *neo4jHttpApiClient;

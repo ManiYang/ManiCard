@@ -5,6 +5,8 @@
 #include "utilities/json_util.h"
 #include "utilities/strings_util.h"
 
+using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
+
 using QueryStatement = Neo4jHttpApiClient::QueryStatement;
 using QueryResponseSingleResult = Neo4jHttpApiClient::QueryResponseSingleResult;
 
@@ -361,7 +363,9 @@ void CardsDataAccess::updateCardLabels(
         routine->transaction->open(
                 // callback:
                 [routine](bool ok) {
-                    auto context = routine->continuationContext().setErrorFlagWhen(!ok);
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
                 },
                 routine
         );
@@ -382,7 +386,7 @@ void CardsDataAccess::updateCardLabels(
                 },
                 // callback:
                 [routine](bool ok, const QueryResponseSingleResult &queryResponse) {
-                    auto context = routine->continuationContext();
+                    ContinuationContext context(routine);
 
                     if (!ok || !queryResponse.getResult().has_value()) {
                         context.setErrorFlag();
@@ -438,12 +442,13 @@ void CardsDataAccess::updateCardLabels(
                 },
                 // callback:
                 [routine](bool ok, const QueryResponseSingleResult &queryResponse) {
-                    auto context = routine->continuationContext();
+                    ContinuationContext context(routine);
 
                     const bool good
                             = ok && queryResponse.getResult().has_value()
                               && !queryResponse.getResult().value().isEmpty();
-                    context.setErrorFlagWhen(!good);
+                    if (!good)
+                        context.setErrorFlag();
                 },
                 routine
         );
@@ -454,7 +459,9 @@ void CardsDataAccess::updateCardLabels(
         routine->transaction->commit(
                 // callback:
                 [routine](bool ok) {
-                    auto context = routine->continuationContext().setErrorFlagWhen(!ok);
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
                 },
                 routine
         );
@@ -462,7 +469,7 @@ void CardsDataAccess::updateCardLabels(
 
     routine->addStep([callback, routine]() {
         // 5. (final step) call `callback` and clean up
-        auto context = routine->continuationContext();
+        ContinuationContext context(routine);
         callback(!routine->errorFlag);
         routine->transaction->deleteLater();
     }, callbackContext);

@@ -70,22 +70,18 @@ public:
 
     bool errorFlag {false};
 
-    //
-    struct Context
+    //!
+    //! Destructor of this class calls routin->nextStep() or routin->skipToFinalStep(),
+    //! depending on the value of \e routin->errorFlag.
+    //!
+    struct ContinuationContext
     {
-        Context(AsyncRoutineWithErrorFlag *routine);
-        ~Context();
-        Context &setErrorFlag();
-        Context &setErrorFlagWhen(const bool b);
+        ContinuationContext(AsyncRoutineWithErrorFlag *routine_);
+        ~ContinuationContext();
+        void setErrorFlag();
     private:
         AsyncRoutineWithErrorFlag *routine;
     };
-
-    //!
-    //! The returned object will call nextStep() or skipToFinalStep(), depending on the value of
-    //! \e errorFlag, in its destructor.
-    //!
-    [[nodiscard]] Context continuationContext();
 };
 
 #endif // ASYNC_ROUTINE_H

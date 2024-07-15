@@ -16,6 +16,7 @@
 #include <QTimer>
 
 using StringOpt = std::optional<QString>;
+using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 
 BoardView::BoardView(QWidget *parent)
         : QFrame(parent) {
@@ -66,7 +67,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
                 boardIdToLoad,
                 // callback
                 [routine](bool ok, std::optional<Board> board) {
-                    auto context = routine->continuationContext();
+                    ContinuationContext context(routine);
 
                     if (!ok || !board.has_value())
                         context.setErrorFlag();
@@ -84,7 +85,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
                 cardIds,
                 // callback
                 [routine, cardIds, boardIdToLoad](bool ok, const QHash<int, Card> &cards) {
-                    auto context = routine->continuationContext();
+                    ContinuationContext context(routine);
 
                     if (!ok) {
                         context.setErrorFlag();
@@ -104,7 +105,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
 
     routine->addStep([this, routine, boardIdToLoad]() {
         // 3. open cards
-        auto context = routine->continuationContext();
+        ContinuationContext context(routine);
 
         for (auto it = routine->cardsData.constBegin(); it != routine->cardsData.constEnd(); ++it) {
             const int &cardId = it.key();
@@ -112,9 +113,8 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
 
             const NodeRectData nodeRectData = routine->board.cardIdToNodeRectData.value(cardId);
 
-            NodeRect *nodeRect = createNodeRect(cardId, cardData);
-            nodeRect->setRect(nodeRectData.rect);
-            nodeRect->setColor(nodeRectData.color);
+            constexpr bool saveNodeRectData = false;
+            NodeRect *nodeRect = createNodeRect(cardId, cardData, nodeRectData, saveNodeRectData);
             nodeRect->setEditable(true);
         }
 
@@ -126,7 +126,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
 
     routine->addStep([routine, callback]() {
         // 4. (final step)
-        auto context = routine->continuationContext();
+        ContinuationContext context(routine);
         callback(!routine->errorFlag);
     }, this);
 
@@ -267,8 +267,13 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
 
                 const Card &cardData = cards.value(cardId);
 
-                auto *nodeRect = createNodeRect(cardId, cardData);
-                nodeRect->setRect(QRectF(scenePos, defaultNewNodeRectSize));
+                NodeRectData nodeRectData;
+                {
+                    nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
+                    nodeRectData.color = defaultNewNodeRectColor;
+                }
+                constexpr bool saveNodeRectData = true;
+                auto *nodeRect = createNodeRect(cardId, cardData, nodeRectData, saveNodeRectData);
                 nodeRect->setEditable(true);
 
                 adjustSceneRect();
@@ -293,7 +298,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
         Services::instance()->getCachedDataAccess()->requestNewCardId(
                 // callback:
                 [routine](std::optional<int> cardId) {
-                    auto context = routine->continuationContext();
+                    ContinuationContext context(routine);
                     if (cardId.has_value()) {
                         routine->newCardId = cardId.value();
                     }
@@ -308,13 +313,19 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
 
     routine->addStep([this, routine, scenePos]() {
         // 2. create new NodeRect
-        auto context = routine->continuationContext();
+        ContinuationContext context(routine);
 
         routine->card.title = "New Card";
         routine->card.text = "";
 
-        NodeRect *nodeRect = createNodeRect(routine->newCardId, routine->card);
-        nodeRect->setRect(QRectF(scenePos, defaultNewNodeRectSize));
+        NodeRectData nodeRectData;
+        {
+            nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
+            nodeRectData.color = defaultNewNodeRectColor;
+        }
+        constexpr bool saveNodeRectData = true;
+        NodeRect *nodeRect = createNodeRect(
+                routine->newCardId, routine->card, nodeRectData, saveNodeRectData);
         nodeRect->setEditable(true);
 
         adjustSceneRect();
@@ -326,7 +337,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
                 routine->newCardId, routine->card,
                 // callback
                 [routine](bool ok) {
-                    auto context = routine->continuationContext();
+                    ContinuationContext context(routine);
 
                     if (!ok) {
                         context.setErrorFlag();
@@ -342,7 +353,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
 
     routine->addStep([this, routine]() {
         // 4. (final step)
-        auto context = routine->continuationContext();
+        ContinuationContext context(routine);
 
         if (routine->errorFlag)
             createWarningMessageBox(this, " ", routine->errorMsg)->exec();
@@ -380,7 +391,9 @@ void BoardView::closeAllCards() {
         closeNodeRect(cardId);
 }
 
-NodeRect *BoardView::createNodeRect(const int cardId, const Card &cardData) {
+NodeRect *BoardView::createNodeRect(
+        const int cardId, const Card &cardData,
+        const NodeRectData &nodeRectData, const bool saveCreatedNodeRectData) {
     Q_ASSERT(!cardIdToNodeRect.contains(cardId));
 
     auto *nodeRect = new NodeRect(cardId);
@@ -392,7 +405,34 @@ NodeRect *BoardView::createNodeRect(const int cardId, const Card &cardData) {
     nodeRect->setTitle(cardData.title);
     nodeRect->setText(cardData.text);
 
+    nodeRect->setRect(nodeRectData.rect);
+    nodeRect->setColor(nodeRectData.color);
+
+    // set up connections
     QPointer<NodeRect> nodeRectPtr(nodeRect);
+    connect(nodeRect, &NodeRect::movedOrResized, this, [this, nodeRectPtr]() {
+        if (!nodeRectPtr)
+            return;
+
+        NodeRectDataUpdate update;
+        update.rect = nodeRectPtr->getRect();
+
+        Services::instance()->getCachedDataAccess()->updateNodeRectProperties(
+                boardId, nodeRectPtr->getCardId(), update,
+                // callback
+                [this](bool ok) {
+                    if (!ok) {
+                        const auto msg
+                                = QString("Could not save NodeRect's rect to DB.\n\n"
+                                          "There is unsaved update. See %1")
+                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        createWarningMessageBox(this, " ", msg)->exec();
+                    }
+                },
+                this
+        );
+    });
+
     connect(nodeRect, &NodeRect::savePropertiesUpdate,
             this,
             [this, nodeRectPtr](const StringOpt &updatedTitle, const StringOpt &updatedText) {
@@ -417,9 +457,46 @@ NodeRect *BoardView::createNodeRect(const int cardId, const Card &cardData) {
     connect(nodeRect, &NodeRect::closeByUser, this, [this, nodeRectPtr]() {
         if (!nodeRectPtr)
             return;
-        closeNodeRect(nodeRectPtr->getCardId());
+        const int cardId = nodeRectPtr->getCardId();
+        closeNodeRect(cardId);
+
+        //
+        Services::instance()->getCachedDataAccess()->removeNodeRect(
+                boardId, cardId,
+                // callback
+                [this](bool ok) {
+                    if (!ok) {
+                        const auto msg
+                                = QString("Could not remove NodeRect from DB.\n\n"
+                                          "There is unsaved update. See %1")
+                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        createWarningMessageBox(this, " ", msg)->exec();
+                    }
+                },
+                this
+        );
     });
 
+    //
+    if (saveCreatedNodeRectData) {
+        // save the created NodeRect
+        Services::instance()->getCachedDataAccess()->createNodeRect(
+                boardId, cardId, nodeRectData,
+                // callback
+                [this](bool ok) {
+                    if (!ok) {
+                        const auto msg
+                                = QString("Could not save created NodeRect to DB.\n\n"
+                                          "There is unsaved update. See %1")
+                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        createWarningMessageBox(this, " ", msg)->exec();
+                    }
+                },
+                this
+        );
+    }
+
+    //
     return nodeRect;
 }
 
@@ -427,8 +504,14 @@ void BoardView::closeNodeRect(const int cardId) {
     NodeRect *nodeRect = cardIdToNodeRect.take(cardId);
     if (nodeRect == nullptr)
         return;
+
     graphicsScene->removeItem(nodeRect);
     nodeRect->deleteLater();
+
+    //
+    graphicsScene->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
+    // this is to deal with the QGraphicsView problem
+    // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
 }
 
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {

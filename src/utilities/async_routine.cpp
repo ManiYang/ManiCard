@@ -94,31 +94,23 @@ AsyncRoutineWithErrorFlag::AsyncRoutineWithErrorFlag()
     : AsyncRoutine() {
 }
 
-AsyncRoutineWithErrorFlag::Context AsyncRoutineWithErrorFlag::continuationContext() {
-    return Context(this);
-}
+// ====
 
-//====
-
-AsyncRoutineWithErrorFlag::Context::Context(AsyncRoutineWithErrorFlag *routine_)
+AsyncRoutineWithErrorFlag::ContinuationContext::ContinuationContext(
+        AsyncRoutineWithErrorFlag *routine_)
     : routine(routine_) {
 }
 
-AsyncRoutineWithErrorFlag::Context::~Context() {
+AsyncRoutineWithErrorFlag::ContinuationContext::~ContinuationContext() {
+    if (routine == nullptr)
+        return;
+
     if (routine->errorFlag)
         routine->AsyncRoutine::skipToFinalStep();
     else
         routine->AsyncRoutine::nextStep();
 }
 
-AsyncRoutineWithErrorFlag::Context &AsyncRoutineWithErrorFlag::Context::setErrorFlag() {
+void AsyncRoutineWithErrorFlag::ContinuationContext::setErrorFlag() {
     routine->errorFlag = true;
-    return *this;
-}
-
-AsyncRoutineWithErrorFlag::Context &AsyncRoutineWithErrorFlag::Context::setErrorFlagWhen(
-        const bool b) {
-    if (b)
-        routine->errorFlag = true;
-    return *this;
 }

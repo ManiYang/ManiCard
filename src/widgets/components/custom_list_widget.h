@@ -31,6 +31,8 @@ public:
     //!
     void startEditItem(const int itemId);
 
+    void ensureItemVisible(const int itemId);
+
     void removeItem(const int itemId);
 
     void clear();

@@ -149,7 +149,7 @@ void QueuedDbAccess::requestNewCardId(
                         callback(result);  // <-- callback params
                     });
                     if (thisPtr)
-                        thisPtr->onResponse(result.has_value(), isReadOnlyAccess);
+                        thisPtr->onResponse(true, isReadOnlyAccess);
                 },
                 thisPtr.data()
         );
@@ -402,6 +402,77 @@ void QueuedDbAccess::updateBoardsListProperties(
     addToQueue(func);
 }
 
+void QueuedDbAccess::requestNewBoardId(
+        std::function<void (std::optional<int>)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    constexpr bool isReadOnlyAccess = true; // <--
+
+    auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
+        if (failDirectly) {
+            invokeAction(callbackContext, [callback]() {
+                callback(std::nullopt); // <-- callback params
+            });
+            if (thisPtr)
+                thisPtr->onResponse(false, isReadOnlyAccess);
+            return;
+        }
+
+        if (thisPtr.isNull())
+            return;
+        thisPtr->boardsDataAccess->requestNewBoardId( // <-- method
+                // no params // <-- input params
+                // callback:
+                [thisPtr, callback, callbackContext]
+                        (std::optional<int> boardId) { // <-- callback params
+                    invokeAction(callbackContext, [=]() {
+                        callback(boardId);  // <-- callback params
+                    });
+                    if (thisPtr)
+                        thisPtr->onResponse(true, isReadOnlyAccess);
+                },
+                thisPtr.data()
+        );
+    };
+    addToQueue(func);
+
+}
+
+void QueuedDbAccess::createNewBoardWithId(
+        const int boardId, const Board &board, std::function<void (bool)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    constexpr bool isReadOnlyAccess = false; // <--
+
+    auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
+        if (failDirectly) {
+            invokeAction(callbackContext, [callback]() {
+                callback(false); // <-- callback params
+            });
+            if (thisPtr)
+                thisPtr->onResponse(false, isReadOnlyAccess);
+            return;
+        }
+
+        if (thisPtr.isNull())
+            return;
+        thisPtr->boardsDataAccess->createNewBoardWithId( // <-- method
+                boardId, board, // <-- input params
+                // callback:
+                [thisPtr, callback, callbackContext]
+                        (bool ok) { // <-- callback params
+                    invokeAction(callbackContext, [=]() {
+                        callback(ok);  // <-- callback params
+                    });
+                    if (thisPtr)
+                        thisPtr->onResponse(ok, isReadOnlyAccess);
+                },
+                thisPtr.data()
+        );
+    };
+    addToQueue(func);
+}
+
 void QueuedDbAccess::updateBoardNodeProperties(
         const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
@@ -422,6 +493,146 @@ void QueuedDbAccess::updateBoardNodeProperties(
             return;
         thisPtr->boardsDataAccess->updateBoardNodeProperties( // <-- method
                 boardId, propertiesUpdate, // <-- input params
+                // callback:
+                [thisPtr, callback, callbackContext]
+                        (bool ok) { // <-- callback params
+                    invokeAction(callbackContext, [=]() {
+                        callback(ok);  // <-- callback params
+                    });
+                    if (thisPtr)
+                        thisPtr->onResponse(ok, isReadOnlyAccess);
+                },
+                thisPtr.data()
+        );
+    };
+    addToQueue(func);
+}
+
+void QueuedDbAccess::removeBoard(
+        const int boardId, std::function<void (bool)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    constexpr bool isReadOnlyAccess = false; // <--
+
+    auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
+        if (failDirectly) {
+            invokeAction(callbackContext, [callback]() {
+                callback(false); // <-- callback params
+            });
+            if (thisPtr)
+                thisPtr->onResponse(false, isReadOnlyAccess);
+            return;
+        }
+
+        if (thisPtr.isNull())
+            return;
+        thisPtr->boardsDataAccess->removeBoard( // <-- method
+                boardId, // <-- input params
+                // callback:
+                [thisPtr, callback, callbackContext]
+                        (bool ok) { // <-- callback params
+                    invokeAction(callbackContext, [=]() {
+                        callback(ok);  // <-- callback params
+                    });
+                    if (thisPtr)
+                        thisPtr->onResponse(ok, isReadOnlyAccess);
+                },
+                thisPtr.data()
+        );
+    };
+    addToQueue(func);
+}
+
+void QueuedDbAccess::updateNodeRectProperties(
+        const int boardId, const int cardId, const NodeRectDataUpdate &update,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    constexpr bool isReadOnlyAccess = false; // <--
+
+    auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
+        if (failDirectly) {
+            invokeAction(callbackContext, [callback]() {
+                callback(false); // <-- callback params
+            });
+            if (thisPtr)
+                thisPtr->onResponse(false, isReadOnlyAccess);
+            return;
+        }
+
+        if (thisPtr.isNull())
+            return;
+        thisPtr->boardsDataAccess->updateNodeRectProperties( // <-- method
+                boardId, cardId, update, // <-- input params
+                // callback:
+                [thisPtr, callback, callbackContext]
+                        (bool ok) { // <-- callback params
+                    invokeAction(callbackContext, [=]() {
+                        callback(ok);  // <-- callback params
+                    });
+                    if (thisPtr)
+                        thisPtr->onResponse(ok, isReadOnlyAccess);
+                },
+                thisPtr.data()
+        );
+    };
+    addToQueue(func);
+}
+
+void QueuedDbAccess::createNodeRect(
+        const int boardId, const int cardId, const NodeRectData &nodeRectData,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    constexpr bool isReadOnlyAccess = false; // <--
+
+    auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
+        if (failDirectly) {
+            invokeAction(callbackContext, [callback]() {
+                callback(false); // <-- callback params
+            });
+            if (thisPtr)
+                thisPtr->onResponse(false, isReadOnlyAccess);
+            return;
+        }
+
+        if (thisPtr.isNull())
+            return;
+        thisPtr->boardsDataAccess->createNodeRect( // <-- method
+                boardId, cardId, nodeRectData, // <-- input params
+                // callback:
+                [thisPtr, callback, callbackContext]
+                        (bool ok) { // <-- callback params
+                    invokeAction(callbackContext, [=]() {
+                        callback(ok);  // <-- callback params
+                    });
+                    if (thisPtr)
+                        thisPtr->onResponse(ok, isReadOnlyAccess);
+                },
+                thisPtr.data()
+        );
+    };
+    addToQueue(func);
+}
+
+void QueuedDbAccess::removeNodeRect(
+        const int boardId, const int cardId,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    constexpr bool isReadOnlyAccess = false; // <--
+
+    auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
+        if (failDirectly) {
+            invokeAction(callbackContext, [callback]() {
+                callback(false); // <-- callback params
+            });
+            if (thisPtr)
+                thisPtr->onResponse(false, isReadOnlyAccess);
+            return;
+        }
+
+        if (thisPtr.isNull())
+            return;
+        thisPtr->boardsDataAccess->removeNodeRect( // <-- method
+                boardId, cardId, // <-- input params
                 // callback:
                 [thisPtr, callback, callbackContext]
                         (bool ok) { // <-- callback params

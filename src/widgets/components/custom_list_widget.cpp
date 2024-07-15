@@ -49,6 +49,13 @@ void CustomListWidget::startEditItem(const int itemId) {
     startedEditItemId = itemId;
 }
 
+void CustomListWidget::ensureItemVisible(const int itemId) {
+    auto *item = findItemById(itemId).second;
+    if (item == nullptr)
+        return;
+    listWidget->scrollToItem(item);
+}
+
 void CustomListWidget::removeItem(const int itemId) {
     const int row = findItemById(itemId).first;
     if (row != -1) {

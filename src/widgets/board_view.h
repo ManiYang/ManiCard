@@ -9,6 +9,7 @@ class Card;
 class CardPropertiesUpdate;
 class GraphicsScene;
 class NodeRect;
+struct NodeRectData;
 
 class BoardView : public QFrame
 {
@@ -33,6 +34,7 @@ public:
 
 private:
     const QSizeF defaultNewNodeRectSize {200, 120};
+    const QColor defaultNewNodeRectColor {170, 170, 170};
 
     int boardId {-1}; // -1: no board loaded
     QHash<int, NodeRect *> cardIdToNodeRect;
@@ -77,7 +79,9 @@ private:
     //!
     //! Returned NodeRect is already added to the scene.
     //!
-    NodeRect *createNodeRect(const int cardId, const Card &cardData);
+    NodeRect *createNodeRect(
+            const int cardId, const Card &cardData,
+            const NodeRectData &nodeRectData, const bool saveCreatedNodeRectData);
 
     void closeNodeRect(const int cardId); // does not check NodeRect::canClose()
 

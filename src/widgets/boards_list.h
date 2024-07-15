@@ -26,6 +26,7 @@ public:
     void addBoard(const int boardId, const QString &name);
 
     void setBoardName(const int boardId, const QString &name);
+    void startEditBoardName(const int boardId);
     void setSelectedBoardId(const int boardId);
     void removeBoard(const int boardId);
 
