@@ -10,6 +10,7 @@
 #include "ui_main_window.h"
 #include "utilities/async_routine.h"
 #include "utilities/message_box.h"
+#include "utilities/periodic_checker.h"
 #include "widgets/board_view.h"
 #include "widgets/boards_list.h"
 
@@ -340,9 +341,6 @@ void MainWindow::saveDataOnClose() {
 void MainWindow::onBoardSelectedByUser(const int boardId) {
     auto *routine = new AsyncRoutine;
 
-    // boardView->canClose() ...
-
-
     routine->addStep([this, routine]() {
         // save current board's topLeftPos
         saveTopLeftPosOfCurrentBoard(
@@ -351,6 +349,24 @@ void MainWindow::onBoardSelectedByUser(const int boardId) {
                     routine->nextStep();
                 }
         );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        boardView->prepareToClose();
+
+        // wait until boardView->canClose() returns true
+        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
+            ->setPredicate([this]() {
+                return boardView->canClose();
+            })
+            ->onPredicateReturnsTrue([routine]() {
+                routine->nextStep();
+            })
+            ->onTimeOut([routine]() {
+                qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
+                routine->nextStep();
+            })
+            ->setAutoDelete()->start();
     }, this);
 
     routine->addStep([this, routine, boardId]() {
@@ -455,10 +471,31 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
     //
     routine->addStep([this, routine, boardId]() {
         if (boardView->getBoardId() == boardId) {
+            boardView->prepareToClose();
+
+            // wait until boardView->canClose() returns true
+            (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
+                ->setPredicate([this]() {
+                    return boardView->canClose();
+                })
+                ->onPredicateReturnsTrue([routine]() {
+                    routine->nextStep();
+                })
+                ->onTimeOut([routine]() {
+                    qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
+                    routine->nextStep();
+                })
+                ->setAutoDelete()->start();
+        }
+        else {
+            routine->nextStep();
+        }
+    }, this);
+
+
+    routine->addStep([this, routine, boardId]() {
+        if (boardView->getBoardId() == boardId) {
             // close current board
-
-            // boardView->canClose() ...
-
             boardView->loadBoard(
                     -1,
                     // callback

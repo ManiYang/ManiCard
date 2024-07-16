@@ -29,6 +29,8 @@ SOURCES += \
     utilities/json_util.cpp \
     utilities/logging.cpp \
     utilities/message_box.cpp \
+    utilities/periodic_checker.cpp \
+    utilities/periodic_timer.cpp \
     utilities/save_debouncer.cpp \
     utilities/strings_util.cpp \
     widgets/board_view.cpp \
@@ -69,6 +71,8 @@ HEADERS += \
     utilities/margins_util.h \
     utilities/message_box.h \
     utilities/numbers_util.h \
+    utilities/periodic_checker.h \
+    utilities/periodic_timer.h \
     utilities/save_debouncer.h \
     utilities/strings_util.h \
     widgets/board_view.h \

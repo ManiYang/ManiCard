@@ -9,6 +9,7 @@
 #include "utilities/async_routine.h"
 #include "utilities/maps_util.h"
 #include "utilities/message_box.h"
+#include "utilities/periodic_checker.h"
 #include "widgets/components/graphics_scene.h"
 #include "widgets/components/node_rect.h"
 
@@ -24,10 +25,6 @@ BoardView::BoardView(QWidget *parent)
     setUpContextMenu();
     setUpConnections();
     installEventFiltersOnComponents();
-}
-
-bool BoardView::canClose() const {
-    return true; // [temp]....
 }
 
 void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> callback) {
@@ -133,12 +130,25 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
     routine->start();
 }
 
+void BoardView::prepareToClose() {
+    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it)
+        it.value()->prepareToClose();
+}
+
 int BoardView::getBoardId() const {
     return boardId;
 }
 
 QPointF BoardView::getViewTopLeftPos() const {
     return graphicsView->mapToScene(0, 0);
+}
+
+bool BoardView::canClose() const {
+    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it) {
+        if (!it.value()->canClose())
+            return false;
+    }
+    return true;
 }
 
 bool BoardView::eventFilter(QObject *watched, QEvent *event) {
@@ -248,40 +258,6 @@ void BoardView::userToOpenExistingCard(const QPointF &scenePos) {
     openExistingCard(cardId, scenePos);
 }
 
-void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
-    Services::instance()->getCachedDataAccess()->queryCards(
-            {cardId},
-            // callback
-            [=](bool ok, const QHash<int, Card> &cards) {
-                if (!ok) {
-                    createWarningMessageBox(
-                            this, " ", "Could not open card. See logs for details.")->exec();
-                    return;
-                }
-
-                if (!cards.contains(cardId)) {
-                    createInformationMessageBox(
-                            this, " ", QString("Card %1 not found.").arg(cardId))->exec();
-                    return;
-                }
-
-                const Card &cardData = cards.value(cardId);
-
-                NodeRectData nodeRectData;
-                {
-                    nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
-                    nodeRectData.color = defaultNewNodeRectColor;
-                }
-                constexpr bool saveNodeRectData = true;
-                auto *nodeRect = createNodeRect(cardId, cardData, nodeRectData, saveNodeRectData);
-                nodeRect->setEditable(true);
-
-                adjustSceneRect();
-            },
-            this
-    );
-}
-
 void BoardView::userToCreateNewCard(const QPointF &scenePos) {
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
@@ -363,6 +339,94 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
     routine->start();
 }
 
+void BoardView::userToCloseNodeRect(const int cardId) {
+    Q_ASSERT(cardIdToNodeRect.contains(cardId));
+
+    auto *routine = new AsyncRoutine;
+
+    //
+    routine->addStep([this, routine, cardId]() {
+        NodeRect *nodeRect = cardIdToNodeRect.value(cardId);
+        nodeRect->prepareToClose();
+
+        // wait until nodeRect->canClose() returns true
+        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
+            ->setPredicate([nodeRect]() {
+                return nodeRect->canClose();
+            })
+            ->onPredicateReturnsTrue([routine]() {
+                routine->nextStep();
+            })
+            ->onTimeOut([routine, cardId]() {
+                qWarning().noquote()
+                        << QString("time-out while awaiting NodeRect::canClose() for card %1")
+                           .arg(cardId);
+                routine->nextStep();
+            })
+            ->setAutoDelete()->start();
+    }, this);
+
+    routine->addStep([this, routine, cardId]() {
+        closeNodeRect(cardId);
+        routine->nextStep();
+    }, this);
+
+    routine->addStep([this, routine, cardId]() {
+        // write DB
+        Services::instance()->getCachedDataAccess()->removeNodeRect(
+                boardId, cardId,
+                // callback
+                [this, routine](bool ok) {
+                    if (!ok) {
+                        const auto msg
+                                = QString("Could not remove NodeRect from DB.\n\n"
+                                          "There is unsaved update. See %1")
+                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        createWarningMessageBox(this, " ", msg)->exec();
+                    }
+                    routine->nextStep();
+                },
+                this
+        );
+    }, this);
+
+    routine->start();
+}
+
+void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
+    Services::instance()->getCachedDataAccess()->queryCards(
+            {cardId},
+            // callback
+            [=](bool ok, const QHash<int, Card> &cards) {
+                if (!ok) {
+                    createWarningMessageBox(
+                            this, " ", "Could not open card. See logs for details.")->exec();
+                    return;
+                }
+
+                if (!cards.contains(cardId)) {
+                    createInformationMessageBox(
+                            this, " ", QString("Card %1 not found.").arg(cardId))->exec();
+                    return;
+                }
+
+                const Card &cardData = cards.value(cardId);
+
+                NodeRectData nodeRectData;
+                {
+                    nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
+                    nodeRectData.color = defaultNewNodeRectColor;
+                }
+                constexpr bool saveNodeRectData = true;
+                auto *nodeRect = createNodeRect(cardId, cardData, nodeRectData, saveNodeRectData);
+                nodeRect->setEditable(true);
+
+                adjustSceneRect();
+            },
+            this
+    );
+}
+
 void BoardView::saveCardPropertiesUpdate(
         NodeRect *nodeRect, const CardPropertiesUpdate &propertiesUpdate,
         std::function<void ()> callback) {
@@ -433,7 +497,7 @@ NodeRect *BoardView::createNodeRect(
         );
     });
 
-    connect(nodeRect, &NodeRect::savePropertiesUpdate,
+    connect(nodeRect, &NodeRect::saveTitleTextUpdate,
             this,
             [this, nodeRectPtr](const StringOpt &updatedTitle, const StringOpt &updatedText) {
         if (!nodeRectPtr)
@@ -449,7 +513,7 @@ NodeRect *BoardView::createNodeRect(
                 // callback:
                 [nodeRectPtr]() {
                     if (nodeRectPtr)
-                        nodeRectPtr->finishedSavePropertiesUpdate();
+                        nodeRectPtr->finishedSaveTitleText();
                 }
         );
     });
@@ -457,24 +521,7 @@ NodeRect *BoardView::createNodeRect(
     connect(nodeRect, &NodeRect::closeByUser, this, [this, nodeRectPtr]() {
         if (!nodeRectPtr)
             return;
-        const int cardId = nodeRectPtr->getCardId();
-        closeNodeRect(cardId);
-
-        //
-        Services::instance()->getCachedDataAccess()->removeNodeRect(
-                boardId, cardId,
-                // callback
-                [this](bool ok) {
-                    if (!ok) {
-                        const auto msg
-                                = QString("Could not remove NodeRect from DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
-                        createWarningMessageBox(this, " ", msg)->exec();
-                    }
-                },
-                this
-        );
+        userToCloseNodeRect(nodeRectPtr->getCardId());
     });
 
     //

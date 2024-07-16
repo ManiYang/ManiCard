@@ -17,17 +17,22 @@ class BoardView : public QFrame
 public:
     BoardView(QWidget *parent = nullptr);
 
-    bool canClose() const;
-
     //!
-    //! The BoardView must be visible before method this called.
+    //! Before calling this method:
+    //!   + \c this must be visible
+    //!   + \c canClose() must returns true
     //! \param boardId_: if = -1, will only close the board
     //! \param callback
     //!
     void loadBoard(const int boardIdToLoad, std::function<void (bool ok)> callback);
 
+    void prepareToClose();
+
+    //
     int getBoardId() const; // can be -1
     QPointF getViewTopLeftPos() const;
+
+    bool canClose() const;
 
     //
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -67,8 +72,9 @@ private:
     void adjustSceneRect();
 
     void userToOpenExistingCard(const QPointF &scenePos);
-    void openExistingCard(const int cardId, const QPointF &scenePos);
     void userToCreateNewCard(const QPointF &scenePos);
+    void userToCloseNodeRect(const int cardId);
+    void openExistingCard(const int cardId, const QPointF &scenePos);
     void saveCardPropertiesUpdate(
             NodeRect *nodeRect, const CardPropertiesUpdate &propertiesUpdate,
             std::function<void ()> callback); // callback will be called in context of `this`

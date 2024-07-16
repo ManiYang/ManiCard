@@ -44,7 +44,8 @@ public:
     void setEditable(const bool editable);
 
     //
-    void finishedSavePropertiesUpdate(); // cf. signal savePropertiesUpdate()
+    void finishedSaveTitleText(); // cf. signal saveTitleTextUpdate()
+    void prepareToClose(); // cf. canClose()
 
     //
     QRectF getRect() const;
@@ -66,9 +67,9 @@ signals:
 
     //!
     //! The receiver should start saving the properties update, and call
-    //! \c finishedSavePropertiesUpdate() when finished saving.
+    //! \c finishedSaveTitleText() when finished saving.
     //!
-    void savePropertiesUpdate(const StringOpt &updatedTitle, const StringOpt &updatedText);
+    void saveTitleTextUpdate(const StringOpt &updatedTitle, const StringOpt &updatedText);
 
     void closeByUser();
 
@@ -104,7 +105,7 @@ private:
     GraphicsItemMoveResize *moveResizeHelper;
     QMenu *contextMenu;
 
-    SaveDebouncer *propertiesSaveDebouncer;
+    SaveDebouncer *titleTextSaveDebouncer;
     bool titleEdited {false};
     bool textEdited {false};
 
