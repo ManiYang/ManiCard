@@ -1,4 +1,6 @@
 #include <QDateTime>
+#include <QReadLocker>
+#include <QWriteLocker>
 #include "cached_data_access.h"
 #include "db_access/queued_db_access.h"
 #include "file_access/unsaved_update_records_file.h"
@@ -16,6 +18,15 @@ CachedDataAccess::CachedDataAccess(
             : QObject(parent)
             , queuedDbAccess(queuedDbAccess_)
             , unsavedUpdateRecordsFile(unsavedUpdateRecordsFile_) {
+}
+
+bool CachedDataAccess::hasWriteRequestInProgress() const {
+    bool result;
+    {
+        QReadLocker locker(&lockForwriteRequestsInProgress);
+        result = !writeRequestsInProgress.isEmpty();
+    }
+    return result;
 }
 
 void CachedDataAccess::queryCards(
@@ -186,10 +197,11 @@ void CachedDataAccess::createNewCardWithId(
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
+    const int requestId = startWriteRequest();
+
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
-        // variables used by the steps of the routine:
         bool writeDbOk;
     };
     auto *routine = new AsyncRoutineWithVars;
@@ -240,9 +252,10 @@ void CachedDataAccess::createNewCardWithId(
     }, this);
 
     // 4. (final step) call callback
-    routine->addStep([routine, callback]() {
+    routine->addStep([this, routine, callback, requestId]() {
         ContinuationContext context(routine);
         callback(!routine->errorFlag);
+        finishWriteRequest(requestId);
     }, callbackContext);
 
     //
@@ -253,6 +266,8 @@ void CachedDataAccess::updateCardProperties(
         const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
+
+    const int requestId = startWriteRequest();
 
     class AsyncRoutineWithVars : public AsyncRoutine
     {
@@ -294,9 +309,10 @@ void CachedDataAccess::updateCardProperties(
     }, this);
 
     //
-    routine->addStep([routine, callback]() {
+    routine->addStep([this, routine, callback, requestId]() {
         callback(routine->dbWriteOk);
         routine->nextStep();
+        finishWriteRequest(requestId);
     }, callbackContext);
 
     routine->start();
@@ -306,6 +322,8 @@ void CachedDataAccess::updateCardLabels(
         const int cardId, const QSet<QString> &updatedLabels,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
+
+    const int requestId = startWriteRequest();
 
     class AsyncRoutineWithVars : public AsyncRoutine
     {
@@ -347,9 +365,10 @@ void CachedDataAccess::updateCardLabels(
     }, this);
 
     //
-    routine->addStep([routine, callback]() {
+    routine->addStep([this, routine, callback, requestId]() {
         callback(routine->dbWriteOk);
         routine->nextStep();
+        finishWriteRequest(requestId);
     }, callbackContext);
 
     routine->start();
@@ -360,11 +379,13 @@ void CachedDataAccess::updateBoardsListProperties(
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
+    const int requestId = startWriteRequest();
+
     // Write DB. If failed, add to unsaved updates.
     queuedDbAccess->updateBoardsListProperties(
             propertiesUpdate,
             // callback
-            [this, callback, callbackContext, propertiesUpdate](bool ok) {
+            [=](bool ok) {
                 if (!ok) {
                     const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
                     const QString updateTitle = "updateBoardsListProperties";
@@ -374,8 +395,9 @@ void CachedDataAccess::updateBoardsListProperties(
                     unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
                 }
 
-                invokeAction(callbackContext, [callback, ok]() {
+                invokeAction(callbackContext, [this, callback, ok, requestId]() {
                     callback(ok);
+                    finishWriteRequest(requestId);
                 });
             },
             this
@@ -387,6 +409,8 @@ void CachedDataAccess::createNewBoardWithId(
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
     Q_ASSERT(board.cardIdToNodeRectData.isEmpty()); // new board should have no NodeRect
+
+    const int requestId = startWriteRequest();
 
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
@@ -437,9 +461,10 @@ void CachedDataAccess::createNewBoardWithId(
     }, this);
 
     //
-    routine->addStep([routine, callback]() {
+    routine->addStep([this, routine, callback, requestId]() {
         ContinuationContext context(routine);
         callback(!routine->errorFlag && routine->dbWriteOk);
+        finishWriteRequest(requestId);
     }, callbackContext);
 
     routine->start();
@@ -449,6 +474,8 @@ void CachedDataAccess::updateBoardNodeProperties(
         const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
+
+    const int requestId = startWriteRequest();
 
     // 1. update cache
     if (cache.boards.contains(boardId))
@@ -492,9 +519,10 @@ void CachedDataAccess::updateBoardNodeProperties(
     }, this);
 
     // 4.
-    routine->addStep([routine, callback]() {
+    routine->addStep([this, routine, callback, requestId]() {
         ContinuationContext context(routine);
         callback(routine->dbWriteOk);
+        finishWriteRequest(requestId);
     }, callbackContext);
 
     routine->start();
@@ -503,6 +531,10 @@ void CachedDataAccess::updateBoardNodeProperties(
 void CachedDataAccess::removeBoard(
         const int boardId, std::function<void (bool)> callback,
         QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    const int requestId = startWriteRequest();
+
     // 1. update cache
     cache.boards.remove(boardId);
 
@@ -543,9 +575,10 @@ void CachedDataAccess::removeBoard(
     }, this);
 
     //
-    routine->addStep([routine, callback]() {
+    routine->addStep([this, routine, callback, requestId]() {
         ContinuationContext context(routine);
         callback(routine->dbWriteOk);
+        finishWriteRequest(requestId);
     }, callbackContext);
 
     //
@@ -555,6 +588,10 @@ void CachedDataAccess::removeBoard(
 void CachedDataAccess::updateNodeRectProperties(
         const int boardId, const int cardId, const NodeRectDataUpdate &update,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    const int requestId = startWriteRequest();
+
     // 1. update cache
     if (cache.boards.contains(boardId)) {
         Board &board = cache.boards[boardId];
@@ -602,9 +639,10 @@ void CachedDataAccess::updateNodeRectProperties(
     }, this);
 
     //
-    routine->addStep([routine, callback]() {
+    routine->addStep([this, routine, callback, requestId]() {
         ContinuationContext context(routine);
         callback(routine->dbWriteOk);
+        finishWriteRequest(requestId);
     }, callbackContext);
 
     //
@@ -615,6 +653,8 @@ void CachedDataAccess::createNodeRect(
         const int boardId, const int cardId, const NodeRectData &nodeRectData,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
+
+    const int requestId = startWriteRequest();
 
     //
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
@@ -673,9 +713,10 @@ void CachedDataAccess::createNodeRect(
     }, this);
 
     //
-    routine->addStep([routine, callback]() {
+    routine->addStep([this, routine, callback, requestId]() {
         ContinuationContext context(routine);
         callback(routine->dbWriteOk);
+        finishWriteRequest(requestId);
     }, callbackContext);
 
     //
@@ -685,6 +726,10 @@ void CachedDataAccess::createNodeRect(
 void CachedDataAccess::removeNodeRect(
         const int boardId, const int cardId,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    const int requestId = startWriteRequest();
+
     // 1. update cache
     if (cache.boards.contains(boardId))
         cache.boards[boardId].cardIdToNodeRectData.remove(cardId);
@@ -727,11 +772,26 @@ void CachedDataAccess::removeNodeRect(
     }, this);
 
     //
-    routine->addStep([routine, callback]() {
+    routine->addStep([this, routine, callback, requestId]() {
         ContinuationContext context(routine);
         callback(routine->dbWriteOk);
+        finishWriteRequest(requestId);
     }, callbackContext);
 
     //
     routine->start();
+}
+
+int CachedDataAccess::startWriteRequest() {
+    const int requestId = ++lastWriteRequestId;
+    {
+        QWriteLocker locker(&lockForwriteRequestsInProgress);
+        writeRequestsInProgress << requestId;
+    }
+    return requestId;
+}
+
+void CachedDataAccess::finishWriteRequest(const int requestId) {
+    QWriteLocker locker(&lockForwriteRequestsInProgress);
+    writeRequestsInProgress.remove(requestId);
 }

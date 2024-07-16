@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QPointer>
+#include <QReadWriteLock>
 #include "models/board.h"
 #include "models/boards_list_properties.h"
 #include "models/card.h"
@@ -18,6 +19,8 @@ public:
             QueuedDbAccess *queuedDbAccess_,
             std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile_,
             QObject *parent = nullptr);
+
+    bool hasWriteRequestInProgress() const;
 
     // ==== read ====
 
@@ -102,6 +105,14 @@ private:
         QHash<int, Board> boards;
     };
     Cache cache;
+
+    //
+    int lastWriteRequestId {-1};
+    QSet<int> writeRequestsInProgress;
+    mutable QReadWriteLock lockForwriteRequestsInProgress;
+
+    int startWriteRequest();
+    void finishWriteRequest(const int requestId); // thread-safe
 };
 
 /*

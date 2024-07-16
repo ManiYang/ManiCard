@@ -142,6 +142,18 @@ void MainWindow::setUpConnections() {
 
         onUserToRemoveBoard(boardId);
     });
+
+    connect(boardsList, &BoardsList::boardsOrderChanged, this, [this](QVector<int> /*boardIds*/) {
+        saveBoardsOrdering([this](bool ok) {
+            if (!ok) {
+                const auto msg
+                        = QString("Could not save boards ordering to DB.\n\n"
+                                  "There is unsaved update. See %1")
+                          .arg(Services::instance()->getUnsavedUpdateFilePath());
+                createWarningMessageBox(this, " ", msg)->exec();
+            }
+        });
+    });
 }
 
 void MainWindow::setKeyboardShortcuts() {
@@ -278,11 +290,29 @@ void MainWindow::saveDataOnClose() {
     auto *routine = new AsyncRoutineWithVars;
 
     //
+    routine->addStep([routine]() {
+        // wait until CachedDataAccess::hasWriteRequestInProgress() returns false
+        (new PeriodicChecker)->setPeriod(20)->setTimeOut(6000)
+                ->setPredicate([]() {
+                    return !Services::instance()
+                            ->getCachedDataAccess()->hasWriteRequestInProgress();
+                })
+                ->onPredicateReturnsTrue([routine]() {
+                    routine->nextStep();
+                })
+                ->onTimeOut([routine]() {
+                    ContinuationContext context(routine);
+                    context.setErrorFlag();
+                    qWarning().noquote()
+                            << "Time-out while awaiting all saving operations to finish";
+                })
+                ->setAutoDelete()->start();
+    }, this);
+
     routine->addStep([this, routine]() {
-        // 1. save last opened board & boards ordering
+        // save last opened board
         BoardsListPropertiesUpdate propertiesUpdate;
         propertiesUpdate.lastOpenedBoard = boardsList->selectedBoardId();
-        propertiesUpdate.boardsOrdering = boardsList->getBoardsOrder();
 
         Services::instance()->getCachedDataAccess()->updateBoardsListProperties(
                 propertiesUpdate,
@@ -292,7 +322,7 @@ void MainWindow::saveDataOnClose() {
 
                     if (!ok) {
                         const auto msg
-                                = QString("Could not save boards-list properties to DB.\n\n"
+                                = QString("Could not save last-opened board to DB.\n\n"
                                           "There is unsaved update. See %1")
                                   .arg(Services::instance()->getUnsavedUpdateFilePath());
                         createWarningMessageBox(this, " ", msg)->exec();
@@ -305,7 +335,7 @@ void MainWindow::saveDataOnClose() {
     }, this);
 
     routine->addStep([this, routine]() {
-        // 2. save current board's topLeftPos
+        // save current board's topLeftPos
         saveTopLeftPosOfCurrentBoard(
                 // callback
                 [routine](bool ok) {
@@ -317,22 +347,32 @@ void MainWindow::saveDataOnClose() {
     }, this);
 
     routine->addStep([this, routine]() {
-        // 3.
+        //
         ContinuationContext context(routine);
 
         if (routine->hasUnsavedUpdate) {
             const auto r
                     = QMessageBox::question(this, " ", "There is unsaved update. Exit anyway?");
             if (r != QMessageBox::Yes) {
-                boardsList->setEnabled(true);
-                boardView->setEnabled(true);
-                closingState = ClosingState::NotClosing;
+                context.setErrorFlag();
                 return;
             }
         }
+    }, this);
 
-        closingState = ClosingState::CloseNow;
-        close();
+    routine->addStep([this, routine]() {
+        // (final step)
+        ContinuationContext context(routine);
+
+        if (routine->errorFlag) {
+            boardsList->setEnabled(true);
+            boardView->setEnabled(true);
+            closingState = ClosingState::NotClosing;
+        }
+        else {
+            closingState = ClosingState::CloseNow;
+            close();
+        }
     }, this);
 
     routine->start();
@@ -420,16 +460,31 @@ void MainWindow::onUserToCreateNewBoard() {
 
     routine->addStep([this, routine]() {
         // 2. add to `boardsList`
+        ContinuationContext context(routine);
+
         routine->boardData.name = "new board";
         routine->boardData.topLeftPos = QPointF(0, 0);
 
-        ContinuationContext context(routine);
         boardsList->addBoard(routine->newBoardId, routine->boardData.name);
         boardsList->startEditBoardName(routine->newBoardId);
     }, this);
 
     routine->addStep([this, routine]() {
-        // 3. create new board
+        // 3. save boards ordering
+        saveBoardsOrdering([routine](bool ok) {
+            ContinuationContext context(routine);
+            if (!ok) {
+                context.setErrorFlag();
+                routine->errorMsg
+                        = QString("Could not save boards ordering to DB.\n\n"
+                                  "There is unsaved update. See %1")
+                          .arg(Services::instance()->getUnsavedUpdateFilePath());
+            }
+        });
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // 3. create new board in DB
         Services::instance()->getCachedDataAccess()->createNewBoardWithId(
                 routine->newBoardId, routine->boardData,
                 //callback
@@ -523,6 +578,20 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
         boardsList->removeBoard(boardId);
     }, this);
 
+    routine->addStep([this, routine]() {
+        // save boards ordering
+        saveBoardsOrdering([routine](bool ok) {
+            ContinuationContext context(routine);
+            if (!ok) {
+                context.setErrorFlag();
+                routine->errorMsg
+                        = QString("Could not save boards ordering to DB.\n\n"
+                                  "There is unsaved update. See %1")
+                          .arg(Services::instance()->getUnsavedUpdateFilePath());
+            }
+        });
+    }, this);
+
     routine->addStep([this, routine, boardId]() {
         // remove board from DB
         Services::instance()->getCachedDataAccess()->removeBoard(
@@ -576,6 +645,21 @@ void MainWindow::saveTopLeftPosOfCurrentBoard(std::function<void (bool)> callbac
                     createWarningMessageBox(this, " ", msg)->exec();
                 }
                 callback(ok);
+            },
+            this
+    );
+}
+
+void MainWindow::saveBoardsOrdering(std::function<void (bool ok)> callback) {
+    BoardsListPropertiesUpdate propertiesUpdate;
+    propertiesUpdate.boardsOrdering = boardsList->getBoardsOrder();
+
+    Services::instance()->getCachedDataAccess()->updateBoardsListProperties(
+            propertiesUpdate,
+            // callback
+            [callback](bool ok) {
+                if (callback)
+                    callback(ok);
             },
             this
     );

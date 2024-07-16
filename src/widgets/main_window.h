@@ -47,13 +47,14 @@ private:
     //
     void onShownForFirstTime();
     void startUp();
-    void saveDataOnClose();
+    void saveDataOnClose(); // better name.........
 
     void onBoardSelectedByUser(const int boardId);
     void onUserToCreateNewBoard();
     void onUserToRemoveBoard(const int boardId);
 
     void saveTopLeftPosOfCurrentBoard(std::function<void (bool ok)> callback);
+    void saveBoardsOrdering(std::function<void (bool ok)> callback);
 };
 
 #endif // MAIN_WINDOW_H
