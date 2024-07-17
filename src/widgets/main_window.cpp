@@ -47,7 +47,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         boardsList->setEnabled(false);
         boardView->setEnabled(false);
 
-        saveDataOnClose();
+        prepareToClose();
 
         return;
 
@@ -281,7 +281,7 @@ void MainWindow::startUp() {
     routine->start();
 }
 
-void MainWindow::saveDataOnClose() {
+void MainWindow::prepareToClose() {
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
@@ -310,7 +310,7 @@ void MainWindow::saveDataOnClose() {
     }, this);
 
     routine->addStep([this, routine]() {
-        // save last opened board <---- store locally
+        // save last opened board
         BoardsListPropertiesUpdate propertiesUpdate;
         propertiesUpdate.lastOpenedBoard = boardsList->selectedBoardId();
 
@@ -633,7 +633,7 @@ void MainWindow::saveTopLeftPosOfCurrentBoard(std::function<void (bool)> callbac
     BoardNodePropertiesUpdate propertiesUpdate;
     propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
 
-    // <----- store locally
+    //
     Services::instance()->getCachedDataAccess()->updateBoardNodeProperties(
             currentBoardId, propertiesUpdate,
             // callback

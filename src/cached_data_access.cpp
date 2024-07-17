@@ -3,6 +3,7 @@
 #include <QWriteLocker>
 #include "cached_data_access.h"
 #include "db_access/queued_db_access.h"
+#include "file_access/local_settings_file.h"
 #include "file_access/unsaved_update_records_file.h"
 #include "utilities/async_routine.h"
 #include "utilities/functor.h"
@@ -12,11 +13,12 @@
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 
 CachedDataAccess::CachedDataAccess(
-        QueuedDbAccess *queuedDbAccess_,
+        QueuedDbAccess *queuedDbAccess_, std::shared_ptr<LocalSettingsFile> localSettingsFile_,
         std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile_,
         QObject *parent)
             : QObject(parent)
             , queuedDbAccess(queuedDbAccess_)
+            , localSettingsFile(localSettingsFile_)
             , unsavedUpdateRecordsFile(unsavedUpdateRecordsFile_) {
 }
 
@@ -115,13 +117,53 @@ void CachedDataAccess::getBoardsListProperties(
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
-    queuedDbAccess->getBoardsListProperties(
-            // callback
-            [callback](bool ok, BoardsListProperties properties) {
-                callback(ok, properties);
-            },
-            callbackContext
-    );
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        BoardsListProperties properties;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // get boards ordering from DB
+        queuedDbAccess->getBoardsListProperties(
+                // callback
+                [routine](bool ok, BoardsListProperties properties) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                    else
+                        routine->properties = properties;
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // get last-opened board from local settings file
+        ContinuationContext context(routine);
+
+        const auto [ok, boardIdOpt] = localSettingsFile->readLastOpenedBoardId();
+        if (!ok) {
+            context.setErrorFlag();
+        }
+        else {
+            if (boardIdOpt.has_value())
+                routine->properties.lastOpenedBoard = boardIdOpt.value();
+        }
+    }, this);
+
+    routine->addStep([routine, callback]() {
+        // (final step)
+        ContinuationContext context(routine);
+        if (routine->errorFlag)
+            callback(false, {});
+        else
+            callback(true, routine->properties);
+    }, callbackContext);
+
+    routine->start();
 }
 
 void CachedDataAccess::getBoardData(
@@ -138,11 +180,16 @@ void CachedDataAccess::getBoardData(
         return;
     }
 
+    //
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
-        // variables used by the steps of the routine:
-        std::optional<Board> boardResult;
+        bool queryDbOk;
+        std::optional<Board> board; // from DB
+        bool readFileOk;
+        std::optional<QPointF> topLeftPos; // from settings file
+
+        std::optional<Board> result;
     };
     auto *routine = new AsyncRoutineWithVars;
 
@@ -151,27 +198,51 @@ void CachedDataAccess::getBoardData(
         queuedDbAccess->getBoardData(
                 boardId,
                 // callback
-                [this, routine, boardId](bool ok, std::optional<Board> board) {
+                [routine](bool ok, std::optional<Board> board) {
                     ContinuationContext context(routine);
-                    if (ok) {
-                        routine->boardResult = board;
 
-                        // update cache
-                        if (board.has_value())
-                            cache.boards.insert(boardId, board.value());
-                    }
-                    else {
-                        context.setErrorFlag();
-                    }
+                    if (ok)
+                        routine->board = board;
+                    routine->queryDbOk = ok;
                 },
                 this
         );
     }, this);
 
-    //
+    // 3. get topLeftPos from local settings file
+    routine->addStep([this, routine, boardId]() {
+        ContinuationContext context(routine);
+
+        const auto [ok, topLeftPosOpt] = localSettingsFile->readTopLeftPosOfBoard(boardId);
+        if (ok)
+            routine->topLeftPos = topLeftPosOpt;
+        routine->readFileOk = ok;
+    }, this);
+
+    // 4. set routine->result & update cache
+    routine->addStep([this, routine, boardId]() {
+        ContinuationContext context(routine);
+
+        if (!routine->queryDbOk || !routine->readFileOk) {
+            context.setErrorFlag();
+            return;
+        }
+
+        if (routine->board.has_value()) {
+            routine->result = routine->board;
+            cache.boards.insert(boardId, routine->board.value());
+
+            if (routine->topLeftPos.has_value()) {
+                routine->result.value().topLeftPos = routine->topLeftPos.value();
+                cache.boards[boardId].topLeftPos = routine->topLeftPos.value();
+            }
+        }
+    }, this);
+
+    // 5. (final step)
     routine->addStep([routine, callback]() {
          ContinuationContext context(routine);
-         callback(!routine->errorFlag, routine->boardResult);
+         callback(!routine->errorFlag, routine->result);
     }, callbackContext);
 
     //
@@ -381,27 +452,76 @@ void CachedDataAccess::updateBoardsListProperties(
 
     const int requestId = startWriteRequest();
 
-    // Write DB. If failed, add to unsaved updates.
-    queuedDbAccess->updateBoardsListProperties(
-            propertiesUpdate,
-            // callback
-            [=](bool ok) {
-                if (!ok) {
-                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-                    const QString updateTitle = "updateBoardsListProperties";
-                    const QString updateDetails = printJson(QJsonObject {
-                        {"propertiesUpdate", propertiesUpdate.toJson()}
-                    }, false);
-                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-                }
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        bool dbWriteOk;
+        bool fileWriteOk;
+    };
+    auto *routine = new AsyncRoutineWithVars;
 
-                invokeAction(callbackContext, [this, callback, ok, requestId]() {
-                    callback(ok);
-                    finishWriteRequest(requestId);
-                });
-            },
-            this
-    );
+    //
+    BoardsListPropertiesUpdate propertiesUpdateForDb = propertiesUpdate;
+    propertiesUpdateForDb.boardsOrdering = propertiesUpdate.boardsOrdering;
+
+    routine->addStep([this, routine, propertiesUpdateForDb]() {
+        // write DB for `boardsOrdering`
+        if (propertiesUpdateForDb.toJson().isEmpty()) {
+            ContinuationContext context(routine);
+            routine->dbWriteOk = true;
+            return;
+        }
+
+        queuedDbAccess->updateBoardsListProperties(
+                propertiesUpdateForDb,
+                // callback
+                [=](bool ok) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                        const QString updateTitle = "updateBoardsListProperties";
+                        const QString updateDetails = printJson(QJsonObject {
+                            {"propertiesUpdate", propertiesUpdateForDb.toJson()}
+                        }, false);
+                        unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+                    }
+                    routine->dbWriteOk = ok;
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine, propertiesUpdate]() {
+        // write settings file for `lastOpenedBoard`
+        ContinuationContext context(routine);
+
+        if (!propertiesUpdate.lastOpenedBoard.has_value()) {
+            routine->fileWriteOk = true;
+            return;
+        }
+
+        bool ok = localSettingsFile->writeLastOpenedBoardId(
+                propertiesUpdate.lastOpenedBoard.value());
+        if (!ok) {
+            const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+            const QString updateTitle = "updateBoardsListProperties";
+            const QString updateDetails = printJson(QJsonObject {
+                {"lastOpenedBoard", propertiesUpdate.lastOpenedBoard.value()}
+            }, false);
+            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+        }
+        routine->fileWriteOk = ok;
+    }, this);
+
+    routine->addStep([this, routine, callback, requestId]() {
+        // final step
+        ContinuationContext context(routine);
+        callback(routine->dbWriteOk && routine->fileWriteOk);
+        finishWriteRequest(requestId);
+    }, callbackContext);
+
+    routine->start();
 }
 
 void CachedDataAccess::createNewBoardWithId(
@@ -485,43 +605,73 @@ void CachedDataAccess::updateBoardNodeProperties(
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
-        // variables used by the steps of the routine:
         bool dbWriteOk;
+        bool fileWriteOk;
     };
     auto *routine = new AsyncRoutineWithVars;
 
-    // 2. write DB
-    routine->addStep([this, routine, boardId, propertiesUpdate]() {
+    // 2. write DB and/or local settings file
+    BoardNodePropertiesUpdate propertiesUpdateForDb = propertiesUpdate;
+    propertiesUpdateForDb.topLeftPos = std::nullopt;
+
+    routine->addStep([this, routine, boardId, propertiesUpdateForDb]() {
+        if (propertiesUpdateForDb.toJson().isEmpty()) {
+            ContinuationContext context(routine);
+            routine->dbWriteOk = true;
+            return;
+        }
+
         queuedDbAccess->updateBoardNodeProperties(
-                boardId, propertiesUpdate,
+                boardId, propertiesUpdateForDb,
                 // callback
-                [routine](bool ok) {
+                [=](bool ok) {
                     ContinuationContext context(routine);
+
+                    if (!ok) {
+                        const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                        const QString updateTitle = "updateBoardNodeProperties";
+                        const QString updateDetails = printJson(QJsonObject {
+                            {"boardId", boardId},
+                            {"propertiesUpdate", propertiesUpdateForDb.toJson()}
+                        }, false);
+                        unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+                    }
                     routine->dbWriteOk = ok;
                 },
                 this
         );
     }, this);
 
-    // 3. if step 2 failed, add to unsaved updates
+    // 3. write settings file for `topLeftPos`
     routine->addStep([this, routine, boardId, propertiesUpdate]() {
         ContinuationContext context(routine);
 
-        if (!routine->dbWriteOk) {
+        if (!propertiesUpdate.topLeftPos.has_value()) {
+            routine->fileWriteOk = true;
+            return;
+        }
+
+        const bool ok = localSettingsFile->writeTopLeftPosOfBoard(
+                boardId, propertiesUpdate.topLeftPos.value());
+        if (!ok) {
             const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
             const QString updateTitle = "updateBoardNodeProperties";
+
+            const auto pos = propertiesUpdate.topLeftPos.value();
             const QString updateDetails = printJson(QJsonObject {
                 {"boardId", boardId},
-                {"propertiesUpdate", propertiesUpdate.toJson()}
+                {"topLeftPos", QJsonArray {pos.x(), pos.y()}}
             }, false);
             unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
         }
+        routine->fileWriteOk = ok;
     }, this);
 
-    // 4.
+
+    // 4. final step
     routine->addStep([this, routine, callback, requestId]() {
         ContinuationContext context(routine);
-        callback(routine->dbWriteOk);
+        callback(routine->dbWriteOk && routine->fileWriteOk);
         finishWriteRequest(requestId);
     }, callbackContext);
 

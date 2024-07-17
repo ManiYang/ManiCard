@@ -7,6 +7,8 @@
 #include "db_access/boards_data_access.h"
 #include "db_access/cards_data_access.h"
 #include "db_access/queued_db_access.h"
+#include "file_access/app_local_data_dir.h"
+#include "file_access/local_settings_file.h"
 #include "file_access/unsaved_update_records_file.h"
 #include "neo4j_http_api_client.h"
 #include "services.h"
@@ -56,13 +58,20 @@ bool Services::initialize(QString *errorMsg) {
 
         queuedDbAccess = new QueuedDbAccess(boardsDataAccess, cardsDataAccess, qApp);
 
+        const QString appLocalDataDir = getAppLocalDataDir(&err);
+        if (appLocalDataDir.isEmpty())
+            throw std::runtime_error(err.toStdString());
+
+        localSettingsFile = std::make_shared<LocalSettingsFile>(appLocalDataDir);
+
         unsavedUpdateFilePath
                 = QDir(qApp->applicationDirPath()).filePath("unsaved_updates.txt");
 
         unsavedUpdateRecordsFile
                 = std::make_shared<UnsavedUpdateRecordsFile>(unsavedUpdateFilePath);
 
-        cachedDataAccess = new CachedDataAccess(queuedDbAccess, unsavedUpdateRecordsFile, qApp);
+        cachedDataAccess = new CachedDataAccess(
+                queuedDbAccess, localSettingsFile, unsavedUpdateRecordsFile, qApp);
     }
     catch (std::runtime_error &e) {
         if (errorMsg)

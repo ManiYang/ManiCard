@@ -70,13 +70,14 @@ void BoardsDataAccess::getBoardsListProperties(
                 const auto result = queryResponse.getResult().value();
                 std::optional<QJsonObject> propertiesObj = result.objectValueAt(0, "n");
                 if (!propertiesObj.has_value()) {
-                    callback(false, BoardsListProperties {});
-                    return;
+                    // node not found, reply with default
+                    callback(true, BoardsListProperties {});
                 }
-
-                BoardsListProperties properties;
-                properties.update(propertiesObj.value());
-                callback(true, properties);
+                else {
+                    BoardsListProperties properties;
+                    properties.update(propertiesObj.value());
+                    callback(true, properties);
+                }
             },
             callbackContext
     );

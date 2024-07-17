@@ -47,7 +47,7 @@ private:
     //
     void onShownForFirstTime();
     void startUp();
-    void saveDataOnClose(); // better name.........
+    void prepareToClose();
 
     void onBoardSelectedByUser(const int boardId);
     void onUserToCreateNewBoard();

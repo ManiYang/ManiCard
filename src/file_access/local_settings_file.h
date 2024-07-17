@@ -11,8 +11,17 @@ class LocalSettingsFile
 public:
     explicit LocalSettingsFile(const QString &appLocalDataDir);
 
-    std::optional<int> readLastOpenedBoardId();
-    std::optional<QPointF> readTopLeftPosOfBoard(const int boardId);
+    //!
+    //! It's not an error if the value is not found.
+    //! \return (ok?, result)
+    //!
+    std::pair<bool, std::optional<int>> readLastOpenedBoardId();
+
+    //!
+    //! It's not an error if the value is not found.
+    //! \return (ok?, result)
+    //!
+    std::pair<bool, std::optional<QPointF>> readTopLeftPosOfBoard(const int boardId);
 
     bool writeLastOpenedBoardId(const int lastOpenedBoardId);
     bool writeTopLeftPosOfBoard(const int boardId, const QPointF &topLeftPos);

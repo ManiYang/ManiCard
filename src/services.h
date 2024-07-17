@@ -7,6 +7,7 @@
 class BoardsDataAccess;
 class CachedDataAccess;
 class CardsDataAccess;
+class LocalSettingsFile;
 class Neo4jHttpApiClient;
 class QueuedDbAccess;
 class UnsavedUpdateRecordsFile;
@@ -36,6 +37,7 @@ private:
     std::shared_ptr<CardsDataAccess> cardsDataAccess;
     std::shared_ptr<BoardsDataAccess> boardsDataAccess;
     QueuedDbAccess *queuedDbAccess {nullptr};
+    std::shared_ptr<LocalSettingsFile> localSettingsFile;
     std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile;
     CachedDataAccess *cachedDataAccess {nullptr};
 

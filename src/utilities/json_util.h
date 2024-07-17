@@ -10,6 +10,7 @@
 #include <QStringList>
 
 bool jsonValueIsInt(const QJsonValue &v, const double tol = 1e-8);
+bool jsonValueIsArrayOfSize(const QJsonValue &v, const int size);
 
 template <class Container>
 QJsonArray toJsonArray(const Container &c) {

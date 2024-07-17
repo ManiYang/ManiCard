@@ -8,6 +8,7 @@
 #include "models/boards_list_properties.h"
 #include "models/card.h"
 
+class LocalSettingsFile;
 class QueuedDbAccess;
 class UnsavedUpdateRecordsFile;
 
@@ -17,6 +18,7 @@ class CachedDataAccess : public QObject
 public:
     explicit CachedDataAccess(
             QueuedDbAccess *queuedDbAccess_,
+            std::shared_ptr<LocalSettingsFile> localSettingsFile_,
             std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile_,
             QObject *parent = nullptr);
 
@@ -96,6 +98,7 @@ public:
 
 private:
     QueuedDbAccess *queuedDbAccess;
+    std::shared_ptr<LocalSettingsFile> localSettingsFile;
     std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile;
 
     // data cache
@@ -118,13 +121,13 @@ private:
 /*
  * read:
  *   1. get the parts that are already cached
- *   2. query DB for the other parts (if any)
+ *   2. query DB & local settings file for the other parts (if any)
  *      + if successful: update cache
  *      + if failed: whole process fails
  * write:
  *   1. update cache
- *   2. write DB
- *   3. if step 2 failed, add to unsaved updates
+ *   2. write DB. If failed, add to unsaved updates.
+ *   3. write local settings file. If failed, add to unsaved updates.
 */
 
 #endif // CACHEDDATAACCESS_H
