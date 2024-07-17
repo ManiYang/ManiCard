@@ -6,6 +6,20 @@
 #include "json_util.h"
 #include "utilities/numbers_util.h"
 
+bool jsonValueIsInt(const QJsonValue &v, const double tol) {
+    if (!v.isDouble())
+        return false;
+    return isInteger(v.toDouble(), tol);
+}
+
+bool jsonValueIsArrayOfSize(const QJsonValue &v, const int size) {
+    if (!v.isArray())
+        return false;
+    if (v.toArray().count() != size)
+        return false;
+    return true;
+}
+
 QStringList toStringList(const QJsonArray &array, const QString &defaultValue) {
     QStringList result;
     for (const QJsonValue &v: array)
@@ -206,4 +220,3 @@ QString JsonReader::getCurrentPathString() const {
     }
     return parts.join("");
 }
-

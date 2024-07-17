@@ -9,6 +9,8 @@
 #include <QSet>
 #include <QStringList>
 
+bool jsonValueIsInt(const QJsonValue &v, const double tol = 1e-8);
+
 template <class Container>
 QJsonArray toJsonArray(const Container &c) {
     static_assert(

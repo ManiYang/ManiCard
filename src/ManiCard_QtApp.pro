@@ -15,6 +15,7 @@ SOURCES += \
     db_access/boards_data_access.cpp \
     db_access/cards_data_access.cpp \
     db_access/queued_db_access.cpp \
+    file_access/local_settings_file.cpp \
     file_access/unsaved_update_records_file.cpp \
     main.cpp \
     models/board.cpp \
@@ -50,6 +51,8 @@ HEADERS += \
     db_access/boards_data_access.h \
     db_access/cards_data_access.h \
     db_access/queued_db_access.h \
+    file_access/app_local_data_dir.h \
+    file_access/local_settings_file.h \
     file_access/unsaved_update_records_file.h \
     global_constants.h \
     models/board.h \

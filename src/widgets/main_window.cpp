@@ -310,7 +310,7 @@ void MainWindow::saveDataOnClose() {
     }, this);
 
     routine->addStep([this, routine]() {
-        // save last opened board
+        // save last opened board <---- store locally
         BoardsListPropertiesUpdate propertiesUpdate;
         propertiesUpdate.lastOpenedBoard = boardsList->selectedBoardId();
 
@@ -633,6 +633,7 @@ void MainWindow::saveTopLeftPosOfCurrentBoard(std::function<void (bool)> callbac
     BoardNodePropertiesUpdate propertiesUpdate;
     propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
 
+    // <----- store locally
     Services::instance()->getCachedDataAccess()->updateBoardNodeProperties(
             currentBoardId, propertiesUpdate,
             // callback
