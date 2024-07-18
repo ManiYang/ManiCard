@@ -476,3 +476,60 @@ void CardsDataAccess::updateCardLabels(
 
     routine->start();
 }
+
+void CardsDataAccess::createRelationship(
+        const RelationshipId &id, std::function<void (bool ok, bool created)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                    QString(R"!(
+                        MATCH (c1:Card {id: $fromCardId})
+                        MATCH (c2:Card {id: $toCardId})
+                        MERGE (c1)-[r:#RelationshipType#]->(c2)
+                        ON CREATE SET r._is_created = true
+                        ON MATCH SET r._is_created = false
+                        WITH r, r._is_created AS isCreated
+                        REMOVE r._is_created
+                        RETURN isCreated
+                    )!")
+                        .replace("#RelationshipType#", id.type),
+                QJsonObject {
+                        {"fromCardId", id.startCardId},
+                        {"toCardId", id.endCardId}
+                }
+            },
+            // callback
+            [callback, id](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false, false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                if (result.isEmpty()) {
+                    qWarning().noquote()
+                            << QString("start card %1 or end card %2 not found")
+                               .arg(id.startCardId).arg(id.endCardId);
+                    callback(false, false);
+                    return;
+                }
+
+                const std::optional<bool> isCreated = result.boolValueAt(0, "isCreated");
+                if (!isCreated.has_value()) {
+                    callback(false, false);
+                    return;
+                }
+
+                if (!isCreated.value()) {
+                    callback(true, false);
+                    return;
+                }
+
+                qInfo().noquote() << QString("created relationship %1").arg(id.toString());
+                callback(true, true);
+            },
+            callbackContext
+    );
+}

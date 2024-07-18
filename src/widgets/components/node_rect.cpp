@@ -179,6 +179,14 @@ void NodeRect::installEventFilterOnChildItems() {
 
 void NodeRect::setUpContextMenu() {
     {
+        auto *action = contextMenu->addAction(
+                QIcon(":/icons/arrow_right_black_24"), "Create Relationship...");
+        connect(action, &QAction::triggered, this, [this]() {
+            emit userToCreateRelationship();
+        });
+    }
+    contextMenu->addSeparator();
+    {
         auto *action = contextMenu->addAction(QIcon(":/icons/close_box_black_24"), "Close");
         connect(action, &QAction::triggered, this, [this]() {
             titleTextSaveDebouncer->saveNow();

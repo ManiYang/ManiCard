@@ -77,6 +77,18 @@ public:
     virtual void updateCardLabels(
             const int cardId, const QSet<QString> &updatedLabels,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    // ==== relationships ====
+
+    //!
+    //! The start/end cards must already exist (it's an error otherwise).
+    //! It's not an error if the relationship already exists (in this case `created` will be
+    //! false in the arguments of callback).
+    //! This operation is atomic.
+    //!
+    virtual void createRelationship(
+            const RelationshipId &id, std::function<void (bool ok, bool created)> callback,
+            QPointer<QObject> callbackContext) = 0;
 };
 
 #endif // ABSTRACT_CARDS_DATA_ACCESS_H

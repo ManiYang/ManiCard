@@ -64,7 +64,9 @@ public:
             const int cardId, const QSet<QString> &updatedLabels,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
-
+    void createRelationship(
+            const RelationshipId &id, std::function<void (bool ok, bool created)> callback,
+            QPointer<QObject> callbackContext) override;
 
     // ==== AbstractBoardsDataAccess interface ====
 

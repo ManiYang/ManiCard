@@ -42,6 +42,7 @@ inline uint qHash(const RelationshipId &id, uint seed)
     return seed;
 }
 
+
 struct RelationshipProperties
 {
     RelationshipProperties &update(const QJsonObject &obj);

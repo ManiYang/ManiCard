@@ -10,11 +10,10 @@
 #include "utilities/maps_util.h"
 #include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
+#include "utilities/strings_util.h"
 #include "widgets/components/graphics_scene.h"
 #include "widgets/components/node_rect.h"
-
-#include <QGraphicsRectItem>
-#include <QTimer>
+#include "widgets/dialogs/dialog_create_relationship.h"
 
 using StringOpt = std::optional<QString>;
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
@@ -339,6 +338,120 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
     routine->start();
 }
 
+void BoardView::userToCreateRelationship(const int cardId) {
+    Q_ASSERT(cardIdToNodeRect.contains(cardId));
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        RelationshipId relIdToCreate {-1, -1, ""};
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine, cardId]() {
+        // show dialog, get relationship to create
+        auto *dialog = new DialogCreateRelationship(
+                cardId, cardIdToNodeRect.value(cardId)->getTitle(), this);
+
+        connect(dialog, &QDialog::finished, this, [dialog, routine](int result) {
+            ContinuationContext context(routine);
+            dialog->deleteLater();
+
+            if (result != QDialog::Accepted) {
+                context.setErrorFlag();
+                return;
+            }
+
+            const auto idOpt = dialog->getRelationshipId();
+            if (!idOpt.has_value()) {
+                context.setErrorFlag();
+                return;
+            }
+
+            routine->relIdToCreate = idOpt.value();
+        });
+
+        dialog->open();
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // check start/end card exist
+        const QSet<int> startEndCards {
+            routine->relIdToCreate.startCardId,
+            routine->relIdToCreate.endCardId
+        };
+        Services::instance()->getCachedDataAccess()->queryCards(
+                startEndCards,
+                // callback
+                [this, routine, startEndCards](bool ok, QHash<int, Card> cards) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        QMessageBox::warning(
+                                this, " ", "Could not query start/end cards. See logs for detail");
+                        context.setErrorFlag();
+                        return;
+                    }
+                    if (const auto diff = startEndCards - keySet(cards); !diff.isEmpty()) {
+                        QString cardIdsStr;
+                        {
+                            auto it = diff.constBegin();
+                            cardIdsStr = QString::number(*it);
+                            if (++it != diff.constEnd())
+                                cardIdsStr += QString(" & %1").arg(*it);
+                        }
+                        QMessageBox::warning(
+                                this, " ", QString("Card %1 not found.").arg(cardIdsStr));
+                        context.setErrorFlag();
+                        return;
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // create relationship
+        Services::instance()->getCachedDataAccess()->createRelationship(
+                routine->relIdToCreate,
+                // callback
+                [this, routine](bool ok, bool created) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        // (don't set routine->errorFlag here)
+                        const auto msg
+                                = QString("Could not save created relationship to DB.\n\n"
+                                          "There is unsaved update. See %1")
+                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        createWarningMessageBox(this, " ", msg)->exec();
+                        return;
+                    }
+                    if (!created) {
+                        QMessageBox::information(
+                                this, " ",
+                                QString("Relationship %1 already exists.")
+                                    .arg(routine->relIdToCreate.toString()));
+                    }
+                },
+                this
+        );
+    }, this);
+
+//    routine->addStep([this, routine]() {
+//        // show relationship ....
+
+//    }, this);
+
+    routine->addStep([routine]() {
+        // final step
+        routine->nextStep();
+    }, this);
+
+    routine->start();
+}
+
 void BoardView::userToCloseNodeRect(const int cardId) {
     Q_ASSERT(cardIdToNodeRect.contains(cardId));
 
@@ -516,6 +629,12 @@ NodeRect *BoardView::createNodeRect(
                         nodeRectPtr->finishedSaveTitleText();
                 }
         );
+    });
+
+    connect(nodeRect, &NodeRect::userToCreateRelationship, this, [this, nodeRectPtr]() {
+        if (!nodeRectPtr)
+            return;
+        userToCreateRelationship(nodeRectPtr->getCardId());
     });
 
     connect(nodeRect, &NodeRect::closeByUser, this, [this, nodeRectPtr]() {

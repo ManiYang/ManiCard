@@ -262,6 +262,41 @@ void QueuedDbAccess::updateCardLabels(
     addToQueue(func);
 }
 
+void QueuedDbAccess::createRelationship(
+        const RelationshipId &id, std::function<void (bool ok, bool created)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    constexpr bool isReadOnlyAccess = false; // <--
+
+    auto func = [=, thisPtr=QPointer(this)](const bool failDirectly) {
+        if (failDirectly) {
+            invokeAction(callbackContext, [callback]() {
+                callback(false, false); // <-- callback params
+            });
+            if (thisPtr)
+                thisPtr->onResponse(false, isReadOnlyAccess);
+            return;
+        }
+
+        if (thisPtr.isNull())
+            return;
+        thisPtr->cardsDataAccess->createRelationship( // <-- method
+                id, // <-- input params
+                // callback:
+                [thisPtr, callback, callbackContext]
+                        (bool ok, bool created) { // <-- callback params
+                    invokeAction(callbackContext, [=]() {
+                        callback(ok, created);  // <-- callback params
+                    });
+                    if (thisPtr)
+                        thisPtr->onResponse(ok, isReadOnlyAccess);
+                },
+                thisPtr.data()
+        );
+    };
+    addToQueue(func);
+}
+
 void QueuedDbAccess::getBoardIdsAndNames(
         std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
         QPointer<QObject> callbackContext) {

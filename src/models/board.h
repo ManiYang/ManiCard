@@ -16,10 +16,8 @@ struct Board {
     QPointF topLeftPos; // in scene coordinates
 
     //
-    QHash<int, NodeRectData> cardIdToNodeRectData; // key: NodeRect ID
-
-//    QHash<RelationshipId, int> relsIdToEdgeArrowId;
-//    QHash<int, VisualEdgeData> visualEdgesIdToData;
+    QHash<int, NodeRectData> cardIdToNodeRectData;
+//    QHash<RelationshipId, EdgeArrowData> relsIdToEdgeArrowData;
 
     //
     QJsonObject getNodePropertiesJson() const;

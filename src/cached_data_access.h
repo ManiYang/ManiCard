@@ -54,11 +54,12 @@ public:
 
     // ==== write ====
 
-    // If a write operation failed, a record of unsaved update is added.
+    // A write operation fails if data cannot be saved to DB or file. In this case, a record of
+    // unsaved update is added.
 
     void createNewCardWithId(
             const int cardId, const Card &card,
-            std::function<void (bool)> callback, QPointer<QObject> callbackContext);
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
 
     void updateCardProperties(
             const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
@@ -68,13 +69,21 @@ public:
             const int cardId, const QSet<QString> &updatedLabels,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
 
+    //!
+    //! The start/end cards must already exist (which is not checked here). Otherwise the cache
+    //! will become inconsistent with DB.
+    //!
+    void createRelationship(
+            const RelationshipId &id, std::function<void (bool ok, bool created)> callback,
+            QPointer<QObject> callbackContext);
+
     void updateBoardsListProperties(
             const BoardsListPropertiesUpdate &propertiesUpdate,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
 
     void createNewBoardWithId(
             const int boardId, const Board &board,
-            std::function<void (bool)> callback, QPointer<QObject> callbackContext);
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
 
     void updateBoardNodeProperties(
             const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,
@@ -104,8 +113,9 @@ private:
     // data cache
     struct Cache
     {
-        QHash<int, Card> cards;
         QHash<int, Board> boards;
+        QHash<int, Card> cards;
+        QHash<RelationshipId, RelationshipProperties> relationships;
     };
     Cache cache;
 
@@ -119,15 +129,17 @@ private:
 };
 
 /*
- * read:
+ * Dev notes:
+ *
+ * + For read operation:
  *   1. get the parts that are already cached
  *   2. query DB & local settings file for the other parts (if any)
- *      + if successful: update cache
- *      + if failed: whole process fails
- * write:
+ *      - if successful: update cache
+ *      - if failed: whole process fails
+ * + For write operation:
  *   1. update cache
- *   2. write DB. If failed, add to unsaved updates.
- *   3. write local settings file. If failed, add to unsaved updates.
+ *   2. Write DB. If failed, add to unsaved updates.
+ *   3. Write local settings file. If failed, add to unsaved updates.
 */
 
 #endif // CACHEDDATAACCESS_H

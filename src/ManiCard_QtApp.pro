@@ -39,9 +39,11 @@ SOURCES += \
     widgets/components/custom_graphics_text_item.cpp \
     widgets/components/custom_list_widget.cpp \
     widgets/components/custom_text_edit.cpp \
+    widgets/components/edge_arrow.cpp \
     widgets/components/graphics_item_move_resize.cpp \
     widgets/components/graphics_scene.cpp \
     widgets/components/node_rect.cpp \
+    widgets/dialogs/dialog_create_relationship.cpp \
     widgets/main_window.cpp
 
 HEADERS += \
@@ -58,6 +60,7 @@ HEADERS += \
     models/board.h \
     models/boards_list_properties.h \
     models/card.h \
+    models/edge_arrow_data.h \
     models/node_labels.h \
     models/node_rect_data.h \
     models/relationship.h \
@@ -83,12 +86,15 @@ HEADERS += \
     widgets/components/custom_graphics_text_item.h \
     widgets/components/custom_list_widget.h \
     widgets/components/custom_text_edit.h \
+    widgets/components/edge_arrow.h \
     widgets/components/graphics_item_move_resize.h \
     widgets/components/graphics_scene.h \
     widgets/components/node_rect.h \
+    widgets/dialogs/dialog_create_relationship.h \
     widgets/main_window.h
 
 FORMS += \
+    widgets/dialogs/dialog_create_relationship.ui \
     widgets/main_window.ui
 
 # Default rules for deployment.

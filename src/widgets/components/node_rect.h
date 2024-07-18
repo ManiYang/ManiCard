@@ -71,6 +71,7 @@ signals:
     //!
     void saveTitleTextUpdate(const StringOpt &updatedTitle, const StringOpt &updatedText);
 
+    void userToCreateRelationship();
     void closeByUser();
 
 protected:

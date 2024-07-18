@@ -73,6 +73,7 @@ private:
 
     void userToOpenExistingCard(const QPointF &scenePos);
     void userToCreateNewCard(const QPointF &scenePos);
+    void userToCreateRelationship(const int cardId);
     void userToCloseNodeRect(const int cardId);
     void openExistingCard(const int cardId, const QPointF &scenePos);
     void saveCardPropertiesUpdate(
@@ -83,7 +84,7 @@ private:
     // node rect creation and removal
 
     //!
-    //! Returned NodeRect is already added to the scene.
+    //! The returned NodeRect is already added to the scene.
     //!
     NodeRect *createNodeRect(
             const int cardId, const Card &cardData,

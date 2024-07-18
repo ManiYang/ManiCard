@@ -39,7 +39,7 @@ private:
     enum ClosingState {NotClosing, Closing, CloseNow};
     ClosingState closingState {ClosingState::NotClosing};
 
-    // setup
+    //
     void setUpWidgets();
     void setUpConnections();
     void setKeyboardShortcuts();

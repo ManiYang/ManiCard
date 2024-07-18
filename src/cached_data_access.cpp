@@ -445,6 +445,74 @@ void CachedDataAccess::updateCardLabels(
     routine->start();
 }
 
+void CachedDataAccess::createRelationship(
+        const RelationshipId &id, std::function<void (bool ok, bool created)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    const int requestId = startWriteRequest();
+
+    //
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        bool isCreated {false};
+    };
+
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine, id] {
+        // 1. update cache
+        ContinuationContext context(routine);
+
+        if (cache.relationships.contains(id)) {
+            qWarning().noquote() << QString("Relationship %1 already exists.").arg(id.toString());
+            routine->isCreated = false;
+            context.setErrorFlag();
+            return;
+        }
+        cache.relationships.insert(id, RelationshipProperties {});
+    }, this);
+
+    routine->addStep([this, routine, id]() {
+        // 2. Write DB. If failed, add to unsaved updates.
+        queuedDbAccess->createRelationship(
+                id,
+                // callback
+                [=](bool ok, bool created) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        context.setErrorFlag();
+
+                        const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                        const QString updateTitle = "createRelationship";
+                        const QString updateDetails = printJson(QJsonObject {
+                            {"id", id.toString()}
+                        }, false);
+                        unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                        return;
+                    }
+
+                    routine->isCreated = created;
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine, callback, requestId]() {
+        // final step
+        ContinuationContext context(routine);
+        callback(!routine->errorFlag, routine->isCreated);
+        finishWriteRequest(requestId);
+
+    }, callbackContext);
+
+    routine->start();
+}
+
 void CachedDataAccess::updateBoardsListProperties(
         const BoardsListPropertiesUpdate &propertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
