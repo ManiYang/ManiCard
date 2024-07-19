@@ -28,6 +28,7 @@ SOURCES += \
     utilities/action_debouncer.cpp \
     utilities/app_instances_shared_memory.cpp \
     utilities/async_routine.cpp \
+    utilities/geometry_util.cpp \
     utilities/json_util.cpp \
     utilities/logging.cpp \
     utilities/message_box.cpp \
@@ -71,6 +72,7 @@ HEADERS += \
     utilities/app_instances_shared_memory.h \
     utilities/async_routine.h \
     utilities/functor.h \
+    utilities/geometry_util.h \
     utilities/hash.h \
     utilities/json_util.h \
     utilities/lists_vectors_util.h \

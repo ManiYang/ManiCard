@@ -1,3 +1,4 @@
+#include <utility>
 #include <QDebug>
 #include <QGraphicsView>
 #include <QInputDialog>
@@ -7,6 +8,7 @@
 #include "cached_data_access.h"
 #include "services.h"
 #include "utilities/async_routine.h"
+#include "utilities/geometry_util.h"
 #include "utilities/maps_util.h"
 #include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
@@ -100,7 +102,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
         );
     }, this);
 
-    routine->addStep([this, routine, boardIdToLoad]() {
+    routine->addStep([this, routine]() {
         // 3. open cards, creating NodeRect's
         ContinuationContext context(routine);
 
@@ -111,7 +113,8 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
             const NodeRectData nodeRectData = routine->board.cardIdToNodeRectData.value(cardId);
 
             constexpr bool saveNodeRectData = false;
-            NodeRect *nodeRect = createNodeRect(cardId, cardData, nodeRectData, saveNodeRectData);
+            NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
+                    cardId, cardData, nodeRectData, saveNodeRectData);
             nodeRect->setEditable(true);
         }
 
@@ -161,7 +164,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
 
         const auto relIds = keySet(routine->relationshipsData);
         for (const auto &relId: relIds)
-            createEdgeArrow(relId, edgeArrowData);
+            edgeArrowsCollection.createEdgeArrow(relId, edgeArrowData);
     }, this);
 
     routine->addStep([this, routine, callback, boardIdToLoad]() {
@@ -178,8 +181,9 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
 }
 
 void BoardView::prepareToClose() {
-    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it)
-        it.value()->prepareToClose();
+    const auto nodeRects = nodeRectsCollection.getAllNodeRects();
+    for (NodeRect *nodeRect: nodeRects)
+        nodeRect->prepareToClose();
 }
 
 int BoardView::getBoardId() const {
@@ -191,8 +195,9 @@ QPointF BoardView::getViewTopLeftPos() const {
 }
 
 bool BoardView::canClose() const {
-    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it) {
-        if (!it.value()->canClose())
+    const auto nodeRects = nodeRectsCollection.getAllNodeRects();
+    for (NodeRect *nodeRect: nodeRects) {
+        if (!nodeRect->canClose())
             return false;
     }
     return true;
@@ -297,7 +302,7 @@ void BoardView::userToOpenExistingCard(const QPointF &scenePos) {
         return;
 
     // check already opened
-    if (cardIdToNodeRect.contains(cardId)) {
+    if (nodeRectsCollection.contains(cardId)) {
         QMessageBox::information(this, " ", QString("Card %1 already opened.").arg(cardId));
         return;
     }
@@ -348,7 +353,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
             nodeRectData.color = defaultNewNodeRectColor;
         }
         constexpr bool saveNodeRectData = true;
-        NodeRect *nodeRect = createNodeRect(
+        NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
                 routine->newCardId, routine->card, nodeRectData, saveNodeRectData);
         nodeRect->setEditable(true);
 
@@ -388,7 +393,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
 }
 
 void BoardView::userToCreateRelationship(const int cardId) {
-    Q_ASSERT(cardIdToNodeRect.contains(cardId));
+    Q_ASSERT(nodeRectsCollection.contains(cardId));
 
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
@@ -401,7 +406,7 @@ void BoardView::userToCreateRelationship(const int cardId) {
     routine->addStep([this, routine, cardId]() {
         // show dialog, get relationship to create
         auto *dialog = new DialogCreateRelationship(
-                cardId, cardIdToNodeRect.value(cardId)->getTitle(), this);
+                cardId, nodeRectsCollection.get(cardId)->getTitle(), this);
 
         connect(dialog, &QDialog::finished, this, [dialog, routine](int result) {
             ContinuationContext context(routine);
@@ -469,7 +474,7 @@ void BoardView::userToCreateRelationship(const int cardId) {
                     ContinuationContext context(routine);
 
                     if (!ok) {
-                        // (don't set routine->errorFlag here)
+                        // (Don't set routine->errorFlag here. Continue to create EdgeArrow.)
                         const auto msg
                                 = QString("Could not save created relationship to DB.\n\n"
                                           "There is unsaved update. See %1")
@@ -482,6 +487,7 @@ void BoardView::userToCreateRelationship(const int cardId) {
                                 this, " ",
                                 QString("Relationship %1 already exists.")
                                     .arg(routine->relIdToCreate.toString()));
+                        context.setErrorFlag();
                     }
                 },
                 this
@@ -492,12 +498,21 @@ void BoardView::userToCreateRelationship(const int cardId) {
         // create EdgeArrow
         ContinuationContext context(routine);
 
+        if (!nodeRectsCollection.contains(routine->relIdToCreate.startCardId)
+                || !nodeRectsCollection.contains(routine->relIdToCreate.endCardId)) {
+            // (one of the start/end cards is not opened in this board)
+            QMessageBox::information(
+                    this, " ",
+                    QString("Relationship %1 created.").arg(routine->relIdToCreate.toString()));
+            return;
+        }
+
         EdgeArrowData edgeArrowData;
         {
             edgeArrowData.lineColor = defaultEdgeArrowLineColor;
             edgeArrowData.lineWidth = defaultEdgeArrowLineWidth;
         }
-        createEdgeArrow(routine->relIdToCreate, edgeArrowData);
+        edgeArrowsCollection.createEdgeArrow(routine->relIdToCreate, edgeArrowData);
     }, this);
 
     routine->addStep([routine]() {
@@ -509,13 +524,13 @@ void BoardView::userToCreateRelationship(const int cardId) {
 }
 
 void BoardView::userToCloseNodeRect(const int cardId) {
-    Q_ASSERT(cardIdToNodeRect.contains(cardId));
+    Q_ASSERT(nodeRectsCollection.contains(cardId));
 
     auto *routine = new AsyncRoutine;
 
     //
     routine->addStep([this, routine, cardId]() {
-        NodeRect *nodeRect = cardIdToNodeRect.value(cardId);
+        NodeRect *nodeRect = nodeRectsCollection.get(cardId);
         nodeRect->prepareToClose();
 
         // wait until nodeRect->canClose() returns true
@@ -537,7 +552,7 @@ void BoardView::userToCloseNodeRect(const int cardId) {
 
     routine->addStep([this, routine, cardId]() {
         constexpr bool removeConnectedEdgeArrows = true;
-        closeNodeRect(cardId, removeConnectedEdgeArrows);
+        nodeRectsCollection.closeNodeRect(cardId, removeConnectedEdgeArrows);
         routine->nextStep();
     }, this);
 
@@ -564,37 +579,111 @@ void BoardView::userToCloseNodeRect(const int cardId) {
 }
 
 void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
-    Services::instance()->getCachedDataAccess()->queryCards(
-            {cardId},
-            // callback
-            [=](bool ok, const QHash<int, Card> &cards) {
-                if (!ok) {
-                    createWarningMessageBox(
-                            this, " ", "Could not open card. See logs for details.")->exec();
-                    return;
-                }
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        Card cardData;
+        QHash<RelationshipId, RelationshipProperties> rels;
+    };
+    auto *routine = new AsyncRoutineWithVars;
 
-                if (!cards.contains(cardId)) {
-                    createInformationMessageBox(
-                            this, " ", QString("Card %1 not found.").arg(cardId))->exec();
-                    return;
-                }
+    //
+    routine->addStep([this, routine, cardId]() {
+        // query card
+        Services::instance()->getCachedDataAccess()->queryCards(
+                {cardId},
+                // callback
+                [=](bool ok, const QHash<int, Card> &cards) {
+                    ContinuationContext context(routine);
 
-                const Card &cardData = cards.value(cardId);
+                    if (!ok) {
+                        createWarningMessageBox(
+                                this, " ", "Could not open card. See logs for details.")->exec();
+                        context.setErrorFlag();
+                        return;
+                    }
 
-                NodeRectData nodeRectData;
-                {
-                    nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
-                    nodeRectData.color = defaultNewNodeRectColor;
-                }
-                constexpr bool saveNodeRectData = true;
-                auto *nodeRect = createNodeRect(cardId, cardData, nodeRectData, saveNodeRectData);
-                nodeRect->setEditable(true);
+                    if (!cards.contains(cardId)) {
+                        createInformationMessageBox(
+                                this, " ", QString("Card %1 not found.").arg(cardId))->exec();
+                        context.setErrorFlag();
+                        return;
+                    }
 
-                adjustSceneRect();
-            },
-            this
-    );
+                    routine->cardData = cards.value(cardId);;
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine, cardId, scenePos]() {
+        // create NodeRect
+        ContinuationContext context(routine);
+
+        NodeRectData nodeRectData;
+        {
+            nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
+            nodeRectData.color = defaultNewNodeRectColor;
+        }
+        constexpr bool saveNodeRectData = true;
+        auto *nodeRect = nodeRectsCollection.createNodeRect(
+                cardId, routine->cardData, nodeRectData, saveNodeRectData);
+        nodeRect->setEditable(true);
+
+        adjustSceneRect();
+    }, this);
+
+    routine->addStep([this, routine, cardId]() {
+        // query relationships
+        using RelId = RelationshipId;
+        using RelProperties = RelationshipProperties;
+
+        Services::instance()->getCachedDataAccess()->queryRelationshipsFromToCards(
+                {cardId},
+                // callback
+                [this, routine, cardId](bool ok, const QHash<RelId, RelProperties> &rels) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        QMessageBox::warning(
+                                this, " ",
+                                QString("Could not get relationships connecting card %1. "
+                                        "See logs for details.")
+                                    .arg(cardId));
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    routine->rels = rels;
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine, cardId]() {
+        // create EdgeArrow's
+        ContinuationContext context(routine);
+
+        EdgeArrowData edgeArrowData;
+        {
+            edgeArrowData.lineColor = defaultEdgeArrowLineColor;
+            edgeArrowData.lineWidth = defaultEdgeArrowLineWidth;
+        }
+
+        for (auto it = routine->rels.constBegin(); it != routine->rels.constEnd(); ++it) {
+            const auto &relId = it.key();
+
+            int otherCardId;
+            bool b = relId.connectsCard(cardId, &otherCardId);
+            Q_ASSERT(b);
+            if (!nodeRectsCollection.contains(otherCardId)) // `otherCardId` not opened in this board
+                continue;
+
+            edgeArrowsCollection.createEdgeArrow(relId, edgeArrowData);
+        }
+    }, this);
+
+    routine->start();
 }
 
 void BoardView::saveCardPropertiesUpdate(
@@ -620,187 +709,14 @@ void BoardView::saveCardPropertiesUpdate(
 }
 
 void BoardView::closeAllCards() {
-    const QSet<int> cardIds = keySet(cardIdToNodeRect);
+    const QSet<int> cardIds = nodeRectsCollection.getAllCardIds();
     for (const int &cardId: cardIds) {
         constexpr bool removeConnectedEdgeArrows = false;
-        closeNodeRect(cardId, removeConnectedEdgeArrows);
+        nodeRectsCollection.closeNodeRect(cardId, removeConnectedEdgeArrows);
     }
 
-    const auto relIds = keySet(relIdToEdgeArrow);
-    removeEdgeArrows(relIds);
-}
-
-NodeRect *BoardView::createNodeRect(
-        const int cardId, const Card &cardData,
-        const NodeRectData &nodeRectData, const bool saveCreatedNodeRectData) {
-    Q_ASSERT(!cardIdToNodeRect.contains(cardId));
-
-    auto *nodeRect = new NodeRect(cardId);
-    cardIdToNodeRect.insert(cardId, nodeRect);
-    graphicsScene->addItem(nodeRect);
-    nodeRect->setZValue(zValueForNodeRects);
-    nodeRect->initialize();
-
-    nodeRect->setNodeLabels(cardData.getLabels());
-    nodeRect->setTitle(cardData.title);
-    nodeRect->setText(cardData.text);
-
-    nodeRect->setRect(nodeRectData.rect);
-    nodeRect->setColor(nodeRectData.color);
-
-    // set up connections
-    QPointer<NodeRect> nodeRectPtr(nodeRect);
-    connect(nodeRect, &NodeRect::movedOrResized, this, [this, nodeRectPtr]() {
-        if (!nodeRectPtr)
-            return;
-
-        // update edge arrows
-        const QSet<RelationshipId> relIds
-                = getEdgeArrowsConnectingNodeRect(nodeRectPtr->getCardId());
-        for (const auto &relId: relIds)
-            updateEdgeArrow(relId);
-    });
-
-    connect(nodeRect, &NodeRect::finishedMovingOrResizing, this, [this, nodeRectPtr]() {
-        if (!nodeRectPtr)
-            return;
-
-        // save
-        NodeRectDataUpdate update;
-        update.rect = nodeRectPtr->getRect();
-
-        Services::instance()->getCachedDataAccess()->updateNodeRectProperties(
-                boardId, nodeRectPtr->getCardId(), update,
-                // callback
-                [this](bool ok) {
-                    if (!ok) {
-                        const auto msg
-                                = QString("Could not save NodeRect's rect to DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
-                        createWarningMessageBox(this, " ", msg)->exec();
-                    }
-                },
-                this
-        );
-    });
-
-    connect(nodeRect, &NodeRect::saveTitleTextUpdate,
-            this,
-            [this, nodeRectPtr](const StringOpt &updatedTitle, const StringOpt &updatedText) {
-        if (!nodeRectPtr)
-            return;
-
-        CardPropertiesUpdate propertiesUpdate;
-        {
-            propertiesUpdate.title = updatedTitle;
-            propertiesUpdate.text = updatedText;
-        }
-        saveCardPropertiesUpdate(
-                nodeRectPtr.data(), propertiesUpdate,
-                // callback:
-                [nodeRectPtr]() {
-                    if (nodeRectPtr)
-                        nodeRectPtr->finishedSaveTitleText();
-                }
-        );
-    });
-
-    connect(nodeRect, &NodeRect::userToCreateRelationship, this, [this, nodeRectPtr]() {
-        if (!nodeRectPtr)
-            return;
-        userToCreateRelationship(nodeRectPtr->getCardId());
-    });
-
-    connect(nodeRect, &NodeRect::closeByUser, this, [this, nodeRectPtr]() {
-        if (!nodeRectPtr)
-            return;
-        userToCloseNodeRect(nodeRectPtr->getCardId());
-    });
-
-    //
-    if (saveCreatedNodeRectData) {
-        // save the created NodeRect
-        Services::instance()->getCachedDataAccess()->createNodeRect(
-                boardId, cardId, nodeRectData,
-                // callback
-                [this](bool ok) {
-                    if (!ok) {
-                        const auto msg
-                                = QString("Could not save created NodeRect to DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
-                        createWarningMessageBox(this, " ", msg)->exec();
-                    }
-                },
-                this
-        );
-    }
-
-    //
-    return nodeRect;
-}
-
-void BoardView::closeNodeRect(const int cardId, const bool removeConnectedEdgeArrows) {
-    NodeRect *nodeRect = cardIdToNodeRect.take(cardId);
-    if (nodeRect == nullptr)
-        return;
-
-    graphicsScene->removeItem(nodeRect);
-    nodeRect->deleteLater();
-
-    if (removeConnectedEdgeArrows) {
-        const auto relIds = getEdgeArrowsConnectingNodeRect(cardId);
-        removeEdgeArrows(relIds);
-    }
-
-    //
-    graphicsScene->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
-    // this is to deal with the QGraphicsView problem
-    // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
-}
-
-EdgeArrow *BoardView::createEdgeArrow(
-        const RelationshipId relId, const EdgeArrowData &edgeArrowData) {
-    Q_ASSERT(!relIdToEdgeArrow.contains(relId));
-    Q_ASSERT(cardIdToNodeRect.contains(relId.startCardId));
-    Q_ASSERT(cardIdToNodeRect.contains(relId.endCardId));
-
-    auto *edgeArrow = new EdgeArrow(relId);
-    relIdToEdgeArrow.insert(relId, edgeArrow);
-    graphicsScene->addItem(edgeArrow);
-    edgeArrow->setZValue(zValueForEdgeArrows);
-
-    updateEdgeArrow(relId);
-
-    edgeArrow->setLineWidth(edgeArrowData.lineWidth);
-    edgeArrow->setLineColor(edgeArrowData.lineColor);
-
-    //
-    return edgeArrow;
-}
-
-void BoardView::updateEdgeArrow(const RelationshipId relId) {
-    Q_ASSERT(relIdToEdgeArrow.contains(relId));
-    auto *edgeArrow = relIdToEdgeArrow.value(relId);
-
-    const QLineF line = computeEdgeArrowLine(
-            cardIdToNodeRect.value(relId.startCardId)->getRect(),
-            cardIdToNodeRect.value(relId.endCardId)->getRect());
-    edgeArrow->setStartEndPoint(line.p1(), line.p2());
-
-    edgeArrow->setLabel(relId.type);
-}
-
-void BoardView::removeEdgeArrows(const QSet<RelationshipId> &relIds) {
-    for (const auto &relId: relIds) {
-        if (!relIdToEdgeArrow.contains(relId))
-            continue;
-
-        EdgeArrow *edgeArrow = relIdToEdgeArrow.take(relId);
-        graphicsScene->removeItem(edgeArrow);
-        delete edgeArrow;
-    }
+    const auto relIds = edgeArrowsCollection.getAllRelationshipIds();
+    edgeArrowsCollection.removeEdgeArrows(relIds);
 }
 
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {
@@ -818,7 +734,7 @@ void BoardView::setViewTopLeftPos(const QPointF &scenePos) {
 QSet<RelationshipId> BoardView::getEdgeArrowsConnectingNodeRect(const int cardId) {
     QSet<RelationshipId> result;
 
-    const auto relIds = keySet(relIdToEdgeArrow);
+    const auto relIds = edgeArrowsCollection.getAllRelationshipIds();
     for (const RelationshipId &relId: relIds) {
         if (relId.connectsCard(cardId))
             result << relId;
@@ -827,40 +743,294 @@ QSet<RelationshipId> BoardView::getEdgeArrowsConnectingNodeRect(const int cardId
     return result;
 }
 
-namespace  {
-bool rectEdgeIntersectsWithLine(
-        const QRectF &rect, const QLineF &line, QPointF *intersectionPoint);
+//====
+
+NodeRect *BoardView::NodeRectsCollection::createNodeRect(
+        const int cardId, const Card &cardData, const NodeRectData &nodeRectData,
+        const bool saveCreatedNodeRectData) {
+    Q_ASSERT(!cardIdToNodeRect.contains(cardId));
+
+    auto *nodeRect = new NodeRect(cardId);
+    cardIdToNodeRect.insert(cardId, nodeRect);
+    boardView->graphicsScene->addItem(nodeRect);
+    nodeRect->setZValue(zValueForNodeRects);
+    nodeRect->initialize();
+
+    nodeRect->setNodeLabels(cardData.getLabels());
+    nodeRect->setTitle(cardData.title);
+    nodeRect->setText(cardData.text);
+
+    nodeRect->setRect(nodeRectData.rect);
+    nodeRect->setColor(nodeRectData.color);
+
+    // set up connections
+    QPointer<NodeRect> nodeRectPtr(nodeRect);
+    QObject::connect(nodeRect, &NodeRect::movedOrResized, boardView, [this, nodeRectPtr]() {
+        if (!nodeRectPtr)
+            return;
+
+        // update edge arrows
+        const QSet<RelationshipId> relIds
+                = boardView->getEdgeArrowsConnectingNodeRect(nodeRectPtr->getCardId());
+        for (const auto &relId: relIds) {
+            constexpr bool updateOtherEdgeArrows = false;
+            boardView->edgeArrowsCollection.updateEdgeArrow(relId, updateOtherEdgeArrows);
+        }
+    });
+
+    QObject::connect(nodeRect, &NodeRect::finishedMovingOrResizing,
+                     boardView, [this, nodeRectPtr]() {
+        if (!nodeRectPtr)
+            return;
+
+        // save
+        NodeRectDataUpdate update;
+        update.rect = nodeRectPtr->getRect();
+
+        Services::instance()->getCachedDataAccess()->updateNodeRectProperties(
+                boardView->boardId, nodeRectPtr->getCardId(), update,
+                // callback
+                [this](bool ok) {
+                    if (!ok) {
+                        const auto msg
+                                = QString("Could not save NodeRect's rect to DB.\n\n"
+                                          "There is unsaved update. See %1")
+                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        createWarningMessageBox(boardView, " ", msg)->exec();
+                    }
+                },
+                boardView
+        );
+    });
+
+    QObject::connect(nodeRect, &NodeRect::saveTitleTextUpdate,
+            boardView,
+            [this, nodeRectPtr](const StringOpt &updatedTitle, const StringOpt &updatedText) {
+        if (!nodeRectPtr)
+            return;
+
+        CardPropertiesUpdate propertiesUpdate;
+        {
+            propertiesUpdate.title = updatedTitle;
+            propertiesUpdate.text = updatedText;
+        }
+        boardView->saveCardPropertiesUpdate(
+                nodeRectPtr.data(), propertiesUpdate,
+                // callback:
+                [nodeRectPtr]() {
+                    if (nodeRectPtr)
+                        nodeRectPtr->finishedSaveTitleText();
+                }
+        );
+    });
+
+    QObject::connect(nodeRect, &NodeRect::userToCreateRelationship,
+                     boardView, [this, nodeRectPtr]() {
+        if (!nodeRectPtr)
+            return;
+        boardView->userToCreateRelationship(nodeRectPtr->getCardId());
+    });
+
+    QObject::connect(nodeRect, &NodeRect::closeByUser, boardView, [this, nodeRectPtr]() {
+        if (!nodeRectPtr)
+            return;
+        boardView->userToCloseNodeRect(nodeRectPtr->getCardId());
+    });
+
+    //
+    if (saveCreatedNodeRectData) {
+        // save the created NodeRect
+        Services::instance()->getCachedDataAccess()->createNodeRect(
+                boardView->boardId, cardId, nodeRectData,
+                // callback
+                [this](bool ok) {
+                    if (!ok) {
+                        const auto msg
+                                = QString("Could not save created NodeRect to DB.\n\n"
+                                          "There is unsaved update. See %1")
+                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        createWarningMessageBox(boardView, " ", msg)->exec();
+                    }
+                },
+                boardView
+        );
+    }
+
+    //
+    return nodeRect;
 }
 
-QLineF BoardView::computeEdgeArrowLine(
-        const QRectF &startNodeRect, const QRectF &endNodeRect) {
-    QLineF lineC2C(startNodeRect.center(), endNodeRect.center());
+void BoardView::NodeRectsCollection::closeNodeRect(const int cardId, const bool removeConnectedEdgeArrows) {
+    NodeRect *nodeRect = cardIdToNodeRect.take(cardId);
+    if (nodeRect == nullptr)
+        return;
 
+    boardView->graphicsScene->removeItem(nodeRect);
+    nodeRect->deleteLater();
+
+    if (removeConnectedEdgeArrows) {
+        const auto relIds = boardView->getEdgeArrowsConnectingNodeRect(cardId);
+        boardView->edgeArrowsCollection.removeEdgeArrows(relIds);
+    }
+
+    //
+    boardView->graphicsScene->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
+    // this is to deal with the QGraphicsView problem
+    // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
+}
+
+bool BoardView::NodeRectsCollection::contains(const int cardId) const {
+    return cardIdToNodeRect.contains(cardId);
+}
+
+NodeRect *BoardView::NodeRectsCollection::get(const int cardId) const {
+    return cardIdToNodeRect.value(cardId);
+}
+
+QSet<int> BoardView::NodeRectsCollection::getAllCardIds() const {
+    return keySet(cardIdToNodeRect);
+}
+
+QSet<NodeRect *> BoardView::NodeRectsCollection::getAllNodeRects() const {
+    QSet<NodeRect *> result;
+    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it)
+        result << it.value();
+    return result;
+}
+
+//====
+
+EdgeArrow *BoardView::EdgeArrowsCollection::createEdgeArrow(
+        const RelationshipId relId, const EdgeArrowData &edgeArrowData) {
+    Q_ASSERT(!relIdToEdgeArrow.contains(relId));
+    Q_ASSERT(boardView->nodeRectsCollection.contains(relId.startCardId));
+    Q_ASSERT(boardView->nodeRectsCollection.contains(relId.endCardId));
+
+    auto *edgeArrow = new EdgeArrow(relId);
+    relIdToEdgeArrow.insert(relId, edgeArrow);
+    cardIdPairToParallelRels[QSet<int> {relId.startCardId, relId.endCardId}] << relId;
+
+    boardView->graphicsScene->addItem(edgeArrow);
+    edgeArrow->setZValue(zValueForEdgeArrows);
+
+    constexpr bool updateOtherEdgeArrows = true;
+    updateEdgeArrow(relId, updateOtherEdgeArrows);
+
+    edgeArrow->setLineWidth(edgeArrowData.lineWidth);
+    edgeArrow->setLineColor(edgeArrowData.lineColor);
+
+    //
+    return edgeArrow;
+}
+
+void BoardView::EdgeArrowsCollection::updateEdgeArrow(
+        const RelationshipId &relId, const bool updateOtherEdgeArrows) {
+    Q_ASSERT(relIdToEdgeArrow.contains(relId));
+
+    const QSet<RelationshipId> allRelIds // all relationships connecting the 2 cards
+            = cardIdPairToParallelRels.value(QSet<int> {relId.startCardId, relId.endCardId});
+    Q_ASSERT(allRelIds.contains(relId));
+    const QVector<RelationshipId> allRelIdsSorted = sortRelationshipIds(allRelIds);
+
+    for (int i = 0; i < allRelIdsSorted.count(); ++i) {
+        const auto relId1 = allRelIdsSorted.at(i);
+        const bool update = (relId1 == relId) || updateOtherEdgeArrows;
+        if (update)
+            updateSingleEdgeArrow(relId1, i, allRelIdsSorted.count());
+    }
+}
+
+void BoardView::EdgeArrowsCollection::removeEdgeArrows(const QSet<RelationshipId> &relIds) {
+    for (const auto &relId: relIds) {
+        if (!relIdToEdgeArrow.contains(relId))
+            continue;
+
+        EdgeArrow *edgeArrow = relIdToEdgeArrow.take(relId);
+        boardView->graphicsScene->removeItem(edgeArrow);
+        delete edgeArrow;
+
+        const QSet<int> cardIdPair {relId.startCardId, relId.endCardId};
+        cardIdPairToParallelRels[cardIdPair].remove(relId);
+        if (cardIdPairToParallelRels[cardIdPair].isEmpty())
+            cardIdPairToParallelRels.remove(cardIdPair);
+    }
+}
+
+QSet<RelationshipId> BoardView::EdgeArrowsCollection::getAllRelationshipIds() const {
+    return keySet(relIdToEdgeArrow);
+}
+
+//!
+//! \param relId
+//! \param parallelIndex: index of \e relId in the sorted list of all parallel relationships
+//! \param parallelCount: number of all parallel relationships
+//!
+void BoardView::EdgeArrowsCollection::updateSingleEdgeArrow(
+        const RelationshipId &relId, const int parallelIndex, const int parallelCount) {
+    Q_ASSERT(parallelCount >= 1);
+    Q_ASSERT(parallelIndex < parallelCount);
+
+    const QLineF line = computeEdgeArrowLine(relId, parallelIndex, parallelCount);
+
+    auto *edgeArrow = relIdToEdgeArrow.value(relId);
+    edgeArrow->setStartEndPoint(line.p1(), line.p2());
+    edgeArrow->setLabel(relId.type);
+}
+
+QVector<RelationshipId> BoardView::EdgeArrowsCollection::sortRelationshipIds(
+        const QSet<RelationshipId> relIds) {
+    QVector<RelationshipId> result(relIds.constBegin(), relIds.constEnd());
+    std::sort(
+            result.begin(), result.end(),
+            [](const RelationshipId &a, const RelationshipId &b) ->bool {
+                return std::tie(a.startCardId, a.endCardId, a.type)
+                        < std::tie(b.startCardId, b.endCardId, b.type);
+            }
+    );
+    return result;
+}
+
+QLineF BoardView::EdgeArrowsCollection::computeEdgeArrowLine(
+        const RelationshipId &relId, const int parallelIndex, const int parallelCount) {
+    // Compute the vector for translating the center-to-center line. The result must be the
+    // same for all relationships connecting the same pair of cards.
+    QPointF vecTranslation;
+    {
+        constexpr double spacing = 22;
+        const double shiftDistance = (parallelIndex - (parallelCount - 1.0) / 2.0) * spacing;
+
+        //
+        const int card1 = std::min(relId.startCardId, relId.endCardId);
+        const int card2 = std::max(relId.startCardId, relId.endCardId);
+
+        const QPointF center1
+                = boardView->nodeRectsCollection.get(card1)->getRect().center();
+        const QPointF center2
+                = boardView->nodeRectsCollection.get(card2)->getRect().center();
+        const QLineF lineNormal = QLineF(center1, center2).normalVector().unitVector();
+        const QPointF vecNormal(lineNormal.dx(), lineNormal.dy());
+
+        //
+        vecTranslation = vecNormal * shiftDistance;
+    }
+
+    //
+    const QRectF startNodeRect = boardView->nodeRectsCollection.get(relId.startCardId)->getRect();
+    const QRectF endNodeRect = boardView->nodeRectsCollection.get(relId.endCardId)->getRect();
+
+    const QLineF lineC2CTranslated
+            = QLineF(startNodeRect.center(), endNodeRect.center())
+              .translated(vecTranslation);
+
+    //
+    bool intersect;
     QPointF intersectionPoint;
-    bool intersect = rectEdgeIntersectsWithLine(startNodeRect, lineC2C, &intersectionPoint);
+
+    intersect = rectEdgeIntersectsWithLine(startNodeRect, lineC2CTranslated, &intersectionPoint);
     const QPointF startPoint = intersect ?  intersectionPoint : startNodeRect.center();
 
-    intersect = rectEdgeIntersectsWithLine(endNodeRect, lineC2C, &intersectionPoint);
+    intersect = rectEdgeIntersectsWithLine(endNodeRect, lineC2CTranslated, &intersectionPoint);
     const QPointF endPoint = intersect ?  intersectionPoint : endNodeRect.center();
 
     return {startPoint, endPoint};
 }
-
-namespace  {
-bool rectEdgeIntersectsWithLine(
-        const QRectF &rect, const QLineF &line, QPointF *intersectionPoint) {
-    const QVector<QLineF> edges {
-        QLineF(rect.topLeft(), rect.topRight()),
-        QLineF(rect.topRight(), rect.bottomRight()),
-        QLineF(rect.bottomRight(), rect.bottomLeft()),
-        QLineF(rect.bottomLeft(), rect.topLeft())
-    };
-    for (const QLineF &edge: edges) {
-        const auto intersectType = edge.intersects(line, intersectionPoint);
-        if (intersectType == QLineF::BoundedIntersection) {
-            return true;
-        }
-    }
-    return false;
-}
-} // namespace

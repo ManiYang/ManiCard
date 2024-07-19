@@ -82,6 +82,7 @@ public:
     //!
     //! The start/end cards must already exist (which is not checked here). Otherwise the cache
     //! will become inconsistent with DB.
+    //! It's not an error if the relationship already exists.
     //!
     void createRelationship(
             const RelationshipId &id, std::function<void (bool ok, bool created)> callback,

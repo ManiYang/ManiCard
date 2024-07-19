@@ -51,10 +51,6 @@ private:
     constexpr static double zValueForEdgeArrows {15.0};
 
     int boardId {-1}; // -1: no board loaded
-    QHash<int, NodeRect *> cardIdToNodeRect;
-            // currently opened cards. Updated in createNodeRect() & closeNodeRect().
-    QHash<RelationshipId, EdgeArrow *> relIdToEdgeArrow;
-            // updated in createEdgeArrow() & removeEdgeArrow()
 
     // component widgets:
     QGraphicsView *graphicsView {nullptr};
@@ -92,48 +88,82 @@ private:
             std::function<void ()> callback); // callback will be called in context of `this`
 
     //!
-    //! Remove all NodeRect's and EdgeArrow's.
-    //! Does not check canClose().
+    //! Remove all NodeRect's and EdgeArrow's. Does not check canClose().
     //!
     void closeAllCards();
 
-    // node rect creation and removal
+    //
+    class NodeRectsCollection
+    {
+    public:
+        explicit NodeRectsCollection(BoardView *boardView_) : boardView(boardView_) {}
 
-    //!
-    //! The returned NodeRect is already added to the scene.
-    //!
-    NodeRect *createNodeRect(
-            const int cardId, const Card &cardData,
-            const NodeRectData &nodeRectData, const bool saveCreatedNodeRectData);
+        //!
+        //! The returned NodeRect is already added to the scene.
+        //!
+        NodeRect *createNodeRect(
+                const int cardId, const Card &cardData,
+                const NodeRectData &nodeRectData, const bool saveCreatedNodeRectData);
 
-    //!
-    //! Do not call this method while iterating through `cardIdToNodeRect`.
-    //! Does not check NodeRect::canClose().
-    //!
-    void closeNodeRect(const int cardId, const bool removeConnectedEdgeArrows);
+        //!
+        //! Does not check NodeRect::canClose().
+        //!
+        void closeNodeRect(const int cardId, const bool removeConnectedEdgeArrows);
 
-    // edge arrow
+        bool contains(const int cardId) const;
+        NodeRect *get(const int cardId) const;
+        QSet<int> getAllCardIds() const;
+        QSet<NodeRect *> getAllNodeRects() const;
 
-    //!
-    //! NodeRect's for start/end cards must exist.
-    //! The returned EdgeArrow is already added to the scene.
-    //!
-    EdgeArrow *createEdgeArrow(
-            const RelationshipId relId, const EdgeArrowData &edgeArrowData);
+    private:
+        BoardView *boardView;
+        QHash<int, NodeRect *> cardIdToNodeRect;
+    };
+    NodeRectsCollection nodeRectsCollection {this};
 
-    void updateEdgeArrow(const RelationshipId relId);
+    //
+    class EdgeArrowsCollection
+    {
+    public:
+        explicit EdgeArrowsCollection(BoardView *boardView_) : boardView(boardView_) {}
 
-    //!
-    //! Do not call this method while iterating through `relIdToEdgeArrow`.
-    //!
-    void removeEdgeArrows(const QSet<RelationshipId> &relIds);
+        //!
+        //! NodeRect's for start/end cards must exist.
+        //! The returned EdgeArrow is already added to the scene.
+        //!
+        EdgeArrow *createEdgeArrow(
+                const RelationshipId relId, const EdgeArrowData &edgeArrowData);
+
+        //!
+        //! \param relId
+        //! \param updateOtherEdgeArrows: If = true, will also update the other EdgeArrows that
+        //!                               connect the same pair of cards.
+        //!
+        void updateEdgeArrow(const RelationshipId &relId, const bool updateOtherEdgeArrows);
+
+        void removeEdgeArrows(const QSet<RelationshipId> &relIds);
+
+        QSet<RelationshipId> getAllRelationshipIds() const;
+
+    private:
+        BoardView *boardView;
+        QHash<RelationshipId, EdgeArrow *> relIdToEdgeArrow;
+        QHash<QSet<int>, QSet<RelationshipId>> cardIdPairToParallelRels;
+                // "parallel relationships" := those connecting the same pair of cards
+
+        void updateSingleEdgeArrow(
+                const RelationshipId &relId, const int parallelIndex, const int parallelCount);
+        static QVector<RelationshipId> sortRelationshipIds(const QSet<RelationshipId> relIds);
+        QLineF computeEdgeArrowLine(
+                const RelationshipId &relId, const int parallelIndex, const int parallelCount);
+    };
+    EdgeArrowsCollection edgeArrowsCollection {this};
 
     // tools
     QPoint getScreenPosFromScenePos(const QPointF &scenePos);
     void setViewTopLeftPos(const QPointF &scenePos);
 
     QSet<RelationshipId> getEdgeArrowsConnectingNodeRect(const int cardId);
-    static QLineF computeEdgeArrowLine(const QRectF &startNodeRect, const QRectF &endNodeRect);
 };
 
 #endif // BOARDVIEW_H

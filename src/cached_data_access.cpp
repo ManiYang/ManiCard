@@ -486,67 +486,42 @@ void CachedDataAccess::createRelationship(
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
+    // 1. update cache
+    if (cache.relationships.contains(id)) {
+        invokeAction(callbackContext, [callback]() {
+            callback(true, false);
+        });
+        return;
+    }
+
+    cache.relationships.insert(id, RelationshipProperties {});
+
+    // 2. write DB
     const int requestId = startWriteRequest();
 
-    //
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        bool isCreated {false};
-    };
+    queuedDbAccess->createRelationship(
+            id,
+            // callback
+            [=](bool ok, bool created) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "createRelationship";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"id", id.toString()}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+                }
 
-    auto *routine = new AsyncRoutineWithVars;
+                //
+                invokeAction(callbackContext, [callback, ok, created]() {
+                    callback(ok, created);
+                });
 
-    //
-    routine->addStep([this, routine, id] {
-        // 1. update cache
-        ContinuationContext context(routine);
-
-        if (cache.relationships.contains(id)) {
-            qWarning().noquote() << QString("Relationship %1 already exists.").arg(id.toString());
-            routine->isCreated = false;
-            context.setErrorFlag();
-            return;
-        }
-        cache.relationships.insert(id, RelationshipProperties {});
-    }, this);
-
-    routine->addStep([this, routine, id]() {
-        // 2. Write DB. If failed, add to unsaved updates.
-        queuedDbAccess->createRelationship(
-                id,
-                // callback
-                [=](bool ok, bool created) {
-                    ContinuationContext context(routine);
-
-                    if (!ok) {
-                        context.setErrorFlag();
-
-                        const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-                        const QString updateTitle = "createRelationship";
-                        const QString updateDetails = printJson(QJsonObject {
-                            {"id", id.toString()}
-                        }, false);
-                        unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-
-                        return;
-                    }
-
-                    routine->isCreated = created;
-                },
-                this
-        );
-    }, this);
-
-    routine->addStep([this, routine, callback, requestId]() {
-        // final step
-        ContinuationContext context(routine);
-        callback(!routine->errorFlag, routine->isCreated);
-        finishWriteRequest(requestId);
-
-    }, callbackContext);
-
-    routine->start();
+                //
+                finishWriteRequest(requestId);
+            },
+            this
+    );
 }
 
 void CachedDataAccess::updateBoardsListProperties(

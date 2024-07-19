@@ -40,6 +40,7 @@ void EdgeArrow::paint(
 }
 
 void EdgeArrow::adjustChildItems() {
+    // line
     QLineF line(QLineF(startPoint, endPoint));
     lineItem->setLine(line);
     lineItem->setPen(QPen(QBrush(lineColor), lineWidth));
