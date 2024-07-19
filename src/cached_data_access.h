@@ -31,6 +31,14 @@ public:
             std::function<void (bool, const QHash<int, Card> &)> callback,
             QPointer<QObject> callbackContext);
 
+    using RelId = RelationshipId;
+    using RelProperties = RelationshipProperties;
+
+    void queryRelationshipsFromToCards(
+            const QSet<int> &cardIds,
+            std::function<void (bool, const QHash<RelId, RelProperties> &)> callback,
+            QPointer<QObject> callbackContext);
+
     void requestNewCardId(
             std::function<void (std::optional<int> cardId)> callback,
             QPointer<QObject> callbackContext);

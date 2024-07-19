@@ -40,8 +40,6 @@ public:
             const QSet<int> &cardIds,
             std::function<void (bool ok, const QHash<RelId, RelProperties> &)> callback,
             QPointer<QObject> callbackContext) = 0;
-private:
-
 };
 
 class AbstractCardsDataAccess : public AbstractCardsDataAccessReadOnly

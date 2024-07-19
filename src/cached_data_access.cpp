@@ -85,6 +85,35 @@ void CachedDataAccess::queryCards(
     routine->start();
 }
 
+void CachedDataAccess::queryRelationshipsFromToCards(
+        const QSet<int> &cardIds,
+        std::function<void (bool, const QHash<RelId, RelProperties> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    queuedDbAccess->queryRelationshipsFromToCards(
+            cardIds,
+            // callback
+            [this, callback, callbackContext](bool ok, const QHash<RelId, RelProperties> &rels) {
+                if (!ok) {
+                    invokeAction(callbackContext, [callback]() {
+                        callback(false, {});
+                    });
+                    return;
+                }
+
+                // update cache
+                mergeWith(cache.relationships, rels);
+
+                //
+                invokeAction(callbackContext, [callback, rels]() {
+                    callback(true, rels);
+                });
+            },
+            this
+    );
+}
+
 void CachedDataAccess::requestNewCardId(
         std::function<void (std::optional<int>)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);

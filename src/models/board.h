@@ -17,7 +17,6 @@ struct Board {
 
     //
     QHash<int, NodeRectData> cardIdToNodeRectData;
-//    QHash<RelationshipId, EdgeArrowData> relsIdToEdgeArrowData;
 
     //
     QJsonObject getNodePropertiesJson() const;

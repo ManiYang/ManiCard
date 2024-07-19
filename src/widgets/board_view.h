@@ -44,8 +44,8 @@ public:
 private:
     static inline const QSizeF defaultNewNodeRectSize {200, 120};
     static inline const QColor defaultNewNodeRectColor {170, 170, 170};
-    static inline const QColor defaultNewEdgeArrowLineColor {100, 100, 100};
-    constexpr static double defaultNewEdgeArrowLineWidth {2.0};
+    static inline const QColor defaultEdgeArrowLineColor {100, 100, 100};
+    constexpr static double defaultEdgeArrowLineWidth {2.0};
 
     constexpr static double zValueForNodeRects {10.0};
     constexpr static double zValueForEdgeArrows {15.0};

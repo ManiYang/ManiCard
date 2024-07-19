@@ -55,6 +55,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
     public:
         Board board;
         QHash<int, Card> cardsData;
+        QHash<RelationshipId, RelationshipProperties> relationshipsData;
     };
     auto *routine = new AsyncRoutineWithVars;
 
@@ -99,9 +100,8 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
         );
     }, this);
 
-
     routine->addStep([this, routine, boardIdToLoad]() {
-        // 3. open cards
+        // 3. open cards, creating NodeRect's
         ContinuationContext context(routine);
 
         for (auto it = routine->cardsData.constBegin(); it != routine->cardsData.constEnd(); ++it) {
@@ -116,14 +116,61 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
         }
 
         //
-        boardId = boardIdToLoad;
         adjustSceneRect();
         setViewTopLeftPos(routine->board.topLeftPos);
     }, this);
 
-    routine->addStep([routine, callback]() {
-        // 4. (final step)
+    routine->addStep([this, routine]() {
+        // 4. get relationships
+        using RelId = RelationshipId;
+        using RelProperties = RelationshipProperties;
+
+        Services::instance()->getCachedDataAccess()->queryRelationshipsFromToCards(
+                keySet(routine->cardsData),
+                // callback
+                [routine](bool ok, const QHash<RelId, RelProperties> &rels) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    for (auto it = rels.constBegin(); it != rels.constEnd(); ++it) {
+                        const RelId &relId = it.key();
+                        if (!routine->cardsData.contains(relId.startCardId)
+                                || !routine->cardsData.contains(relId.endCardId)) {
+                            continue;
+                        }
+                        routine->relationshipsData.insert(relId, it.value());
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // 5. create EdgeArrow's
         ContinuationContext context(routine);
+
+        EdgeArrowData edgeArrowData;
+        {
+            edgeArrowData.lineColor = defaultEdgeArrowLineColor;
+            edgeArrowData.lineWidth = defaultEdgeArrowLineWidth;
+        }
+
+        const auto relIds = keySet(routine->relationshipsData);
+        for (const auto &relId: relIds)
+            createEdgeArrow(relId, edgeArrowData);
+    }, this);
+
+    routine->addStep([this, routine, callback, boardIdToLoad]() {
+        // final step
+        ContinuationContext context(routine);
+
+        if (!routine->errorFlag)
+            boardId = boardIdToLoad;
+
         callback(!routine->errorFlag);
     }, this);
 
@@ -447,8 +494,8 @@ void BoardView::userToCreateRelationship(const int cardId) {
 
         EdgeArrowData edgeArrowData;
         {
-            edgeArrowData.lineColor = defaultNewEdgeArrowLineColor;
-            edgeArrowData.lineWidth = defaultNewEdgeArrowLineWidth;
+            edgeArrowData.lineColor = defaultEdgeArrowLineColor;
+            edgeArrowData.lineWidth = defaultEdgeArrowLineWidth;
         }
         createEdgeArrow(routine->relIdToCreate, edgeArrowData);
     }, this);
