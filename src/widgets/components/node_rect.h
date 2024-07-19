@@ -63,7 +63,8 @@ public:
             QWidget *widget) override;
 
 signals:
-    void movedOrResized();
+    void moved();
+    void finishedMovingOrResizing();
 
     //!
     //! The receiver should start saving the properties update, and call
@@ -109,6 +110,7 @@ private:
     SaveDebouncer *titleTextSaveDebouncer;
     bool titleEdited {false};
     bool textEdited {false};
+    constexpr static int titleTextSaveDelay {3000}; // (ms)
 
     //
     void installEventFilterOnChildItems();

@@ -256,7 +256,7 @@ void GraphicsScene::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 
 void GraphicsScene::startDragScrolling() {
     if (auto *view = getView(); view != nullptr)
-        view->setCursor(Qt::ClosedHandCursor);
+        view->viewport()->setCursor(Qt::ClosedHandCursor);
 }
 
 void GraphicsScene::dragScroll(
@@ -284,7 +284,7 @@ void GraphicsScene::dragScroll(
 
 void GraphicsScene::endDragScolling() {
     if (auto *view = getView(); view != nullptr)
-        view->unsetCursor();
+        view->viewport()->unsetCursor();
     emit dragScrollingEnded();
 }
 

@@ -5,8 +5,8 @@
 
 struct EdgeArrowData
 {
-    double width;
-    QColor color;
+    double lineWidth;
+    QColor lineColor;
 };
 
 #endif // EDGE_ARROW_DATA_H

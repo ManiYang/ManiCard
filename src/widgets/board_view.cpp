@@ -11,6 +11,7 @@
 #include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
 #include "utilities/strings_util.h"
+#include "widgets/components/edge_arrow.h"
 #include "widgets/components/graphics_scene.h"
 #include "widgets/components/node_rect.h"
 #include "widgets/dialogs/dialog_create_relationship.h"
@@ -180,6 +181,7 @@ void BoardView::setUpWidgets() {
     graphicsView->setScene(graphicsScene);
 
     graphicsView->setRenderHint(QPainter::Antialiasing, true);
+    graphicsView->setRenderHint(QPainter::TextAntialiasing, true);
     graphicsView->setRenderHint(QPainter::SmoothPixmapTransform, true);
 
     graphicsView->setFrameShape(QFrame::NoFrame);
@@ -439,10 +441,17 @@ void BoardView::userToCreateRelationship(const int cardId) {
         );
     }, this);
 
-//    routine->addStep([this, routine]() {
-//        // show relationship ....
+    routine->addStep([this, routine]() {
+        // create EdgeArrow
+        ContinuationContext context(routine);
 
-//    }, this);
+        EdgeArrowData edgeArrowData;
+        {
+            edgeArrowData.lineColor = defaultNewEdgeArrowLineColor;
+            edgeArrowData.lineWidth = defaultNewEdgeArrowLineWidth;
+        }
+        createEdgeArrow(routine->relIdToCreate, edgeArrowData);
+    }, this);
 
     routine->addStep([routine]() {
         // final step
@@ -576,6 +585,7 @@ NodeRect *BoardView::createNodeRect(
     auto *nodeRect = new NodeRect(cardId);
     cardIdToNodeRect.insert(cardId, nodeRect);
     graphicsScene->addItem(nodeRect);
+    nodeRect->setZValue(zValueForNodeRects);
     nodeRect->initialize();
 
     nodeRect->setNodeLabels(cardData.getLabels());
@@ -587,10 +597,22 @@ NodeRect *BoardView::createNodeRect(
 
     // set up connections
     QPointer<NodeRect> nodeRectPtr(nodeRect);
-    connect(nodeRect, &NodeRect::movedOrResized, this, [this, nodeRectPtr]() {
+    connect(nodeRect, &NodeRect::moved, this, [this, nodeRectPtr]() {
         if (!nodeRectPtr)
             return;
 
+        // update edge arrows
+        const QSet<RelationshipId> relIds
+                = getEdgeArrowsConnectingNodeRect(nodeRectPtr->getCardId());
+        for (const auto &relId: relIds)
+            updateEdgeArrow(relId);
+    });
+
+    connect(nodeRect, &NodeRect::finishedMovingOrResizing, this, [this, nodeRectPtr]() {
+        if (!nodeRectPtr)
+            return;
+
+        // save
         NodeRectDataUpdate update;
         update.rect = nodeRectPtr->getRect();
 
@@ -680,6 +702,38 @@ void BoardView::closeNodeRect(const int cardId) {
     // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
 }
 
+EdgeArrow *BoardView::createEdgeArrow(
+        const RelationshipId relId, const EdgeArrowData &edgeArrowData) {
+    Q_ASSERT(!relIdToEdgeArrow.contains(relId));
+    Q_ASSERT(cardIdToNodeRect.contains(relId.startCardId));
+    Q_ASSERT(cardIdToNodeRect.contains(relId.endCardId));
+
+    auto *edgeArrow = new EdgeArrow(relId);
+    relIdToEdgeArrow.insert(relId, edgeArrow);
+    graphicsScene->addItem(edgeArrow);
+    edgeArrow->setZValue(zValueForEdgeArrows);
+
+    updateEdgeArrow(relId);
+
+    edgeArrow->setLineWidth(edgeArrowData.lineWidth);
+    edgeArrow->setLineColor(edgeArrowData.lineColor);
+
+    //
+    return edgeArrow;
+}
+
+void BoardView::updateEdgeArrow(const RelationshipId relId) {
+    Q_ASSERT(relIdToEdgeArrow.contains(relId));
+    auto *edgeArrow = relIdToEdgeArrow.value(relId);
+
+    const QLineF line = computeEdgeArrowLine(
+            cardIdToNodeRect.value(relId.startCardId)->getRect(),
+            cardIdToNodeRect.value(relId.endCardId)->getRect());
+    edgeArrow->setStartEndPoint(line.p1(), line.p2());
+
+    edgeArrow->setLabel(relId.type);
+}
+
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {
 
     QPoint posInViewport = graphicsView->mapFromScene(scenePos);
@@ -691,3 +745,53 @@ void BoardView::setViewTopLeftPos(const QPointF &scenePos) {
     const double centerY = scenePos.y() + graphicsView->viewport()->height() * 0.5;
     graphicsView->centerOn(centerX, centerY);
 }
+
+QSet<RelationshipId> BoardView::getEdgeArrowsConnectingNodeRect(const int cardId) {
+    QSet<RelationshipId> result;
+
+    const auto relIds = keySet(relIdToEdgeArrow);
+    for (const RelationshipId &relId: relIds) {
+        if (relId.connectsCard(cardId))
+            result << relId;
+    }
+
+    return result;
+}
+
+namespace  {
+bool rectEdgeIntersectsWithLine(
+        const QRectF &rect, const QLineF &line, QPointF *intersectionPoint);
+}
+
+QLineF BoardView::computeEdgeArrowLine(
+        const QRectF &startNodeRect, const QRectF &endNodeRect) {
+    QLineF lineC2C(startNodeRect.center(), endNodeRect.center());
+
+    QPointF intersectionPoint;
+    bool intersect = rectEdgeIntersectsWithLine(startNodeRect, lineC2C, &intersectionPoint);
+    const QPointF startPoint = intersect ?  intersectionPoint : startNodeRect.center();
+
+    intersect = rectEdgeIntersectsWithLine(endNodeRect, lineC2C, &intersectionPoint);
+    const QPointF endPoint = intersect ?  intersectionPoint : endNodeRect.center();
+
+    return {startPoint, endPoint};
+}
+
+namespace  {
+bool rectEdgeIntersectsWithLine(
+        const QRectF &rect, const QLineF &line, QPointF *intersectionPoint) {
+    const QVector<QLineF> edges {
+        QLineF(rect.topLeft(), rect.topRight()),
+        QLineF(rect.topRight(), rect.bottomRight()),
+        QLineF(rect.bottomRight(), rect.bottomLeft()),
+        QLineF(rect.bottomLeft(), rect.topLeft())
+    };
+    for (const QLineF &edge: edges) {
+        const auto intersectType = edge.intersects(line, intersectionPoint);
+        if (intersectType == QLineF::BoundedIntersection) {
+            return true;
+        }
+    }
+    return false;
+}
+} // namespace

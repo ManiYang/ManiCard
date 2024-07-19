@@ -115,7 +115,7 @@ bool GraphicsItemMoveResize::eventFilterForResizeHandle(QEvent *event) {
             else
                 resizeDirection = "";
 
-            std::optional<Qt::CursorShape> cursorShape;
+            Qt::CursorShape cursorShape = Qt::ArrowCursor;
             if (resizeDirection == "NW" || resizeDirection == "SE")
                 cursorShape = Qt::SizeFDiagCursor;
             else if (resizeDirection == "N" || resizeDirection == "S")

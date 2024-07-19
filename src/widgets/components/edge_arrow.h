@@ -4,6 +4,7 @@
 #include <QGraphicsItem>
 #include <QGraphicsLineItem>
 #include <QGraphicsSimpleTextItem>
+#include <QPolygonF>
 #include "models/relationship.h"
 
 class EdgeArrow : public QGraphicsItem
@@ -28,15 +29,31 @@ private:
     QPointF startPoint;
     QPointF endPoint;
     double lineWidth {2.0};
-    QColor lineColor {155, 155, 155};
+    QColor lineColor {100, 100, 100};
     QString label;
 
     // child items
     QGraphicsLineItem *lineItem;
     QGraphicsSimpleTextItem *labelItem;
+    QGraphicsPolygonItem *arrowHeadItem;
 
     //
     void adjustChildItems();
+
+    //
+
+    //!
+    //! \param line
+    //! \param labelBoundingSize
+    //! \param spacing: between label text and line
+    //! \param textIsAbove: if true [false], put text above [below] the line
+    //! \return (position, rotation-angle-clockwise)
+    //!
+    static std::pair<QPointF, double> computeLabelPositionAndRotation(
+            const QLineF &line, const QSizeF &labelBoundingSize,
+            const double spacing, const bool textIsAbove);
+
+    static QPolygonF computeArrowHeadPolygon(const QLineF &line, const double size);
 };
 
 #endif // EDGE_ARROW_H

@@ -4,12 +4,16 @@
 #include <QFrame>
 #include <QGraphicsView>
 #include <QMenu>
+#include "models/edge_arrow_data.h"
+#include "models/node_rect_data.h"
+#include "models/relationship.h"
 
+class EdgeArrow;
+struct EdgeArrowData;
 class Card;
 class CardPropertiesUpdate;
 class GraphicsScene;
 class NodeRect;
-struct NodeRectData;
 
 class BoardView : public QFrame
 {
@@ -38,12 +42,18 @@ public:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
-    const QSizeF defaultNewNodeRectSize {200, 120};
-    const QColor defaultNewNodeRectColor {170, 170, 170};
+    static inline const QSizeF defaultNewNodeRectSize {200, 120};
+    static inline const QColor defaultNewNodeRectColor {170, 170, 170};
+    static inline const QColor defaultNewEdgeArrowLineColor {100, 100, 100};
+    constexpr static double defaultNewEdgeArrowLineWidth {2.0};
+
+    constexpr static double zValueForNodeRects {10.0};
+    constexpr static double zValueForEdgeArrows {15.0};
 
     int boardId {-1}; // -1: no board loaded
     QHash<int, NodeRect *> cardIdToNodeRect;
             // currently opened cards. Updated in createNodeRect() & closeNodeRect().
+    QHash<RelationshipId, EdgeArrow *> relIdToEdgeArrow;
 
     // component widgets:
     QGraphicsView *graphicsView {nullptr};
@@ -92,9 +102,23 @@ private:
 
     void closeNodeRect(const int cardId); // does not check NodeRect::canClose()
 
+    // edge arrow
+
+    //!
+    //! NodeRect's for start/end cards must exist.
+    //! The returned EdgeArrow is already added to the scene.
+    //!
+    EdgeArrow *createEdgeArrow(
+            const RelationshipId relId, const EdgeArrowData &edgeArrowData);
+
+    void updateEdgeArrow(const RelationshipId relId);
+
     // tools
     QPoint getScreenPosFromScenePos(const QPointF &scenePos);
     void setViewTopLeftPos(const QPointF &scenePos);
+
+    QSet<RelationshipId> getEdgeArrowsConnectingNodeRect(const int cardId);
+    static QLineF computeEdgeArrowLine(const QRectF &startNodeRect, const QRectF &endNodeRect);
 };
 
 #endif // BOARDVIEW_H

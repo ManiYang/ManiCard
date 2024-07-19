@@ -16,8 +16,6 @@
 #include "widgets/components/graphics_item_move_resize.h"
 #include "widgets/components/custom_graphics_text_item.h"
 
-constexpr int savingInterval = 3000;
-
 NodeRect::NodeRect(const int cardId_, QGraphicsItem *parent)
         : QGraphicsObject(parent)
         , cardId(cardId_)
@@ -30,7 +28,7 @@ NodeRect::NodeRect(const int cardId_, QGraphicsItem *parent)
         , textEditProxyWidget(new QGraphicsProxyWidget(contentsRectItem))
         , moveResizeHelper(new GraphicsItemMoveResize(this))
         , contextMenu(new QMenu)
-        , titleTextSaveDebouncer(new SaveDebouncer(savingInterval, this)) {
+        , titleTextSaveDebouncer(new SaveDebouncer(titleTextSaveDelay, this)) {
     textEdit->setVisible(false);
     textEdit->setReadOnly(true);
     textEditProxyWidget->setWidget(textEdit);
@@ -227,10 +225,12 @@ void NodeRect::setUpConnections() {
         scene()->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
         // this is to deal with the QGraphicsView problem
         // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
+
+        emit moved();
     });
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::movingEnded, this, [this]() {
-        emit movedOrResized();
+        emit finishedMovingOrResizing();
     });
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::getTargetItemRect,
@@ -246,7 +246,7 @@ void NodeRect::setUpConnections() {
     });
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::resizingEnded, this, [this]() {
-        emit movedOrResized();
+        emit finishedMovingOrResizing();
     });
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::setCursorShape,
