@@ -226,7 +226,7 @@ void NodeRect::setUpConnections() {
         // this is to deal with the QGraphicsView problem
         // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
 
-        emit moved();
+        emit movedOrResized();
     });
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::movingEnded, this, [this]() {
@@ -243,6 +243,8 @@ void NodeRect::setUpConnections() {
         prepareGeometryChange();
         enclosingRect = rect;
         redraw();
+
+        emit movedOrResized();
     });
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::resizingEnded, this, [this]() {

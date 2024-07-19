@@ -10,6 +10,9 @@
 /* example:
  *
  * {
+ *   "mainWindow": {
+ *     "size": [1000, 800]
+ *   },
  *   "boards": {
  *     "lastOpenedBoardId": 0,
  *     "0": {
@@ -23,7 +26,11 @@
 */
 
 constexpr char fileName[] = "user_settings.json";
+
+constexpr char sectionMainWindow[] = "mainWindow";
 constexpr char sectionBoards[] = "boards";
+
+constexpr char keySize[] = "size";
 constexpr char keyLastOpenedBoardId[] = "lastOpenedBoardId";
 constexpr char keyTopLeftPos[] = "topLeftPos";
 
@@ -65,6 +72,22 @@ LocalSettingsFile::readTopLeftPosOfBoard(const int boardId) {
     return {true, QPointF(v[0].toDouble(), v[1].toDouble())};
 }
 
+std::pair<bool, std::optional<QSize> > LocalSettingsFile::readMainWindowSize() {
+    const QJsonObject obj = read();
+    const QJsonValue v = JsonReader(obj)[sectionMainWindow][keySize].get();
+    if (v.isUndefined())
+        return {true, std::nullopt};
+
+    if (!jsonValueIsArrayOfSize(v, 2)) {
+        qWarning().noquote()
+                << QString("value of %1.%2 is not an array of size 2")
+                   .arg(sectionMainWindow, keySize);
+        return {false, std::nullopt};
+    }
+
+    return {true, QSize(v[0].toInt(), v[1].toInt())};
+}
+
 bool LocalSettingsFile::writeLastOpenedBoardId(const int lastOpenedBoardId) {
     QJsonObject obj = read();
 
@@ -103,6 +126,20 @@ bool LocalSettingsFile::removeBoard(const int boardId) {
 
     obj[sectionBoards] = boardsObj;
 
+    const bool ok = write(obj);
+    return ok;
+}
+
+bool LocalSettingsFile::writeMainWindowSize(const QSize &size) {
+    QJsonObject obj = read();
+
+    // set obj[sectionMainWindow][keySize] = size
+    QJsonObject mainWindowObj = obj[sectionMainWindow].toObject();
+    mainWindowObj[keySize] = QJsonArray {size.width(), size.height()};
+
+    obj[sectionMainWindow] = mainWindowObj;
+
+    //
     const bool ok = write(obj);
     return ok;
 }

@@ -52,6 +52,8 @@ public:
             std::function<void (std::optional<int> boardId)> callback,
             QPointer<QObject> callbackContext);
 
+    std::optional<QSize> getMainWindowSize();
+
     // ==== write ====
 
     // A write operation fails if data cannot be saved to DB or file. In this case, a record of
@@ -104,6 +106,8 @@ public:
     void removeNodeRect(
             const int boardId, const int cardId,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+
+    bool saveMainWindowSize(const QSize &size);
 
 private:
     QueuedDbAccess *queuedDbAccess;

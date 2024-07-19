@@ -54,6 +54,7 @@ private:
     QHash<int, NodeRect *> cardIdToNodeRect;
             // currently opened cards. Updated in createNodeRect() & closeNodeRect().
     QHash<RelationshipId, EdgeArrow *> relIdToEdgeArrow;
+            // updated in createEdgeArrow() & removeEdgeArrow()
 
     // component widgets:
     QGraphicsView *graphicsView {nullptr};
@@ -89,7 +90,12 @@ private:
     void saveCardPropertiesUpdate(
             NodeRect *nodeRect, const CardPropertiesUpdate &propertiesUpdate,
             std::function<void ()> callback); // callback will be called in context of `this`
-    void closeAllCards(); // does not check canClose()
+
+    //!
+    //! Remove all NodeRect's and EdgeArrow's.
+    //! Does not check canClose().
+    //!
+    void closeAllCards();
 
     // node rect creation and removal
 
@@ -100,7 +106,11 @@ private:
             const int cardId, const Card &cardData,
             const NodeRectData &nodeRectData, const bool saveCreatedNodeRectData);
 
-    void closeNodeRect(const int cardId); // does not check NodeRect::canClose()
+    //!
+    //! Do not call this method while iterating through `cardIdToNodeRect`.
+    //! Does not check NodeRect::canClose().
+    //!
+    void closeNodeRect(const int cardId, const bool removeConnectedEdgeArrows);
 
     // edge arrow
 
@@ -112,6 +122,11 @@ private:
             const RelationshipId relId, const EdgeArrowData &edgeArrowData);
 
     void updateEdgeArrow(const RelationshipId relId);
+
+    //!
+    //! Do not call this method while iterating through `relIdToEdgeArrow`.
+    //!
+    void removeEdgeArrows(const QSet<RelationshipId> &relIds);
 
     // tools
     QPoint getScreenPosFromScenePos(const QPointF &scenePos);

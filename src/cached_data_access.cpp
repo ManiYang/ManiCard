@@ -260,7 +260,14 @@ void CachedDataAccess::requestNewBoardId(
                 callback(boardId);
             },
             callbackContext
-    );
+                    );
+}
+
+std::optional<QSize> CachedDataAccess::getMainWindowSize() {
+    const auto [ok, sizeOpt] = localSettingsFile->readMainWindowSize();
+    if (!ok)
+        return std::nullopt;
+    return sizeOpt;
 }
 
 void CachedDataAccess::createNewCardWithId(
@@ -998,6 +1005,19 @@ void CachedDataAccess::removeNodeRect(
 
     //
     routine->start();
+}
+
+bool CachedDataAccess::saveMainWindowSize(const QSize &size) {
+    const bool ok = localSettingsFile->writeMainWindowSize(size);
+    if (!ok) {
+        const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+        const QString updateTitle = "saveMainWindowSize";
+        const QString updateDetails = printJson(QJsonObject {
+            {"size", QJsonArray {size.width(), size.height()}},
+        }, false);
+        unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+    }
+    return ok;
 }
 
 int CachedDataAccess::startWriteRequest() {

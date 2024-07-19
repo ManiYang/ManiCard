@@ -53,6 +53,11 @@ private:
             const QLineF &line, const QSizeF &labelBoundingSize,
             const double spacing, const bool textIsAbove);
 
+    //!
+    //! \param line
+    //! \param size: approximate length of the arrow head
+    //! \return
+    //!
     static QPolygonF computeArrowHeadPolygon(const QLineF &line, const double size);
 };
 

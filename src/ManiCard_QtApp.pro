@@ -25,6 +25,7 @@ SOURCES += \
     models/relationship.cpp \
     neo4j_http_api_client.cpp \
     services.cpp \
+    utilities/action_debouncer.cpp \
     utilities/app_instances_shared_memory.cpp \
     utilities/async_routine.cpp \
     utilities/json_util.cpp \
@@ -66,6 +67,7 @@ HEADERS += \
     models/relationship.h \
     neo4j_http_api_client.h \
     services.h \
+    utilities/action_debouncer.h \
     utilities/app_instances_shared_memory.h \
     utilities/async_routine.h \
     utilities/functor.h \

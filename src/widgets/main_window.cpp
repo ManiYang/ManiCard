@@ -8,6 +8,7 @@
 #include "main_window.h"
 #include "services.h"
 #include "ui_main_window.h"
+#include "utilities/action_debouncer.h"
 #include "utilities/async_routine.h"
 #include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
@@ -24,6 +25,16 @@ MainWindow::MainWindow(QWidget *parent)
     setUpConnections();
     setKeyboardShortcuts();
 
+    //
+    saveWindowSizeDebounced = new ActionDebouncer(
+            1000, ActionDebouncer::Option::Delay,
+            [this]() {
+                Services::instance()->getCachedDataAccess()->saveMainWindowSize(this->size());
+            },
+            this
+    );
+
+    //
     startUp();
 }
 
@@ -31,11 +42,19 @@ MainWindow::~MainWindow() {
     delete ui;
 }
 
-void MainWindow::showEvent(QShowEvent */*event*/) {
+void MainWindow::showEvent(QShowEvent *event) {
     if (!isEverShown){
         isEverShown = true;
         onShownForFirstTime();
     }
+    QMainWindow::showEvent(event);
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event) {
+    if (event->spontaneous())
+        saveWindowSizeDebounced->tryAct();
+
+    QMainWindow::resizeEvent(event);
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
@@ -181,7 +200,17 @@ void MainWindow::onShownForFirstTime() {
 }
 
 void MainWindow::startUp() {
+    {
+        const auto sizeOpt
+                = Services::instance()->getCachedDataAccess()->getMainWindowSize();
+        if (sizeOpt.has_value())
+            resize(sizeOpt.value());
+    }
 
+    boardsList->setEnabled(false);
+    boardView->setEnabled(false);
+
+    //
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
@@ -190,10 +219,6 @@ void MainWindow::startUp() {
         QString errorMsg;
     };
     auto *routine = new AsyncRoutineWithVars;
-
-    //
-    boardsList->setEnabled(false);
-    boardView->setEnabled(false);
 
     //
     routine->addStep([this, routine]() {
@@ -282,6 +307,9 @@ void MainWindow::startUp() {
 }
 
 void MainWindow::prepareToClose() {
+    saveWindowSizeDebounced->actNow();
+
+    //
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:

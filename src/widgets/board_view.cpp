@@ -489,7 +489,8 @@ void BoardView::userToCloseNodeRect(const int cardId) {
     }, this);
 
     routine->addStep([this, routine, cardId]() {
-        closeNodeRect(cardId);
+        constexpr bool removeConnectedEdgeArrows = true;
+        closeNodeRect(cardId, removeConnectedEdgeArrows);
         routine->nextStep();
     }, this);
 
@@ -573,8 +574,13 @@ void BoardView::saveCardPropertiesUpdate(
 
 void BoardView::closeAllCards() {
     const QSet<int> cardIds = keySet(cardIdToNodeRect);
-    for (const int &cardId: cardIds)
-        closeNodeRect(cardId);
+    for (const int &cardId: cardIds) {
+        constexpr bool removeConnectedEdgeArrows = false;
+        closeNodeRect(cardId, removeConnectedEdgeArrows);
+    }
+
+    const auto relIds = keySet(relIdToEdgeArrow);
+    removeEdgeArrows(relIds);
 }
 
 NodeRect *BoardView::createNodeRect(
@@ -597,7 +603,7 @@ NodeRect *BoardView::createNodeRect(
 
     // set up connections
     QPointer<NodeRect> nodeRectPtr(nodeRect);
-    connect(nodeRect, &NodeRect::moved, this, [this, nodeRectPtr]() {
+    connect(nodeRect, &NodeRect::movedOrResized, this, [this, nodeRectPtr]() {
         if (!nodeRectPtr)
             return;
 
@@ -688,13 +694,18 @@ NodeRect *BoardView::createNodeRect(
     return nodeRect;
 }
 
-void BoardView::closeNodeRect(const int cardId) {
+void BoardView::closeNodeRect(const int cardId, const bool removeConnectedEdgeArrows) {
     NodeRect *nodeRect = cardIdToNodeRect.take(cardId);
     if (nodeRect == nullptr)
         return;
 
     graphicsScene->removeItem(nodeRect);
     nodeRect->deleteLater();
+
+    if (removeConnectedEdgeArrows) {
+        const auto relIds = getEdgeArrowsConnectingNodeRect(cardId);
+        removeEdgeArrows(relIds);
+    }
 
     //
     graphicsScene->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
@@ -732,6 +743,17 @@ void BoardView::updateEdgeArrow(const RelationshipId relId) {
     edgeArrow->setStartEndPoint(line.p1(), line.p2());
 
     edgeArrow->setLabel(relId.type);
+}
+
+void BoardView::removeEdgeArrows(const QSet<RelationshipId> &relIds) {
+    for (const auto &relId: relIds) {
+        if (!relIdToEdgeArrow.contains(relId))
+            continue;
+
+        EdgeArrow *edgeArrow = relIdToEdgeArrow.take(relId);
+        graphicsScene->removeItem(edgeArrow);
+        delete edgeArrow;
+    }
 }
 
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {

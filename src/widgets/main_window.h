@@ -8,6 +8,7 @@ namespace Ui {
 class MainWindow;
 }
 
+class ActionDebouncer;
 class BoardsList;
 class BoardView;
 
@@ -20,6 +21,7 @@ public:
 
 protected:
     void showEvent(QShowEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
 
 private:
@@ -31,13 +33,16 @@ private:
     QLabel *noBoardOpenSign {nullptr};
 
     // states & constants
-    const int leftSideBarWidthMin {60};
-    const int leftSideBarWidthDefault {150};
+    static constexpr int leftSideBarWidthMin {60};
+    static constexpr int leftSideBarWidthDefault {150};
 
     bool isEverShown {false};
 
     enum ClosingState {NotClosing, Closing, CloseNow};
     ClosingState closingState {ClosingState::NotClosing};
+
+    //
+    ActionDebouncer *saveWindowSizeDebounced;
 
     //
     void setUpWidgets();

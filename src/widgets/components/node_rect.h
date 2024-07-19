@@ -63,7 +63,7 @@ public:
             QWidget *widget) override;
 
 signals:
-    void moved();
+    void movedOrResized();
     void finishedMovingOrResizing();
 
     //!

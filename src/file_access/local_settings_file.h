@@ -4,6 +4,7 @@
 #include <optional>
 #include <QJsonObject>
 #include <QPointF>
+#include <QSize>
 #include <QString>
 
 class LocalSettingsFile
@@ -11,21 +12,20 @@ class LocalSettingsFile
 public:
     explicit LocalSettingsFile(const QString &appLocalDataDir);
 
-    //!
-    //! It's not an error if the value is not found.
-    //! \return (ok?, result)
-    //!
-    std::pair<bool, std::optional<int>> readLastOpenedBoardId();
+    // ==== read operations ====
 
-    //!
-    //! It's not an error if the value is not found.
-    //! \return (ok?, result)
-    //!
+    // It's not an error if the value is not found. Return (ok?, result).
+
+    std::pair<bool, std::optional<int>> readLastOpenedBoardId();
     std::pair<bool, std::optional<QPointF>> readTopLeftPosOfBoard(const int boardId);
+    std::pair<bool, std::optional<QSize>> readMainWindowSize();
+
+    // ==== write operations ====
 
     bool writeLastOpenedBoardId(const int lastOpenedBoardId);
     bool writeTopLeftPosOfBoard(const int boardId, const QPointF &topLeftPos);
     bool removeBoard(const int boardId);
+    bool writeMainWindowSize(const QSize &size);
 
 private:
     QString filePath;
