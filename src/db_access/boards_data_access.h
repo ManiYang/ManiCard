@@ -32,7 +32,7 @@ public:
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
     void requestNewBoardId(
-            std::function<void (std::optional<int> boardId)> callback,
+            std::function<void (bool ok, int boardId)> callback,
             QPointer<QObject> callbackContext) override;
 
     void createNewBoardWithId(

@@ -210,7 +210,7 @@ void CardsDataAccess::queryRelationshipsFromToCards(
 }
 
 void CardsDataAccess::requestNewCardId(
-        std::function<void (std::optional<int>)> callback,
+        std::function<void (bool, int)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
     neo4jHttpApiClient->queryDb(
@@ -226,7 +226,7 @@ void CardsDataAccess::requestNewCardId(
             [callback](const QueryResponseSingleResult &queryResponse) {
                 if (!queryResponse.getResult().has_value())
                 {
-                    callback(std::nullopt);
+                    callback(false, -1);
                     return;
                 }
 
@@ -235,11 +235,11 @@ void CardsDataAccess::requestNewCardId(
                 if (cardId == -1) {
                     qWarning().noquote()
                             << QString("\"cardId\" value not found or has unexpected type");
-                    callback(std::nullopt);
+                    callback(false, -1);
                     return;
                 }
 
-                callback(cardId);
+                callback(true, cardId);
             },
             callbackContext
     );

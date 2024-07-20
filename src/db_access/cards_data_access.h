@@ -30,7 +30,7 @@ public:
     // ==== write ====
 
     void requestNewCardId(
-            std::function<void (std::optional<int> cardId)> callback,
+            std::function<void (bool ok, int cardId)> callback,
             QPointer<QObject> callbackContext) override;
 
     void createNewCardWithId(

@@ -47,12 +47,8 @@ class AbstractCardsDataAccess : public AbstractCardsDataAccessReadOnly
 public:
     explicit AbstractCardsDataAccess();
 
-    //!
-    //! \param callback: argument \e cardId will be \c nullopt if operation failed
-    //! \param callbackContext
-    //!
     virtual void requestNewCardId(
-            std::function<void (std::optional<int> cardId)> callback,
+            std::function<void (bool ok, int cardId)> callback,
             QPointer<QObject> callbackContext) = 0;
 
     //!

@@ -416,6 +416,7 @@ void NodeRect::adjustChildItems() {
         textEditProxyWidget->setPos(contentsRectItem->rect().left() + leftPadding, titleBottom);
 
         textEdit->setFrameShape(QFrame::NoFrame);
+        textEdit->setMinimumHeight(10);
         textEdit->setContextMenuPolicy(Qt::NoContextMenu);
         textEdit->setStyleSheet(
                 "QTextEdit {"

@@ -340,28 +340,11 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
         );
     }, routine);
 
-    routine->addStep([this, routine, scenePos]() {
-        // 2. create new NodeRect
-        ContinuationContext context(routine);
-
+    routine->addStep([this, routine]() {
+        // 2. create card
         routine->card.title = "New Card";
         routine->card.text = "";
 
-        NodeRectData nodeRectData;
-        {
-            nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
-            nodeRectData.color = defaultNewNodeRectColor;
-        }
-        constexpr bool saveNodeRectData = true;
-        NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
-                routine->newCardId, routine->card, nodeRectData, saveNodeRectData);
-        nodeRect->setEditable(true);
-
-        adjustSceneRect();
-    }, this);
-
-    routine->addStep([this, routine]() {
-        // 3. write DB
         Services::instance()->getCachedDataAccess()->createNewCardWithId(
                 routine->newCardId, routine->card,
                 // callback
@@ -378,6 +361,23 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
                 },
                 this
         );
+    }, this);
+
+    routine->addStep([this, routine, scenePos]() {
+        // 3. create new NodeRect
+        ContinuationContext context(routine);
+
+        NodeRectData nodeRectData;
+        {
+            nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
+            nodeRectData.color = defaultNewNodeRectColor;
+        }
+        constexpr bool saveNodeRectData = true;
+        NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
+                routine->newCardId, routine->card, nodeRectData, saveNodeRectData);
+        nodeRect->setEditable(true);
+
+        adjustSceneRect();
     }, this);
 
     routine->addStep([this, routine]() {

@@ -185,7 +185,7 @@ void BoardsDataAccess::updateBoardsListProperties(
 }
 
 void BoardsDataAccess::requestNewBoardId(
-        std::function<void (std::optional<int>)> callback,
+        std::function<void (bool, int)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
@@ -202,18 +202,18 @@ void BoardsDataAccess::requestNewBoardId(
             [callback](const QueryResponseSingleResult &queryResponse) {
                 if (!queryResponse.getResult().has_value())
                 {
-                    callback(std::nullopt);
+                    callback(false, -1);
                     return;
                 }
 
                 const auto result = queryResponse.getResult().value();
                 const std::optional<int> boardId = result.intValueAt(0, "boardId");
                 if (!boardId.has_value()) {
-                    callback(std::nullopt);
+                    callback(false, -1);
                     return;
                 }
 
-                callback(boardId.value());
+                callback(true, boardId.value());
             },
             callbackContext
     );
@@ -464,6 +464,14 @@ void BoardsDataAccess::createNodeRect(
                 }
 
                 const auto result = queryResponse.getResult().value();
+                if (result.isEmpty()) {
+                    qWarning().noquote()
+                            << QString("Board %1 or card %2 does not exist")
+                               .arg(boardId).arg(cardId);
+                    callback(false);
+                    return;
+                }
+
                 std::optional<bool> isCreated = result.boolValueAt(0, "isCreated");
                 if (!isCreated.has_value()) {
                     callback(false);

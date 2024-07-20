@@ -7,6 +7,7 @@
 #include <QMetaObject>
 #include <QNetworkReply>
 #include <QRegularExpression>
+#include <QTextStream>
 #include "neo4j_http_api_client.h"
 #include "utilities/functor.h"
 #include "utilities/json_util.h"
@@ -35,8 +36,8 @@ QByteArray getBasicAuthData(const QString &authFilePath) {
             return "";
         }
 
-        user = file.readLine().trimmed();
-        password = file.readLine().trimmed();
+        QTextStream inTextStream(&file);
+        inTextStream >> user >> password;
     }
 
     return (user + ':' + password).toBase64();

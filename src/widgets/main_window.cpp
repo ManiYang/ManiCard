@@ -575,7 +575,6 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
         }
     }, this);
 
-
     routine->addStep([this, routine, boardId]() {
         if (boardView->getBoardId() == boardId) {
             // close current board

@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <memory>
+#include <type_traits>
 #include <QObject>
 #include "abstract_boards_data_access.h"
 #include "abstract_cards_data_access.h"
@@ -47,7 +48,7 @@ public:
             QPointer<QObject> callbackContext) override;
 
     void requestNewCardId(
-            std::function<void (std::optional<int> cardId)> callback,
+            std::function<void (bool ok, int cardId)> callback,
             QPointer<QObject> callbackContext) override;
 
     // write operations
@@ -92,7 +93,7 @@ public:
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
     void requestNewBoardId(
-            std::function<void (std::optional<int> boardId)> callback,
+            std::function<void (bool ok, int boardId)> callback,
             QPointer<QObject> callbackContext) override;
 
     void createNewBoardWithId(
@@ -136,6 +137,72 @@ private:
     void addToQueue(std::function<void (const bool failDirectly)> func);
     void onResponse(const bool ok, const bool isReadOnlyAccess = false);
     void dequeueAndInvoke();
+
+    //
+    struct Void {};
+
+    template <typename Result, typename... InputArgs>
+    struct FunctionTypeHelper
+    {
+        using Callback = std::function<void (bool ok, Result result)>;
+        using Func = std::function<void (InputArgs..., Callback, QPointer<QObject>)>;
+        static constexpr bool hasResultArg {true};
+    };
+
+    template <typename... InputArgs>
+    struct FunctionTypeHelper<Void, InputArgs...>
+    {
+        using Callback = std::function<void (bool ok)>;
+        using Func = std::function<void (InputArgs..., Callback, QPointer<QObject>)>;
+        static constexpr bool hasResultArg {false};
+    };
+
+    //!
+    //! Type \e Result can be \c Void, meaning the callback function has only the bool argument.
+    //! Type \e Result, if is not \c Void, must have default constructor.
+    //!
+    template <bool isReadOnly, typename Result, typename... InputArgs>
+    std::function<void (const bool failDirectly)> createTask(
+            typename FunctionTypeHelper<Result, InputArgs...>::Func func,
+            InputArgs... inputValues,
+            typename FunctionTypeHelper<Result, InputArgs...>::Callback callback,
+            QPointer<QObject> callbackContext
+    ) {
+        return [=, thisPtr=QPointer(this)](const bool failDirectly) {
+            if (failDirectly) {
+                if constexpr (FunctionTypeHelper<Result, InputArgs...>::hasResultArg) {
+                    invokeAction(callbackContext, [callback]() {
+                        callback(false, Result {});
+                    });
+                }
+                else {
+                    invokeAction(callbackContext, [callback]() {
+                        callback(false);
+                    });
+                }
+
+                if (thisPtr)
+                    thisPtr->onResponse(false, isReadOnly);
+                return;
+            }
+
+            if (thisPtr.isNull())
+                return;
+
+            func(
+                    inputValues...,
+                    // callback:
+                    [thisPtr, callback, callbackContext](bool ok, auto... rest) {
+                        invokeAction(callbackContext, [=]() {
+                            callback(ok, rest...);
+                        });
+                        if (thisPtr)
+                            thisPtr->onResponse(ok, isReadOnly);
+                    },
+                    thisPtr.data()
+            );
+        };
+    };
 };
 
 #endif // QUEUED_DB_ACCESS_H

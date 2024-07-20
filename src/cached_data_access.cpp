@@ -120,8 +120,8 @@ void CachedDataAccess::requestNewCardId(
 
     queuedDbAccess->requestNewCardId(
             // callback
-            [callback](std::optional<int> cardId) {
-                callback(cardId);
+            [callback](bool ok, int cardId) {
+                callback(ok ? cardId : std::optional<int>());
             },
             callbackContext
     );
@@ -285,11 +285,11 @@ void CachedDataAccess::requestNewBoardId(
 
     queuedDbAccess->requestNewBoardId(
             // callback
-            [callback](std::optional<int> boardId) {
-                callback(boardId);
+            [callback](bool ok, int boardId) {
+                callback(ok ? boardId : std::optional<int>());
             },
             callbackContext
-                    );
+    );
 }
 
 std::optional<QSize> CachedDataAccess::getMainWindowSize() {
@@ -379,7 +379,6 @@ void CachedDataAccess::updateCardProperties(
     class AsyncRoutineWithVars : public AsyncRoutine
     {
     public:
-        // variables used by the steps of the routine:
         bool dbWriteOk;
     };
     auto *routine = new AsyncRoutineWithVars;
@@ -614,7 +613,6 @@ void CachedDataAccess::createNewBoardWithId(
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
-        // variables used by the steps of the routine:
         bool dbWriteOk;
     };
     auto *routine = new AsyncRoutineWithVars;
@@ -771,7 +769,6 @@ void CachedDataAccess::removeBoard(
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
-        // variables used by the steps of the routine:
         bool dbWriteOk;
     };
     auto *routine = new AsyncRoutineWithVars;
@@ -889,7 +886,6 @@ void CachedDataAccess::createNodeRect(
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
-        // variables used by the steps of the routine:
         bool dbWriteOk;
     };
     auto *routine = new AsyncRoutineWithVars;
@@ -967,7 +963,6 @@ void CachedDataAccess::removeNodeRect(
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
-        // variables used by the steps of the routine:
         bool dbWriteOk;
     };
     auto *routine = new AsyncRoutineWithVars;

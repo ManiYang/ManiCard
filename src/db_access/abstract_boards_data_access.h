@@ -47,12 +47,8 @@ public:
 
     // ==== board ====
 
-    //!
-    //! \param callback: argument \e boardId will be \c nullopt if operation failed
-    //! \param callbackContext
-    //!
     virtual void requestNewBoardId(
-            std::function<void (std::optional<int> boardId)> callback,
+            std::function<void (bool ok, int boardId)> callback,
             QPointer<QObject> callbackContext) = 0;
 
     //!
@@ -84,7 +80,8 @@ public:
     // ==== NodeRect ====
 
     //!
-    //! The NodeRect must not already exist. The operation is atomic.
+    //! The board and card must already exist, and the NodeRect must not already exist.
+    //! The operation is atomic.
     //!
     virtual void createNodeRect(
             const int boardId, const int cardId, const NodeRectData &nodeRectData,

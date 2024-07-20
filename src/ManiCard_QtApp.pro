@@ -101,6 +101,13 @@ FORMS += \
     widgets/dialogs/dialog_create_relationship.ui \
     widgets/main_window.ui
 
+RESOURCES += \
+    resources.qrc
+
+OTHER_FILES += \
+    README.md
+
+
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
@@ -108,6 +115,3 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 
 DEFINES += QT_MESSAGELOGCONTEXT
-
-RESOURCES += \
-    resources.qrc
