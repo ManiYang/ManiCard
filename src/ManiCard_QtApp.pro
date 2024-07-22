@@ -105,7 +105,7 @@ RESOURCES += \
     resources.qrc
 
 OTHER_FILES += \
-    README.md
+    ../README.md
 
 
 # Default rules for deployment.

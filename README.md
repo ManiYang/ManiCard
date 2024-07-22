@@ -16,11 +16,11 @@ Currently still in very early phase of development.
 
 ## Build & Run the App
 
-Qt and Qt creator are needed to build the app.
+Qt 5 and Qt Creator are needed to build the app.
 
 To run the app, you need
 
-+ a self-managed Neo4j DB (currently Neo4j Aura does not support HTTP API)
++ a self-managed Neo4j DB (Neo4j Aura is not supported, as it currently does not support HTTP API)
 + DB setup
     + Create constraint requiring unique value of `id` property for nodes with label `Card`, and 
       similarly for nodes of label `Board`.
@@ -48,10 +48,11 @@ To run the app, you need
 
 ### Current Limitations
 
-+ Only supports single-instance Neo4j DB (as apposed to a cluster).
++ Only supports self-managed Neo4j DB (as opposed to Neo4j Aura).
++ Only supports single-instance Neo4j DB (as opposed to a cluster).
 + No automatic sync among multiple instances of the app (on difference devices) connecting to the 
   same Neo4j DB instance. You need to manually reload the data.
 + Unsaved updates because of DB connection issues are recorded in a text file, but they are not 
   retried. After resolving DB connection issues, you need to re-open the app, and apply the unsaved 
-  updateds manually.
+  updates manually.
 + No markdown preview (yet).
