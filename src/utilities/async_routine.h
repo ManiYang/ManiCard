@@ -6,11 +6,11 @@
 #include <QPointer>
 
 //!
-//! An utility class for scheduling a sequence of steps (such sequence is called a routine here).
-//! Each step consists of a task that can be asynchronous.
+//! An utility class for defining and running a sequence of steps (such sequence is called a routine
+//! here). Each step consists of a task that can be asynchronous.
 //!
-//! When a task is completed, call \c nextStep() or \c skipToFinalStep() to let the routine schedule
-//! the next step (or last) step in the sequence, or finish if there's no step remaining.
+//! When a task is completed, call \c nextStep() or \c skipToFinalStep() to let the routine continue
+//! to the next (or last) step in the sequence, or finish if there's no step remaining.
 //!
 //! Instance of this class auto-deletes itself when finished.
 //!
@@ -71,14 +71,14 @@ public:
     bool errorFlag {false};
 
     //!
-    //! Destructor of this class calls routin->nextStep() or routin->skipToFinalStep(),
-    //! depending on the value of \e routin->errorFlag.
+    //! Destructor of this class calls routin->nextStep() [routin->skipToFinalStep()] if the
+    //! the value of routin->errorFlag is false [true].
     //!
     struct ContinuationContext
     {
         ContinuationContext(AsyncRoutineWithErrorFlag *routine_);
         ~ContinuationContext();
-        void setErrorFlag();
+        void setErrorFlag(); // sets routine->errorFlag to true
     private:
         AsyncRoutineWithErrorFlag *routine;
     };

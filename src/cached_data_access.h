@@ -12,6 +12,18 @@ class LocalSettingsFile;
 class QueuedDbAccess;
 class UnsavedUpdateRecordsFile;
 
+//!
+//! Accesses DB & files, and manages cached data.
+//!
+//! For read operation, this class
+//!   1. gets the parts that are already cached
+//!   2. reads from DB or files for the other parts, if any, and if successful, updates the cache.
+//! The operation fails only if step 2 is needed and fails.
+//!
+//! For write operation, this class
+//!   1. updates the cache
+//!   2. writes to DB or files, and if failed, adds to the records of unsaved updates.
+//!
 class CachedDataAccess : public QObject
 {
     Q_OBJECT
@@ -140,19 +152,5 @@ private:
     int startWriteRequest();
     void finishWriteRequest(const int requestId); // thread-safe
 };
-
-/*
- * Dev notes:
- *
- * + For read operation:
- *   1. get the parts that are already cached
- *   2. query DB & local settings file for the other parts (if any)
- *      - if successful: update cache
- *      - if failed: whole process fails
- * + For write operation:
- *   1. update cache
- *   2. Write DB. If failed, add to unsaved updates.
- *   3. Write local settings file. If failed, add to unsaved updates.
-*/
 
 #endif // CACHEDDATAACCESS_H

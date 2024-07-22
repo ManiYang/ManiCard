@@ -52,10 +52,8 @@ private:
 
     int boardId {-1}; // -1: no board loaded
 
-    // component widgets:
-    QGraphicsView *graphicsView {nullptr};
-
     //
+    QGraphicsView *graphicsView {nullptr};
     GraphicsScene *graphicsScene {nullptr};
 
     struct ContextMenuData
@@ -82,6 +80,7 @@ private:
     void userToCreateNewCard(const QPointF &scenePos);
     void userToCreateRelationship(const int cardId);
     void userToCloseNodeRect(const int cardId);
+
     void openExistingCard(const int cardId, const QPointF &scenePos);
     void saveCardPropertiesUpdate(
             NodeRect *nodeRect, const CardPropertiesUpdate &propertiesUpdate,

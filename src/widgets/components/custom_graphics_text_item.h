@@ -5,6 +5,10 @@
 
 class GraphicsTextItemTweak;
 
+//!
+//! Wraps a QGraphicsTextItem.
+//! Emits signal textEdited() only when the text is updated by user.
+//!
 class CustomGraphicsTextItem : public QGraphicsObject
 {
     Q_OBJECT

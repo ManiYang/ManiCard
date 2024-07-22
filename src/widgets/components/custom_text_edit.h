@@ -5,6 +5,10 @@
 
 class TextEditTweak;
 
+//!
+//! Wraps a QTextEdit.
+//! Emits signal textEdited() only when the text is updated by user.
+//!
 class CustomTextEdit : public QFrame
 {
     Q_OBJECT
@@ -25,7 +29,7 @@ public:
     QString toPlainText() const;
 
 signals:
-    void textEdited(); // by user
+    void textEdited();
 
 private:
     TextEditTweak *textEdit;

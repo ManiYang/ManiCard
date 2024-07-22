@@ -860,7 +860,8 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
     return nodeRect;
 }
 
-void BoardView::NodeRectsCollection::closeNodeRect(const int cardId, const bool removeConnectedEdgeArrows) {
+void BoardView::NodeRectsCollection::closeNodeRect(
+        const int cardId, const bool removeConnectedEdgeArrows) {
     NodeRect *nodeRect = cardIdToNodeRect.take(cardId);
     if (nodeRect == nullptr)
         return;

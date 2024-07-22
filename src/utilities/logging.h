@@ -19,8 +19,8 @@ std::optional<QString> createLogDir(const QString &applicationDirPath, const QSt
 
 //!
 //! Delete log files that are
-//! (1) not among the \a retainedFilesCriterion most recent files, and
-//! (2) older than \a fileAgeDaysCriterion days.
+//! (1) not among the \e retainedFilesCriterion most recent files, and
+//! (2) older than \e fileAgeDaysCriterion days.
 //!
 void deleteOldLogs(
         const QString &logDirPath, const int retainedFilesCriterion, const int fileAgeDaysCriterion);

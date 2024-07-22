@@ -29,6 +29,7 @@ public:
     bool initialize(QString *errorMsg = nullptr);
 
     CachedDataAccess *getCachedDataAccess() const;
+
     QString getUnsavedUpdateFilePath() const;
 
 private:
