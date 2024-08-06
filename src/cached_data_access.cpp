@@ -114,6 +114,63 @@ void CachedDataAccess::queryRelationshipsFromToCards(
     );
 }
 
+void CachedDataAccess::getUserLabelsAndRelationshipTypes(
+        std::function<void (bool, const StringListPair &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    if (cache.userLabelsList.has_value() && cache.userRelTypesList.has_value()) {
+        invokeAction(callbackContext, [this, callback]() {
+            callback(true, {cache.userLabelsList.value(), cache.userRelTypesList.value()});
+        });
+        return;
+    }
+
+    //
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QStringList labels;
+        QStringList relTypes;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    routine->addStep([this, routine]() {
+        // read DB
+        queuedDbAccess->getUserLabelsAndRelationshipTypes(
+                //callback
+                [this, routine](bool ok, const StringListPair &labelsAndRelTypes) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        context.setErrorFlag();
+                    }
+                    else {
+                        routine->labels = labelsAndRelTypes.first;
+                        routine->relTypes = labelsAndRelTypes.second;
+
+                        // update cache
+                        cache.userLabelsList = routine->labels;
+                        cache.userRelTypesList = routine->relTypes;
+                    }
+                },
+                this
+        );
+
+    }, this);
+
+    routine->addStep([routine, callback]() {
+        // final step
+        ContinuationContext context(routine);
+        if (routine->errorFlag)
+            callback(false, {QStringList(), QStringList()});
+        else
+            callback(true, {routine->labels, routine->relTypes});
+    }, callbackContext);
+
+    routine->start();
+}
+
 void CachedDataAccess::requestNewCardId(
         std::function<void (std::optional<int>)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -514,6 +571,40 @@ void CachedDataAccess::createRelationship(
                 //
                 invokeAction(callbackContext, [callback, ok, created]() {
                     callback(ok, created);
+                });
+
+                //
+                finishWriteRequest(requestId);
+            },
+            this
+    );
+}
+
+void CachedDataAccess::updateUserRelationshipTypes(
+        const QStringList &updatedRelTypes, std::function<void (bool)> callback,
+        QPointer<QObject> callbackContext) {
+    // 1. update cache
+    cache.userRelTypesList = updatedRelTypes;
+
+    // 2. write DB
+    const int requestId = startWriteRequest();
+
+    queuedDbAccess->updateUserRelationshipTypes(
+            updatedRelTypes,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "updateUserRelationshipTypes";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"updatedRelTypes", toJsonArray(updatedRelTypes)}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+                }
+
+                //
+                invokeAction(callbackContext, [callback, ok]() {
+                    callback(ok);
                 });
 
                 //

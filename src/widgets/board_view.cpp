@@ -385,7 +385,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
         ContinuationContext context(routine);
 
         if (routine->errorFlag)
-            createWarningMessageBox(this, " ", routine->errorMsg)->exec();
+            showWarningMessageBox(this, " ", routine->errorMsg);
 
     }, this);
 
@@ -394,19 +394,34 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
 
 void BoardView::userToCreateRelationship(const int cardId) {
     Q_ASSERT(nodeRectsCollection.contains(cardId));
+    using StringListPair = std::pair<QStringList, QStringList>;
 
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
+        QStringList userRelTypesList;
         RelationshipId relIdToCreate {-1, -1, ""};
     };
     auto *routine = new AsyncRoutineWithVars;
 
     //
+    routine->addStep([this, routine]() {
+        Services::instance()->getCachedDataAccess()->getUserLabelsAndRelationshipTypes(
+                // callback
+                [routine](bool ok, const StringListPair &labelsAndRelTypes) {
+                    ContinuationContext context(routine);
+                    if (ok)
+                        routine->userRelTypesList = labelsAndRelTypes.second;
+                },
+                this
+        );
+    }, this);
+
     routine->addStep([this, routine, cardId]() {
         // show dialog, get relationship to create
         auto *dialog = new DialogCreateRelationship(
-                cardId, nodeRectsCollection.get(cardId)->getTitle(), this);
+                cardId, nodeRectsCollection.get(cardId)->getTitle(),
+                routine->userRelTypesList, this);
 
         connect(dialog, &QDialog::finished, this, [dialog, routine](int result) {
             ContinuationContext context(routine);
@@ -479,7 +494,7 @@ void BoardView::userToCreateRelationship(const int cardId) {
                                 = QString("Could not save created relationship to DB.\n\n"
                                           "There is unsaved update. See %1")
                                   .arg(Services::instance()->getUnsavedUpdateFilePath());
-                        createWarningMessageBox(this, " ", msg)->exec();
+                        showWarningMessageBox(this, " ", msg);
                         return;
                     }
                     if (!created) {
@@ -567,7 +582,7 @@ void BoardView::userToCloseNodeRect(const int cardId) {
                                 = QString("Could not remove NodeRect from DB.\n\n"
                                           "There is unsaved update. See %1")
                                   .arg(Services::instance()->getUnsavedUpdateFilePath());
-                        createWarningMessageBox(this, " ", msg)->exec();
+                        showWarningMessageBox(this, " ", msg);
                     }
                     routine->nextStep();
                 },
@@ -597,15 +612,15 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
                     ContinuationContext context(routine);
 
                     if (!ok) {
-                        createWarningMessageBox(
-                                this, " ", "Could not open card. See logs for details.")->exec();
+                        showWarningMessageBox(
+                                this, " ", "Could not open card. See logs for details.");
                         context.setErrorFlag();
                         return;
                     }
 
                     if (!cards.contains(cardId)) {
-                        createInformationMessageBox(
-                                this, " ", QString("Card %1 not found.").arg(cardId))->exec();
+                        showInformationMessageBox(
+                                this, " ", QString("Card %1 not found.").arg(cardId));
                         context.setErrorFlag();
                         return;
                     }
@@ -698,7 +713,7 @@ void BoardView::saveCardPropertiesUpdate(
                             = QString("Could not save card properties to DB.\n\n"
                                       "There is unsaved update. See %1")
                               .arg(Services::instance()->getUnsavedUpdateFilePath());
-                    createWarningMessageBox(this, " ", msg)->exec();
+                    showWarningMessageBox(this, " ", msg);
                 }
 
                 if (callback)
@@ -796,7 +811,7 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
                                 = QString("Could not save NodeRect's rect to DB.\n\n"
                                           "There is unsaved update. See %1")
                                   .arg(Services::instance()->getUnsavedUpdateFilePath());
-                        createWarningMessageBox(boardView, " ", msg)->exec();
+                        showWarningMessageBox(boardView, " ", msg);
                     }
                 },
                 boardView
@@ -849,7 +864,7 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
                                 = QString("Could not save created NodeRect to DB.\n\n"
                                           "There is unsaved update. See %1")
                                   .arg(Services::instance()->getUnsavedUpdateFilePath());
-                        createWarningMessageBox(boardView, " ", msg)->exec();
+                        showWarningMessageBox(boardView, " ", msg);
                     }
                 },
                 boardView

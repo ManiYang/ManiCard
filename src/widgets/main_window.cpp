@@ -16,6 +16,7 @@
 #include "utilities/periodic_checker.h"
 #include "widgets/board_view.h"
 #include "widgets/boards_list.h"
+#include "widgets/dialogs/dialog_user_relationship_types.h"
 
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 
@@ -105,10 +106,10 @@ void MainWindow::setUpWidgets() {
         leftSideBarLayout->addLayout(hLayout);
         hLayout->setContentsMargins(0, 0, 0, 0);
         {
-            buttonOpenMenu = new QToolButton;
-            buttonOpenMenu->setIcon(QIcon(":/icons/menu4_black_24"));
-            buttonOpenMenu->setIconSize({24, 24});
-            hLayout->addWidget(buttonOpenMenu);
+            buttonOpenMainMenu = new QToolButton;
+            buttonOpenMainMenu->setIcon(QIcon(":/icons/menu4_black_24"));
+            buttonOpenMainMenu->setIconSize({24, 24});
+            hLayout->addWidget(buttonOpenMainMenu);
 
             //
             hLayout->addStretch();
@@ -135,7 +136,7 @@ void MainWindow::setUpWidgets() {
     }
 
     //
-    buttonOpenMenu->setStyleSheet(
+    buttonOpenMainMenu->setStyleSheet(
             "QToolButton {"
             "  border: none;"
             "  background: transparent;"
@@ -152,10 +153,15 @@ void MainWindow::setUpWidgets() {
 }
 
 void MainWindow::setUpConnections() {
-    // buttonOpenMenu
-    connect(buttonOpenMenu, &QToolButton::clicked, this, [this]() {
-        const auto w = buttonOpenMenu->width();
-        mainMenu->popup(buttonOpenMenu->mapToGlobal({w, 0}));
+    // buttonOpenMainMenu
+    connect(buttonOpenMainMenu, &QToolButton::clicked, this, [this]() {
+        const auto w = buttonOpenMainMenu->width();
+        mainMenu->popup(buttonOpenMainMenu->mapToGlobal({w, 0}));
+    });
+
+    // mainMenu
+    connect(mainMenu, &QMenu::aboutToHide, this, [this]() {
+        buttonOpenMainMenu->update(); // without this, the button's appearence stay in hover state
     });
 
     // boardsList
@@ -178,7 +184,7 @@ void MainWindow::setUpConnections() {
                                 = QString("Could not save board name to DB.\n\n"
                                           "There is unsaved update. See %1")
                                   .arg(Services::instance()->getUnsavedUpdateFilePath());
-                        createWarningMessageBox(this, " ", msg)->exec();
+                        showWarningMessageBox(this, " ", msg);
                     }
                 },
                 this
@@ -206,7 +212,7 @@ void MainWindow::setUpConnections() {
                         = QString("Could not save boards ordering to DB.\n\n"
                                   "There is unsaved update. See %1")
                           .arg(Services::instance()->getUnsavedUpdateFilePath());
-                createWarningMessageBox(this, " ", msg)->exec();
+                showWarningMessageBox(this, " ", msg);
             }
         });
     });
@@ -222,8 +228,22 @@ void MainWindow::setUpActions() {
 }
 
 void MainWindow::setUpMainMenu() {
+    {
+        auto *menu = mainMenu->addMenu("Graph");
+        {
+            menu->addAction(
+                    "Labels...",
+                    this, [this]() {
+                        // show labels list dialog ...............
 
-
+                    }
+            );
+            menu->addAction(
+                    "Relationship Types...",
+                    this, [this]() { showRelationshipTypesDialog(); }
+            );
+        }
+    }
     mainMenu->addSeparator();
     mainMenu->addAction(actionQuit);
 }
@@ -346,7 +366,7 @@ void MainWindow::startUp() {
         boardView->setEnabled(true);
 
         if (routine->errorFlag)
-            createWarningMessageBox(this, " ", routine->errorMsg)->exec();
+            showWarningMessageBox(this, " ", routine->errorMsg);
     }, this);
 
     routine->start();
@@ -399,7 +419,7 @@ void MainWindow::prepareToClose() {
                                 = QString("Could not save last-opened board to DB.\n\n"
                                           "There is unsaved update. See %1")
                                   .arg(Services::instance()->getUnsavedUpdateFilePath());
-                        createWarningMessageBox(this, " ", msg)->exec();
+                        showWarningMessageBox(this, " ", msg);
 
                         routine->hasUnsavedUpdate = true;
                     }
@@ -582,7 +602,7 @@ void MainWindow::onUserToCreateNewBoard() {
         ContinuationContext context(routine);
 
         if (routine->errorFlag)
-            createWarningMessageBox(this, " ", routine->errorMsg)->exec();
+            showWarningMessageBox(this, " ", routine->errorMsg);
     }, this);
 
     //
@@ -690,7 +710,7 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
         // final step
         ContinuationContext context(routine);
         if (routine->errorFlag)
-            createWarningMessageBox(this, " ", routine->errorMsg)->exec();
+            showWarningMessageBox(this, " ", routine->errorMsg);
     }, this);
 
     routine->start();
@@ -716,7 +736,7 @@ void MainWindow::saveTopLeftPosOfCurrentBoard(std::function<void (bool)> callbac
                             = QString("Could not save board's top-left position to DB.\n\n"
                                       "There is unsaved update. See %1")
                               .arg(Services::instance()->getUnsavedUpdateFilePath());
-                    createWarningMessageBox(this, " ", msg)->exec();
+                    showWarningMessageBox(this, " ", msg);
                 }
                 callback(ok);
             },
@@ -737,4 +757,82 @@ void MainWindow::saveBoardsOrdering(std::function<void (bool ok)> callback) {
             },
             this
     );
+}
+
+void MainWindow::showRelationshipTypesDialog() {
+    using StringListPair = std::pair<QStringList, QStringList>;
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QStringList relTypes;
+        QStringList updatedRelTypes;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // get relationship types list
+        Services::instance()->getCachedDataAccess()->getUserLabelsAndRelationshipTypes(
+                //callback
+                [routine](bool ok, const StringListPair &labelsAndRelTypes) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg = "Could not get the list of relationship types";
+                    }
+                    else {
+                        routine->relTypes = labelsAndRelTypes.second;
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // show dialog
+        auto *dialog = new DialogUserRelationshipTypes(routine->relTypes, this);
+        connect(dialog, &QDialog::finished, this, [routine, dialog]() {
+            ContinuationContext context(routine);
+            routine->updatedRelTypes = dialog->getRelationshipTypesList();
+            dialog->deleteLater();
+
+        });
+        dialog->open();
+    }, this);
+
+    routine->addStep([this, routine]() {
+        if (routine->updatedRelTypes == routine->relTypes) {
+            routine->nextStep();
+            return;
+        }
+
+        // write DB
+        Services::instance()->getCachedDataAccess()->updateUserRelationshipTypes(
+                routine->updatedRelTypes,
+                // callback
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg
+                                = QString("Could not save user-defined relationship types to DB.\n\n"
+                                          "There is unsaved update. See %1")
+                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
+        if (routine->errorFlag)
+            showWarningMessageBox(this, " ", routine->errorMsg);
+    }, this);
+
+    routine->start();
 }

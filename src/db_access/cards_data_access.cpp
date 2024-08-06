@@ -209,6 +209,43 @@ void CardsDataAccess::queryRelationshipsFromToCards(
     );
 }
 
+void CardsDataAccess::getUserLabelsAndRelationshipTypes(
+        std::function<void (bool, const StringListPair &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (n:UserSettings)
+                    RETURN n.labelsList AS labels, n.relationshipTypesList AS relTypes
+                )!",
+                QJsonObject {}
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false, {QStringList(), QStringList()});
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                if (result.isEmpty()) {
+                    callback(true, {QStringList(), QStringList()});
+                    return;
+                }
+
+                const auto labelsArray = result.valueAt(0, "labels").toArray();
+                const auto relTypesArray = result.valueAt(0, "relTypes").toArray();
+
+                const QStringList labelsList = toStringList(labelsArray, "");
+                const QStringList relTypesList = toStringList(relTypesArray, "");
+
+                callback(true, {labelsList, relTypesList});
+            },
+            callbackContext
+    );
+}
+
 void CardsDataAccess::requestNewCardId(
         std::function<void (bool, int)> callback,
         QPointer<QObject> callbackContext) {
@@ -224,8 +261,7 @@ void CardsDataAccess::requestNewCardId(
             },
             // callback
             [callback](const QueryResponseSingleResult &queryResponse) {
-                if (!queryResponse.getResult().has_value())
-                {
+                if (!queryResponse.getResult().has_value()) {
                     callback(false, -1);
                     return;
                 }
@@ -529,6 +565,43 @@ void CardsDataAccess::createRelationship(
 
                 qInfo().noquote() << QString("created relationship %1").arg(id.toString());
                 callback(true, true);
+            },
+            callbackContext
+    );
+}
+
+void CardsDataAccess::updateUserRelationshipTypes(
+        const QStringList &updatedRelTypes, std::function<void (bool)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MERGE (u:UserSettings)
+                    SET u.relationshipTypesList = $relTypesList
+                    RETURN u
+                )!",
+                QJsonObject {
+                        {"relTypesList", toJsonArray(updatedRelTypes)},
+                }
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                if (result.isEmpty()) {
+                    qWarning().noquote() << "result has no record";
+                    callback(false);
+                    return;
+                }
+
+                qInfo().noquote() << "updated userSettings.relationshipTypesList";
+                callback(true);
             },
             callbackContext
     );

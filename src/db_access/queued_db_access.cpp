@@ -76,6 +76,26 @@ void QueuedDbAccess::queryRelationshipsFromToCards(
     addToQueue(func);
 }
 
+void QueuedDbAccess::getUserLabelsAndRelationshipTypes(
+        std::function<void (bool, const StringListPair &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    true // is readonly?
+                    , const StringListPair & // result type (`Void` if no result argument)
+                    // no input // input types
+                >(
+            [this](auto... args) {
+                cardsDataAccess->getUserLabelsAndRelationshipTypes(args...); // method
+            },
+            // no input // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
 void QueuedDbAccess::requestNewCardId(
         std::function<void (bool, int)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -169,6 +189,26 @@ void QueuedDbAccess::createRelationship(
                 cardsDataAccess->createRelationship(args...); // method
             },
             id, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
+void QueuedDbAccess::updateUserRelationshipTypes(
+        const QStringList &updatedRelTypes, std::function<void (bool)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(updatedRelTypes) // input types
+                >(
+            [this](auto... args) {
+                cardsDataAccess->updateUserRelationshipTypes(args...); // method
+            },
+            updatedRelTypes, // input parameters
             callback, callbackContext
     );
 

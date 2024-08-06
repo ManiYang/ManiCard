@@ -14,7 +14,8 @@ class DialogCreateRelationship : public QDialog
     Q_OBJECT
 public:
     explicit DialogCreateRelationship(
-            const int cardId, const QString &cardTitle, QWidget *parent = nullptr);
+            const int cardId, const QString &cardTitle,
+            const QStringList relationshipTypesList, QWidget *parent = nullptr);
     ~DialogCreateRelationship();
 
     std::optional<RelationshipId> getRelationshipId() const;
@@ -23,7 +24,7 @@ private:
     Ui::DialogCreateRelationship *ui;
     const int cardId;
 
-    void setUpWidgets(const QString &cardTitle);
+    void setUpWidgets(const QString &cardTitle, const QStringList &relTypesList);
     void setUpConnections();
 
     void setToFromState();
