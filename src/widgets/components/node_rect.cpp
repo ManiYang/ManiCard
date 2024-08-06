@@ -145,7 +145,7 @@ void NodeRect::paint(
     painter->setPen(Qt::NoPen);
     const double radius = borderWidth;
     painter->drawRoundedRect(
-            enclosingRect.marginsRemoved(uniformMargins(marginWidth)),
+            enclosingRect.marginsRemoved(uniformMarginsF(marginWidth)),
             radius, radius);
 
     //
@@ -300,7 +300,7 @@ void NodeRect::adjustChildItems() {
 
     //
     const auto borderInnerRect
-            = enclosingRect.marginsRemoved(uniformMargins(marginWidth + borderWidth));
+            = enclosingRect.marginsRemoved(uniformMarginsF(marginWidth + borderWidth));
 
     // caption bar
     double captionHeight = 0;

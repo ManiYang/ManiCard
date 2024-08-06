@@ -3,6 +3,7 @@
 
 #include <QLabel>
 #include <QMainWindow>
+#include <QToolButton>
 
 namespace Ui {
 class MainWindow;
@@ -30,7 +31,13 @@ private:
     // component widgets
     BoardsList *boardsList {nullptr};
     BoardView *boardView {nullptr};
+
     QLabel *noBoardOpenSign {nullptr};
+    QToolButton *buttonOpenMenu {nullptr};
+
+    // menus and actions
+    QMenu *mainMenu;
+    QAction *actionQuit {nullptr};
 
     // states & constants
     static constexpr int leftSideBarWidthMin {60};
@@ -47,7 +54,8 @@ private:
     //
     void setUpWidgets();
     void setUpConnections();
-    void setKeyboardShortcuts();
+    void setUpActions();
+    void setUpMainMenu();
 
     //
     void onShownForFirstTime();

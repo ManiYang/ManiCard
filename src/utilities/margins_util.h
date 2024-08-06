@@ -1,9 +1,14 @@
 #ifndef MARGINS_UTIL_H
 #define MARGINS_UTIL_H
 
+#include <QMargins>
 #include <QMarginsF>
 
-inline QMarginsF uniformMargins(const double margin) {
+inline QMarginsF uniformMarginsF(const double margin) {
+    return {margin, margin, margin, margin};
+}
+
+inline QMargins uniformMargins(const int margin) {
     return {margin, margin, margin, margin};
 }
 

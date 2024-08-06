@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDebug>
+#include <QIcon>
 #include <QKeySequence>
 #include <QMessageBox>
 #include <QShortcut>
@@ -10,6 +11,7 @@
 #include "ui_main_window.h"
 #include "utilities/action_debouncer.h"
 #include "utilities/async_routine.h"
+#include "utilities/margins_util.h"
 #include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
 #include "widgets/board_view.h"
@@ -19,11 +21,13 @@ using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 
 MainWindow::MainWindow(QWidget *parent)
         : QMainWindow(parent)
-        , ui(new Ui::MainWindow) {
+        , ui(new Ui::MainWindow)
+        , mainMenu(new QMenu(this)) {
     ui->setupUi(this);
     setUpWidgets();
     setUpConnections();
-    setKeyboardShortcuts();
+    setUpActions();
+    setUpMainMenu();
 
     //
     saveWindowSizeDebounced = new ActionDebouncer(
@@ -93,8 +97,26 @@ void MainWindow::setUpWidgets() {
 
     // set up ui->frameLeftSideBar
     {
+        auto *leftSideBarLayout = dynamic_cast<QBoxLayout *>(ui->frameLeftSideBar->layout());
+        Q_ASSERT(leftSideBarLayout != nullptr);
+
+        // tool bar
+        auto *hLayout = new QHBoxLayout;
+        leftSideBarLayout->addLayout(hLayout);
+        hLayout->setContentsMargins(0, 0, 0, 0);
+        {
+            buttonOpenMenu = new QToolButton;
+            buttonOpenMenu->setIcon(QIcon(":/icons/menu4_black_24"));
+            buttonOpenMenu->setIconSize({24, 24});
+            hLayout->addWidget(buttonOpenMenu);
+
+            //
+            hLayout->addStretch();
+        }
+
+        // boards list
         boardsList = new BoardsList;
-        ui->frameLeftSideBar->layout()->addWidget(boardsList);
+        leftSideBarLayout->addWidget(boardsList);
     }
 
     // set up ui->frameCentralArea
@@ -113,6 +135,14 @@ void MainWindow::setUpWidgets() {
     }
 
     //
+    buttonOpenMenu->setStyleSheet(
+            "QToolButton {"
+            "  border: none;"
+            "  background: transparent;"
+            "}"
+            "QToolButton:hover {"
+            "  background: #e0e0e0;"
+            "}");
     noBoardOpenSign->setStyleSheet(
             "QLabel {"
             "  color: #808080;"
@@ -122,6 +152,13 @@ void MainWindow::setUpWidgets() {
 }
 
 void MainWindow::setUpConnections() {
+    // buttonOpenMenu
+    connect(buttonOpenMenu, &QToolButton::clicked, this, [this]() {
+        const auto w = buttonOpenMenu->width();
+        mainMenu->popup(buttonOpenMenu->mapToGlobal({w, 0}));
+    });
+
+    // boardsList
     connect(boardsList, &BoardsList::boardSelected,
             this, [this](int newBoardId, int /*previousBoardId*/) {
         onBoardSelectedByUser(newBoardId);
@@ -175,11 +212,20 @@ void MainWindow::setUpConnections() {
     });
 }
 
-void MainWindow::setKeyboardShortcuts() {
-    {
-        auto *shortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q), this);
-        connect(shortcut, &QShortcut::activated, this, [this]() { close(); });
-    }
+void MainWindow::setUpActions() {
+    actionQuit = new QAction("Quit", this);
+    this->addAction(actionQuit);
+    actionQuit->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q));
+    connect(actionQuit, &QAction::triggered, this, [this]() {
+        close();
+    });
+}
+
+void MainWindow::setUpMainMenu() {
+
+
+    mainMenu->addSeparator();
+    mainMenu->addAction(actionQuit);
 }
 
 void MainWindow::onShownForFirstTime() {

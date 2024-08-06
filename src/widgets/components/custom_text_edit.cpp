@@ -14,6 +14,7 @@ CustomTextEdit::CustomTextEdit(QWidget *parent)
     layout->addWidget(textEdit);
 
     textEdit->setFrameShape(QFrame::NoFrame);
+    textEdit->setAcceptRichText(false);
 
     connect(textEdit, &QTextEdit::textChanged, this, [this]() {
         if (textChangeIsByUser)
