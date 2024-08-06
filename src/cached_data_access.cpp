@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <QDateTime>
 #include <QReadLocker>
 #include <QWriteLocker>
@@ -112,6 +113,66 @@ void CachedDataAccess::queryRelationshipsFromToCards(
             },
             this
     );
+}
+
+void CachedDataAccess::getUserLabelsAndRelationshipTypes(
+        std::function<void (bool, const StringListPair &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    if (cache.userLabelsList.has_value() && cache.userRelTypesList.has_value()) {
+        invokeAction(callbackContext, [this, callback]() {
+            callback(true, {cache.userLabelsList.value(), cache.userRelTypesList.value()});
+        });
+        return;
+    }
+
+    //
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QStringList labels;
+        QStringList relTypes;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    routine->addStep([this, routine]() {
+        // read DB
+        queuedDbAccess->getUserLabelsAndRelationshipTypes(
+                //callback
+                [this, routine](bool ok, const StringListPair &labelsAndRelTypes) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        context.setErrorFlag();
+                    }
+                    else {
+                        routine->labels = labelsAndRelTypes.first;
+                        std::sort(routine->labels.begin(), routine->labels.end());
+
+                        routine->relTypes = labelsAndRelTypes.second;
+                        std::sort(routine->relTypes.begin(), routine->relTypes.end());
+
+                        // update cache
+                        cache.userLabelsList = routine->labels;
+                        cache.userRelTypesList = routine->relTypes;
+                    }
+                },
+                this
+        );
+
+    }, this);
+
+    routine->addStep([routine, callback]() {
+        // final step
+        ContinuationContext context(routine);
+        if (routine->errorFlag)
+            callback(false, {QStringList(), QStringList()});
+        else
+            callback(true, {routine->labels, routine->relTypes});
+    }, callbackContext);
+
+    routine->start();
 }
 
 void CachedDataAccess::requestNewCardId(

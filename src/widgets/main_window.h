@@ -33,7 +33,7 @@ private:
     BoardView *boardView {nullptr};
 
     QLabel *noBoardOpenSign {nullptr};
-    QToolButton *buttonOpenMenu {nullptr};
+    QToolButton *buttonOpenMainMenu {nullptr};
 
     // menus and actions
     QMenu *mainMenu;
@@ -68,6 +68,8 @@ private:
 
     void saveTopLeftPosOfCurrentBoard(std::function<void (bool ok)> callback);
     void saveBoardsOrdering(std::function<void (bool ok)> callback);
+
+    void showRelationshipTypesDialog();
 };
 
 #endif // MAIN_WINDOW_H

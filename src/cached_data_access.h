@@ -51,6 +51,11 @@ public:
             std::function<void (bool, const QHash<RelId, RelProperties> &)> callback,
             QPointer<QObject> callbackContext);
 
+    using StringListPair = std::pair<QStringList, QStringList>;
+    void getUserLabelsAndRelationshipTypes(
+            std::function<void (bool ok, const StringListPair &labelsAndRelTypes)> callback,
+            QPointer<QObject> callbackContext);
+
     void requestNewCardId(
             std::function<void (std::optional<int> cardId)> callback,
             QPointer<QObject> callbackContext);
@@ -141,6 +146,9 @@ private:
         QHash<int, Board> boards;
         QHash<int, Card> cards;
         QHash<RelationshipId, RelationshipProperties> relationships;
+
+        std::optional<QStringList> userLabelsList; // sorted
+        std::optional<QStringList> userRelTypesList; // sorted
     };
     Cache cache;
 

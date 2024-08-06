@@ -47,6 +47,10 @@ public:
             std::function<void (bool, const QHash<RelId, RelProperties> &)> callback,
             QPointer<QObject> callbackContext) override;
 
+    void getUserLabelsAndRelationshipTypes(
+            std::function<void (bool ok, const StringListPair &labelsAndRelTypes)> callback,
+            QPointer<QObject> callbackContext) override;
+
     void requestNewCardId(
             std::function<void (bool ok, int cardId)> callback,
             QPointer<QObject> callbackContext) override;

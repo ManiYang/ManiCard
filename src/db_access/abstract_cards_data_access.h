@@ -40,6 +40,11 @@ public:
             const QSet<int> &cardIds,
             std::function<void (bool ok, const QHash<RelId, RelProperties> &)> callback,
             QPointer<QObject> callbackContext) = 0;
+
+    using StringListPair = std::pair<QStringList, QStringList>;
+    virtual void getUserLabelsAndRelationshipTypes(
+            std::function<void (bool ok, const StringListPair &labelsAndRelTypes)> callback,
+            QPointer<QObject> callbackContext) = 0;
 };
 
 class AbstractCardsDataAccess : public AbstractCardsDataAccessReadOnly

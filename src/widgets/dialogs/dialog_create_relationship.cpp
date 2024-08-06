@@ -6,14 +6,15 @@
 #include "ui_dialog_create_relationship.h"
 
 DialogCreateRelationship::DialogCreateRelationship(
-        const int cardId_, const QString &cardTitle, QWidget *parent)
+        const int cardId_, const QString &cardTitle,
+        const QStringList relationshipTypesList, QWidget *parent)
             : QDialog(parent)
             , ui(new Ui::DialogCreateRelationship)
             , cardId(cardId_) {
     ui->setupUi(this);
     setWindowTitle("Create Relationship");
 
-    setUpWidgets(cardTitle);
+    setUpWidgets(cardTitle, relationshipTypesList);
     setUpConnections();
 
     validate();
@@ -44,7 +45,8 @@ std::optional<RelationshipId> DialogCreateRelationship::getRelationshipId() cons
         return {};
 }
 
-void DialogCreateRelationship::setUpWidgets(const QString &cardTitle) {
+void DialogCreateRelationship::setUpWidgets(
+        const QString &cardTitle, const QStringList &relTypesList) {
     ui->labelCardIdAndTitle->setText(QString("Card %1 (<b>%2</b>)").arg(cardId).arg(cardTitle));
 
     ui->lineEdit->setValidator(new QIntValidator(0, std::numeric_limits<int>::max(), this));
@@ -52,15 +54,7 @@ void DialogCreateRelationship::setUpWidgets(const QString &cardTitle) {
     ui->radioButtonFrom->setChecked(true);
     setToFromState();
 
-    ui->comboBoxRelType->addItems(QStringList {
-//            RelationshipType::has,
-//            RelationshipType::groupItem, RelationshipType::item,
-//            RelationshipType::hasDependant,
-//            RelationshipType::referesTo,
-//            RelationshipType::implements,
-//            RelationshipType::remindWhen,
-//            RelationshipType::do_, RelationshipType::when, RelationshipType::constrains
-    });
+    ui->comboBoxRelType->addItems(relTypesList);
 
     ui->labelWarningMsg->setStyleSheet("QLabel { color: red; }");
 }

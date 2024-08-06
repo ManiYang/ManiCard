@@ -20,3 +20,15 @@ QMessageBox *createWarningMessageBox(QWidget *parent, const QString &title, cons
     messageBox->setStandardButtons(QMessageBox::Ok);
     return messageBox;
 }
+
+void showInformationMessageBox(QWidget *parent, const QString &title, const QString &text) {
+    auto *msgBox = createInformationMessageBox(parent, title, text);
+    msgBox->exec();
+    msgBox->deleteLater();
+}
+
+void showWarningMessageBox(QWidget *parent, const QString &title, const QString &text) {
+    auto *msgBox = createWarningMessageBox(parent, title, text);
+    msgBox->exec();
+    msgBox->deleteLater();
+}
