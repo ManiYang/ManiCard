@@ -78,6 +78,7 @@ private:
 
     void userToOpenExistingCard(const QPointF &scenePos);
     void userToCreateNewCard(const QPointF &scenePos);
+    void userToSetLabels(const int cardId);
     void userToCreateRelationship(const int cardId);
     void userToCloseNodeRect(const int cardId);
 
@@ -102,7 +103,8 @@ private:
         //!
         NodeRect *createNodeRect(
                 const int cardId, const Card &cardData,
-                const NodeRectData &nodeRectData, const bool saveCreatedNodeRectData);
+                const NodeRectData &nodeRectData, const bool saveCreatedNodeRectData,
+                const QStringList &userLabelsList);
 
         //!
         //! Does not check NodeRect::canClose().

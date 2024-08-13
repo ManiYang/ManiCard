@@ -37,7 +37,8 @@ public:
     void setMarginWidth(const double width);
     void setBorderWidth(const double width);
 
-    void setNodeLabels(const QSet<QString> &labels);
+    void setNodeLabels(const QStringList &labels);
+    void setNodeLabels(const QVector<QString> &labels);
     void setTitle(const QString &title);
     void setText(const QString &text);
 
@@ -51,6 +52,7 @@ public:
     QRectF getRect() const;
 
     int getCardId() const;
+    QSet<QString> getNodeLabels() const;
     QString getTitle() const;
     QString getText() const;
 
@@ -72,6 +74,7 @@ signals:
     //!
     void saveTitleTextUpdate(const StringOpt &updatedTitle, const StringOpt &updatedText);
 
+    void userToSetLabels();
     void userToCreateRelationship();
     void closeByUser();
 
@@ -86,7 +89,7 @@ private:
     QColor color {160, 160, 160};
     double marginWidth {1.0};
     double borderWidth {5.0};
-    QSet<QString> nodeLabels;
+    QStringList nodeLabels;
     const int cardId;
 
     bool isEditable {true};
@@ -125,7 +128,7 @@ private:
 
     // tools
     QGraphicsView *getView(); // can be nullptr
-    static QString getNodeLabelsString(const QSet<QString> &labels);
+    static QString getNodeLabelsString(const QStringList &labels);
 };
 
 #endif // NODERECT_H

@@ -78,8 +78,13 @@ void NodeRect::setBorderWidth(const double width) {
     redraw();
 }
 
-void NodeRect::setNodeLabels(const QSet<QString> &labels) {
+void NodeRect::setNodeLabels(const QStringList &labels) {
     nodeLabels = labels;
+    adjustChildItems();
+}
+
+void NodeRect::setNodeLabels(const QVector<QString> &labels) {
+    nodeLabels = QStringList(labels.constBegin(), labels.constEnd());
     adjustChildItems();
 }
 
@@ -118,6 +123,10 @@ QRectF NodeRect::getRect() const {
 
 int NodeRect::getCardId() const {
     return cardId;
+}
+
+QSet<QString> NodeRect::getNodeLabels() const {
+    return QSet<QString>(nodeLabels.constBegin(), nodeLabels.constEnd());
 }
 
 QString NodeRect::getTitle() const {
@@ -176,6 +185,13 @@ void NodeRect::installEventFilterOnChildItems() {
 }
 
 void NodeRect::setUpContextMenu() {
+    {
+        auto *action = contextMenu->addAction(
+                QIcon(":/icons/label_black_24"), "Set Labels...");
+        connect(action, &QAction::triggered, this, [this]() {
+            emit userToSetLabels();
+        });
+    }
     {
         auto *action = contextMenu->addAction(
                 QIcon(":/icons/arrow_right_black_24"), "Create Relationship...");
@@ -439,13 +455,9 @@ QGraphicsView *NodeRect::getView() {
         return nullptr;
 }
 
-QString NodeRect::getNodeLabelsString(const QSet<QString> &labels) {
-    QStringList nodeLabelsList(labels.constBegin(), labels.constEnd());
-    std::sort(nodeLabelsList.begin(), nodeLabelsList.end());
-
-    for (QString &label: nodeLabelsList) {
-        label = ":" + label;
-    }
-
-    return nodeLabelsList.join(" ");
+QString NodeRect::getNodeLabelsString(const QStringList &labels) {
+    QStringList labels2;
+    for (const QString &label: labels)
+        labels2 << (":" + label);
+    return labels2.join(" ");
 }

@@ -10,5 +10,6 @@
         <file alias="arrow_east_24">resources/icons/arrow_east_24.png</file>
         <file alias="arrow_west_24">resources/icons/arrow_west_24.png</file>
         <file alias="menu4_black_24">resources/icons/menu4_black_24.png</file>
+        <file alias="label_black_24">resources/icons/label_black_24.png</file>
     </qresource>
 </RCC>

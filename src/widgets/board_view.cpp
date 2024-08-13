@@ -9,6 +9,7 @@
 #include "services.h"
 #include "utilities/async_routine.h"
 #include "utilities/geometry_util.h"
+#include "utilities/lists_vectors_util.h"
 #include "utilities/maps_util.h"
 #include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
@@ -17,6 +18,7 @@
 #include "widgets/components/graphics_scene.h"
 #include "widgets/components/node_rect.h"
 #include "widgets/dialogs/dialog_create_relationship.h"
+#include "widgets/dialogs/dialog_set_labels.h"
 
 using StringOpt = std::optional<QString>;
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
@@ -55,11 +57,26 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
+        QStringList userLabelsList;
         Board board;
         QHash<int, Card> cardsData;
         QHash<RelationshipId, RelationshipProperties> relationshipsData;
     };
     auto *routine = new AsyncRoutineWithVars;
+
+    routine->addStep([this, routine]() {
+        // 0. get the list of user-defined labels
+        using StringListPair = std::pair<QStringList, QStringList>;
+        Services::instance()->getCachedDataAccess()->getUserLabelsAndRelationshipTypes(
+                // callback
+                [routine](bool ok, const StringListPair &labelsAndRelTypes) {
+                    ContinuationContext context(routine);
+                    if (ok)
+                        routine->userLabelsList = labelsAndRelTypes.first;
+                },
+                this
+        );
+    }, this);
 
     routine->addStep([this, routine, boardIdToLoad]() {
         // 1. get board data
@@ -114,7 +131,8 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
 
             constexpr bool saveNodeRectData = false;
             NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
-                    cardId, cardData, nodeRectData, saveNodeRectData);
+                    cardId, cardData, nodeRectData, saveNodeRectData,
+                    routine->userLabelsList);
             nodeRect->setEditable(true);
         }
 
@@ -315,6 +333,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
+        QStringList userLabelsList;
         int newCardId;
         Card card;
         QString errorMsg;
@@ -322,6 +341,20 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
     auto *routine = new AsyncRoutineWithVars;
 
     //
+    routine->addStep([this, routine]() {
+        // 0. get the list of user-defined labels
+        using StringListPair = std::pair<QStringList, QStringList>;
+        Services::instance()->getCachedDataAccess()->getUserLabelsAndRelationshipTypes(
+                // callback
+                [routine](bool ok, const StringListPair &labelsAndRelTypes) {
+                    ContinuationContext context(routine);
+                    if (ok)
+                        routine->userLabelsList = labelsAndRelTypes.first;
+                },
+                this
+        );
+    }, this);
+
     routine->addStep([routine]() {
         // 1. request new card ID
         Services::instance()->getCachedDataAccess()->requestNewCardId(
@@ -374,7 +407,8 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
         }
         constexpr bool saveNodeRectData = true;
         NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
-                routine->newCardId, routine->card, nodeRectData, saveNodeRectData);
+                routine->newCardId, routine->card, nodeRectData, saveNodeRectData,
+                routine->userLabelsList);
         nodeRect->setEditable(true);
 
         adjustSceneRect();
@@ -392,6 +426,96 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
     routine->start();
 }
 
+void BoardView::userToSetLabels(const int cardId) {
+    Q_ASSERT(nodeRectsCollection.contains(cardId));
+    using StringListPair = std::pair<QStringList, QStringList>;
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QStringList userCardLabelsList;
+        std::optional<QStringList> updatedLabels;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // get user-defined labels list
+        Services::instance()->getCachedDataAccess()->getUserLabelsAndRelationshipTypes(
+                // callback
+                [routine](bool ok, const StringListPair &labelsAndRelTypes) {
+                    ContinuationContext context(routine);
+                    if (ok)
+                        routine->userCardLabelsList = labelsAndRelTypes.first;
+                },
+                this
+        );
+    }, this);
+
+    //
+    routine->addStep([this, routine, cardId]() {
+        // show dialog, get updated labels
+        auto *dialog = new DialogSetLabels(
+                nodeRectsCollection.get(cardId)->getNodeLabels(),
+                routine->userCardLabelsList, this);
+
+        connect(dialog, &QDialog::finished, this, [dialog, routine](int result) {
+            if (result == QDialog::Accepted) {
+                routine->updatedLabels = dialog->getLabels();
+                routine->nextStep();
+            }
+            else {
+                routine->skipToFinalStep();
+            }
+            dialog->deleteLater();
+        });
+
+        dialog->open();
+    }, this);
+
+    routine->addStep([this, routine, cardId]() {
+        // update labels in node rect
+        ContinuationContext context(routine);
+        Q_ASSERT(routine->updatedLabels.has_value());
+        nodeRectsCollection.get(cardId)->setNodeLabels(
+                routine->updatedLabels.value_or(QStringList {}));
+    }, this);
+
+    routine->addStep([this, routine, cardId]() {
+        // save to DB
+        Q_ASSERT(routine->updatedLabels.has_value());
+        const auto updatedLabels = routine->updatedLabels.value_or(QStringList {});
+        Services::instance()->getCachedDataAccess()->updateCardLabels(
+                cardId, QSet<QString>(updatedLabels.constBegin(), updatedLabels.constEnd()),
+                // callback
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg
+                                = QString("Could not save updated card labels to DB.\n\n"
+                                          "There is unsaved update. See %1")
+                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
+
+        if (routine->errorFlag)
+            showWarningMessageBox(this, " ", routine->errorMsg);
+
+    }, this);
+
+    //
+    routine->start();
+}
+
 void BoardView::userToCreateRelationship(const int cardId) {
     Q_ASSERT(nodeRectsCollection.contains(cardId));
     using StringListPair = std::pair<QStringList, QStringList>;
@@ -406,6 +530,7 @@ void BoardView::userToCreateRelationship(const int cardId) {
 
     //
     routine->addStep([this, routine]() {
+        // get user-defined rel. types list
         Services::instance()->getCachedDataAccess()->getUserLabelsAndRelationshipTypes(
                 // callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
@@ -597,12 +722,27 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
+        QStringList userLabelsList;
         Card cardData;
         QHash<RelationshipId, RelationshipProperties> rels;
     };
     auto *routine = new AsyncRoutineWithVars;
 
     //
+    routine->addStep([this, routine]() {
+        // get the list of user-defined labels
+        using StringListPair = std::pair<QStringList, QStringList>;
+        Services::instance()->getCachedDataAccess()->getUserLabelsAndRelationshipTypes(
+                // callback
+                [routine](bool ok, const StringListPair &labelsAndRelTypes) {
+                    ContinuationContext context(routine);
+                    if (ok)
+                        routine->userLabelsList = labelsAndRelTypes.first;
+                },
+                this
+        );
+    }, this);
+
     routine->addStep([this, routine, cardId]() {
         // query card
         Services::instance()->getCachedDataAccess()->queryCards(
@@ -642,7 +782,8 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
         }
         constexpr bool saveNodeRectData = true;
         auto *nodeRect = nodeRectsCollection.createNodeRect(
-                cardId, routine->cardData, nodeRectData, saveNodeRectData);
+                cardId, routine->cardData, nodeRectData, saveNodeRectData,
+                routine->userLabelsList);
         nodeRect->setEditable(true);
 
         adjustSceneRect();
@@ -762,7 +903,7 @@ QSet<RelationshipId> BoardView::getEdgeArrowsConnectingNodeRect(const int cardId
 
 NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         const int cardId, const Card &cardData, const NodeRectData &nodeRectData,
-        const bool saveCreatedNodeRectData) {
+        const bool saveCreatedNodeRectData, const QStringList &userLabelsList) {
     Q_ASSERT(!cardIdToNodeRect.contains(cardId));
 
     auto *nodeRect = new NodeRect(cardId);
@@ -771,7 +912,12 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
     nodeRect->setZValue(zValueForNodeRects);
     nodeRect->initialize();
 
-    nodeRect->setNodeLabels(cardData.getLabels());
+    nodeRect->setNodeLabels(
+            sortByOrdering(
+                    cardData.getLabels(),
+                    QVector<QString>(userLabelsList.begin(), userLabelsList.end()),
+                    false
+            ));
     nodeRect->setTitle(cardData.title);
     nodeRect->setText(cardData.text);
 
@@ -837,6 +983,12 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
                         nodeRectPtr->finishedSaveTitleText();
                 }
         );
+    });
+
+    QObject::connect(nodeRect, &NodeRect::userToSetLabels, boardView, [this, nodeRectPtr]() {
+        if (!nodeRectPtr)
+            return;
+        boardView->userToSetLabels(nodeRectPtr->getCardId());
     });
 
     QObject::connect(nodeRect, &NodeRect::userToCreateRelationship,
