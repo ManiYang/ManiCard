@@ -16,6 +16,7 @@
 #include "utilities/periodic_checker.h"
 #include "widgets/board_view.h"
 #include "widgets/boards_list.h"
+#include "widgets/dialogs/dialog_user_card_labels.h"
 #include "widgets/dialogs/dialog_user_relationship_types.h"
 
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
@@ -233,10 +234,7 @@ void MainWindow::setUpMainMenu() {
         {
             menu->addAction(
                     "Labels...",
-                    this, [this]() {
-                        // show labels list dialog ...............
-
-                    }
+                    this, [this]() { showCardLabelsDialog(); }
             );
             menu->addAction(
                     "Relationship Types...",
@@ -759,6 +757,83 @@ void MainWindow::saveBoardsOrdering(std::function<void (bool ok)> callback) {
     );
 }
 
+void MainWindow::showCardLabelsDialog() {
+    using StringListPair = std::pair<QStringList, QStringList>;
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QStringList labels;
+        QStringList updatedLabels;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // get relationship types list
+        Services::instance()->getCachedDataAccess()->getUserLabelsAndRelationshipTypes(
+                //callback
+                [routine](bool ok, const StringListPair &labelsAndRelTypes) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg = "Could not get the list of user-defined card labels";
+                    }
+                    else {
+                        routine->labels = labelsAndRelTypes.first;
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // show dialog
+        auto *dialog = new DialogUserCardLabels(routine->labels, this);
+        connect(dialog, &QDialog::finished, this, [routine, dialog]() {
+            ContinuationContext context(routine);
+            routine->updatedLabels = dialog->getLabelsList();
+            dialog->deleteLater();
+        });
+        dialog->open();
+    }, this);
+
+    routine->addStep([this, routine]() {
+        if (routine->updatedLabels == routine->labels) {
+            routine->nextStep();
+            return;
+        }
+
+        // write DB
+        Services::instance()->getCachedDataAccess()->updateUserCardLabels(
+                routine->updatedLabels,
+                // callback
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg
+                                = QString("Could not save user-defined card labels to DB.\n\n"
+                                          "There is unsaved update. See %1")
+                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
+        if (routine->errorFlag)
+            showWarningMessageBox(this, " ", routine->errorMsg);
+    }, this);
+
+    routine->start();
+}
+
 void MainWindow::showRelationshipTypesDialog() {
     using StringListPair = std::pair<QStringList, QStringList>;
 
@@ -781,7 +856,8 @@ void MainWindow::showRelationshipTypesDialog() {
 
                     if (!ok) {
                         context.setErrorFlag();
-                        routine->errorMsg = "Could not get the list of relationship types";
+                        routine->errorMsg
+                                = "Could not get the list of user-defined relationship types";
                     }
                     else {
                         routine->relTypes = labelsAndRelTypes.second;
@@ -798,7 +874,6 @@ void MainWindow::showRelationshipTypesDialog() {
             ContinuationContext context(routine);
             routine->updatedRelTypes = dialog->getRelationshipTypesList();
             dialog->deleteLater();
-
         });
         dialog->open();
     }, this);

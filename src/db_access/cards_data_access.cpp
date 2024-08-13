@@ -606,3 +606,40 @@ void CardsDataAccess::updateUserRelationshipTypes(
             callbackContext
     );
 }
+
+void CardsDataAccess::updateUserCardLabels(
+        const QStringList &updatedCardLabels, std::function<void (bool)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MERGE (u:UserSettings)
+                    SET u.labelsList = $labelsList
+                    RETURN u
+                )!",
+                QJsonObject {
+                        {"labelsList", toJsonArray(updatedCardLabels)},
+                }
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                if (result.isEmpty()) {
+                    qWarning().noquote() << "result has no record";
+                    callback(false);
+                    return;
+                }
+
+                qInfo().noquote() << "updated userSettings.labelsList";
+                callback(true);
+            },
+            callbackContext
+    );
+}

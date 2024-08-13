@@ -95,6 +95,13 @@ public:
     virtual void updateUserRelationshipTypes(
             const QStringList &updatedRelTypes, std::function<void (bool ok)> callback,
             QPointer<QObject> callbackContext) = 0;
+
+    //!
+    //! This operation is atomic.
+    //!
+    virtual void updateUserCardLabels(
+            const QStringList &updatedCardLabels, std::function<void (bool ok)> callback,
+            QPointer<QObject> callbackContext) = 0;
 };
 
 #endif // ABSTRACT_CARDS_DATA_ACCESS_H

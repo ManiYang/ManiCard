@@ -614,6 +614,40 @@ void CachedDataAccess::updateUserRelationshipTypes(
     );
 }
 
+void CachedDataAccess::updateUserCardLabels(
+        const QStringList &updatedCardLabels, std::function<void (bool)> callback,
+        QPointer<QObject> callbackContext) {
+    // 1. update cache
+    cache.userLabelsList = updatedCardLabels;
+
+    // 2. write DB
+    const int requestId = startWriteRequest();
+
+    queuedDbAccess->updateUserCardLabels(
+            updatedCardLabels,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "updateUserCardLabels";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"updatedCardLabels", toJsonArray(updatedCardLabels)}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+                }
+
+                //
+                invokeAction(callbackContext, [callback, ok]() {
+                    callback(ok);
+                });
+
+                //
+                finishWriteRequest(requestId);
+            },
+            this
+    );
+}
+
 void CachedDataAccess::updateBoardsListProperties(
         const BoardsListPropertiesUpdate &propertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {

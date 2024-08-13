@@ -46,6 +46,7 @@ SOURCES += \
     widgets/components/graphics_scene.cpp \
     widgets/components/node_rect.cpp \
     widgets/dialogs/dialog_create_relationship.cpp \
+    widgets/dialogs/dialog_user_card_labels.cpp \
     widgets/dialogs/dialog_user_relationship_types.cpp \
     widgets/main_window.cpp
 
@@ -96,11 +97,13 @@ HEADERS += \
     widgets/components/graphics_scene.h \
     widgets/components/node_rect.h \
     widgets/dialogs/dialog_create_relationship.h \
+    widgets/dialogs/dialog_user_card_labels.h \
     widgets/dialogs/dialog_user_relationship_types.h \
     widgets/main_window.h
 
 FORMS += \
     widgets/dialogs/dialog_create_relationship.ui \
+    widgets/dialogs/dialog_user_card_labels.ui \
     widgets/dialogs/dialog_user_relationship_types.ui \
     widgets/main_window.ui
 

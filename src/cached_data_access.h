@@ -109,6 +109,10 @@ public:
             const QStringList &updatedRelTypes, std::function<void (bool ok)> callback,
             QPointer<QObject> callbackContext);
 
+    void updateUserCardLabels(
+            const QStringList &updatedCardLabels, std::function<void (bool ok)> callback,
+            QPointer<QObject> callbackContext);
+
     void updateBoardsListProperties(
             const BoardsListPropertiesUpdate &propertiesUpdate,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);

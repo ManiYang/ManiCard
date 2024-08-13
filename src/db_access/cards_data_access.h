@@ -57,6 +57,10 @@ public:
             const QStringList &updatedRelTypes, std::function<void (bool ok)> callback,
             QPointer<QObject> callbackContext) override;
 
+    void updateUserCardLabels(
+            const QStringList &updatedCardLabels, std::function<void (bool ok)> callback,
+            QPointer<QObject> callbackContext) override;
+
 private:
     Neo4jHttpApiClient *neo4jHttpApiClient;
 };

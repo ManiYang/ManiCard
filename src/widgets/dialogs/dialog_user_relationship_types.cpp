@@ -1,3 +1,5 @@
+#include <QMessageBox>
+#include <QRegularExpression>
 #include "dialog_user_relationship_types.h"
 #include "ui_dialog_user_relationship_types.h"
 
@@ -8,7 +10,6 @@ DialogUserRelationshipTypes::DialogUserRelationshipTypes(const QStringList relTy
     setUpConnections();
 
     setWindowTitle("Relationship Types");
-
     ui->listWidget->addItems(relTypes);
 }
 
@@ -24,11 +25,24 @@ QStringList DialogUserRelationshipTypes::getRelationshipTypesList() const {
 }
 
 void DialogUserRelationshipTypes::setUpConnections() {
+    static QRegularExpression re("^[a-zA-Z_][a-zA-Z0-9_]*$");
+
     connect(ui->pushButtonAdd, &QPushButton::clicked, this, [this]() {
-        const QString newRelType = ui->lineEdit->text().trimmed().toUpper();
+        QString newRelType = ui->lineEdit->text().trimmed();
         if (newRelType.isEmpty())
             return;
 
+        // validate
+        if (!re.match(newRelType).hasMatch()) {
+            QMessageBox::warning(
+                    this, " ", QString("\"%1\" does not satisfy the naming rules").arg(newRelType));
+            return;
+        }
+
+        //
+        newRelType = newRelType.toUpper();
+
+        // already exists?
         const auto found = ui->listWidget->findItems(
                 newRelType, Qt::MatchFixedString | Qt::MatchCaseSensitive);
         if (!found.isEmpty()) {

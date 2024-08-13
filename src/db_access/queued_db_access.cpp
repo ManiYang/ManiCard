@@ -215,6 +215,26 @@ void QueuedDbAccess::updateUserRelationshipTypes(
     addToQueue(func);
 }
 
+void QueuedDbAccess::updateUserCardLabels(
+        const QStringList &updatedCardLabels, std::function<void (bool)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(updatedCardLabels) // input types
+                >(
+            [this](auto... args) {
+                cardsDataAccess->updateUserCardLabels(args...); // method
+            },
+            updatedCardLabels, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
 void QueuedDbAccess::getBoardIdsAndNames(
         std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
         QPointer<QObject> callbackContext) {

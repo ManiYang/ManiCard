@@ -69,6 +69,7 @@ private:
     void saveTopLeftPosOfCurrentBoard(std::function<void (bool ok)> callback);
     void saveBoardsOrdering(std::function<void (bool ok)> callback);
 
+    void showCardLabelsDialog();
     void showRelationshipTypesDialog();
 };
 
