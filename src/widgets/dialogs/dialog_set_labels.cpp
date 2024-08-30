@@ -23,6 +23,8 @@ DialogSetLabels::DialogSetLabels(
     const QStringList initCardLabelsList(initCardLabelsVec.begin(), initCardLabelsVec.end());
 
     ui->listWidgetCurrentCardLabels->addItems(initCardLabelsList);
+    ui->pushButtonRemove->setEnabled(
+            ui->listWidgetCurrentCardLabels->currentItem() != nullptr);
     updateLabelsList(initCardLabelsList);
 
     //
@@ -89,6 +91,12 @@ void DialogSetLabels::setUpConnections() {
             this, [this](QListWidgetItem *item) {
         addLabelToCurrentCardLabels(item->text());
         updateLabelsList(getCurrentCardLabels());
+    });
+
+    //
+    connect(ui->listWidgetCurrentCardLabels, &QListWidget::currentItemChanged,
+            this, [this](QListWidgetItem *currentItem, QListWidgetItem */*previous*/) {
+        ui->pushButtonRemove->setEnabled(currentItem != nullptr);
     });
 }
 
