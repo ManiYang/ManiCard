@@ -903,11 +903,7 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
     nodeRect->initialize();
 
     nodeRect->setNodeLabels(
-            sortByOrdering(
-                    cardData.getLabels(),
-                    QVector<QString>(userLabelsList.begin(), userLabelsList.end()),
-                    false
-            ));
+            sortByOrdering(cardData.getLabels(), userLabelsList, false));
     nodeRect->setTitle(cardData.title);
     nodeRect->setText(cardData.text);
 

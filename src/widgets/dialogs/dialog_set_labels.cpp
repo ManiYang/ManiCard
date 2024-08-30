@@ -17,9 +17,7 @@ DialogSetLabels::DialogSetLabels(
 
     //
     const QVector<QString> initCardLabelsVec = sortByOrdering(
-            initialCardLabels,
-            QVector<QString>(userDefinedLabelsList.begin(), userDefinedLabelsList.end()),
-            false);
+            initialCardLabels, userDefinedLabelsList, false);
     const QStringList initCardLabelsList(initCardLabelsVec.begin(), initCardLabelsVec.end());
 
     ui->listWidgetCurrentCardLabels->addItems(initCardLabelsList);
@@ -102,10 +100,8 @@ void DialogSetLabels::setUpConnections() {
 
 void DialogSetLabels::addLabelToCurrentCardLabels(const QString &label) {
     const QStringList labels = getCurrentCardLabels() << label;
-    const QVector<QString> labelsVec = sortByOrdering(
-            labels,
-            QVector<QString>(userDefinedLabelsList.begin(), userDefinedLabelsList.end()),
-            false);
+    const QVector<QString> labelsVec
+            = sortByOrdering(labels, userDefinedLabelsList, false);
     ui->listWidgetCurrentCardLabels->clear();
     ui->listWidgetCurrentCardLabels->addItems(QStringList(labelsVec.begin(), labelsVec.end()));
 
