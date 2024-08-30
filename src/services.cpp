@@ -87,6 +87,11 @@ CachedDataAccess *Services::getCachedDataAccess() const {
     return cachedDataAccess;
 }
 
-QString Services::getUnsavedUpdateFilePath() const {
-    return unsavedUpdateFilePath;
+//QString Services::getUnsavedUpdateFilePath() const {
+//    return unsavedUpdateFilePath;
+//}
+
+QString Services::errorMsgOnUnsavedUpdate(const QString &what) const {
+    return QString("Could not save %1 to DB.\n\nThere is unsaved update. See %2")
+           .arg(what, unsavedUpdateFilePath);
 }

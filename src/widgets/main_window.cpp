@@ -181,10 +181,8 @@ void MainWindow::setUpConnections() {
                 // callback
                 [this](bool ok) {
                     if (!ok) {
-                        const auto msg
-                                = QString("Could not save board name to DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
+                                "board name");
                         showWarningMessageBox(this, " ", msg);
                     }
                 },
@@ -209,10 +207,7 @@ void MainWindow::setUpConnections() {
     connect(boardsList, &BoardsList::boardsOrderChanged, this, [this](QVector<int> /*boardIds*/) {
         saveBoardsOrdering([this](bool ok) {
             if (!ok) {
-                const auto msg
-                        = QString("Could not save boards ordering to DB.\n\n"
-                                  "There is unsaved update. See %1")
-                          .arg(Services::instance()->getUnsavedUpdateFilePath());
+                const auto msg = Services::instance()->errorMsgOnUnsavedUpdate("boards ordering");
                 showWarningMessageBox(this, " ", msg);
             }
         });
@@ -413,10 +408,8 @@ void MainWindow::prepareToClose() {
                     ContinuationContext context(routine);
 
                     if (!ok) {
-                        const auto msg
-                                = QString("Could not save last-opened board to DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
+                                "last-opened board");
                         showWarningMessageBox(this, " ", msg);
 
                         routine->hasUnsavedUpdate = true;
@@ -567,10 +560,8 @@ void MainWindow::onUserToCreateNewBoard() {
             ContinuationContext context(routine);
             if (!ok) {
                 context.setErrorFlag();
-                routine->errorMsg
-                        = QString("Could not save boards ordering to DB.\n\n"
-                                  "There is unsaved update. See %1")
-                          .arg(Services::instance()->getUnsavedUpdateFilePath());
+                routine->errorMsg = Services::instance()->errorMsgOnUnsavedUpdate(
+                        "boards ordering");
             }
         });
     }, this);
@@ -585,10 +576,8 @@ void MainWindow::onUserToCreateNewBoard() {
 
                     if (!ok) {
                         context.setErrorFlag();
-                        routine->errorMsg
-                                = QString("Could not save created board to DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        routine->errorMsg = Services::instance()->errorMsgOnUnsavedUpdate(
+                                "created board");
                     }
                 },
                 this
@@ -675,10 +664,7 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
             ContinuationContext context(routine);
             if (!ok) {
                 context.setErrorFlag();
-                routine->errorMsg
-                        = QString("Could not save boards ordering to DB.\n\n"
-                                  "There is unsaved update. See %1")
-                          .arg(Services::instance()->getUnsavedUpdateFilePath());
+                routine->errorMsg = Services::instance()->errorMsgOnUnsavedUpdate("boards ordering");
             }
         });
     }, this);
@@ -692,11 +678,8 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
                     ContinuationContext context(routine);
                     if (!ok) {
                         context.setErrorFlag();
-                        routine->errorMsg
-                                = QString("Could not remove board %1 from DB\n\n"
-                                          "There is unsaved update. See %2")
-                                  .arg(boardId)
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        routine->errorMsg = Services::instance()->errorMsgOnUnsavedUpdate(
+                                QString("removal of board %1").arg(boardId));
                     }
                 },
                 this
@@ -730,10 +713,8 @@ void MainWindow::saveTopLeftPosOfCurrentBoard(std::function<void (bool)> callbac
             // callback
             [this, callback](bool ok) {
                 if (!ok) {
-                    const auto msg
-                            = QString("Could not save board's top-left position to DB.\n\n"
-                                      "There is unsaved update. See %1")
-                              .arg(Services::instance()->getUnsavedUpdateFilePath());
+                    const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
+                            "board's top-left position");
                     showWarningMessageBox(this, " ", msg);
                 }
                 callback(ok);
@@ -814,10 +795,8 @@ void MainWindow::showCardLabelsDialog() {
                     ContinuationContext context(routine);
                     if (!ok) {
                         context.setErrorFlag();
-                        routine->errorMsg
-                                = QString("Could not save user-defined card labels to DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        routine->errorMsg = Services::instance()->errorMsgOnUnsavedUpdate(
+                                "user-defined card labels");
                     }
                 },
                 this
@@ -892,10 +871,8 @@ void MainWindow::showRelationshipTypesDialog() {
                     ContinuationContext context(routine);
                     if (!ok) {
                         context.setErrorFlag();
-                        routine->errorMsg
-                                = QString("Could not save user-defined relationship types to DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        routine->errorMsg = Services::instance()->errorMsgOnUnsavedUpdate(
+                                "user-defined relationship types");
                     }
                 },
                 this

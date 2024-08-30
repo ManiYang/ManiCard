@@ -30,7 +30,8 @@ public:
 
     CachedDataAccess *getCachedDataAccess() const;
 
-    QString getUnsavedUpdateFilePath() const;
+//    QString getUnsavedUpdateFilePath() const;
+    QString errorMsgOnUnsavedUpdate(const QString &what) const;
 
 private:
     QNetworkAccessManager *networkAccessManager {nullptr};

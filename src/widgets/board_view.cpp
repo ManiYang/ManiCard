@@ -387,9 +387,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
                     if (!ok) {
                         context.setErrorFlag();
                         routine->errorMsg
-                                = QString("Could not save created card to DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                                = Services::instance()->errorMsgOnUnsavedUpdate("created card");
                     }
                 },
                 this
@@ -494,9 +492,7 @@ void BoardView::userToSetLabels(const int cardId) {
                     if (!ok) {
                         context.setErrorFlag();
                         routine->errorMsg
-                                = QString("Could not save updated card labels to DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                                = Services::instance()->errorMsgOnUnsavedUpdate("updated card labels");
                     }
                 },
                 this
@@ -615,10 +611,8 @@ void BoardView::userToCreateRelationship(const int cardId) {
 
                     if (!ok) {
                         // (Don't set routine->errorFlag here. Continue to create EdgeArrow.)
-                        const auto msg
-                                = QString("Could not save created relationship to DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
+                                "created relationship");
                         showWarningMessageBox(this, " ", msg);
                         return;
                     }
@@ -703,10 +697,8 @@ void BoardView::userToCloseNodeRect(const int cardId) {
                 // callback
                 [this, routine](bool ok) {
                     if (!ok) {
-                        const auto msg
-                                = QString("Could not remove NodeRect from DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
+                                "the removal of NodeRect");
                         showWarningMessageBox(this, " ", msg);
                     }
                     routine->nextStep();
@@ -850,10 +842,8 @@ void BoardView::saveCardPropertiesUpdate(
             // callback
             [this, callback](bool ok) {
                 if (!ok) {
-                    const auto msg
-                            = QString("Could not save card properties to DB.\n\n"
-                                      "There is unsaved update. See %1")
-                              .arg(Services::instance()->getUnsavedUpdateFilePath());
+                    const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
+                            "card properties");
                     showWarningMessageBox(this, " ", msg);
                 }
 
@@ -953,10 +943,8 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
                 // callback
                 [this](bool ok) {
                     if (!ok) {
-                        const auto msg
-                                = QString("Could not save NodeRect's rect to DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
+                                "NodeRect's rect");
                         showWarningMessageBox(boardView, " ", msg);
                     }
                 },
@@ -1012,10 +1000,8 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
                 // callback
                 [this](bool ok) {
                     if (!ok) {
-                        const auto msg
-                                = QString("Could not save created NodeRect to DB.\n\n"
-                                          "There is unsaved update. See %1")
-                                  .arg(Services::instance()->getUnsavedUpdateFilePath());
+                        const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
+                                "created NodeRect");
                         showWarningMessageBox(boardView, " ", msg);
                     }
                 },

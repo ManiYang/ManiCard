@@ -10,6 +10,8 @@ public:
 
     void append(const QString &time, const QString &title, const QString &details);
 
+    QString getFilePath() const;
+
 private:
     const QString filePath;
 };

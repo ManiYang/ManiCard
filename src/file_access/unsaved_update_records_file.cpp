@@ -27,3 +27,7 @@ void UnsavedUpdateRecordsFile::append(
     }
     file.write("\n");
 }
+
+QString UnsavedUpdateRecordsFile::getFilePath() const {
+    return filePath;
+}
