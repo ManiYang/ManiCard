@@ -31,6 +31,7 @@ public:
 
 signals:
     void textEdited(bool heightChanged);
+    void clicked();
 
 private:
     GraphicsTextItemTweak *graphicsTextItem;
@@ -49,8 +50,12 @@ public:
             QPainter *painter, const QStyleOptionGraphicsItem *option,
             QWidget *widget) override;
 
+signals:
+    void mouseReleased();
+
 protected:
     void focusOutEvent(QFocusEvent *event) override;
+    void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 };
 
 #endif // GRAPHICSTEXTITEM_H

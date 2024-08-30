@@ -1,4 +1,5 @@
 #include <QDebug>
+#include <QGraphicsSceneMouseEvent>
 #include <QStyleOptionGraphicsItem>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -23,6 +24,10 @@ CustomGraphicsTextItem::CustomGraphicsTextItem(QGraphicsItem *parent)
         }
 
         emit textEdited(heightChanged);
+    });
+
+    connect(graphicsTextItem, &GraphicsTextItemTweak::mouseReleased, this, [this]() {
+        emit clicked();
     });
 }
 
@@ -92,4 +97,11 @@ void GraphicsTextItemTweak::focusOutEvent(QFocusEvent *event) {
     }
 
     QGraphicsTextItem::focusOutEvent(event);
+}
+
+void GraphicsTextItemTweak::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+    QGraphicsTextItem::mouseReleaseEvent(event);
+
+    if (event->button() == Qt::LeftButton)
+        emit mouseReleased();
 }

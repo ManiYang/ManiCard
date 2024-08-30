@@ -283,6 +283,14 @@ void BoardView::setUpConnections() {
         contextMenuData.requestScenePos = scenePos;
         contextMenu->popup(getScreenPosFromScenePos(scenePos));
     });
+
+    connect(graphicsScene, &GraphicsScene::clickedOnBackground,
+            this, [this]() {
+        const auto nodeRects = nodeRectsCollection.getAllNodeRects();
+        for (NodeRect *nodeRect: nodeRects) {
+            nodeRect->setHighlighted(false);
+        }
+    });
 }
 
 void BoardView::installEventFiltersOnComponents() {
@@ -946,6 +954,19 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
                 },
                 boardView
         );
+    });
+
+    QObject::connect(nodeRect, &NodeRect::clicked, boardView, [this, nodeRectPtr]() {
+        if (!nodeRectPtr)
+            return;
+
+        // highlight `nodeRectPtr` and un-highlight the other NodeRect's
+        if (nodeRectPtr->getIsHighlighted())
+            return;
+
+        for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it)
+            it.value()->setHighlighted(false);
+        nodeRectPtr->setHighlighted(true);
     });
 
     QObject::connect(nodeRect, &NodeRect::saveTitleTextUpdate,

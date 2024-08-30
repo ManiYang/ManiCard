@@ -163,6 +163,10 @@ void GraphicsScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
     switch (state) {
     case State::Normal:
         QGraphicsScene::mouseReleaseEvent(event); // perform default behavior
+        if (!event->isAccepted()) {
+            if (event->button() == Qt::LeftButton)
+                emit clickedOnBackground();
+        }
         return;
 
     case State::RightPressed:

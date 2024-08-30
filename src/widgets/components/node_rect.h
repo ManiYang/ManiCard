@@ -43,6 +43,7 @@ public:
     void setText(const QString &text);
 
     void setEditable(const bool editable);
+    void setHighlighted(const bool highlighted);
 
     //
     void finishedSaveTitleText(); // cf. signal saveTitleTextUpdate()
@@ -55,6 +56,7 @@ public:
     QSet<QString> getNodeLabels() const;
     QString getTitle() const;
     QString getText() const;
+    bool getIsHighlighted() const;
 
     bool canClose() const;
 
@@ -67,6 +69,8 @@ public:
 signals:
     void movedOrResized();
     void finishedMovingOrResizing();
+
+    void clicked();
 
     //!
     //! The receiver should start saving the properties update, and call
@@ -81,18 +85,22 @@ signals:
 protected:
     void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
     bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) override;
+    void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+    void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 
 private:
     QSizeF minSizeForResizing {100, 60};
 
     QRectF enclosingRect {QPointF(0, 0), QSizeF(90, 150)};
     QColor color {160, 160, 160};
-    double marginWidth {1.0};
+    double marginWidth {2.0};
     double borderWidth {5.0};
     QStringList nodeLabels;
     const int cardId;
 
     bool isEditable {true};
+    bool isHighlighted {false};
+    const double highlightBoxWidth {3.0};
 
     // child items
     QGraphicsRectItem *captionBarItem; // also serves as move handle
@@ -129,6 +137,7 @@ private:
     // tools
     QGraphicsView *getView(); // can be nullptr
     static QString getNodeLabelsString(const QStringList &labels);
+    static QColor getHighlightBoxColor(const QColor &color);
 };
 
 #endif // NODERECT_H

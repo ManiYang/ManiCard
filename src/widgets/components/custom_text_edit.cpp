@@ -1,3 +1,4 @@
+#include <QDebug>
 #include <QVBoxLayout>
 #include <QTextCursor>
 #include <QWheelEvent>
@@ -16,9 +17,13 @@ CustomTextEdit::CustomTextEdit(QWidget *parent)
     textEdit->setFrameShape(QFrame::NoFrame);
     textEdit->setAcceptRichText(false);
 
-    connect(textEdit, &QTextEdit::textChanged, this, [this]() {
+    connect(textEdit, &TextEditTweak::textChanged, this, [this]() {
         if (textChangeIsByUser)
             emit textEdited();
+    });
+
+    connect(textEdit, &TextEditTweak::mouseReleased, this, [this]() {
+        emit clicked();
     });
 }
 
@@ -65,4 +70,11 @@ void TextEditTweak::focusOutEvent(QFocusEvent *event) {
     }
 
     QTextEdit::focusOutEvent(event);
+}
+
+void TextEditTweak::mouseReleaseEvent(QMouseEvent *event) {
+    QTextEdit::mouseReleaseEvent(event);
+
+    if (event->button() == Qt::LeftButton)
+        emit mouseReleased();
 }

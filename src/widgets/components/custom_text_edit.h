@@ -30,6 +30,7 @@ public:
 
 signals:
     void textEdited();
+    void clicked();
 
 private:
     TextEditTweak *textEdit;
@@ -43,9 +44,13 @@ class TextEditTweak : public QTextEdit
 public:
     explicit TextEditTweak(QWidget *parent = nullptr);
 
+signals:
+    void mouseReleased();
+
 protected:
     void wheelEvent(QWheelEvent *event) override;
     void focusOutEvent(QFocusEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
 };
 
 #endif // TEXTEDIT_H

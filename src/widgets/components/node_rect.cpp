@@ -105,6 +105,13 @@ void NodeRect::setEditable(const bool editable) {
     textEdit->setReadOnly(!isEditable);
 }
 
+void NodeRect::setHighlighted(const bool highlighted) {
+    if (isHighlighted != highlighted) {
+        isHighlighted = highlighted;
+        update();
+    }
+}
+
 void NodeRect::finishedSaveTitleText() {
     QTimer::singleShot(0, this, [this]() {
         titleTextSaveDebouncer->saveFinished();
@@ -137,12 +144,16 @@ QString NodeRect::getText() const {
     return textEdit->toPlainText();
 }
 
+bool NodeRect::getIsHighlighted() const {
+    return isHighlighted;
+}
+
 bool NodeRect::canClose() const {
     return titleTextSaveDebouncer->isCleared();
 }
 
 QRectF NodeRect::boundingRect() const {
-    return enclosingRect;
+    return enclosingRect.marginsAdded(uniformMarginsF(marginWidth));
 }
 
 void NodeRect::paint(
@@ -153,9 +164,19 @@ void NodeRect::paint(
     painter->setBrush(color);
     painter->setPen(Qt::NoPen);
     const double radius = borderWidth;
-    painter->drawRoundedRect(
-            enclosingRect.marginsRemoved(uniformMarginsF(marginWidth)),
-            radius, radius);
+    painter->drawRoundedRect(enclosingRect, radius, radius);
+
+    // highlight box
+    if (isHighlighted) {
+        painter->setBrush(Qt::NoBrush);
+        painter->setPen(QPen(getHighlightBoxColor(color), highlightBoxWidth));
+        const double radius = borderWidth;
+        painter->drawRoundedRect(
+                enclosingRect
+                    .marginsAdded(uniformMarginsF(marginWidth))
+                    .marginsRemoved(uniformMarginsF(highlightBoxWidth / 2.0)),
+                radius, radius);
+    }
 
     //
     painter->restore();
@@ -166,16 +187,35 @@ void NodeRect::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 }
 
 bool NodeRect::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
-    if (event->type() == QEvent::GraphicsSceneContextMenu) {
-        if (watched == captionBarItem || watched == nodeLabelItem || watched == cardIdItem) {
+    if (watched == captionBarItem || watched == nodeLabelItem || watched == cardIdItem) {
+        if (event->type() == QEvent::GraphicsSceneContextMenu) {
             auto *e = dynamic_cast<QGraphicsSceneContextMenuEvent *>(event);
             const auto pos = e->screenPos();
             contextMenu->popup(pos);
             return true;
         }
+        else if (event->type() == QEvent::GraphicsSceneMouseRelease) {
+            emit clicked();
+        }
     }
 
     return false;
+}
+
+void NodeRect::mousePressEvent(QGraphicsSceneMouseEvent */*event*/) {
+    // do nothing
+
+    // This method is reimplemented so that
+    // 1. the mouse-press event is accepted and `this` becomes the mouse grabber, and
+    // 2. the later mouse-release event will be sent to `this` and will not "penetrate"
+    //    through `this` and reach the QGraphicsScene.
+}
+
+void NodeRect::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+    QGraphicsObject::mouseReleaseEvent(event);
+
+    if (event->button() == Qt::LeftButton)
+        emit clicked();
 }
 
 void NodeRect::installEventFilterOnChildItems() {
@@ -219,10 +259,18 @@ void NodeRect::setUpConnections() {
             adjustChildItems();
     });
 
+    connect(titleItem, &CustomGraphicsTextItem::clicked, this, [this]() {
+        emit clicked();
+    });
+
     //
     connect(textEdit, &CustomTextEdit::textEdited, this, [this]() {
         textEdited = true;
         titleTextSaveDebouncer->setUpdated();
+    });
+
+    connect(textEdit, &CustomTextEdit::clicked, this, [this]() {
+        emit clicked();
     });
 
     // ==== moveResizeHelper ====
@@ -316,7 +364,7 @@ void NodeRect::adjustChildItems() {
 
     //
     const auto borderInnerRect
-            = enclosingRect.marginsRemoved(uniformMarginsF(marginWidth + borderWidth));
+            = enclosingRect.marginsRemoved(uniformMarginsF(borderWidth));
 
     // caption bar
     double captionHeight = 0;
@@ -460,4 +508,18 @@ QString NodeRect::getNodeLabelsString(const QStringList &labels) {
     for (const QString &label: labels)
         labels2 << (":" + label);
     return labels2.join(" ");
+}
+
+QColor NodeRect::getHighlightBoxColor(const QColor &color) {
+    int h, s, v;
+    color.getHsv(&h, &s, &v);
+
+    if (h >= 180 && h <= 240
+            && s >= 50
+            && v >= 60) {
+        return QColor(90, 90, 90);
+    }
+    else {
+        return QColor(36, 128, 220); // hue = 210
+    }
 }
