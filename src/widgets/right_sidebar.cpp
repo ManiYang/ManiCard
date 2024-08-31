@@ -1,5 +1,6 @@
 #include <QVBoxLayout>
 #include "right_sidebar.h"
+#include "widgets/card_properties_view.h"
 #include "widgets/right_sidebar_toolbar.h"
 
 RightSidebar::RightSidebar(QWidget *parent)
@@ -9,7 +10,6 @@ RightSidebar::RightSidebar(QWidget *parent)
 }
 
 void RightSidebar::setUpWidgets() {
-
     auto *layout = new QVBoxLayout;
     setLayout(layout);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -19,8 +19,21 @@ void RightSidebar::setUpWidgets() {
         layout->addWidget(toolBar);
 
         //
-        layout->addStretch();
+        stackedWidget = new QStackedWidget;
+        layout->addWidget(stackedWidget);
+        {
+            cardPropertiesView = new CardPropertiesView;
+            stackedWidget->addWidget(cardPropertiesView);
+        }
+
+        stackedWidget->setCurrentWidget(cardPropertiesView);
     }
+
+    //
+    setStyleSheet(
+            "RightSidebar {"
+            "  background: white;"
+            "}");
 }
 
 void RightSidebar::setUpConnections() {

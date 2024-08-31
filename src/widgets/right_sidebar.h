@@ -2,7 +2,9 @@
 #define RIGHTSIDEBAR_H
 
 #include <QFrame>
+#include <QStackedWidget>
 
+class CardPropertiesView;
 class RightSidebarToolBar;
 
 class RightSidebar : public QFrame
@@ -16,6 +18,8 @@ signals:
 
 private:
     RightSidebarToolBar *toolBar {nullptr};
+    QStackedWidget *stackedWidget {nullptr};
+    CardPropertiesView *cardPropertiesView {nullptr};
 
     void setUpWidgets();
     void setUpConnections();

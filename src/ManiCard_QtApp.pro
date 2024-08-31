@@ -39,6 +39,7 @@ SOURCES += \
     widgets/board_view.cpp \
     widgets/board_view_toolbar.cpp \
     widgets/boards_list.cpp \
+    widgets/card_properties_view.cpp \
     widgets/components/custom_graphics_text_item.cpp \
     widgets/components/custom_list_widget.cpp \
     widgets/components/custom_text_edit.cpp \
@@ -95,6 +96,7 @@ HEADERS += \
     widgets/board_view.h \
     widgets/board_view_toolbar.h \
     widgets/boards_list.h \
+    widgets/card_properties_view.h \
     widgets/components/custom_graphics_text_item.h \
     widgets/components/custom_list_widget.h \
     widgets/components/custom_text_edit.h \
