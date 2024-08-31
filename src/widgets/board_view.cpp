@@ -14,6 +14,7 @@
 #include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
 #include "utilities/strings_util.h"
+#include "widgets/board_view_toolbar.h"
 #include "widgets/components/edge_arrow.h"
 #include "widgets/components/graphics_scene.h"
 #include "widgets/components/node_rect.h"
@@ -204,6 +205,10 @@ void BoardView::prepareToClose() {
         nodeRect->prepareToClose();
 }
 
+void BoardView::rightSideBarClosed() {
+    toolBar->showButtonOpenRightSidebar();
+}
+
 int BoardView::getBoardId() const {
     return boardId;
 }
@@ -236,10 +241,13 @@ void BoardView::setUpWidgets() {
     this->setFrameShape(QFrame::NoFrame);
 
     // set up layout
+    auto *layout = new QVBoxLayout;
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+    this->setLayout(layout);
     {
-        auto *layout = new QVBoxLayout;
-        layout->setContentsMargins(0, 0, 0, 0);
-        this->setLayout(layout);
+        toolBar = new BoardViewToolBar(this);
+        layout->addWidget(toolBar);
 
         graphicsView = new QGraphicsView;
         layout->addWidget(graphicsView);
@@ -290,6 +298,11 @@ void BoardView::setUpConnections() {
         for (NodeRect *nodeRect: nodeRects) {
             nodeRect->setHighlighted(false);
         }
+    });
+
+    //
+    connect(toolBar, &BoardViewToolBar::openRightSidebar, this, [this]() {
+        emit openRightSideBar();
     });
 }
 
@@ -957,16 +970,25 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
     });
 
     QObject::connect(nodeRect, &NodeRect::clicked, boardView, [this, nodeRectPtr]() {
-        if (!nodeRectPtr)
+        if (nodeRectPtr.isNull())
             return;
 
         // highlight `nodeRectPtr` and un-highlight the other NodeRect's
         if (nodeRectPtr->getIsHighlighted())
             return;
 
-        for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it)
-            it.value()->setHighlighted(false);
-        nodeRectPtr->setHighlighted(true);
+        for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it) {
+            NodeRect *nodeRect = it.value();
+            Q_ASSERT(nodeRect != nullptr);
+
+            if (nodeRect == nodeRectPtr.data()) {
+                nodeRect->setHighlighted(true);
+                highlightedNodeRect = nodeRectPtr;
+            }
+            else {
+                nodeRect->setHighlighted(false);
+            }
+        }
     });
 
     QObject::connect(nodeRect, &NodeRect::saveTitleTextUpdate,
@@ -1067,6 +1089,13 @@ QSet<NodeRect *> BoardView::NodeRectsCollection::getAllNodeRects() const {
     for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it)
         result << it.value();
     return result;
+}
+
+NodeRect *BoardView::NodeRectsCollection::getHighlightedNodeRect() const {
+    if (highlightedNodeRect.isNull())
+        return nullptr;
+    else
+        return highlightedNodeRect.data();
 }
 
 //====

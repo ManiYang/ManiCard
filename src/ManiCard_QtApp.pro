@@ -37,6 +37,7 @@ SOURCES += \
     utilities/save_debouncer.cpp \
     utilities/strings_util.cpp \
     widgets/board_view.cpp \
+    widgets/board_view_toolbar.cpp \
     widgets/boards_list.cpp \
     widgets/components/custom_graphics_text_item.cpp \
     widgets/components/custom_list_widget.cpp \
@@ -45,11 +46,14 @@ SOURCES += \
     widgets/components/graphics_item_move_resize.cpp \
     widgets/components/graphics_scene.cpp \
     widgets/components/node_rect.cpp \
+    widgets/components/simple_toolbar.cpp \
     widgets/dialogs/dialog_create_relationship.cpp \
     widgets/dialogs/dialog_set_labels.cpp \
     widgets/dialogs/dialog_user_card_labels.cpp \
     widgets/dialogs/dialog_user_relationship_types.cpp \
-    widgets/main_window.cpp
+    widgets/main_window.cpp \
+    widgets/right_sidebar.cpp \
+    widgets/right_sidebar_toolbar.cpp
 
 HEADERS += \
     cached_data_access.h \
@@ -89,6 +93,7 @@ HEADERS += \
     utilities/save_debouncer.h \
     utilities/strings_util.h \
     widgets/board_view.h \
+    widgets/board_view_toolbar.h \
     widgets/boards_list.h \
     widgets/components/custom_graphics_text_item.h \
     widgets/components/custom_list_widget.h \
@@ -97,11 +102,14 @@ HEADERS += \
     widgets/components/graphics_item_move_resize.h \
     widgets/components/graphics_scene.h \
     widgets/components/node_rect.h \
+    widgets/components/simple_toolbar.h \
     widgets/dialogs/dialog_create_relationship.h \
     widgets/dialogs/dialog_set_labels.h \
     widgets/dialogs/dialog_user_card_labels.h \
     widgets/dialogs/dialog_user_relationship_types.h \
-    widgets/main_window.h
+    widgets/main_window.h \
+    widgets/right_sidebar.h \
+    widgets/right_sidebar_toolbar.h
 
 FORMS += \
     widgets/dialogs/dialog_create_relationship.ui \

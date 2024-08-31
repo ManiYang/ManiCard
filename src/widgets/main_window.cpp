@@ -18,6 +18,7 @@
 #include "widgets/boards_list.h"
 #include "widgets/dialogs/dialog_user_card_labels.h"
 #include "widgets/dialogs/dialog_user_relationship_types.h"
+#include "widgets/right_sidebar.h"
 
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 
@@ -90,9 +91,10 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 void MainWindow::setUpWidgets() {
     this->setWindowTitle(qApp->applicationName());
 
-    // prevent left sidebar from resizing when the window resizes
+    // prevent left & right sidebars from resizing when the window resizes
     ui->splitter->setStretchFactor(0, 0); // (index, factor)
     ui->splitter->setStretchFactor(1, 1);
+    ui->splitter->setStretchFactor(2, 0);
 
     //
     ui->frameLeftSideBar->setMinimumWidth(leftSideBarWidthMin);
@@ -122,6 +124,7 @@ void MainWindow::setUpWidgets() {
     }
 
     // set up ui->frameCentralArea
+    ui->frameCentralArea->setFrameShape(QFrame::NoFrame);
     {
         auto *layout = new QVBoxLayout;
         layout->setContentsMargins(0, 0, 0, 0);
@@ -134,6 +137,18 @@ void MainWindow::setUpWidgets() {
         noBoardOpenSign = new QLabel("No board is open");
         layout->addWidget(noBoardOpenSign);
         layout->setAlignment(noBoardOpenSign, Qt::AlignCenter);
+    }
+
+    // set up ui->frameRightSideBar
+    ui->frameRightSideBar->setVisible(false);
+    ui->frameRightSideBar->setFrameShape(QFrame::NoFrame);
+    {
+        auto *layout = new QVBoxLayout;
+        layout->setContentsMargins(0, 0, 0, 0);
+        ui->frameRightSideBar->setLayout(layout);
+
+        rightSidebar = new RightSidebar;
+        layout->addWidget(rightSidebar);
     }
 
     //
@@ -212,6 +227,17 @@ void MainWindow::setUpConnections() {
             }
         });
     });
+
+    // boardView
+    connect(boardView, &BoardView::openRightSideBar, this, [this]() {
+        ui->frameRightSideBar->setVisible(true);
+    });
+
+    // rightSidebar
+    connect(rightSidebar, &RightSidebar::closeRightSidebar, this, [this]() {
+        ui->frameRightSideBar->setVisible(false);
+        boardView->rightSideBarClosed();
+    });
 }
 
 void MainWindow::setUpActions() {
@@ -243,14 +269,18 @@ void MainWindow::setUpMainMenu() {
 
 void MainWindow::onShownForFirstTime() {
     {
-        // adjust the size of left sidebar
-        const int leftSideBarSizeTarget = leftSideBarWidthDefault;
-
-        const QList<int> sizes = ui->splitter->sizes(); // [0]: left sidebar, [1]: central area
-        if (sizes.count() == 2) {
-            const int sum = sizes.at(0) + sizes.at(1);
-            if (sum >= leftSideBarSizeTarget * 2)
-                ui->splitter->setSizes({leftSideBarSizeTarget, sum - leftSideBarSizeTarget});
+        // set initial widths of left sidebar & central area, assuming right sidebar is hidden
+        const QList<int> sizes = ui->splitter->sizes();
+                // [0]: left sidebar, [1]: central area, [2]: right sidebar (hidden)
+        if (sizes.count() == 3) {
+            const int totalWidth = sizes.at(0) + sizes.at(1);
+            if (totalWidth >= leftSideBarWidthDefault * 2) {
+                ui->splitter->setSizes({
+                    leftSideBarWidthDefault,
+                    totalWidth - leftSideBarWidthDefault,
+                    rightSideBarWidthDefault // right sidebar will have this size when first shown
+                });
+            }
         }
         else {
             Q_ASSERT(false);

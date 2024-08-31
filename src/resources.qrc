@@ -11,5 +11,7 @@
         <file alias="arrow_west_24">resources/icons/arrow_west_24.png</file>
         <file alias="menu4_black_24">resources/icons/menu4_black_24.png</file>
         <file alias="label_black_24">resources/icons/label_black_24.png</file>
+        <file alias="close_right_panel_24">resources/icons/close_right_panel_24.png</file>
+        <file alias="open_right_panel_24">resources/icons/open_right_panel_24.png</file>
     </qresource>
 </RCC>

@@ -8,6 +8,7 @@
 #include "models/node_rect_data.h"
 #include "models/relationship.h"
 
+class BoardViewToolBar;
 class EdgeArrow;
 struct EdgeArrowData;
 class Card;
@@ -33,6 +34,9 @@ public:
     void prepareToClose();
 
     //
+    void rightSideBarClosed();
+
+    //
     int getBoardId() const; // can be -1
     QPointF getViewTopLeftPos() const;
 
@@ -40,6 +44,9 @@ public:
 
     //
     bool eventFilter(QObject *watched, QEvent *event) override;
+
+signals:
+    void openRightSideBar();
 
 private:
     static inline const QSizeF defaultNewNodeRectSize {200, 120};
@@ -53,6 +60,7 @@ private:
     int boardId {-1}; // -1: no board loaded
 
     //
+    BoardViewToolBar *toolBar {nullptr};
     QGraphicsView *graphicsView {nullptr};
     GraphicsScene *graphicsScene {nullptr};
 
@@ -115,10 +123,12 @@ private:
         NodeRect *get(const int cardId) const;
         QSet<int> getAllCardIds() const;
         QSet<NodeRect *> getAllNodeRects() const;
+        NodeRect *getHighlightedNodeRect() const; // returns nullptr if not found
 
     private:
         BoardView *boardView;
         QHash<int, NodeRect *> cardIdToNodeRect;
+        QPointer<NodeRect> highlightedNodeRect;
     };
     NodeRectsCollection nodeRectsCollection {this};
 

@@ -12,6 +12,7 @@ class MainWindow;
 class ActionDebouncer;
 class BoardsList;
 class BoardView;
+class RightSidebar;
 
 class MainWindow : public QMainWindow
 {
@@ -35,6 +36,8 @@ private:
     QLabel *noBoardOpenSign {nullptr};
     QToolButton *buttonOpenMainMenu {nullptr};
 
+    RightSidebar *rightSidebar {nullptr};
+
     // menus and actions
     QMenu *mainMenu;
     QAction *actionQuit {nullptr};
@@ -42,6 +45,7 @@ private:
     // states & constants
     static constexpr int leftSideBarWidthMin {60};
     static constexpr int leftSideBarWidthDefault {150};
+    static constexpr int rightSideBarWidthDefault {200};
 
     bool isEverShown {false};
 
