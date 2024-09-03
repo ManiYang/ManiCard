@@ -9,6 +9,7 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    app_data.cpp \
     db_access/abstract_boards_data_access.cpp \
     db_access/abstract_cards_data_access.cpp \
     db_access/boards_data_access.cpp \
@@ -57,6 +58,8 @@ SOURCES += \
     widgets/right_sidebar_toolbar.cpp
 
 HEADERS += \
+    app_data.h \
+    app_event.h \
     db_access/abstract_boards_data_access.h \
     db_access/abstract_cards_data_access.h \
     db_access/boards_data_access.h \
