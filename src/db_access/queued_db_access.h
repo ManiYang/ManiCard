@@ -10,7 +10,7 @@
 
 //!
 //! A proxy of \c BoardsDataAccess & \c CardsDataAccess. The requests are queued and handled in
-//! sequence (sends next request only when current one gets response).
+//! sequence (sends next request only after current one gets response).
 //!
 //! When a non-read-only operation failed, all remaining requests in the queue will fail directly
 //! (without actually being performed). Before the error flag is cleared, any new request will also

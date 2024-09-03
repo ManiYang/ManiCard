@@ -47,6 +47,7 @@ public:
 
 signals:
     void openRightSideBar();
+    void highlightedCardChanged(const int cardId); // `cardId` can be -1
 
 private:
     static inline const QSizeF defaultNewNodeRectSize {200, 120};
@@ -95,6 +96,8 @@ private:
             NodeRect *nodeRect, const CardPropertiesUpdate &propertiesUpdate,
             std::function<void ()> callback); // callback will be called in context of `this`
 
+    void onHighlightedCardChanged(const int cardId); // `cardId` can be -1
+
     //!
     //! Remove all NodeRect's and EdgeArrow's. Does not check canClose().
     //!
@@ -119,16 +122,17 @@ private:
         //!
         void closeNodeRect(const int cardId, const bool removeConnectedEdgeArrows);
 
+        void unhighlightAllCards();
+
         bool contains(const int cardId) const;
         NodeRect *get(const int cardId) const;
         QSet<int> getAllCardIds() const;
         QSet<NodeRect *> getAllNodeRects() const;
-        NodeRect *getHighlightedNodeRect() const; // returns nullptr if not found
 
     private:
         BoardView *boardView;
         QHash<int, NodeRect *> cardIdToNodeRect;
-        QPointer<NodeRect> highlightedNodeRect;
+        int highlightedCardId {-1};
     };
     NodeRectsCollection nodeRectsCollection {this};
 

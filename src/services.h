@@ -5,10 +5,10 @@
 #include <QString>
 
 class BoardsDataAccess;
-class CachedDataAccess;
 class CardsDataAccess;
 class LocalSettingsFile;
 class Neo4jHttpApiClient;
+class PersistedDataAccess;
 class QueuedDbAccess;
 class UnsavedUpdateRecordsFile;
 
@@ -28,7 +28,7 @@ public:
     //!
     bool initialize(QString *errorMsg = nullptr);
 
-    CachedDataAccess *getCachedDataAccess() const;
+    PersistedDataAccess *getPersistedDataAccess() const;
 
 //    QString getUnsavedUpdateFilePath() const;
     QString errorMsgOnUnsavedUpdate(const QString &what) const;
@@ -41,7 +41,7 @@ private:
     QueuedDbAccess *queuedDbAccess {nullptr};
     std::shared_ptr<LocalSettingsFile> localSettingsFile;
     std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile;
-    CachedDataAccess *cachedDataAccess {nullptr};
+    PersistedDataAccess *cachedDataAccess {nullptr};
 
     QString unsavedUpdateFilePath;
 };

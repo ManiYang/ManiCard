@@ -1,3 +1,4 @@
+#include <QDebug>
 #include <QVBoxLayout>
 #include "card_properties_view.h"
 
@@ -6,8 +7,20 @@ CardPropertiesView::CardPropertiesView(QWidget *parent)
     setUpWidgets();
 }
 
-void CardPropertiesView::setText(const QString &text) {
-    textEdit->setPlainText(text);
+void CardPropertiesView::loadCard(const int cardIdToLoad) {
+    if (cardIdToLoad == cardId)
+        return;
+
+    cardId = cardIdToLoad;
+
+    // [temp]
+    if (cardId == -1) {
+        textEdit->clear();
+    }
+    else {
+        auto text = QString("Card %1").arg(cardId);
+        textEdit->setPlainText(text);
+    }
 }
 
 void CardPropertiesView::setUpWidgets() {

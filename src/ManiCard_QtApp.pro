@@ -9,7 +9,6 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    cached_data_access.cpp \
     db_access/abstract_boards_data_access.cpp \
     db_access/abstract_cards_data_access.cpp \
     db_access/boards_data_access.cpp \
@@ -24,6 +23,7 @@ SOURCES += \
     models/node_rect_data.cpp \
     models/relationship.cpp \
     neo4j_http_api_client.cpp \
+    persisted_data_access.cpp \
     services.cpp \
     utilities/action_debouncer.cpp \
     utilities/app_instances_shared_memory.cpp \
@@ -57,7 +57,6 @@ SOURCES += \
     widgets/right_sidebar_toolbar.cpp
 
 HEADERS += \
-    cached_data_access.h \
     db_access/abstract_boards_data_access.h \
     db_access/abstract_cards_data_access.h \
     db_access/boards_data_access.h \
@@ -75,6 +74,7 @@ HEADERS += \
     models/node_rect_data.h \
     models/relationship.h \
     neo4j_http_api_client.h \
+    persisted_data_access.h \
     services.h \
     utilities/action_debouncer.h \
     utilities/app_instances_shared_memory.h \

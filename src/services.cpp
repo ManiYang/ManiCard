@@ -3,7 +3,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
-#include "cached_data_access.h"
 #include "db_access/boards_data_access.h"
 #include "db_access/cards_data_access.h"
 #include "db_access/queued_db_access.h"
@@ -11,6 +10,7 @@
 #include "file_access/local_settings_file.h"
 #include "file_access/unsaved_update_records_file.h"
 #include "neo4j_http_api_client.h"
+#include "persisted_data_access.h"
 #include "services.h"
 #include "utilities/json_util.h"
 
@@ -70,7 +70,7 @@ bool Services::initialize(QString *errorMsg) {
         unsavedUpdateRecordsFile
                 = std::make_shared<UnsavedUpdateRecordsFile>(unsavedUpdateFilePath);
 
-        cachedDataAccess = new CachedDataAccess(
+        cachedDataAccess = new PersistedDataAccess(
                 queuedDbAccess, localSettingsFile, unsavedUpdateRecordsFile, qApp);
     }
     catch (std::runtime_error &e) {
@@ -82,7 +82,7 @@ bool Services::initialize(QString *errorMsg) {
     return true;
 }
 
-CachedDataAccess *Services::getCachedDataAccess() const {
+PersistedDataAccess *Services::getPersistedDataAccess() const {
     Q_ASSERT(cachedDataAccess != nullptr);
     return cachedDataAccess;
 }

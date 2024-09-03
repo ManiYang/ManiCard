@@ -1,3 +1,4 @@
+#include <QDebug>
 #include <QVBoxLayout>
 #include "right_sidebar.h"
 #include "widgets/card_properties_view.h"
@@ -9,7 +10,13 @@ RightSidebar::RightSidebar(QWidget *parent)
     setUpConnections();
 }
 
+void RightSidebar::loadCardProperties(const int cardId) {
+    cardPropertiesView->loadCard(cardId);
+}
+
 void RightSidebar::setUpWidgets() {
+    setFrameShape(QFrame::NoFrame);
+
     auto *layout = new QVBoxLayout;
     setLayout(layout);
     layout->setContentsMargins(0, 0, 0, 0);

@@ -1,7 +1,7 @@
 #include <QDateTime>
 #include <QReadLocker>
 #include <QWriteLocker>
-#include "cached_data_access.h"
+#include "persisted_data_access.h"
 #include "db_access/queued_db_access.h"
 #include "file_access/local_settings_file.h"
 #include "file_access/unsaved_update_records_file.h"
@@ -12,7 +12,7 @@
 
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 
-CachedDataAccess::CachedDataAccess(
+PersistedDataAccess::PersistedDataAccess(
         QueuedDbAccess *queuedDbAccess_, std::shared_ptr<LocalSettingsFile> localSettingsFile_,
         std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile_,
         QObject *parent)
@@ -22,7 +22,7 @@ CachedDataAccess::CachedDataAccess(
             , unsavedUpdateRecordsFile(unsavedUpdateRecordsFile_) {
 }
 
-bool CachedDataAccess::hasWriteRequestInProgress() const {
+bool PersistedDataAccess::hasWriteRequestInProgress() const {
     bool result;
     {
         QReadLocker locker(&lockForwriteRequestsInProgress);
@@ -31,7 +31,7 @@ bool CachedDataAccess::hasWriteRequestInProgress() const {
     return result;
 }
 
-void CachedDataAccess::queryCards(
+void PersistedDataAccess::queryCards(
         const QSet<int> &cardIds,
         std::function<void (bool, const QHash<int, Card> &)> callback,
         QPointer<QObject> callbackContext) {
@@ -85,7 +85,7 @@ void CachedDataAccess::queryCards(
     routine->start();
 }
 
-void CachedDataAccess::queryRelationshipsFromToCards(
+void PersistedDataAccess::queryRelationshipsFromToCards(
         const QSet<int> &cardIds,
         std::function<void (bool, const QHash<RelId, RelProperties> &)> callback,
         QPointer<QObject> callbackContext) {
@@ -114,7 +114,7 @@ void CachedDataAccess::queryRelationshipsFromToCards(
     );
 }
 
-void CachedDataAccess::getUserLabelsAndRelationshipTypes(
+void PersistedDataAccess::getUserLabelsAndRelationshipTypes(
         std::function<void (bool, const StringListPair &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -171,7 +171,7 @@ void CachedDataAccess::getUserLabelsAndRelationshipTypes(
     routine->start();
 }
 
-void CachedDataAccess::requestNewCardId(
+void PersistedDataAccess::requestNewCardId(
         std::function<void (std::optional<int>)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
@@ -184,7 +184,7 @@ void CachedDataAccess::requestNewCardId(
     );
 }
 
-void CachedDataAccess::getBoardIdsAndNames(
+void PersistedDataAccess::getBoardIdsAndNames(
         std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -198,7 +198,7 @@ void CachedDataAccess::getBoardIdsAndNames(
     );
 }
 
-void CachedDataAccess::getBoardsListProperties(
+void PersistedDataAccess::getBoardsListProperties(
         std::function<void (bool, BoardsListProperties properties)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -252,7 +252,7 @@ void CachedDataAccess::getBoardsListProperties(
     routine->start();
 }
 
-void CachedDataAccess::getBoardData(
+void PersistedDataAccess::getBoardData(
         const int boardId, std::function<void (bool, std::optional<Board>)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -335,7 +335,7 @@ void CachedDataAccess::getBoardData(
     routine->start();
 }
 
-void CachedDataAccess::requestNewBoardId(
+void PersistedDataAccess::requestNewBoardId(
         std::function<void (std::optional<int>)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -349,14 +349,14 @@ void CachedDataAccess::requestNewBoardId(
     );
 }
 
-std::optional<QSize> CachedDataAccess::getMainWindowSize() {
+std::optional<QSize> PersistedDataAccess::getMainWindowSize() {
     const auto [ok, sizeOpt] = localSettingsFile->readMainWindowSize();
     if (!ok)
         return std::nullopt;
     return sizeOpt;
 }
 
-void CachedDataAccess::createNewCardWithId(
+void PersistedDataAccess::createNewCardWithId(
         const int cardId, const Card &card, std::function<void (bool)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -426,7 +426,7 @@ void CachedDataAccess::createNewCardWithId(
     routine->start();
 }
 
-void CachedDataAccess::updateCardProperties(
+void PersistedDataAccess::updateCardProperties(
         const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -481,7 +481,7 @@ void CachedDataAccess::updateCardProperties(
     routine->start();
 }
 
-void CachedDataAccess::updateCardLabels(
+void PersistedDataAccess::updateCardLabels(
         const int cardId, const QSet<QString> &updatedLabels,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -537,7 +537,7 @@ void CachedDataAccess::updateCardLabels(
     routine->start();
 }
 
-void CachedDataAccess::createRelationship(
+void PersistedDataAccess::createRelationship(
         const RelationshipId &id, std::function<void (bool ok, bool created)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -580,7 +580,7 @@ void CachedDataAccess::createRelationship(
     );
 }
 
-void CachedDataAccess::updateUserRelationshipTypes(
+void PersistedDataAccess::updateUserRelationshipTypes(
         const QStringList &updatedRelTypes, std::function<void (bool)> callback,
         QPointer<QObject> callbackContext) {
     // 1. update cache
@@ -614,7 +614,7 @@ void CachedDataAccess::updateUserRelationshipTypes(
     );
 }
 
-void CachedDataAccess::updateUserCardLabels(
+void PersistedDataAccess::updateUserCardLabels(
         const QStringList &updatedCardLabels, std::function<void (bool)> callback,
         QPointer<QObject> callbackContext) {
     // 1. update cache
@@ -648,7 +648,7 @@ void CachedDataAccess::updateUserCardLabels(
     );
 }
 
-void CachedDataAccess::updateBoardsListProperties(
+void PersistedDataAccess::updateBoardsListProperties(
         const BoardsListPropertiesUpdate &propertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -727,7 +727,7 @@ void CachedDataAccess::updateBoardsListProperties(
     routine->start();
 }
 
-void CachedDataAccess::createNewBoardWithId(
+void PersistedDataAccess::createNewBoardWithId(
         const int boardId, const Board &board,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -792,7 +792,7 @@ void CachedDataAccess::createNewBoardWithId(
     routine->start();
 }
 
-void CachedDataAccess::updateBoardNodeProperties(
+void PersistedDataAccess::updateBoardNodeProperties(
         const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -880,7 +880,7 @@ void CachedDataAccess::updateBoardNodeProperties(
     routine->start();
 }
 
-void CachedDataAccess::removeBoard(
+void PersistedDataAccess::removeBoard(
         const int boardId, std::function<void (bool)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -936,7 +936,7 @@ void CachedDataAccess::removeBoard(
     routine->start();
 }
 
-void CachedDataAccess::updateNodeRectProperties(
+void PersistedDataAccess::updateNodeRectProperties(
         const int boardId, const int cardId, const NodeRectDataUpdate &update,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -1000,7 +1000,7 @@ void CachedDataAccess::updateNodeRectProperties(
     routine->start();
 }
 
-void CachedDataAccess::createNodeRect(
+void PersistedDataAccess::createNodeRect(
         const int boardId, const int cardId, const NodeRectData &nodeRectData,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -1073,7 +1073,7 @@ void CachedDataAccess::createNodeRect(
     routine->start();
 }
 
-void CachedDataAccess::removeNodeRect(
+void PersistedDataAccess::removeNodeRect(
         const int boardId, const int cardId,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -1131,7 +1131,7 @@ void CachedDataAccess::removeNodeRect(
     routine->start();
 }
 
-bool CachedDataAccess::saveMainWindowSize(const QSize &size) {
+bool PersistedDataAccess::saveMainWindowSize(const QSize &size) {
     const bool ok = localSettingsFile->writeMainWindowSize(size);
     if (!ok) {
         const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
@@ -1144,7 +1144,7 @@ bool CachedDataAccess::saveMainWindowSize(const QSize &size) {
     return ok;
 }
 
-int CachedDataAccess::startWriteRequest() {
+int PersistedDataAccess::startWriteRequest() {
     const int requestId = ++lastWriteRequestId;
     {
         QWriteLocker locker(&lockForwriteRequestsInProgress);
@@ -1153,7 +1153,7 @@ int CachedDataAccess::startWriteRequest() {
     return requestId;
 }
 
-void CachedDataAccess::finishWriteRequest(const int requestId) {
+void PersistedDataAccess::finishWriteRequest(const int requestId) {
     QWriteLocker locker(&lockForwriteRequestsInProgress);
     writeRequestsInProgress.remove(requestId);
 }

@@ -1,5 +1,5 @@
-#ifndef CACHEDDATAACCESS_H
-#define CACHEDDATAACCESS_H
+#ifndef PERSISTEDDATAACCESS_H
+#define PERSISTEDDATAACCESS_H
 
 #include <QObject>
 #include <QPointer>
@@ -13,7 +13,7 @@ class QueuedDbAccess;
 class UnsavedUpdateRecordsFile;
 
 //!
-//! Accesses DB & files, and manages cached data.
+//! Accesses persisted data (DB & files), with a cache.
 //!
 //! For read operation, this class
 //!   1. gets the parts that are already cached
@@ -24,11 +24,11 @@ class UnsavedUpdateRecordsFile;
 //!   1. updates the cache
 //!   2. writes to DB or files, and if failed, adds to the records of unsaved updates.
 //!
-class CachedDataAccess : public QObject
+class PersistedDataAccess : public QObject
 {
     Q_OBJECT
 public:
-    explicit CachedDataAccess(
+    explicit PersistedDataAccess(
             QueuedDbAccess *queuedDbAccess_,
             std::shared_ptr<LocalSettingsFile> localSettingsFile_,
             std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile_,
@@ -169,4 +169,4 @@ private:
     void finishWriteRequest(const int requestId); // thread-safe
 };
 
-#endif // CACHEDDATAACCESS_H
+#endif // PERSISTEDDATAACCESS_H

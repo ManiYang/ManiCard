@@ -5,8 +5,8 @@
 #include <QKeySequence>
 #include <QMessageBox>
 #include <QShortcut>
-#include "cached_data_access.h"
 #include "main_window.h"
+#include "persisted_data_access.h"
 #include "services.h"
 #include "ui_main_window.h"
 #include "utilities/action_debouncer.h"
@@ -36,7 +36,7 @@ MainWindow::MainWindow(QWidget *parent)
     saveWindowSizeDebounced = new ActionDebouncer(
             1000, ActionDebouncer::Option::Delay,
             [this]() {
-                Services::instance()->getCachedDataAccess()->saveMainWindowSize(this->size());
+                Services::instance()->getPersistedDataAccess()->saveMainWindowSize(this->size());
             },
             this
     );
@@ -191,7 +191,7 @@ void MainWindow::setUpConnections() {
         BoardNodePropertiesUpdate update;
         update.name = name;
 
-        Services::instance()->getCachedDataAccess()->updateBoardNodeProperties(
+        Services::instance()->getPersistedDataAccess()->updateBoardNodeProperties(
                 boardId, update,
                 // callback
                 [this](bool ok) {
@@ -231,6 +231,10 @@ void MainWindow::setUpConnections() {
     // boardView
     connect(boardView, &BoardView::openRightSideBar, this, [this]() {
         ui->frameRightSideBar->setVisible(true);
+    });
+
+    connect(boardView, &BoardView::highlightedCardChanged, this, [this](const int cardId) {
+        rightSidebar->loadCardProperties(cardId);
     });
 
     // rightSidebar
@@ -291,7 +295,7 @@ void MainWindow::onShownForFirstTime() {
 void MainWindow::startUp() {
     {
         const auto sizeOpt
-                = Services::instance()->getCachedDataAccess()->getMainWindowSize();
+                = Services::instance()->getPersistedDataAccess()->getMainWindowSize();
         if (sizeOpt.has_value())
             resize(sizeOpt.value());
     }
@@ -312,7 +316,7 @@ void MainWindow::startUp() {
     //
     routine->addStep([this, routine]() {
         // get boards-list properties
-        Services::instance()->getCachedDataAccess()->getBoardsListProperties(
+        Services::instance()->getPersistedDataAccess()->getBoardsListProperties(
                 [routine](bool ok, BoardsListProperties properties) {
                     ContinuationContext context(routine);
 
@@ -331,7 +335,7 @@ void MainWindow::startUp() {
 
     routine->addStep([this, routine]() {
         // get all board IDs
-        Services::instance()->getCachedDataAccess()->getBoardIdsAndNames(
+        Services::instance()->getPersistedDataAccess()->getBoardIdsAndNames(
                 [routine](bool ok, const QHash<int, QString> &idToName) {
                     ContinuationContext context(routine);
 
@@ -412,7 +416,7 @@ void MainWindow::prepareToClose() {
         (new PeriodicChecker)->setPeriod(20)->setTimeOut(6000)
                 ->setPredicate([]() {
                     return !Services::instance()
-                            ->getCachedDataAccess()->hasWriteRequestInProgress();
+                            ->getPersistedDataAccess()->hasWriteRequestInProgress();
                 })
                 ->onPredicateReturnsTrue([routine]() {
                     routine->nextStep();
@@ -431,7 +435,7 @@ void MainWindow::prepareToClose() {
         BoardsListPropertiesUpdate propertiesUpdate;
         propertiesUpdate.lastOpenedBoard = boardsList->selectedBoardId();
 
-        Services::instance()->getCachedDataAccess()->updateBoardsListProperties(
+        Services::instance()->getPersistedDataAccess()->updateBoardsListProperties(
                 propertiesUpdate,
                 // callback
                 [this, routine](bool ok) {
@@ -556,7 +560,7 @@ void MainWindow::onUserToCreateNewBoard() {
     //
     routine->addStep([this, routine]() {
         // 1. get new board ID
-        Services::instance()->getCachedDataAccess()->requestNewBoardId(
+        Services::instance()->getPersistedDataAccess()->requestNewBoardId(
                 //callback
                 [routine](std::optional<int> boardId) {
                     ContinuationContext context(routine);
@@ -598,7 +602,7 @@ void MainWindow::onUserToCreateNewBoard() {
 
     routine->addStep([this, routine]() {
         // 3. create new board in DB
-        Services::instance()->getCachedDataAccess()->createNewBoardWithId(
+        Services::instance()->getPersistedDataAccess()->createNewBoardWithId(
                 routine->newBoardId, routine->boardData,
                 //callback
                 [routine](bool ok) {
@@ -701,7 +705,7 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
 
     routine->addStep([this, routine, boardId]() {
         // remove board from DB
-        Services::instance()->getCachedDataAccess()->removeBoard(
+        Services::instance()->getPersistedDataAccess()->removeBoard(
                 boardId,
                 // callback
                 [routine, boardId](bool ok) {
@@ -738,7 +742,7 @@ void MainWindow::saveTopLeftPosOfCurrentBoard(std::function<void (bool)> callbac
     propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
 
     //
-    Services::instance()->getCachedDataAccess()->updateBoardNodeProperties(
+    Services::instance()->getPersistedDataAccess()->updateBoardNodeProperties(
             currentBoardId, propertiesUpdate,
             // callback
             [this, callback](bool ok) {
@@ -757,7 +761,7 @@ void MainWindow::saveBoardsOrdering(std::function<void (bool ok)> callback) {
     BoardsListPropertiesUpdate propertiesUpdate;
     propertiesUpdate.boardsOrdering = boardsList->getBoardsOrder();
 
-    Services::instance()->getCachedDataAccess()->updateBoardsListProperties(
+    Services::instance()->getPersistedDataAccess()->updateBoardsListProperties(
             propertiesUpdate,
             // callback
             [callback](bool ok) {
@@ -783,7 +787,7 @@ void MainWindow::showCardLabelsDialog() {
     //
     routine->addStep([this, routine]() {
         // get relationship types list
-        Services::instance()->getCachedDataAccess()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getPersistedDataAccess()->getUserLabelsAndRelationshipTypes(
                 //callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -818,7 +822,7 @@ void MainWindow::showCardLabelsDialog() {
         }
 
         // write DB
-        Services::instance()->getCachedDataAccess()->updateUserCardLabels(
+        Services::instance()->getPersistedDataAccess()->updateUserCardLabels(
                 routine->updatedLabels,
                 // callback
                 [routine](bool ok) {
@@ -858,7 +862,7 @@ void MainWindow::showRelationshipTypesDialog() {
     //
     routine->addStep([this, routine]() {
         // get relationship types list
-        Services::instance()->getCachedDataAccess()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getPersistedDataAccess()->getUserLabelsAndRelationshipTypes(
                 //callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -894,7 +898,7 @@ void MainWindow::showRelationshipTypesDialog() {
         }
 
         // write DB
-        Services::instance()->getCachedDataAccess()->updateUserRelationshipTypes(
+        Services::instance()->getPersistedDataAccess()->updateUserRelationshipTypes(
                 routine->updatedRelTypes,
                 // callback
                 [routine](bool ok) {
