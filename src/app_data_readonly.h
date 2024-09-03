@@ -1,6 +1,7 @@
 #ifndef APP_DATA_READONLY_H
 #define APP_DATA_READONLY_H
 
+#include "app_event_source.h"
 #include "models/board.h"
 #include "models/boards_list_properties.h"
 #include "models/card.h"
@@ -58,6 +59,9 @@ public:
     // ==== non-persisted independent data ====
 
     virtual int getHighlightedCardId() const = 0; // can return -1
+
+signals:
+    void highlightedCardIdUpdated(EventSource eventSrc);
 };
 
 #endif // APP_DATA_READONLY_H

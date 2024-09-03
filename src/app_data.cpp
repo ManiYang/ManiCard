@@ -204,4 +204,3 @@ void AppData::setHighlightedCardId(const EventSource &eventSrc, const int cardId
     highlightedCardId = cardId;
     emit highlightedCardIdUpdated(eventSrc);
 }
-

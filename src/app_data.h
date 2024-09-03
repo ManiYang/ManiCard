@@ -154,11 +154,6 @@ public:
 
     // ==== derived data ====
 
-
-
-signals:
-    void highlightedCardIdUpdated(EventSource eventSrc);
-
 private:
     PersistedDataAccess *persistedDataAccess;
 
