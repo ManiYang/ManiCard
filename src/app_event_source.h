@@ -5,6 +5,7 @@
 
 struct EventSource
 {
+    explicit EventSource(QWidget *w) : sourceWidget(w) {}
     QWidget *sourceWidget {nullptr};
 };
 

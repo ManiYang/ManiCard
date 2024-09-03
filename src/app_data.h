@@ -2,6 +2,7 @@
 #define APPDATA_H
 
 #include <QObject>
+#include "app_data_readonly.h"
 #include "app_event_source.h"
 #include "models/board.h"
 #include "models/boards_list_properties.h"
@@ -20,7 +21,7 @@ class PersistedDataAccess;
 //!   1. synchornously update all variables and emit "updated" signals
 //!   2. persist (if needed)
 //!
-class AppData : public QObject
+class AppData : public AppDataReadonly
 {
     Q_OBJECT
 public:
@@ -33,43 +34,40 @@ public:
     void queryCards(
             const QSet<int> &cardIds,
             std::function<void (bool, const QHash<int, Card> &)> callback,
-            QPointer<QObject> callbackContext);
-
-    using RelId = RelationshipId;
-    using RelProperties = RelationshipProperties;
+            QPointer<QObject> callbackContext) override;
 
     void queryRelationshipsFromToCards(
             const QSet<int> &cardIds,
             std::function<void (bool, const QHash<RelId, RelProperties> &)> callback,
-            QPointer<QObject> callbackContext);
+            QPointer<QObject> callbackContext) override;
 
     using StringListPair = std::pair<QStringList, QStringList>;
     void getUserLabelsAndRelationshipTypes(
             std::function<void (bool ok, const StringListPair &labelsAndRelTypes)> callback,
-            QPointer<QObject> callbackContext);
+            QPointer<QObject> callbackContext) override;
 
     void requestNewCardId(
             std::function<void (std::optional<int> cardId)> callback,
-            QPointer<QObject> callbackContext);
+            QPointer<QObject> callbackContext) override;
 
     void getBoardIdsAndNames(
             std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
-            QPointer<QObject> callbackContext);
+            QPointer<QObject> callbackContext) override;
 
     void getBoardsListProperties(
             std::function<void (bool ok, BoardsListProperties properties)> callback,
-            QPointer<QObject> callbackContext);
+            QPointer<QObject> callbackContext) override;
 
     void getBoardData(
             const int boardId,
             std::function<void (bool ok, std::optional<Board> board)> callback,
-            QPointer<QObject> callbackContext);
+            QPointer<QObject> callbackContext) override;
 
     void requestNewBoardId(
             std::function<void (std::optional<int> boardId)> callback,
-            QPointer<QObject> callbackContext);
+            QPointer<QObject> callbackContext) override;
 
-    std::optional<QSize> getMainWindowSize();
+    std::optional<QSize> getMainWindowSize() override;
 
 
     // ---- persisted data: update ----
@@ -150,7 +148,7 @@ public:
 
     // ==== non-persisted independent data ====
 
-    int getHighlightedCardId() const; // can return -1
+    int getHighlightedCardId() const override; // can return -1
 
     void setHighlightedCardId(const EventSource &eventSrc, const int cardId); // `cardId` can be -1
 

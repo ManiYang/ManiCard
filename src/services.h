@@ -5,6 +5,8 @@
 #include <QString>
 
 class AppData;
+class AppDataReadonly;
+class AppEventsHandler;
 class BoardsDataAccess;
 class CardsDataAccess;
 class LocalSettingsFile;
@@ -29,8 +31,9 @@ public:
     //!
     bool initialize(QString *errorMsg = nullptr);
 
-    AppData *getAppData() const;
-    PersistedDataAccess *getPersistedDataAccess() const;
+    AppDataReadonly *getAppDataReadonly() const;
+    AppEventsHandler *getAppEventsHandler() const;
+    bool getPersistedDataAccessHasWriteRequestInProgress() const;
 
     QString errorMsgOnUnsavedUpdate(const QString &what) const;
 
@@ -44,6 +47,7 @@ private:
     std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile;
     PersistedDataAccess *persistedDataAccess {nullptr};
     AppData *appData {nullptr};
+    AppEventsHandler *appEventsHandler {nullptr};
 
     QString unsavedUpdateFilePath;
 };

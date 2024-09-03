@@ -10,6 +10,7 @@ CONFIG += c++17
 
 SOURCES += \
     app_data.cpp \
+    app_data_readonly.cpp \
     app_events_handler.cpp \
     db_access/abstract_boards_data_access.cpp \
     db_access/abstract_cards_data_access.cpp \
@@ -60,6 +61,7 @@ SOURCES += \
 
 HEADERS += \
     app_data.h \
+    app_data_readonly.h \
     app_event_source.h \
     app_events_handler.h \
     db_access/abstract_boards_data_access.h \

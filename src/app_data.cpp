@@ -2,7 +2,7 @@
 #include "persisted_data_access.h"
 
 AppData::AppData(PersistedDataAccess *persistedDataAccess_, QObject *parent)
-        : QObject(parent)
+        : AppDataReadonly(parent)
         , persistedDataAccess(persistedDataAccess_) {
 }
 
@@ -204,3 +204,4 @@ void AppData::setHighlightedCardId(const EventSource &eventSrc, const int cardId
     highlightedCardId = cardId;
     emit highlightedCardIdUpdated(eventSrc);
 }
+

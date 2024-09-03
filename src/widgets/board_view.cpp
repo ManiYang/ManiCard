@@ -4,7 +4,8 @@
 #include <QInputDialog>
 #include <QResizeEvent>
 #include <QVBoxLayout>
-#include "app_data.h"
+#include "app_data_readonly.h"
+#include "app_events_handler.h"
 #include "board_view.h"
 #include "persisted_data_access.h"
 #include "services.h"
@@ -69,7 +70,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
     routine->addStep([this, routine]() {
         // 0. get the list of user-defined labels
         using StringListPair = std::pair<QStringList, QStringList>;
-        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppDataReadonly()->getUserLabelsAndRelationshipTypes(
                 // callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -82,7 +83,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
 
     routine->addStep([this, routine, boardIdToLoad]() {
         // 1. get board data
-        Services::instance()->getAppData()->getBoardData(
+        Services::instance()->getAppDataReadonly()->getBoardData(
                 boardIdToLoad,
                 // callback
                 [routine](bool ok, std::optional<Board> board) {
@@ -100,7 +101,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
     routine->addStep([this, routine, boardIdToLoad]() {
         // 2. get cards data
         const QSet<int> cardIds = keySet(routine->board.cardIdToNodeRectData);
-        Services::instance()->getAppData()->queryCards(
+        Services::instance()->getAppDataReadonly()->queryCards(
                 cardIds,
                 // callback
                 [routine, cardIds, boardIdToLoad](bool ok, const QHash<int, Card> &cards) {
@@ -148,7 +149,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
         using RelId = RelationshipId;
         using RelProperties = RelationshipProperties;
 
-        Services::instance()->getAppData()->queryRelationshipsFromToCards(
+        Services::instance()->getAppDataReadonly()->queryRelationshipsFromToCards(
                 keySet(routine->cardsData),
                 // callback
                 [routine](bool ok, const QHash<RelId, RelProperties> &rels) {
@@ -366,7 +367,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
     routine->addStep([this, routine]() {
         // 0. get the list of user-defined labels
         using StringListPair = std::pair<QStringList, QStringList>;
-        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppDataReadonly()->getUserLabelsAndRelationshipTypes(
                 // callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -379,7 +380,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
 
     routine->addStep([routine]() {
         // 1. request new card ID
-        Services::instance()->getAppData()->requestNewCardId(
+        Services::instance()->getAppDataReadonly()->requestNewCardId(
                 // callback:
                 [routine](std::optional<int> cardId) {
                     ContinuationContext context(routine);
@@ -400,9 +401,10 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
         routine->card.title = "New Card";
         routine->card.text = "";
 
-        Services::instance()->getPersistedDataAccess()->createNewCardWithId(
+        Services::instance()->getAppEventsHandler()->createdNewCard(
+                EventSource(this),
                 routine->newCardId, routine->card,
-                // callback
+                // callbackPersistResult
                 [routine](bool ok) {
                     ContinuationContext context(routine);
 
@@ -418,6 +420,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
 
     routine->addStep([this, routine, scenePos]() {
         // 3. create new NodeRect
+        // ............ should be step 2 ???
         ContinuationContext context(routine);
 
         NodeRectData nodeRectData;
@@ -462,7 +465,7 @@ void BoardView::userToSetLabels(const int cardId) {
     //
     routine->addStep([this, routine]() {
         // get user-defined labels list
-        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppDataReadonly()->getUserLabelsAndRelationshipTypes(
                 // callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -503,12 +506,12 @@ void BoardView::userToSetLabels(const int cardId) {
     }, this);
 
     routine->addStep([this, routine, cardId]() {
-        // save to DB
         Q_ASSERT(routine->updatedLabels.has_value());
         const auto updatedLabels = routine->updatedLabels.value_or(QStringList {});
-        Services::instance()->getPersistedDataAccess()->updateCardLabels(
+        Services::instance()->getAppEventsHandler()->updatedCardLabels(
+                EventSource(this),
                 cardId, QSet<QString>(updatedLabels.constBegin(), updatedLabels.constEnd()),
-                // callback
+                // callbackPersistResult
                 [routine](bool ok) {
                     ContinuationContext context(routine);
                     if (!ok) {
@@ -549,7 +552,7 @@ void BoardView::userToCreateRelationship(const int cardId) {
     //
     routine->addStep([this, routine]() {
         // get user-defined rel. types list
-        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppDataReadonly()->getUserLabelsAndRelationshipTypes(
                 // callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -593,7 +596,7 @@ void BoardView::userToCreateRelationship(const int cardId) {
             routine->relIdToCreate.startCardId,
             routine->relIdToCreate.endCardId
         };
-        Services::instance()->getAppData()->queryCards(
+        Services::instance()->getAppDataReadonly()->queryCards(
                 startEndCards,
                 // callback
                 [this, routine, startEndCards](bool ok, QHash<int, Card> cards) {
@@ -625,9 +628,10 @@ void BoardView::userToCreateRelationship(const int cardId) {
 
     routine->addStep([this, routine]() {
         // create relationship
-        Services::instance()->getPersistedDataAccess()->createRelationship(
+        Services::instance()->getAppEventsHandler()->createdRelationship(
+                EventSource(this),
                 routine->relIdToCreate,
-                // callback
+                // callbackPersistResult
                 [this, routine](bool ok, bool created) {
                     ContinuationContext context(routine);
 
@@ -652,6 +656,7 @@ void BoardView::userToCreateRelationship(const int cardId) {
 
     routine->addStep([this, routine]() {
         // create EdgeArrow
+        // should be previous step .............
         ContinuationContext context(routine);
 
         if (!nodeRectsCollection.contains(routine->relIdToCreate.startCardId)
@@ -713,10 +718,10 @@ void BoardView::userToCloseNodeRect(const int cardId) {
     }, this);
 
     routine->addStep([this, routine, cardId]() {
-        // write DB
-        Services::instance()->getPersistedDataAccess()->removeNodeRect(
+        Services::instance()->getAppEventsHandler()->removedNodeRect(
+                EventSource(this),
                 boardId, cardId,
-                // callback
+                // callbackPersistResult
                 [this, routine](bool ok) {
                     if (!ok) {
                         const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
@@ -746,7 +751,7 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
     routine->addStep([this, routine]() {
         // get the list of user-defined labels
         using StringListPair = std::pair<QStringList, QStringList>;
-        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppDataReadonly()->getUserLabelsAndRelationshipTypes(
                 // callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -759,7 +764,7 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
 
     routine->addStep([this, routine, cardId]() {
         // query card
-        Services::instance()->getAppData()->queryCards(
+        Services::instance()->getAppDataReadonly()->queryCards(
                 {cardId},
                 // callback
                 [=](bool ok, const QHash<int, Card> &cards) {
@@ -808,7 +813,7 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
         using RelId = RelationshipId;
         using RelProperties = RelationshipProperties;
 
-        Services::instance()->getAppData()->queryRelationshipsFromToCards(
+        Services::instance()->getAppDataReadonly()->queryRelationshipsFromToCards(
                 {cardId},
                 // callback
                 [this, routine, cardId](bool ok, const QHash<RelId, RelProperties> &rels) {
@@ -859,9 +864,10 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
 void BoardView::saveCardPropertiesUpdate(
         NodeRect *nodeRect, const CardPropertiesUpdate &propertiesUpdate,
         std::function<void ()> callback) {
-    Services::instance()->getPersistedDataAccess()->updateCardProperties(
+    Services::instance()->getAppEventsHandler()->updatedCardProperties(
+            EventSource(this),
             nodeRect->getCardId(), propertiesUpdate,
-            // callback
+            // callbackPersistResult
             [this, callback](bool ok) {
                 if (!ok) {
                     const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
@@ -956,13 +962,14 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         if (!nodeRectPtr)
             return;
 
-        // save
+        //
         NodeRectDataUpdate update;
         update.rect = nodeRectPtr->getRect();
 
-        Services::instance()->getPersistedDataAccess()->updateNodeRectProperties(
+        Services::instance()->getAppEventsHandler()->updatedNodeRectProperties(
+                EventSource(boardView),
                 boardView->boardId, nodeRectPtr->getCardId(), update,
-                // callback
+                // callbackPersistResult
                 [this](bool ok) {
                     if (!ok) {
                         const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
@@ -1036,9 +1043,10 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
     //
     if (saveCreatedNodeRectData) {
         // save the created NodeRect
-        Services::instance()->getPersistedDataAccess()->createNodeRect(
+        Services::instance()->getAppEventsHandler()->createdNodeRect(
+                EventSource(boardView),
                 boardView->boardId, cardId, nodeRectData,
-                // callback
+                // callbackPersistResult
                 [this](bool ok) {
                     if (!ok) {
                         const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
@@ -1108,13 +1116,6 @@ QSet<NodeRect *> BoardView::NodeRectsCollection::getAllNodeRects() const {
         result << it.value();
     return result;
 }
-
-//NodeRect *BoardView::NodeRectsCollection::getHighlightedNodeRect() const {
-//    if (highlightedNodeRect.isNull())
-//        return nullptr;
-//    else
-//        return highlightedNodeRect.data();
-//}
 
 //====
 
