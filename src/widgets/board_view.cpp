@@ -4,6 +4,7 @@
 #include <QInputDialog>
 #include <QResizeEvent>
 #include <QVBoxLayout>
+#include "app_data.h"
 #include "board_view.h"
 #include "persisted_data_access.h"
 #include "services.h"
@@ -68,7 +69,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
     routine->addStep([this, routine]() {
         // 0. get the list of user-defined labels
         using StringListPair = std::pair<QStringList, QStringList>;
-        Services::instance()->getPersistedDataAccess()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
                 // callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -81,7 +82,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
 
     routine->addStep([this, routine, boardIdToLoad]() {
         // 1. get board data
-        Services::instance()->getPersistedDataAccess()->getBoardData(
+        Services::instance()->getAppData()->getBoardData(
                 boardIdToLoad,
                 // callback
                 [routine](bool ok, std::optional<Board> board) {
@@ -99,7 +100,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
     routine->addStep([this, routine, boardIdToLoad]() {
         // 2. get cards data
         const QSet<int> cardIds = keySet(routine->board.cardIdToNodeRectData);
-        Services::instance()->getPersistedDataAccess()->queryCards(
+        Services::instance()->getAppData()->queryCards(
                 cardIds,
                 // callback
                 [routine, cardIds, boardIdToLoad](bool ok, const QHash<int, Card> &cards) {
@@ -147,7 +148,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
         using RelId = RelationshipId;
         using RelProperties = RelationshipProperties;
 
-        Services::instance()->getPersistedDataAccess()->queryRelationshipsFromToCards(
+        Services::instance()->getAppData()->queryRelationshipsFromToCards(
                 keySet(routine->cardsData),
                 // callback
                 [routine](bool ok, const QHash<RelId, RelProperties> &rels) {
@@ -365,7 +366,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
     routine->addStep([this, routine]() {
         // 0. get the list of user-defined labels
         using StringListPair = std::pair<QStringList, QStringList>;
-        Services::instance()->getPersistedDataAccess()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
                 // callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -378,7 +379,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
 
     routine->addStep([routine]() {
         // 1. request new card ID
-        Services::instance()->getPersistedDataAccess()->requestNewCardId(
+        Services::instance()->getAppData()->requestNewCardId(
                 // callback:
                 [routine](std::optional<int> cardId) {
                     ContinuationContext context(routine);
@@ -461,7 +462,7 @@ void BoardView::userToSetLabels(const int cardId) {
     //
     routine->addStep([this, routine]() {
         // get user-defined labels list
-        Services::instance()->getPersistedDataAccess()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
                 // callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -548,7 +549,7 @@ void BoardView::userToCreateRelationship(const int cardId) {
     //
     routine->addStep([this, routine]() {
         // get user-defined rel. types list
-        Services::instance()->getPersistedDataAccess()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
                 // callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -592,7 +593,7 @@ void BoardView::userToCreateRelationship(const int cardId) {
             routine->relIdToCreate.startCardId,
             routine->relIdToCreate.endCardId
         };
-        Services::instance()->getPersistedDataAccess()->queryCards(
+        Services::instance()->getAppData()->queryCards(
                 startEndCards,
                 // callback
                 [this, routine, startEndCards](bool ok, QHash<int, Card> cards) {
@@ -745,7 +746,7 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
     routine->addStep([this, routine]() {
         // get the list of user-defined labels
         using StringListPair = std::pair<QStringList, QStringList>;
-        Services::instance()->getPersistedDataAccess()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
                 // callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -758,7 +759,7 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
 
     routine->addStep([this, routine, cardId]() {
         // query card
-        Services::instance()->getPersistedDataAccess()->queryCards(
+        Services::instance()->getAppData()->queryCards(
                 {cardId},
                 // callback
                 [=](bool ok, const QHash<int, Card> &cards) {
@@ -807,7 +808,7 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
         using RelId = RelationshipId;
         using RelProperties = RelationshipProperties;
 
-        Services::instance()->getPersistedDataAccess()->queryRelationshipsFromToCards(
+        Services::instance()->getAppData()->queryRelationshipsFromToCards(
                 {cardId},
                 // callback
                 [this, routine, cardId](bool ok, const QHash<RelId, RelProperties> &rels) {

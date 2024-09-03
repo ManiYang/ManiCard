@@ -3,6 +3,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
+#include "app_data.h"
 #include "db_access/boards_data_access.h"
 #include "db_access/cards_data_access.h"
 #include "db_access/queued_db_access.h"
@@ -70,8 +71,10 @@ bool Services::initialize(QString *errorMsg) {
         unsavedUpdateRecordsFile
                 = std::make_shared<UnsavedUpdateRecordsFile>(unsavedUpdateFilePath);
 
-        cachedDataAccess = new PersistedDataAccess(
+        persistedDataAccess = new PersistedDataAccess(
                 queuedDbAccess, localSettingsFile, unsavedUpdateRecordsFile, qApp);
+
+        appData = new AppData(persistedDataAccess, qApp);
     }
     catch (std::runtime_error &e) {
         if (errorMsg)
@@ -82,14 +85,15 @@ bool Services::initialize(QString *errorMsg) {
     return true;
 }
 
-PersistedDataAccess *Services::getPersistedDataAccess() const {
-    Q_ASSERT(cachedDataAccess != nullptr);
-    return cachedDataAccess;
+AppData *Services::getAppData() const {
+    Q_ASSERT(appData != nullptr);
+    return appData;
 }
 
-//QString Services::getUnsavedUpdateFilePath() const {
-//    return unsavedUpdateFilePath;
-//}
+PersistedDataAccess *Services::getPersistedDataAccess() const {
+    Q_ASSERT(persistedDataAccess != nullptr);
+    return persistedDataAccess;
+}
 
 QString Services::errorMsgOnUnsavedUpdate(const QString &what) const {
     return QString("Could not save %1 to DB.\n\nThere is unsaved update. See %2")

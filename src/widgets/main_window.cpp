@@ -5,6 +5,7 @@
 #include <QKeySequence>
 #include <QMessageBox>
 #include <QShortcut>
+#include "app_data.h"
 #include "main_window.h"
 #include "persisted_data_access.h"
 #include "services.h"
@@ -295,7 +296,7 @@ void MainWindow::onShownForFirstTime() {
 void MainWindow::startUp() {
     {
         const auto sizeOpt
-                = Services::instance()->getPersistedDataAccess()->getMainWindowSize();
+                = Services::instance()->getAppData()->getMainWindowSize();
         if (sizeOpt.has_value())
             resize(sizeOpt.value());
     }
@@ -316,7 +317,7 @@ void MainWindow::startUp() {
     //
     routine->addStep([this, routine]() {
         // get boards-list properties
-        Services::instance()->getPersistedDataAccess()->getBoardsListProperties(
+        Services::instance()->getAppData()->getBoardsListProperties(
                 [routine](bool ok, BoardsListProperties properties) {
                     ContinuationContext context(routine);
 
@@ -335,7 +336,7 @@ void MainWindow::startUp() {
 
     routine->addStep([this, routine]() {
         // get all board IDs
-        Services::instance()->getPersistedDataAccess()->getBoardIdsAndNames(
+        Services::instance()->getAppData()->getBoardIdsAndNames(
                 [routine](bool ok, const QHash<int, QString> &idToName) {
                     ContinuationContext context(routine);
 
@@ -560,7 +561,7 @@ void MainWindow::onUserToCreateNewBoard() {
     //
     routine->addStep([this, routine]() {
         // 1. get new board ID
-        Services::instance()->getPersistedDataAccess()->requestNewBoardId(
+        Services::instance()->getAppData()->requestNewBoardId(
                 //callback
                 [routine](std::optional<int> boardId) {
                     ContinuationContext context(routine);
@@ -787,7 +788,7 @@ void MainWindow::showCardLabelsDialog() {
     //
     routine->addStep([this, routine]() {
         // get relationship types list
-        Services::instance()->getPersistedDataAccess()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
                 //callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -862,7 +863,7 @@ void MainWindow::showRelationshipTypesDialog() {
     //
     routine->addStep([this, routine]() {
         // get relationship types list
-        Services::instance()->getPersistedDataAccess()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
                 //callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);

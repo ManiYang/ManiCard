@@ -4,6 +4,7 @@
 #include <QNetworkAccessManager>
 #include <QString>
 
+class AppData;
 class BoardsDataAccess;
 class CardsDataAccess;
 class LocalSettingsFile;
@@ -28,9 +29,9 @@ public:
     //!
     bool initialize(QString *errorMsg = nullptr);
 
+    AppData *getAppData() const;
     PersistedDataAccess *getPersistedDataAccess() const;
 
-//    QString getUnsavedUpdateFilePath() const;
     QString errorMsgOnUnsavedUpdate(const QString &what) const;
 
 private:
@@ -41,7 +42,8 @@ private:
     QueuedDbAccess *queuedDbAccess {nullptr};
     std::shared_ptr<LocalSettingsFile> localSettingsFile;
     std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile;
-    PersistedDataAccess *cachedDataAccess {nullptr};
+    PersistedDataAccess *persistedDataAccess {nullptr};
+    AppData *appData {nullptr};
 
     QString unsavedUpdateFilePath;
 };

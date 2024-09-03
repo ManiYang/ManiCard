@@ -10,6 +10,7 @@ CONFIG += c++17
 
 SOURCES += \
     app_data.cpp \
+    app_events_handler.cpp \
     db_access/abstract_boards_data_access.cpp \
     db_access/abstract_cards_data_access.cpp \
     db_access/boards_data_access.cpp \
@@ -59,7 +60,8 @@ SOURCES += \
 
 HEADERS += \
     app_data.h \
-    app_event.h \
+    app_event_source.h \
+    app_events_handler.h \
     db_access/abstract_boards_data_access.h \
     db_access/abstract_cards_data_access.h \
     db_access/boards_data_access.h \
