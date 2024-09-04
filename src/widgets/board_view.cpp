@@ -883,7 +883,8 @@ void BoardView::saveCardPropertiesUpdate(
 }
 
 void BoardView::onHighlightedCardChanged(const int cardId) {
-    emit highlightedCardChanged(cardId);
+    Services::instance()->getAppEventsHandler()
+            ->updatedHighlightedCardId(EventSource(this), cardId);
 }
 
 void BoardView::closeAllCards() {

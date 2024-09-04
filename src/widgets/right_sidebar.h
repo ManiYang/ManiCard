@@ -13,8 +13,6 @@ class RightSidebar : public QFrame
 public:
     explicit RightSidebar(QWidget *parent = nullptr);
 
-    void loadCardProperties(const int cardId); // `cardId` can be -1
-
 signals:
     void closeRightSidebar();
 

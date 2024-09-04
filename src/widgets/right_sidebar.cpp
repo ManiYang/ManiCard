@@ -10,10 +10,6 @@ RightSidebar::RightSidebar(QWidget *parent)
     setUpConnections();
 }
 
-void RightSidebar::loadCardProperties(const int cardId) {
-    cardPropertiesView->loadCard(cardId);
-}
-
 void RightSidebar::setUpWidgets() {
     setFrameShape(QFrame::NoFrame);
 

@@ -47,7 +47,6 @@ public:
 
 signals:
     void openRightSideBar();
-    void highlightedCardChanged(const int cardId); // `cardId` can be -1
 
 private:
     static inline const QSizeF defaultNewNodeRectSize {200, 120};

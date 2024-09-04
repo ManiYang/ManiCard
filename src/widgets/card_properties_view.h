@@ -10,14 +10,18 @@ class CardPropertiesView : public QFrame
 public:
     explicit CardPropertiesView(QWidget *parent = nullptr);
 
-    void loadCard(const int cardIdToLoad); // `cardId` can be -1
-
 private:
     int cardId {-1};
 
     QTextEdit *textEdit {nullptr}; // [temp]
 
     void setUpWidgets();
+    void setUpConnections();
+
+    //!
+    //! \param cardIdToLoad: can be -1
+    //!
+    void loadCard(const int cardIdToLoad);
 };
 
 #endif // CARDPROPERTIESVIEW_H

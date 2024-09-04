@@ -247,9 +247,9 @@ void MainWindow::setUpConnections() {
         ui->frameRightSideBar->setVisible(true);
     });
 
-    connect(boardView, &BoardView::highlightedCardChanged, this, [this](const int cardId) {
-        rightSidebar->loadCardProperties(cardId);
-    });
+//    connect(boardView, &BoardView::highlightedCardChanged, this, [this](const int cardId) {
+//        rightSidebar->loadCardProperties(cardId);
+//    });
 
     // rightSidebar
     connect(rightSidebar, &RightSidebar::closeRightSidebar, this, [this]() {
