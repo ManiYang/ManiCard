@@ -3,6 +3,7 @@
 #include "app_data_readonly.h"
 #include "card_properties_view.h"
 #include "services.h"
+#include "utilities/json_util.h"
 
 CardPropertiesView::CardPropertiesView(QWidget *parent)
         : QFrame(parent) {
@@ -43,12 +44,43 @@ void CardPropertiesView::loadCard(const int cardIdToLoad) {
 
     cardId = cardIdToLoad;
 
-    // [temp]
-    if (cardId == -1) {
-        textEdit->clear();
-    }
-    else {
-        auto text = QString("Card %1").arg(cardId);
-        textEdit->setPlainText(text);
-    }
+    textEdit->clear();
+    if (cardIdToLoad == -1)
+        return;
+
+    //
+    Services::instance()->getAppDataReadonly()->queryCards(
+        {cardIdToLoad},
+        // callback
+        [this, cardIdToLoad](bool ok, const QHash<int, Card> &cardsData) {
+            if (!ok || !cardsData.contains(cardIdToLoad)) {
+                textEdit->append("<font color=\"red\">Could not get card data.</font>");
+                return;
+            }
+
+            Card cardData = cardsData.value(cardIdToLoad);
+
+            textEdit->append(QString("<b>%1</b>").arg(cardData.title));
+
+            QJsonObject customProperties;
+            {
+                const QJsonObject propertiesJson = cardData.getPropertiesJson();
+                const auto customPropertyNames = cardData.getCustomPropertyNames();
+                for (const QString &name: customPropertyNames)
+                    customProperties.insert(name, propertiesJson.value(name));
+            }
+            textEdit->append(printJson(customProperties, false));
+
+
+        },
+        this
+    );
+
+    auto text = QString("Card %1").arg(cardId);
+    textEdit->append(text);
+
+
+
+
+
 }
