@@ -18,11 +18,32 @@ void CardPropertiesView::setUpWidgets() {
     auto *layout = new QVBoxLayout;
     setLayout(layout);
     {
+        labelCardId = new QLabel;
+        layout->addWidget(labelCardId);
+
+        labelTitle = new QLabel;
+        layout->addWidget(labelTitle);
+        labelTitle->setWordWrap(true);
+
         // [temp]
         textEdit = new QTextEdit;
         layout->addWidget(textEdit);
         textEdit->setReadOnly(true);
     }
+
+    //
+    labelCardId->setStyleSheet(
+            "color: #666;"
+            "font-size: 10pt;"
+            "font-weight: bold;");
+
+    labelTitle->setStyleSheet(
+            "font-size: 12pt;");
+
+    textEdit->setStyleSheet(
+            "QTextEdit {"
+            "  font-size: 11pt;"
+            "}");
 }
 
 void CardPropertiesView::setUpConnections() {
@@ -36,6 +57,19 @@ void CardPropertiesView::setUpConnections() {
                 = Services::instance()->getAppDataReadonly()->getHighlightedCardId(); // can be -1
         loadCard(cardId);
     });
+
+    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::cardPropertiesUpdated,
+            this, [this](
+                EventSource eventSrc, const int cardId_,
+                const CardPropertiesUpdate &cardPropertiesUpdate) {
+        if (eventSrc.sourceWidget == this)
+            return;
+
+        if (cardId_ != cardId)
+            return;
+
+        onCardPropertiesUpdated(cardPropertiesUpdate);
+    });
 }
 
 void CardPropertiesView::loadCard(const int cardIdToLoad) {
@@ -44,42 +78,55 @@ void CardPropertiesView::loadCard(const int cardIdToLoad) {
 
     cardId = cardIdToLoad;
 
-    textEdit->clear();
-    if (cardIdToLoad == -1)
-        return;
+    //
+    if (cardId == -1)
+        labelCardId->clear();
+    else
+        labelCardId->setText(QString("Card %1").arg(cardId));
 
     //
-    Services::instance()->getAppDataReadonly()->queryCards(
-        {cardIdToLoad},
-        // callback
-        [this, cardIdToLoad](bool ok, const QHash<int, Card> &cardsData) {
-            if (!ok || !cardsData.contains(cardIdToLoad)) {
-                textEdit->append("<font color=\"red\">Could not get card data.</font>");
-                return;
-            }
+    if (cardIdToLoad == -1) {
+        loadCardProperties("", {});
+    }
+    else {
+        Services::instance()->getAppDataReadonly()->queryCards(
+            {cardIdToLoad},
+            // callback
+            [this, cardIdToLoad](bool ok, const QHash<int, Card> &cardsData) {
+                if (!ok || !cardsData.contains(cardIdToLoad)) {
+                    textEdit->append("<font color=\"red\">Could not get card data.</font>");
+                    return;
+                }
 
-            Card cardData = cardsData.value(cardIdToLoad);
+                Card cardData = cardsData.value(cardIdToLoad);
+                loadCardProperties(cardData.title, cardData.getCustomProperties());
+            },
+            this
+        );
+    }
+}
 
-            textEdit->append(QString("<b>%1</b>").arg(cardData.title));
+void CardPropertiesView::loadCardProperties(
+        const QString &title, const QHash<QString, QJsonValue> &customProperties) {
+    labelTitle->setText(title);
 
-            QJsonObject customProperties;
-            {
-                const QJsonObject propertiesJson = cardData.getPropertiesJson();
-                const auto customPropertyNames = cardData.getCustomPropertyNames();
-                for (const QString &name: customPropertyNames)
-                    customProperties.insert(name, propertiesJson.value(name));
-            }
-            textEdit->append(printJson(customProperties, false));
+    // [temp]
+    if (customProperties.isEmpty()) {
+        textEdit->clear();
+    }
+    else {
+        QJsonObject customPropsJson;
+        for (auto it = customProperties.constBegin(); it != customProperties.constEnd(); ++it)
+            customPropsJson.insert(it.key(), it.value());
+        textEdit->append(printJson(customPropsJson, false));
+    }
+}
 
-
-        },
-        this
-    );
-
-    auto text = QString("Card %1").arg(cardId);
-    textEdit->append(text);
-
-
+void CardPropertiesView::onCardPropertiesUpdated(
+        const CardPropertiesUpdate &cardPropertiesUpdate) {
+    if (cardPropertiesUpdate.title.has_value()) {
+        labelTitle->setText(cardPropertiesUpdate.title.value());
+    }
 
 
 

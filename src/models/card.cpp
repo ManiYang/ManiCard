@@ -27,6 +27,11 @@ QSet<QString> Card::getLabels() const {
 }
 
 void Card::insertCustomProperty(const QString &name, const QJsonValue &value) {
+    if (value.isUndefined()) {
+        Q_ASSERT(false);
+        return;
+    }
+
     const static QSet<QString> disallowedNames {"title", "text", "tags", "id"};
     if (disallowedNames.contains(name)) {
         Q_ASSERT(false);
@@ -39,12 +44,8 @@ void Card::removeCustomProperty(const QString &name) {
     customProperties.remove(name);
 }
 
-QSet<QString> Card::getCustomPropertyNames() const {
-    return keySet(customProperties);
-}
-
-QJsonValue Card::getCustomPropertyValue(const QString &name) const {
-    return customProperties.value(name, QJsonValue::Undefined);
+QHash<QString, QJsonValue> Card::getCustomProperties() const {
+    return customProperties;
 }
 
 QJsonObject Card::getPropertiesJson() const {
@@ -91,7 +92,13 @@ Card &Card::updateProperties(const CardPropertiesUpdate &propertiesUpdate) {
     UPDATE_PROPERTY(tags);
 #undef UPDATE_PROPERTY
 
-    mergeWith(customProperties, propertiesUpdate.getCustomProperties());
+    const auto customPropUpdate = propertiesUpdate.getCustomProperties();
+    for (auto it = customPropUpdate.constBegin(); it != customPropUpdate.constEnd(); ++it) {
+        if (it.value().isUndefined())
+            customProperties.remove(it.key());
+        else
+            customProperties.insert(it.key(), it.value());
+    }
 
     return *this;
 }
@@ -116,12 +123,32 @@ QHash<QString, QJsonValue> CardPropertiesUpdate::getCustomProperties() const {
     return customProperties;
 }
 
-QJsonObject CardPropertiesUpdate::toJson() const {
+QJsonObject CardPropertiesUpdate::toJson(const UndefinedHandlingOption option) const {
     QJsonObject obj;
 
-    for (auto it = customProperties.constBegin(); it != customProperties.constEnd(); ++it)
-        obj.insert(it.key(), it.value());
+    // custom properties
+    for (auto it = customProperties.constBegin(); it != customProperties.constEnd(); ++it) {
+        QJsonValue value = it.value();
+        if (value.isUndefined()) {
+            // handle Undefined value
+            switch (option) {
+            case UndefinedHandlingOption::ReplaceByNull:
+                value = QJsonValue::Null;
+                break;
+            case UndefinedHandlingOption::ReplaceByRemoveString:
+                value = "<Remove>";
+                break;
+            }
 
+            if (value.isUndefined()) { // case not implemented
+                Q_ASSERT(false);
+                value = QJsonValue::Null;
+            }
+        }
+        obj.insert(it.key(), value);
+    }
+
+    //
     if (title.has_value())
         obj.insert("title", title.value());
 

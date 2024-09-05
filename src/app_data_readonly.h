@@ -61,6 +61,9 @@ public:
     virtual int getHighlightedCardId() const = 0; // can return -1
 
 signals:
+    void cardPropertiesUpdated(
+            EventSource eventSrc,
+            const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate);
     void highlightedCardIdUpdated(EventSource eventSrc);
 };
 

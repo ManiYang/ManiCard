@@ -38,6 +38,10 @@ private:
 };
 
 
+//!
+//! - Wheel events will be accepted.
+//! - Clear selection on focus-out event.
+//!
 class TextEditTweak : public QTextEdit
 {
     Q_OBJECT

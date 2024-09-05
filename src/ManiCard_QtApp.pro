@@ -50,6 +50,7 @@ SOURCES += \
     widgets/components/graphics_item_move_resize.cpp \
     widgets/components/graphics_scene.cpp \
     widgets/components/node_rect.cpp \
+    widgets/components/property_value_editor.cpp \
     widgets/components/simple_toolbar.cpp \
     widgets/dialogs/dialog_create_relationship.cpp \
     widgets/dialogs/dialog_set_labels.cpp \
@@ -111,6 +112,7 @@ HEADERS += \
     widgets/components/graphics_item_move_resize.h \
     widgets/components/graphics_scene.h \
     widgets/components/node_rect.h \
+    widgets/components/property_value_editor.h \
     widgets/components/simple_toolbar.h \
     widgets/dialogs/dialog_create_relationship.h \
     widgets/dialogs/dialog_set_labels.h \

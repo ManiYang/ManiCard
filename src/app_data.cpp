@@ -68,10 +68,11 @@ void AppData::createNewCardWithId(
 }
 
 void AppData::updateCardProperties(
-        const EventSource &/*eventSrc*/,
+        const EventSource &eventSrc,
         const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
         std::function<void (bool)> callbackPersistResult, QPointer<QObject> callbackContext) {
     // 1. synchornously update all variables and emit "updated" signals
+    emit cardPropertiesUpdated(eventSrc, cardId, cardPropertiesUpdate);
 
     // 2. persist
     persistedDataAccess->updateCardProperties(
