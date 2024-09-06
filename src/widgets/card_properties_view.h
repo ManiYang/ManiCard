@@ -2,9 +2,11 @@
 #define CARDPROPERTIESVIEW_H
 
 #include <optional>
+#include <QCheckBox>
 #include <QFrame>
 #include <QJsonValue>
 #include <QLabel>
+#include <QPushButton>
 #include <QTextEdit>
 #include "models/card.h"
 
@@ -18,8 +20,9 @@ private:
     int cardId {-1};
 
     QLabel *labelCardId {nullptr};
+    QCheckBox *checkBoxEdit {nullptr};
     QLabel *labelTitle {nullptr};
-    QTextEdit *textEdit {nullptr}; // [temp]
+//    QTextEdit *textEdit {nullptr}; // [temp]
 
     void setUpWidgets();
     void setUpConnections();

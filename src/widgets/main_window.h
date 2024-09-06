@@ -58,7 +58,6 @@ private:
     //
     void setUpWidgets();
     void setUpConnections();
-    void setUpActions();
     void setUpMainMenu();
 
     //
@@ -75,6 +74,7 @@ private:
 
     void showCardLabelsDialog();
     void showRelationshipTypesDialog();
+    void showSettingsDialog();
 };
 
 #endif // MAIN_WINDOW_H

@@ -54,8 +54,10 @@ SOURCES += \
     widgets/components/simple_toolbar.cpp \
     widgets/dialogs/dialog_create_relationship.cpp \
     widgets/dialogs/dialog_set_labels.cpp \
+    widgets/dialogs/dialog_settings.cpp \
     widgets/dialogs/dialog_user_card_labels.cpp \
     widgets/dialogs/dialog_user_relationship_types.cpp \
+    widgets/dialogs/settings/appearance_settings.cpp \
     widgets/main_window.cpp \
     widgets/right_sidebar.cpp \
     widgets/right_sidebar_toolbar.cpp
@@ -116,8 +118,10 @@ HEADERS += \
     widgets/components/simple_toolbar.h \
     widgets/dialogs/dialog_create_relationship.h \
     widgets/dialogs/dialog_set_labels.h \
+    widgets/dialogs/dialog_settings.h \
     widgets/dialogs/dialog_user_card_labels.h \
     widgets/dialogs/dialog_user_relationship_types.h \
+    widgets/dialogs/settings/appearance_settings.h \
     widgets/main_window.h \
     widgets/right_sidebar.h \
     widgets/right_sidebar_toolbar.h
@@ -125,8 +129,10 @@ HEADERS += \
 FORMS += \
     widgets/dialogs/dialog_create_relationship.ui \
     widgets/dialogs/dialog_set_labels.ui \
+    widgets/dialogs/dialog_settings.ui \
     widgets/dialogs/dialog_user_card_labels.ui \
     widgets/dialogs/dialog_user_relationship_types.ui \
+    widgets/dialogs/settings/appearance_settings.ui \
     widgets/main_window.ui
 
 RESOURCES += \

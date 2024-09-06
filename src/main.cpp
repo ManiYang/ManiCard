@@ -26,8 +26,9 @@ int main(int argc, char *argv[]) {
     app.setApplicationName("ManiCard");
     app.setQuitOnLastWindowClosed(true);
 
+    // font
     {
-        QFont font = app.font();
+        QFont font = app.font("QMenu");
         font.setPointSize(10);
         app.setFont(font);
     }

@@ -20,6 +20,7 @@
 #include "widgets/boards_list.h"
 #include "widgets/dialogs/dialog_user_card_labels.h"
 #include "widgets/dialogs/dialog_user_relationship_types.h"
+#include "widgets/dialogs/dialog_settings.h"
 #include "widgets/right_sidebar.h"
 
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
@@ -31,7 +32,6 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     setUpWidgets();
     setUpConnections();
-    setUpActions();
     setUpMainMenu();
 
     //
@@ -254,31 +254,33 @@ void MainWindow::setUpConnections() {
     });
 }
 
-void MainWindow::setUpActions() {
-    actionQuit = new QAction("Quit", this);
-    this->addAction(actionQuit);
-    actionQuit->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q));
-    connect(actionQuit, &QAction::triggered, this, [this]() {
-        close();
-    });
-}
-
 void MainWindow::setUpMainMenu() {
     {
-        auto *menu = mainMenu->addMenu("Graph");
+        auto *submenu = mainMenu->addMenu("Graph");
         {
-            menu->addAction(
-                    "Labels...",
-                    this, [this]() { showCardLabelsDialog(); }
-            );
-            menu->addAction(
-                    "Relationship Types...",
-                    this, [this]() { showRelationshipTypesDialog(); }
-            );
+            submenu->addAction("Labels...", this, [this]() {
+                showCardLabelsDialog();
+            });
+            submenu->addAction("Relationship Types...", this, [this]() {
+                showRelationshipTypesDialog();
+            });
         }
     }
+//    {
+//        auto *action = mainMenu->addAction("Settings", this, [this]() {
+//            showSettingsDialog();
+//        });
+//        action->setShortcut(QKeySequence(Qt::CTRL + Qt::ALT + Qt::Key_S));
+//        this->addAction(action); // without this, the shortcut won't work
+//    }
     mainMenu->addSeparator();
-    mainMenu->addAction(actionQuit);
+    {
+        auto *action = mainMenu->addAction("Quit", this, [this]() {
+            close();
+        });
+        action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q));
+        this->addAction(action); // without this, the shortcut won't work
+    }
 }
 
 void MainWindow::onShownForFirstTime() {
@@ -937,4 +939,12 @@ void MainWindow::showRelationshipTypesDialog() {
     }, this);
 
     routine->start();
+}
+
+void MainWindow::showSettingsDialog() {
+    auto *dialog = new DialogSettings(this);
+    connect(dialog, &QDialog::finished, this, [dialog](int /*result*/) {
+        dialog->deleteLater();
+    });
+    dialog->open();
 }
