@@ -77,7 +77,7 @@ bool Services::initialize(QString *errorMsg) {
 
         appData = new AppData(persistedDataAccess, qApp);
 
-        appEventsHandler = new AppEventsHandler(appData, qApp);
+        appEventsHandler = new AppEventsHandler(appData, unsavedUpdateFilePath, qApp);
     }
     catch (std::runtime_error &e) {
         if (errorMsg)
@@ -103,7 +103,6 @@ bool Services::getPersistedDataAccessHasWriteRequestInProgress() const {
     return persistedDataAccess->hasWriteRequestInProgress();
 }
 
-QString Services::errorMsgOnUnsavedUpdate(const QString &what) const {
-    return QString("Could not save %1 to DB.\n\nThere is unsaved update. See %2")
-           .arg(what, unsavedUpdateFilePath);
+QString Services::getUnsavedUpdateRecordFilePath() const {
+    return unsavedUpdateFilePath;
 }

@@ -1,5 +1,6 @@
 #include <QJsonArray>
 #include "board.h"
+#include "utilities/json_util.h"
 
 QJsonObject Board::getNodePropertiesJson() const {
     return QJsonObject {
@@ -44,4 +45,8 @@ QJsonObject BoardNodePropertiesUpdate::toJson() const {
         obj.insert("topLeftPos", QJsonArray{topLeftPos.value().x(), topLeftPos.value().y()});
 
     return obj;
+}
+
+QSet<QString> BoardNodePropertiesUpdate::keys() const {
+    return keySet(toJson());
 }

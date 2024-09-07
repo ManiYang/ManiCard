@@ -25,6 +25,7 @@ struct NodeRectDataUpdate
     std::optional<QColor> color;
 
     QJsonObject toJson() const;
+    QSet<QString> keys() const;
 };
 
 #endif // NODE_RECT_DATA_H

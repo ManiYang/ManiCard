@@ -41,13 +41,7 @@ MainWindow::MainWindow(QWidget *parent)
                 Services::instance()->getAppEventsHandler()->updatedMainWindowSize(
                         EventSource(this), this->size(),
                         // callbackPersistResult
-                        [](bool ok) {
-                            if (!ok) {
-                                qWarning().noquote()
-                                        << Services::instance()->errorMsgOnUnsavedUpdate(
-                                               "user-defined card labels");
-                            }
-                        },
+                        [](bool /*ok*/) {},
                         this
                 );
             },
@@ -208,13 +202,7 @@ void MainWindow::setUpConnections() {
                 EventSource(this),
                 boardId, update,
                 // callbackPersistResult
-                [this](bool ok) {
-                    if (!ok) {
-                        const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
-                                "board name");
-                        showWarningMessageBox(this, " ", msg);
-                    }
-                },
+                [](bool /*ok*/) {},
                 this
         );
     });
@@ -234,12 +222,7 @@ void MainWindow::setUpConnections() {
     });
 
     connect(boardsList, &BoardsList::boardsOrderChanged, this, [this](QVector<int> /*boardIds*/) {
-        saveBoardsOrdering([this](bool ok) {
-            if (!ok) {
-                const auto msg = Services::instance()->errorMsgOnUnsavedUpdate("boards ordering");
-                showWarningMessageBox(this, " ", msg);
-            }
-        });
+        saveBoardsOrdering([](bool /*ok*/) {});
     });
 
     // boardView
@@ -451,16 +434,10 @@ void MainWindow::prepareToClose() {
                 EventSource(this),
                 propertiesUpdate,
                 // callbackPersistResult
-                [this, routine](bool ok) {
+                [routine](bool ok) {
                     ContinuationContext context(routine);
-
-                    if (!ok) {
-                        const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
-                                "last-opened board");
-                        showWarningMessageBox(this, " ", msg);
-
+                    if (!ok)
                         routine->hasUnsavedUpdate = true;
-                    }
                 },
                 this
         );
@@ -605,38 +582,31 @@ void MainWindow::onUserToCreateNewBoard() {
         // 3. save boards ordering
         saveBoardsOrdering([routine](bool ok) {
             ContinuationContext context(routine);
-            if (!ok) {
+            if (!ok)
                 context.setErrorFlag();
-                routine->errorMsg = Services::instance()->errorMsgOnUnsavedUpdate(
-                        "boards ordering");
-            }
         });
     }, this);
 
     routine->addStep([this, routine]() {
-        // 3.
+        //
         Services::instance()->getAppEventsHandler()->createdNewBoard(
                 EventSource(this),
                 routine->newBoardId, routine->boardData,
                 // callbackPersistResult
                 [routine](bool ok) {
                     ContinuationContext context(routine);
-
-                    if (!ok) {
+                    if (!ok)
                         context.setErrorFlag();
-                        routine->errorMsg = Services::instance()->errorMsgOnUnsavedUpdate(
-                                "created board");
-                    }
                 },
                 this
         );
     }, this);
 
     routine->addStep([this, routine]() {
-        // 4. (final step)
+        // final step
         ContinuationContext context(routine);
 
-        if (routine->errorFlag)
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
             showWarningMessageBox(this, " ", routine->errorMsg);
     }, this);
 
@@ -710,10 +680,8 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
         // save boards ordering
         saveBoardsOrdering([routine](bool ok) {
             ContinuationContext context(routine);
-            if (!ok) {
+            if (!ok)
                 context.setErrorFlag();
-                routine->errorMsg = Services::instance()->errorMsgOnUnsavedUpdate("boards ordering");
-            }
         });
     }, this);
 
@@ -724,11 +692,8 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
                 // callbackPersistResult
                 [routine, boardId](bool ok) {
                     ContinuationContext context(routine);
-                    if (!ok) {
+                    if (!ok)
                         context.setErrorFlag();
-                        routine->errorMsg = Services::instance()->errorMsgOnUnsavedUpdate(
-                                QString("removal of board %1").arg(boardId));
-                    }
                 },
                 this
         );
@@ -738,7 +703,7 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
     routine->addStep([this, routine]() {
         // final step
         ContinuationContext context(routine);
-        if (routine->errorFlag)
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
             showWarningMessageBox(this, " ", routine->errorMsg);
     }, this);
 
@@ -760,12 +725,7 @@ void MainWindow::saveTopLeftPosOfCurrentBoard(std::function<void (bool)> callbac
             EventSource(this),
             currentBoardId, propertiesUpdate,
             // callbackPersistResult
-            [this, callback](bool ok) {
-                if (!ok) {
-                    const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
-                            "board's top-left position");
-                    showWarningMessageBox(this, " ", msg);
-                }
+            [callback](bool ok) {
                 callback(ok);
             },
             this
@@ -844,11 +804,8 @@ void MainWindow::showCardLabelsDialog() {
                 // callbackPersistResult
                 [routine](bool ok) {
                     ContinuationContext context(routine);
-                    if (!ok) {
+                    if (!ok)
                         context.setErrorFlag();
-                        routine->errorMsg = Services::instance()->errorMsgOnUnsavedUpdate(
-                                "user-defined card labels");
-                    }
                 },
                 this
         );
@@ -857,7 +814,7 @@ void MainWindow::showCardLabelsDialog() {
     routine->addStep([this, routine]() {
         // final step
         ContinuationContext context(routine);
-        if (routine->errorFlag)
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
             showWarningMessageBox(this, " ", routine->errorMsg);
     }, this);
 
@@ -921,11 +878,8 @@ void MainWindow::showRelationshipTypesDialog() {
                 // callbackPersistResult
                 [routine](bool ok) {
                     ContinuationContext context(routine);
-                    if (!ok) {
+                    if (!ok)
                         context.setErrorFlag();
-                        routine->errorMsg = Services::instance()->errorMsgOnUnsavedUpdate(
-                                "user-defined relationship types");
-                    }
                 },
                 this
         );
@@ -934,7 +888,7 @@ void MainWindow::showRelationshipTypesDialog() {
     routine->addStep([this, routine]() {
         // final step
         ContinuationContext context(routine);
-        if (routine->errorFlag)
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
             showWarningMessageBox(this, " ", routine->errorMsg);
     }, this);
 

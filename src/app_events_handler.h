@@ -16,9 +16,11 @@ class AppEventsHandler : public QObject
 {
     Q_OBJECT
 public:
-    explicit AppEventsHandler(AppData *appData_, QObject *parent = nullptr);
+    explicit AppEventsHandler(
+            AppData *appData_, const QString &unsavedUpdateRecordFilePath_,
+            QObject *parent = nullptr);
 
-    // If data persistence fails, a record of unsaved update is added.
+    // If data persistence fails, adds a record of unsaved update and shows a warning message box.
 
     void createdNewCard(
             const EventSource &eventSrc,
@@ -80,6 +82,9 @@ public:
             const int boardId, const int cardId, const NodeRectDataUpdate &update,
             std::function<void (bool ok)> callbackPersistResult, QPointer<QObject> callbackContext);
 
+    //!
+    //! The board and card must exist in DB (or be saved to DB beforehand).
+    //!
     void createdNodeRect(
             const EventSource &eventSrc,
             const int boardId, const int cardId, const NodeRectData &nodeRectData,
@@ -100,6 +105,7 @@ public:
 signals:
 
 private:
+    const QString unsavedUpdateRecordFilePath;
     AppData *appData;
 
     QQueue<std::function<void ()>> taskQueue;
@@ -108,6 +114,9 @@ private:
     void addToQueue(std::function<void ()> func);
     void onTaskDone();
     void dequeueAndInvoke();
+
+    // tools
+    void showMsgOnUnsavedUpdate(const QString &dataName, const EventSource &eventSource);
 };
 
 #endif // APPEVENTSHANDLER_H

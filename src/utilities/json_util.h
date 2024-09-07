@@ -46,6 +46,8 @@ inline QString printJson(const QJsonArray &array, const bool compact = true) {
     return QJsonDocument(array).toJson(compact ? QJsonDocument::Compact : QJsonDocument::Indented);
 }
 
+QSet<QString> keySet(const QJsonObject &obj);
+
 //!
 //! For example, if \e pathOfKeys is {"a", "b", "c"}, this method returns \c object["a"]["b"]["c"].
 //! Returns \c QJsonValue::Undefined if the key-path is not found.

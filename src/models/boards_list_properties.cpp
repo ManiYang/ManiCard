@@ -34,3 +34,6 @@ QJsonObject BoardsListPropertiesUpdate::toJson() const {
     return obj;
 }
 
+QSet<QString> BoardsListPropertiesUpdate::keys() const {
+    return keySet(toJson());
+}

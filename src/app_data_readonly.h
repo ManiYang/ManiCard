@@ -23,6 +23,11 @@ public:
     using RelId = RelationshipId;
     using RelProperties = RelationshipProperties;
 
+    virtual void queryRelationship(
+            const RelId &relationshipId,
+            std::function<void (bool ok, const std::optional<RelProperties> &)> callback,
+            QPointer<QObject> callbackContext) = 0;
+
     virtual void queryRelationshipsFromToCards(
             const QSet<int> &cardIds,
             std::function<void (bool, const QHash<RelId, RelProperties> &)> callback,

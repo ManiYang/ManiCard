@@ -59,3 +59,7 @@ QJsonObject NodeRectDataUpdate::toJson() const {
 
     return obj;
 }
+
+QSet<QString> NodeRectDataUpdate::keys() const {
+    return keySet(toJson());
+}

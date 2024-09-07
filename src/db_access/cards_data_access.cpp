@@ -2,6 +2,7 @@
 #include "models/node_labels.h"
 #include "neo4j_http_api_client.h"
 #include "utilities/async_routine.h"
+#include "utilities/functor.h"
 #include "utilities/json_util.h"
 #include "utilities/strings_util.h"
 
@@ -20,6 +21,15 @@ void CardsDataAccess::queryCards(
         std::function<void (bool, const QHash<int, Card> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
+
+    if (cardIds.isEmpty()) {
+        invokeAction(callbackContext, [callback]() {
+            callback(true, {});
+        });
+        return;
+    }
+
+    //
     const QJsonArray cardIdsArray = toJsonArray(cardIds);
 
     neo4jHttpApiClient->queryDb(
@@ -144,6 +154,55 @@ void CardsDataAccess::traverseFromCard(
                     );
                 }
                 callback(!hasError, cardsResult);
+            },
+            callbackContext
+    );
+}
+
+void CardsDataAccess::queryRelationship(
+        const RelId &relationshipId,
+        std::function<void (bool, const std::optional<RelProperties> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(MATCH (:Card {id: $fromCardId})-[r]->(:Card {id: $toCardId})
+                    WHERE type(r) = $relationshipType
+                    RETURN r
+                )!",
+                QJsonObject {
+                    {"fromCardId", relationshipId.startCardId},
+                    {"toCardId", relationshipId.endCardId},
+                    {"relationshipType", relationshipId.type}
+                }
+            },
+            // callback:
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false, std::nullopt);
+                    return;
+                }
+
+                const auto queryResult = queryResponse.getResult().value();
+                if (queryResponse.hasNetworkOrDbError()) {
+                    callback(false, std::nullopt);
+                    return;
+                }
+
+                if (queryResult.rowCount() == 0) {
+                    callback(true, std::nullopt); // (relationship not found)
+                    return;
+                }
+
+                const auto relObjectOpt = queryResult.objectValueAt(0, "r");
+                if (!relObjectOpt.has_value()) {
+                    callback(false, std::nullopt);
+                }
+                else {
+                    RelationshipProperties properties;
+                    properties.update(relObjectOpt.value());
+                    callback(true, properties);
+                }
             },
             callbackContext
     );

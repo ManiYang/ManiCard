@@ -12,6 +12,13 @@ void AppData::queryCards(
     persistedDataAccess->queryCards(cardIds, callback, callbackContext);
 }
 
+void AppData::queryRelationship(
+        const RelId &relationshipId,
+        std::function<void (bool, const std::optional<RelProperties> &)> callback,
+        QPointer<QObject> callbackContext) {
+    persistedDataAccess->queryRelationship(relationshipId, callback, callbackContext);
+}
+
 void AppData::queryRelationshipsFromToCards(
         const QSet<int> &cardIds,
         std::function<void (bool, const QHash<RelId, RelProperties> &)> callback,

@@ -34,6 +34,16 @@ public:
     using RelProperties = RelationshipProperties;
 
     //!
+    //! \param relationshipId
+    //! \param callback: parameter \e properties will be nullopt if the relationship is not found
+    //! \param callbackContext
+    //!
+    virtual void queryRelationship(
+            const RelId &relationshipId,
+            std::function<void (bool ok, const std::optional<RelProperties> &properties)> callback,
+            QPointer<QObject> callbackContext) = 0;
+
+    //!
     //! Get all relationships that start or end at one of \e cardIds.
     //!
     virtual void queryRelationshipsFromToCards(

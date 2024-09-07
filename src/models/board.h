@@ -32,6 +32,7 @@ struct BoardNodePropertiesUpdate
     std::optional<QPointF> topLeftPos;
 
     QJsonObject toJson() const;
+    QSet<QString> keys() const;
 };
 
 #endif // BOARD_H

@@ -91,6 +91,13 @@ QJsonArray parseAsJsonArray(const QString &json, QString *errorMsg) {
     return doc.array();
 }
 
+QSet<QString> keySet(const QJsonObject &obj) {
+    QSet<QString> result;
+    for (auto it = obj.constBegin(); it != obj.constEnd(); ++it)
+        result << it.key();
+    return result;
+}
+
 QJsonValue getNestedValue(const QJsonObject &object, const QStringList &pathOfKeys) {
     QJsonValue v = object;
     for (const QString &key: pathOfKeys) {

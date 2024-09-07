@@ -2,10 +2,14 @@
 #include "app_data.h"
 #include "app_events_handler.h"
 #include "utilities/functor.h"
+#include "utilities/message_box.h"
+#include "utilities/strings_util.h"
 
-AppEventsHandler::AppEventsHandler(AppData *appData_, QObject *parent)
-    : QObject(parent)
-    , appData(appData_) {
+AppEventsHandler::AppEventsHandler(
+        AppData *appData_, const QString &unsavedUpdateRecordFilePath_, QObject *parent)
+        : QObject(parent)
+        , unsavedUpdateRecordFilePath(unsavedUpdateRecordFilePath_)
+        , appData(appData_) {
 }
 
 void AppEventsHandler::createdNewCard(
@@ -17,6 +21,9 @@ void AppEventsHandler::createdNewCard(
                 eventSrc, cardId, card,
                 // callbackPersistResult
                 [=](bool ok) {
+                    if (!ok)
+                        showMsgOnUnsavedUpdate("careated card", eventSrc);
+
                     invokeAction(callbackContext, [=]() { callbackPersistResult(ok); });
                     onTaskDone();
                 },
@@ -35,6 +42,9 @@ void AppEventsHandler::updatedCardProperties(
                 eventSrc, cardId, cardPropertiesUpdate,
                 // callbackPersistResult
                 [=](bool ok) {
+                    if (!ok)
+                        showMsgOnUnsavedUpdate("card properties", eventSrc);
+
                     invokeAction(callbackContext, [=]() { callbackPersistResult(ok); });
                     onTaskDone();
                 },
@@ -52,6 +62,9 @@ void AppEventsHandler::updatedCardLabels(
                 eventSrc, cardId, updatedLabels,
                 // callbackPersistResult
                 [=](bool ok) {
+                    if (!ok)
+                        showMsgOnUnsavedUpdate("card labels", eventSrc);
+
                     invokeAction(callbackContext, [=]() { callbackPersistResult(ok); });
                     onTaskDone();
                 },
@@ -70,6 +83,9 @@ void AppEventsHandler::createdRelationship(
                 eventSrc, id,
                 // callbackPersistResult
                 [=](bool ok, bool isCreated) {
+                    if (!ok)
+                        showMsgOnUnsavedUpdate("created relationship", eventSrc);
+
                     invokeAction(callbackContext, [=]() { callbackPersistResult(ok, isCreated); });
                     onTaskDone();
                 },
@@ -87,6 +103,9 @@ void AppEventsHandler::updatedUserRelationshipTypes(
                 eventSrc, updatedRelTypes,
                 // callbackPersistResult
                 [=](bool ok) {
+                    if (!ok)
+                        showMsgOnUnsavedUpdate("user-defined relationship types", eventSrc);
+
                     invokeAction(callbackContext, [=]() { callbackPersistResult(ok); });
                     onTaskDone();
                 },
@@ -104,6 +123,9 @@ void AppEventsHandler::updatedUserCardLabels(
                 eventSrc, updatedCardLabels,
                 // callbackPersistResult
                 [=](bool ok) {
+                    if (!ok)
+                        showMsgOnUnsavedUpdate("user-defined card labels", eventSrc);
+
                     invokeAction(callbackContext, [=]() { callbackPersistResult(ok); });
                     onTaskDone();
                 },
@@ -121,6 +143,13 @@ void AppEventsHandler::updatedBoardsListProperties(
                 eventSrc, propertiesUpdate,
                 // callbackPersistResult
                 [=](bool ok) {
+                    if (!ok) {
+                        const auto items = joinStringSet(propertiesUpdate.keys(), ", ");
+                        showMsgOnUnsavedUpdate(
+                                QString("boards-list properties (%1)").arg(items),
+                                eventSrc);
+                    }
+
                     invokeAction(callbackContext, [=]() { callbackPersistResult(ok); });
                     onTaskDone();
                 },
@@ -138,6 +167,9 @@ void AppEventsHandler::createdNewBoard(
                 eventSrc, boardId, board,
                 // callbackPersistResult
                 [=](bool ok) {
+                    if (!ok)
+                        showMsgOnUnsavedUpdate("created board", eventSrc);
+
                     invokeAction(callbackContext, [=]() { callbackPersistResult(ok); });
                     onTaskDone();
                 },
@@ -156,6 +188,13 @@ void AppEventsHandler::updatedBoardNodeProperties(
                 eventSrc, boardId, propertiesUpdate,
                 // callbackPersistResult
                 [=](bool ok) {
+                    if (!ok) {
+                        const auto items = joinStringSet(propertiesUpdate.keys(), ", ");
+                        showMsgOnUnsavedUpdate(
+                                QString("board properties (%1)").arg(items),
+                                eventSrc);
+                    }
+
                     invokeAction(callbackContext, [=]() { callbackPersistResult(ok); });
                     onTaskDone();
                 },
@@ -173,6 +212,9 @@ void AppEventsHandler::removedBoard(
                 eventSrc, boardId,
                 // callbackPersistResult
                 [=](bool ok) {
+                    if (!ok)
+                        showMsgOnUnsavedUpdate("removal of board", eventSrc);
+
                     invokeAction(callbackContext, [=]() { callbackPersistResult(ok); });
                     onTaskDone();
                 },
@@ -191,6 +233,13 @@ void AppEventsHandler::updatedNodeRectProperties(
                 eventSrc, boardId, cardId, update,
                 // callbackPersistResult
                 [=](bool ok) {
+                    if (!ok) {
+                        const auto items = joinStringSet(update.keys(), ", ");
+                        showMsgOnUnsavedUpdate(
+                                QString("NodeRect data (%1)").arg(items),
+                                eventSrc);
+                    }
+
                     invokeAction(callbackContext, [=]() { callbackPersistResult(ok); });
                     onTaskDone();
                 },
@@ -209,6 +258,9 @@ void AppEventsHandler::createdNodeRect(
                 eventSrc, boardId, cardId, nodeRectData,
                 // callbackPersistResult
                 [=](bool ok) {
+                    if (!ok)
+                        showMsgOnUnsavedUpdate("created NodeRect", eventSrc);
+
                     invokeAction(callbackContext, [=]() { callbackPersistResult(ok); });
                     onTaskDone();
                 },
@@ -226,6 +278,9 @@ void AppEventsHandler::removedNodeRect(
                 eventSrc, boardId, cardId,
                 // callbackPersistResult
                 [=](bool ok) {
+                    if (!ok)
+                        showMsgOnUnsavedUpdate("removal of NodeRect", eventSrc);
+
                     invokeAction(callbackContext, [=]() { callbackPersistResult(ok); });
                     onTaskDone();
                 },
@@ -240,9 +295,11 @@ void AppEventsHandler::updatedMainWindowSize(
     Q_ASSERT(callbackPersistResult);
     addToQueue([=]() {
         const bool ok = appData->updateMainWindowSize(eventSrc, size);
-        invokeAction(callbackContext, [callbackPersistResult, ok]() {
-            callbackPersistResult(ok);
-        });
+
+        if (!ok)
+            showMsgOnUnsavedUpdate("MainWindow size", eventSrc);
+
+        invokeAction(callbackContext, [=]() { callbackPersistResult(ok); });
         onTaskDone();
     });
 }
@@ -276,4 +333,12 @@ void AppEventsHandler::dequeueAndInvoke() {
 
     // add `func` to the Qt event queue (rather than call it directly) to prevent deep call stack
     QTimer::singleShot(0, this, [task]() { task(); });
+}
+
+void AppEventsHandler::showMsgOnUnsavedUpdate(
+        const QString &dataName, const EventSource &eventSource) {
+    const auto msg
+            = QString("Could not save %1 to DB.\n\nThere is unsaved update. See %2")
+              .arg(dataName, unsavedUpdateRecordFilePath);
+    showWarningMessageBox(eventSource.sourceWidget, "Warning", msg);
 }

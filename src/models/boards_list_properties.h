@@ -24,6 +24,7 @@ struct BoardsListPropertiesUpdate
     std::optional<QVector<int>> boardsOrdering;
 
     QJsonObject toJson() const;
+    QSet<QString> keys() const;
 };
 
 #endif // BOARDS_LIST_PROPERTIES_H

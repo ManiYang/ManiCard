@@ -85,6 +85,37 @@ void PersistedDataAccess::queryCards(
     routine->start();
 }
 
+void PersistedDataAccess::queryRelationship(
+        const RelId &relationshipId,
+        std::function<void (bool, const std::optional<RelProperties> &)> callback,
+        QPointer<QObject> callbackContext) {
+    // 1. get the parts that are already cached
+    if (cache.relationships.contains(relationshipId)) {
+        const auto result = cache.relationships.value(relationshipId);
+        invokeAction(callbackContext, [callback, result]() {
+            callback(true, result);
+        });
+        return;
+    }
+
+    // 2. query DB
+    queuedDbAccess->queryRelationship(
+            relationshipId,
+            // callback:
+            [=](bool ok, const std::optional<RelProperties> &propertiesOpt) {
+                // update cache
+                if (ok && propertiesOpt.has_value())
+                    cache.relationships.insert(relationshipId, propertiesOpt.value());
+
+                //
+                invokeAction(callbackContext, [callback, ok, propertiesOpt]() {
+                    callback(ok, propertiesOpt);
+                });
+            },
+            this
+    );
+}
+
 void PersistedDataAccess::queryRelationshipsFromToCards(
         const QSet<int> &cardIds,
         std::function<void (bool, const QHash<RelId, RelProperties> &)> callback,

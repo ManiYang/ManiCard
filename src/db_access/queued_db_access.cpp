@@ -55,6 +55,27 @@ void QueuedDbAccess::traverseFromCard(
     addToQueue(func);
 }
 
+void QueuedDbAccess::queryRelationship(
+        const RelId &relationshipId,
+        std::function<void (bool, const std::optional<RelProperties> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    true // is readonly?
+                    , const std::optional<RelProperties> & // result type (`Void` if no result argument)
+                    , decltype(relationshipId) // input types
+                >(
+            [this](auto... args) {
+                cardsDataAccess->queryRelationship(args...); // method
+            },
+            relationshipId, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
 void QueuedDbAccess::queryRelationshipsFromToCards(
         const QSet<int> &cardIds,
         std::function<void (bool, const QHash<RelId, RelProperties> &)> callback,

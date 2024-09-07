@@ -113,8 +113,7 @@ private:
         //!
         NodeRect *createNodeRect(
                 const int cardId, const Card &cardData,
-                const NodeRectData &nodeRectData, const bool saveCreatedNodeRectData,
-                const QStringList &userLabelsList);
+                const NodeRectData &nodeRectData, const QStringList &userLabelsList);
 
         //!
         //! Does not check NodeRect::canClose().

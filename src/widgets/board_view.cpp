@@ -132,10 +132,8 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
 
             const NodeRectData nodeRectData = routine->board.cardIdToNodeRectData.value(cardId);
 
-            constexpr bool saveNodeRectData = false;
             NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
-                    cardId, cardData, nodeRectData, saveNodeRectData,
-                    routine->userLabelsList);
+                    cardId, cardData, nodeRectData, routine->userLabelsList);
             nodeRect->setEditable(true);
         }
 
@@ -359,6 +357,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
         QStringList userLabelsList;
         int newCardId;
         Card card;
+        NodeRectData nodeRectData;
         QString errorMsg;
     };
     auto *routine = new AsyncRoutineWithVars;
@@ -396,41 +395,18 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
         );
     }, routine);
 
-    routine->addStep([this, routine]() {
-        // 2. create card
+    routine->addStep([this, routine, scenePos]() {
+        // 2. create new NodeRect
         routine->card.title = "New Card";
         routine->card.text = "";
 
-        Services::instance()->getAppEventsHandler()->createdNewCard(
-                EventSource(this),
-                routine->newCardId, routine->card,
-                // callbackPersistResult
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-
-                    if (!ok) {
-                        context.setErrorFlag();
-                        routine->errorMsg
-                                = Services::instance()->errorMsgOnUnsavedUpdate("created card");
-                    }
-                },
-                this
-        );
-    }, this);
-
-    routine->addStep([this, routine, scenePos]() {
-        // 3. create new NodeRect
-        // ............ should be step 2 ???
         ContinuationContext context(routine);
 
-        NodeRectData nodeRectData;
-        {
-            nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
-            nodeRectData.color = defaultNewNodeRectColor;
-        }
-        constexpr bool saveNodeRectData = true;
+        routine->nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
+        routine->nodeRectData.color = defaultNewNodeRectColor;
+
         NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
-                routine->newCardId, routine->card, nodeRectData, saveNodeRectData,
+                routine->newCardId, routine->card, routine->nodeRectData,
                 routine->userLabelsList);
         nodeRect->setEditable(true);
 
@@ -438,12 +414,41 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
     }, this);
 
     routine->addStep([this, routine]() {
-        // 4. (final step)
+        // 3. create card in DB
+        Services::instance()->getAppEventsHandler()->createdNewCard(
+                EventSource(this),
+                routine->newCardId, routine->card,
+                // callbackPersistResult
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // 4. save created NodeRect to DB
+        Services::instance()->getAppEventsHandler()->createdNodeRect(
+                EventSource(this),
+                this->boardId, routine->newCardId, routine->nodeRectData,
+                // callbackPersistResult
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
         ContinuationContext context(routine);
 
-        if (routine->errorFlag)
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
             showWarningMessageBox(this, " ", routine->errorMsg);
-
     }, this);
 
     routine->start();
@@ -458,7 +463,7 @@ void BoardView::userToSetLabels(const int cardId) {
     public:
         QStringList userCardLabelsList;
         std::optional<QStringList> updatedLabels;
-        QString errorMsg;
+//        QString errorMsg;
     };
     auto *routine = new AsyncRoutineWithVars;
 
@@ -514,23 +519,16 @@ void BoardView::userToSetLabels(const int cardId) {
                 // callbackPersistResult
                 [routine](bool ok) {
                     ContinuationContext context(routine);
-                    if (!ok) {
+                    if (!ok)
                         context.setErrorFlag();
-                        routine->errorMsg
-                                = Services::instance()->errorMsgOnUnsavedUpdate("updated card labels");
-                    }
                 },
                 this
         );
     }, this);
 
-    routine->addStep([this, routine]() {
+    routine->addStep([routine]() {
         // final step
         ContinuationContext context(routine);
-
-        if (routine->errorFlag)
-            showWarningMessageBox(this, " ", routine->errorMsg);
-
     }, this);
 
     //
@@ -546,6 +544,7 @@ void BoardView::userToCreateRelationship(const int cardId) {
     public:
         QStringList userRelTypesList;
         RelationshipId relIdToCreate {-1, -1, ""};
+        QString errorMsg;
     };
     auto *routine = new AsyncRoutineWithVars;
 
@@ -599,15 +598,15 @@ void BoardView::userToCreateRelationship(const int cardId) {
         Services::instance()->getAppDataReadonly()->queryCards(
                 startEndCards,
                 // callback
-                [this, routine, startEndCards](bool ok, QHash<int, Card> cards) {
+                [routine, startEndCards](bool ok, QHash<int, Card> cards) {
                     ContinuationContext context(routine);
 
                     if (!ok) {
-                        QMessageBox::warning(
-                                this, " ", "Could not query start/end cards. See logs for detail");
+                        routine->errorMsg = "Could not query start/end cards. See logs for detail";
                         context.setErrorFlag();
                         return;
                     }
+
                     if (const auto diff = startEndCards - keySet(cards); !diff.isEmpty()) {
                         QString cardIdsStr;
                         {
@@ -616,8 +615,7 @@ void BoardView::userToCreateRelationship(const int cardId) {
                             if (++it != diff.constEnd())
                                 cardIdsStr += QString(" & %1").arg(*it);
                         }
-                        QMessageBox::warning(
-                                this, " ", QString("Card %1 not found.").arg(cardIdsStr));
+                        routine->errorMsg = QString("Card %1 not found.").arg(cardIdsStr);
                         context.setErrorFlag();
                         return;
                     }
@@ -627,27 +625,23 @@ void BoardView::userToCreateRelationship(const int cardId) {
     }, this);
 
     routine->addStep([this, routine]() {
-        // create relationship
-        Services::instance()->getAppEventsHandler()->createdRelationship(
-                EventSource(this),
+        // check relationship not already exists
+        Services::instance()->getAppDataReadonly()->queryRelationship(
                 routine->relIdToCreate,
-                // callbackPersistResult
-                [this, routine](bool ok, bool created) {
+                // callback
+                [routine](bool ok, const std::optional<RelationshipProperties> &propertiesOpt) {
                     ContinuationContext context(routine);
 
                     if (!ok) {
-                        // (Don't set routine->errorFlag here. Continue to create EdgeArrow.)
-                        const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
-                                "created relationship");
-                        showWarningMessageBox(this, " ", msg);
+                        context.setErrorFlag();
+                        routine->errorMsg = "Could not query relationship. See logs for detail.";
                         return;
                     }
-                    if (!created) {
-                        QMessageBox::information(
-                                this, " ",
-                                QString("Relationship %1 already exists.")
-                                    .arg(routine->relIdToCreate.toString()));
+
+                    if (propertiesOpt.has_value()) {
                         context.setErrorFlag();
+                        routine->errorMsg = "Relationship already exists.";
+                        return;
                     }
                 },
                 this
@@ -656,7 +650,6 @@ void BoardView::userToCreateRelationship(const int cardId) {
 
     routine->addStep([this, routine]() {
         // create EdgeArrow
-        // should be previous step .............
         ContinuationContext context(routine);
 
         if (!nodeRectsCollection.contains(routine->relIdToCreate.startCardId)
@@ -676,9 +669,36 @@ void BoardView::userToCreateRelationship(const int cardId) {
         edgeArrowsCollection.createEdgeArrow(routine->relIdToCreate, edgeArrowData);
     }, this);
 
-    routine->addStep([routine]() {
+    routine->addStep([this, routine]() {
+        // create relationship in DB
+        Services::instance()->getAppEventsHandler()->createdRelationship(
+                EventSource(this),
+                routine->relIdToCreate,
+                // callbackPersistResult
+                [routine](bool ok, bool created) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        context.setErrorFlag();
+                        return;
+                    }
+                    if (!created) { // (should not happen)
+                        context.setErrorFlag();
+                        routine->errorMsg
+                                = QString("Relationship %1 already exists.")
+                                  .arg(routine->relIdToCreate.toString());
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([routine, this]() {
         // final step
         routine->nextStep();
+
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+            showWarningMessageBox(this, " ", routine->errorMsg);
     }, this);
 
     routine->start();
@@ -722,12 +742,7 @@ void BoardView::userToCloseNodeRect(const int cardId) {
                 EventSource(this),
                 boardId, cardId,
                 // callbackPersistResult
-                [this, routine](bool ok) {
-                    if (!ok) {
-                        const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
-                                "the removal of NodeRect");
-                        showWarningMessageBox(this, " ", msg);
-                    }
+                [routine](bool /*ok*/) {
                     routine->nextStep();
                 },
                 this
@@ -743,7 +758,9 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
     public:
         QStringList userLabelsList;
         Card cardData;
+        NodeRectData nodeRectData;
         QHash<RelationshipId, RelationshipProperties> rels;
+        QString errorMsg;
     };
     auto *routine = new AsyncRoutineWithVars;
 
@@ -771,16 +788,14 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
                     ContinuationContext context(routine);
 
                     if (!ok) {
-                        showWarningMessageBox(
-                                this, " ", "Could not open card. See logs for details.");
                         context.setErrorFlag();
+                        routine->errorMsg = "Could not open card. See logs for details.";
                         return;
                     }
 
                     if (!cards.contains(cardId)) {
-                        showInformationMessageBox(
-                                this, " ", QString("Card %1 not found.").arg(cardId));
                         context.setErrorFlag();
+                        routine->errorMsg = QString("Card %1 not found.").arg(cardId);
                         return;
                     }
 
@@ -794,15 +809,11 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
         // create NodeRect
         ContinuationContext context(routine);
 
-        NodeRectData nodeRectData;
-        {
-            nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
-            nodeRectData.color = defaultNewNodeRectColor;
-        }
-        constexpr bool saveNodeRectData = true;
+        routine->nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
+        routine->nodeRectData.color = defaultNewNodeRectColor;
+
         auto *nodeRect = nodeRectsCollection.createNodeRect(
-                cardId, routine->cardData, nodeRectData, saveNodeRectData,
-                routine->userLabelsList);
+                cardId, routine->cardData, routine->nodeRectData, routine->userLabelsList);
         nodeRect->setEditable(true);
 
         adjustSceneRect();
@@ -816,16 +827,13 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
         Services::instance()->getAppDataReadonly()->queryRelationshipsFromToCards(
                 {cardId},
                 // callback
-                [this, routine, cardId](bool ok, const QHash<RelId, RelProperties> &rels) {
+                [routine, cardId](bool ok, const QHash<RelId, RelProperties> &rels) {
                     ContinuationContext context(routine);
-
                     if (!ok) {
-                        QMessageBox::warning(
-                                this, " ",
-                                QString("Could not get relationships connecting card %1. "
-                                        "See logs for details.")
-                                    .arg(cardId));
                         context.setErrorFlag();
+                        routine->errorMsg
+                                = QString("Could not get relationships connecting card %1. "
+                                          "See logs for details.").arg(cardId);
                         return;
                     }
 
@@ -858,6 +866,29 @@ void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
         }
     }, this);
 
+    routine->addStep([this, routine, cardId]() {
+        // save created NodeRect to DB
+        Services::instance()->getAppEventsHandler()->createdNodeRect(
+                EventSource(this),
+                this->boardId, cardId, routine->nodeRectData,
+                // callbackPersistResult
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
+
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+            showWarningMessageBox(this, " ", routine->errorMsg);
+    }, this);
+
     routine->start();
 }
 
@@ -868,13 +899,7 @@ void BoardView::saveCardPropertiesUpdate(
             EventSource(this),
             nodeRect->getCardId(), propertiesUpdate,
             // callbackPersistResult
-            [this, callback](bool ok) {
-                if (!ok) {
-                    const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
-                            "card properties");
-                    showWarningMessageBox(this, " ", msg);
-                }
-
+            [callback](bool /*ok*/) {
                 if (callback)
                     callback();
             },
@@ -926,7 +951,7 @@ QSet<RelationshipId> BoardView::getEdgeArrowsConnectingNodeRect(const int cardId
 
 NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         const int cardId, const Card &cardData, const NodeRectData &nodeRectData,
-        const bool saveCreatedNodeRectData, const QStringList &userLabelsList) {
+        const QStringList &userLabelsList) {
     Q_ASSERT(!cardIdToNodeRect.contains(cardId));
 
     auto *nodeRect = new NodeRect(cardId);
@@ -971,13 +996,7 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
                 EventSource(boardView),
                 boardView->boardId, nodeRectPtr->getCardId(), update,
                 // callbackPersistResult
-                [this](bool ok) {
-                    if (!ok) {
-                        const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
-                                "NodeRect's rect");
-                        showWarningMessageBox(boardView, " ", msg);
-                    }
-                },
+                [](bool /*ok*/) {},
                 boardView
         );
     });
@@ -1040,24 +1059,6 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
             return;
         boardView->userToCloseNodeRect(nodeRectPtr->getCardId());
     });
-
-    //
-    if (saveCreatedNodeRectData) {
-        // save the created NodeRect
-        Services::instance()->getAppEventsHandler()->createdNodeRect(
-                EventSource(boardView),
-                boardView->boardId, cardId, nodeRectData,
-                // callbackPersistResult
-                [this](bool ok) {
-                    if (!ok) {
-                        const auto msg = Services::instance()->errorMsgOnUnsavedUpdate(
-                                "created NodeRect");
-                        showWarningMessageBox(boardView, " ", msg);
-                    }
-                },
-                boardView
-        );
-    }
 
     //
     return nodeRect;

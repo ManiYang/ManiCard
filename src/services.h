@@ -35,7 +35,7 @@ public:
     AppEventsHandler *getAppEventsHandler() const;
     bool getPersistedDataAccessHasWriteRequestInProgress() const;
 
-    QString errorMsgOnUnsavedUpdate(const QString &what) const;
+    QString getUnsavedUpdateRecordFilePath() const;
 
 private:
     QNetworkAccessManager *networkAccessManager {nullptr};
