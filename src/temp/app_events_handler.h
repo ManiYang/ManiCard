@@ -83,7 +83,7 @@ public:
             std::function<void (bool ok)> callbackPersistResult, QPointer<QObject> callbackContext);
 
     //!
-    //! The board and card must exist in DB (or be saved to DB beforehand).
+    //! The board and card must exist (must be saved beforehand).
     //!
     void createdNodeRect(
             const EventSource &eventSrc,

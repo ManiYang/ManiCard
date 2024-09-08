@@ -1,7 +1,7 @@
 #include <QDebug>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
-#include "app_data_readonly.h"
+#include "app_data.h"
 #include "card_properties_view.h"
 #include "services.h"
 #include "utilities/json_util.h"
@@ -81,17 +81,17 @@ void CardPropertiesView::setUpConnections() {
     });
 
     // from AppData
-    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::highlightedCardIdUpdated,
+    connect(Services::instance()->getAppData(), &AppDataReadonly::highlightedCardIdUpdated,
             this, [this](EventSource eventSrc) {
         if (eventSrc.sourceWidget == this)
             return;
 
         const int cardId
-                = Services::instance()->getAppDataReadonly()->getHighlightedCardId(); // can be -1
+                = Services::instance()->getAppData()->getHighlightedCardId(); // can be -1
         loadCard(cardId);
     });
 
-    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::cardPropertiesUpdated,
+    connect(Services::instance()->getAppData(), &AppDataReadonly::cardPropertiesUpdated,
             this, [this](
                 EventSource eventSrc, const int cardId_,
                 const CardPropertiesUpdate &cardPropertiesUpdate) {
@@ -125,7 +125,7 @@ void CardPropertiesView::loadCard(const int cardIdToLoad) {
     //
     loadCardProperties("", {});
     if (cardIdToLoad != -1) {
-        Services::instance()->getAppDataReadonly()->queryCards(
+        Services::instance()->getAppData()->queryCards(
             {cardIdToLoad},
             // callback
             [this, cardIdToLoad](bool ok, const QHash<int, Card> &cardsData) {

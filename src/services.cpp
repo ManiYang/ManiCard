@@ -4,7 +4,6 @@
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include "app_data.h"
-#include "app_events_handler.h"
 #include "db_access/boards_data_access.h"
 #include "db_access/cards_data_access.h"
 #include "db_access/queued_db_access.h"
@@ -76,8 +75,6 @@ bool Services::initialize(QString *errorMsg) {
                 queuedDbAccess, localSettingsFile, unsavedUpdateRecordsFile, qApp);
 
         appData = new AppData(persistedDataAccess, qApp);
-
-        appEventsHandler = new AppEventsHandler(appData, unsavedUpdateFilePath, qApp);
     }
     catch (std::runtime_error &e) {
         if (errorMsg)
@@ -88,14 +85,9 @@ bool Services::initialize(QString *errorMsg) {
     return true;
 }
 
-AppDataReadonly *Services::getAppDataReadonly() const {
+AppData *Services::getAppData() const {
     Q_ASSERT(appData != nullptr);
     return appData;
-}
-
-AppEventsHandler *Services::getAppEventsHandler() const {
-    Q_ASSERT(appEventsHandler != nullptr);
-    return appEventsHandler;
 }
 
 bool Services::getPersistedDataAccessHasWriteRequestInProgress() const {

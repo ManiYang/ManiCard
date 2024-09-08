@@ -5,8 +5,7 @@
 #include <QKeySequence>
 #include <QMessageBox>
 #include <QShortcut>
-#include "app_data_readonly.h"
-#include "app_events_handler.h"
+#include "app_data.h"
 #include "main_window.h"
 #include "persisted_data_access.h"
 #include "services.h"
@@ -20,7 +19,6 @@
 #include "widgets/boards_list.h"
 #include "widgets/dialogs/dialog_user_card_labels.h"
 #include "widgets/dialogs/dialog_user_relationship_types.h"
-#include "widgets/dialogs/dialog_settings.h"
 #include "widgets/right_sidebar.h"
 
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
@@ -38,12 +36,8 @@ MainWindow::MainWindow(QWidget *parent)
     saveWindowSizeDebounced = new ActionDebouncer(
             1000, ActionDebouncer::Option::Delay,
             [this]() {
-                Services::instance()->getAppEventsHandler()->updatedMainWindowSize(
-                        EventSource(this), this->size(),
-                        // callbackPersistResult
-                        [](bool /*ok*/) {},
-                        this
-                );
+                Services::instance()->getAppData()
+                        ->updateMainWindowSize(EventSource(this), this->size());
             },
             this
     );
@@ -198,7 +192,7 @@ void MainWindow::setUpConnections() {
         BoardNodePropertiesUpdate update;
         update.name = name;
 
-        Services::instance()->getAppEventsHandler()->updatedBoardNodeProperties(
+        Services::instance()->getAppData()->updateBoardNodeProperties(
                 EventSource(this),
                 boardId, update,
                 // callbackPersistResult
@@ -249,13 +243,6 @@ void MainWindow::setUpMainMenu() {
             });
         }
     }
-//    {
-//        auto *action = mainMenu->addAction("Settings", this, [this]() {
-//            showSettingsDialog();
-//        });
-//        action->setShortcut(QKeySequence(Qt::CTRL + Qt::ALT + Qt::Key_S));
-//        this->addAction(action); // without this, the shortcut won't work
-//    }
     mainMenu->addSeparator();
     {
         auto *action = mainMenu->addAction("Quit", this, [this]() {
@@ -290,7 +277,7 @@ void MainWindow::onShownForFirstTime() {
 void MainWindow::startUp() {
     {
         const auto sizeOpt
-                = Services::instance()->getAppDataReadonly()->getMainWindowSize();
+                = Services::instance()->getAppData()->getMainWindowSize();
         if (sizeOpt.has_value())
             resize(sizeOpt.value());
     }
@@ -311,7 +298,7 @@ void MainWindow::startUp() {
     //
     routine->addStep([this, routine]() {
         // get boards-list properties
-        Services::instance()->getAppDataReadonly()->getBoardsListProperties(
+        Services::instance()->getAppData()->getBoardsListProperties(
                 [routine](bool ok, BoardsListProperties properties) {
                     ContinuationContext context(routine);
 
@@ -330,7 +317,7 @@ void MainWindow::startUp() {
 
     routine->addStep([this, routine]() {
         // get all board IDs
-        Services::instance()->getAppDataReadonly()->getBoardIdsAndNames(
+        Services::instance()->getAppData()->getBoardIdsAndNames(
                 [routine](bool ok, const QHash<int, QString> &idToName) {
                     ContinuationContext context(routine);
 
@@ -430,7 +417,7 @@ void MainWindow::prepareToClose() {
         BoardsListPropertiesUpdate propertiesUpdate;
         propertiesUpdate.lastOpenedBoard = boardsList->selectedBoardId();
 
-        Services::instance()->getAppEventsHandler()->updatedBoardsListProperties(
+        Services::instance()->getAppData()->updateBoardsListProperties(
                 EventSource(this),
                 propertiesUpdate,
                 // callbackPersistResult
@@ -550,7 +537,7 @@ void MainWindow::onUserToCreateNewBoard() {
     //
     routine->addStep([this, routine]() {
         // 1. get new board ID
-        Services::instance()->getAppDataReadonly()->requestNewBoardId(
+        Services::instance()->getAppData()->requestNewBoardId(
                 //callback
                 [routine](std::optional<int> boardId) {
                     ContinuationContext context(routine);
@@ -589,7 +576,7 @@ void MainWindow::onUserToCreateNewBoard() {
 
     routine->addStep([this, routine]() {
         //
-        Services::instance()->getAppEventsHandler()->createdNewBoard(
+        Services::instance()->getAppData()->createNewBoardWithId(
                 EventSource(this),
                 routine->newBoardId, routine->boardData,
                 // callbackPersistResult
@@ -686,11 +673,11 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
     }, this);
 
     routine->addStep([this, routine, boardId]() {
-        Services::instance()->getAppEventsHandler()->removedBoard(
+        Services::instance()->getAppData()->removeBoard(
                 EventSource(this),
                 boardId,
                 // callbackPersistResult
-                [routine, boardId](bool ok) {
+                [routine](bool ok) {
                     ContinuationContext context(routine);
                     if (!ok)
                         context.setErrorFlag();
@@ -721,7 +708,7 @@ void MainWindow::saveTopLeftPosOfCurrentBoard(std::function<void (bool)> callbac
     propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
 
     //
-    Services::instance()->getAppEventsHandler()->updatedBoardNodeProperties(
+    Services::instance()->getAppData()->updateBoardNodeProperties(
             EventSource(this),
             currentBoardId, propertiesUpdate,
             // callbackPersistResult
@@ -736,7 +723,7 @@ void MainWindow::saveBoardsOrdering(std::function<void (bool ok)> callback) {
     BoardsListPropertiesUpdate propertiesUpdate;
     propertiesUpdate.boardsOrdering = boardsList->getBoardsOrder();
 
-    Services::instance()->getAppEventsHandler()->updatedBoardsListProperties(
+    Services::instance()->getAppData()->updateBoardsListProperties(
             EventSource(this),
             propertiesUpdate,
             // callbackPersistResult
@@ -763,7 +750,7 @@ void MainWindow::showCardLabelsDialog() {
     //
     routine->addStep([this, routine]() {
         // get relationship types list
-        Services::instance()->getAppDataReadonly()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
                 //callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -798,7 +785,7 @@ void MainWindow::showCardLabelsDialog() {
         }
 
         //
-        Services::instance()->getAppEventsHandler()->updatedUserCardLabels(
+        Services::instance()->getAppData()->updateUserCardLabels(
                 EventSource(this),
                 routine->updatedLabels,
                 // callbackPersistResult
@@ -836,7 +823,7 @@ void MainWindow::showRelationshipTypesDialog() {
     //
     routine->addStep([this, routine]() {
         // get relationship types list
-        Services::instance()->getAppDataReadonly()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
                 //callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -872,7 +859,7 @@ void MainWindow::showRelationshipTypesDialog() {
         }
 
         //
-        Services::instance()->getAppEventsHandler()->updatedUserRelationshipTypes(
+        Services::instance()->getAppData()->updateUserRelationshipTypes(
                 EventSource(this),
                 routine->updatedRelTypes,
                 // callbackPersistResult
@@ -893,12 +880,4 @@ void MainWindow::showRelationshipTypesDialog() {
     }, this);
 
     routine->start();
-}
-
-void MainWindow::showSettingsDialog() {
-    auto *dialog = new DialogSettings(this);
-    connect(dialog, &QDialog::finished, this, [dialog](int /*result*/) {
-        dialog->deleteLater();
-    });
-    dialog->open();
 }

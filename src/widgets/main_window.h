@@ -74,7 +74,6 @@ private:
 
     void showCardLabelsDialog();
     void showRelationshipTypesDialog();
-    void showSettingsDialog();
 };
 
 #endif // MAIN_WINDOW_H
