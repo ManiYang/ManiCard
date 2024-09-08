@@ -33,25 +33,29 @@ BoardView::BoardView(QWidget *parent)
     installEventFiltersOnComponents();
 }
 
-void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> callback) {
+void BoardView::loadBoard(
+        const int boardIdToLoad,
+        std::function<void (bool loadOk, bool highlightedCardIdChanged)> callback) {
     if (boardId == boardIdToLoad) {
-        callback(true);
+        callback(true, false);
         return;
     }
 
     // close all cards
+    bool highlightedCardIdChanged = false; // to -1
+
     if (boardId != -1) {
         if (!canClose()) {
-            callback(false);
+            callback(false, false);
             return;
         }
 
-        closeAllCards(); ////
+        closeAllCards(&highlightedCardIdChanged);
         boardId = -1;
     }
 
     if (boardIdToLoad == -1) {
-        callback(true);
+        callback(true, highlightedCardIdChanged);
         return;
     }
 
@@ -69,7 +73,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
     routine->addStep([this, routine]() {
         // 0. get the list of user-defined labels
         using StringListPair = std::pair<QStringList, QStringList>;
-        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppDataReadonly()->getUserLabelsAndRelationshipTypes(
                 // callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -82,7 +86,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
 
     routine->addStep([this, routine, boardIdToLoad]() {
         // 1. get board data
-        Services::instance()->getAppData()->getBoardData(
+        Services::instance()->getAppDataReadonly()->getBoardData(
                 boardIdToLoad,
                 // callback
                 [routine](bool ok, std::optional<Board> board) {
@@ -100,7 +104,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
     routine->addStep([this, routine, boardIdToLoad]() {
         // 2. get cards data
         const QSet<int> cardIds = keySet(routine->board.cardIdToNodeRectData);
-        Services::instance()->getAppData()->queryCards(
+        Services::instance()->getAppDataReadonly()->queryCards(
                 cardIds,
                 // callback
                 [routine, cardIds, boardIdToLoad](bool ok, const QHash<int, Card> &cards) {
@@ -146,7 +150,7 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
         using RelId = RelationshipId;
         using RelProperties = RelationshipProperties;
 
-        Services::instance()->getAppData()->queryRelationshipsFromToCards(
+        Services::instance()->getAppDataReadonly()->queryRelationshipsFromToCards(
                 keySet(routine->cardsData),
                 // callback
                 [routine](bool ok, const QHash<RelId, RelProperties> &rels) {
@@ -185,14 +189,14 @@ void BoardView::loadBoard(const int boardIdToLoad, std::function<void (bool)> ca
             edgeArrowsCollection.createEdgeArrow(relId, edgeArrowData);
     }, this);
 
-    routine->addStep([this, routine, callback, boardIdToLoad]() {
+    routine->addStep([this, routine, callback, boardIdToLoad, highlightedCardIdChanged]() {
         // final step
         ContinuationContext context(routine);
 
         if (!routine->errorFlag)
             boardId = boardIdToLoad;
 
-        callback(!routine->errorFlag);
+        callback(!routine->errorFlag, highlightedCardIdChanged);
     }, this);
 
     routine->start();
@@ -204,7 +208,7 @@ void BoardView::prepareToClose() {
         nodeRect->prepareToClose();
 }
 
-void BoardView::rightSideBarClosed() {
+void BoardView::showButtonRightSidebar() {
     toolBar->showButtonOpenRightSidebar();
 }
 
@@ -272,14 +276,14 @@ void BoardView::setUpContextMenu() {
         QAction *action = contextMenu->addAction(
                 QIcon(":/icons/open_in_new_black_24"), "Open Existing Card...");
         connect(action, &QAction::triggered, this, [this]() {
-            userToOpenExistingCard(contextMenuData.requestScenePos);
+            onUserToOpenExistingCard(contextMenuData.requestScenePos);
         });
     }
     {
         QAction *action = contextMenu->addAction(
                 QIcon(":/icons/add_box_black_24"), "Create New Card");
         connect(action, &QAction::triggered, this, [this]() {
-            userToCreateNewCard(contextMenuData.requestScenePos);
+            onUserToCreateNewCard(contextMenuData.requestScenePos);
         });
     }
 }
@@ -296,7 +300,7 @@ void BoardView::setUpConnections() {
     });
 
     connect(graphicsScene, &GraphicsScene::clickedOnBackground, this, [this]() {
-        nodeRectsCollection.unhighlightAllCards();
+        onBackgroundClicked();
     });
 
     //
@@ -309,27 +313,7 @@ void BoardView::installEventFiltersOnComponents() {
     graphicsView->installEventFilter(this);
 }
 
-void BoardView::adjustSceneRect() {
-    QGraphicsScene *scene = graphicsView->scene();
-    if (scene == nullptr)
-        return;
-
-    QRectF contentsRect = scene->itemsBoundingRect();
-    if (contentsRect.isEmpty())
-        contentsRect = QRectF(0, 0, 10, 10); // x,y,w,h
-
-    // finite margins prevent user from drag-scrolling too far away from contents
-    constexpr double fraction = 0.8;
-    const double marginX = graphicsView->width() * fraction;
-    const double marginY = graphicsView->height() * fraction;
-
-    //
-    const auto sceneRect
-            = contentsRect.marginsAdded(QMarginsF(marginX, marginY,marginX, marginY));
-    graphicsView->setSceneRect(sceneRect);
-}
-
-void BoardView::userToOpenExistingCard(const QPointF &scenePos) {
+void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
     constexpr int minValue = 0;
     constexpr int step = 1;
 
@@ -346,10 +330,146 @@ void BoardView::userToOpenExistingCard(const QPointF &scenePos) {
     }
 
     //
-    openExistingCard(cardId, scenePos);
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QStringList userLabelsList;
+        Card cardData;
+        NodeRectData nodeRectData;
+        QHash<RelationshipId, RelationshipProperties> rels;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // get the list of user-defined labels
+        using StringListPair = std::pair<QStringList, QStringList>;
+        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
+                // callback
+                [routine](bool ok, const StringListPair &labelsAndRelTypes) {
+                    ContinuationContext context(routine);
+                    if (ok)
+                        routine->userLabelsList = labelsAndRelTypes.first;
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine, cardId]() {
+        // query card
+        Services::instance()->getAppData()->queryCards(
+                {cardId},
+                // callback
+                [=](bool ok, const QHash<int, Card> &cards) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg = "Could not open card. See logs for details.";
+                        return;
+                    }
+
+                    if (!cards.contains(cardId)) {
+                        context.setErrorFlag();
+                        routine->errorMsg = QString("Card %1 not found.").arg(cardId);
+                        return;
+                    }
+
+                    routine->cardData = cards.value(cardId);;
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine, cardId, scenePos]() {
+        // create NodeRect
+        ContinuationContext context(routine);
+
+        routine->nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
+        routine->nodeRectData.color = defaultNewNodeRectColor;
+
+        auto *nodeRect = nodeRectsCollection.createNodeRect(
+                cardId, routine->cardData, routine->nodeRectData, routine->userLabelsList);
+        nodeRect->setEditable(true);
+
+        adjustSceneRect();
+    }, this);
+
+    routine->addStep([this, routine, cardId]() {
+        // query relationships
+        using RelId = RelationshipId;
+        using RelProperties = RelationshipProperties;
+
+        Services::instance()->getAppData()->queryRelationshipsFromToCards(
+                {cardId},
+                // callback
+                [routine, cardId](bool ok, const QHash<RelId, RelProperties> &rels) {
+                    ContinuationContext context(routine);
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg
+                                = QString("Could not get relationships connecting card %1. "
+                                          "See logs for details.").arg(cardId);
+                        return;
+                    }
+
+                    routine->rels = rels;
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine, cardId]() {
+        // create EdgeArrow's
+        ContinuationContext context(routine);
+
+        EdgeArrowData edgeArrowData;
+        {
+            edgeArrowData.lineColor = defaultEdgeArrowLineColor;
+            edgeArrowData.lineWidth = defaultEdgeArrowLineWidth;
+        }
+
+        for (auto it = routine->rels.constBegin(); it != routine->rels.constEnd(); ++it) {
+            const auto &relId = it.key();
+
+            int otherCardId;
+            bool b = relId.connectsCard(cardId, &otherCardId);
+            Q_ASSERT(b);
+            if (!nodeRectsCollection.contains(otherCardId)) // `otherCardId` not opened in this board
+                continue;
+
+            edgeArrowsCollection.createEdgeArrow(relId, edgeArrowData);
+        }
+    }, this);
+
+    routine->addStep([this, routine, cardId]() {
+        // call AppDate
+        Services::instance()->getAppData()->createNodeRect(
+                EventSource(this),
+                this->boardId, cardId, routine->nodeRectData,
+                // callbackPersistResult
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
+
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+            showWarningMessageBox(this, " ", routine->errorMsg);
+    }, this);
+
+    routine->start();
 }
 
-void BoardView::userToCreateNewCard(const QPointF &scenePos) {
+void BoardView::onUserToCreateNewCard(const QPointF &scenePos) {
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
@@ -413,7 +533,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
     }, this);
 
     routine->addStep([this, routine]() {
-        // 3. create card in DB
+        // 3. call AppData: create card
         Services::instance()->getAppData()->createNewCardWithId(
                 EventSource(this),
                 routine->newCardId, routine->card,
@@ -428,7 +548,8 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
     }, this);
 
     routine->addStep([this, routine]() {
-        // 4. save created NodeRect to DB
+        // 4. call AppData: create NodeRect
+        // better merge this step with previous step into single AppData method call
         Services::instance()->getAppData()->createNodeRect(
                 EventSource(this),
                 this->boardId, routine->newCardId, routine->nodeRectData,
@@ -453,7 +574,7 @@ void BoardView::userToCreateNewCard(const QPointF &scenePos) {
     routine->start();
 }
 
-void BoardView::userToSetLabels(const int cardId) {
+void BoardView::onUserToSetLabels(const int cardId) {
     Q_ASSERT(nodeRectsCollection.contains(cardId));
     using StringListPair = std::pair<QStringList, QStringList>;
 
@@ -510,7 +631,7 @@ void BoardView::userToSetLabels(const int cardId) {
     }, this);
 
     routine->addStep([this, routine, cardId]() {
-        // call AppEventsHandler
+        // call AppData
         Q_ASSERT(routine->updatedLabels.has_value());
         const auto updatedLabels = routine->updatedLabels.value_or(QStringList {});
         Services::instance()->getAppData()->updateCardLabels(
@@ -535,7 +656,7 @@ void BoardView::userToSetLabels(const int cardId) {
     routine->start();
 }
 
-void BoardView::userToCreateRelationship(const int cardId) {
+void BoardView::onUserToCreateRelationship(const int cardId) {
     Q_ASSERT(nodeRectsCollection.contains(cardId));
     using StringListPair = std::pair<QStringList, QStringList>;
 
@@ -670,7 +791,7 @@ void BoardView::userToCreateRelationship(const int cardId) {
     }, this);
 
     routine->addStep([this, routine]() {
-        // call AppEventsHandler
+        // call AppData
         Services::instance()->getAppData()->createRelationship(
                 EventSource(this),
                 routine->relIdToCreate,
@@ -704,10 +825,15 @@ void BoardView::userToCreateRelationship(const int cardId) {
     routine->start();
 }
 
-void BoardView::userToCloseNodeRect(const int cardId) {
+void BoardView::onUserToCloseNodeRect(const int cardId) {
     Q_ASSERT(nodeRectsCollection.contains(cardId));
 
-    auto *routine = new AsyncRoutine;
+    class AsyncRoutineWithVars : public AsyncRoutine
+    {
+    public:
+        std::optional<int> updatedHighlightedCardId;
+    };
+    auto *routine = new AsyncRoutineWithVars;
 
     //
     routine->addStep([this, routine, cardId]() {
@@ -732,13 +858,29 @@ void BoardView::userToCloseNodeRect(const int cardId) {
     }, this);
 
     routine->addStep([this, routine, cardId]() {
+        bool highlightedCardIdChanged;
         constexpr bool removeConnectedEdgeArrows = true;
-        nodeRectsCollection.closeNodeRect(cardId, removeConnectedEdgeArrows); ////
+        nodeRectsCollection.closeNodeRect(
+                cardId, removeConnectedEdgeArrows, &highlightedCardIdChanged);
+
+        if (highlightedCardIdChanged)
+            routine->updatedHighlightedCardId = -1;
+
+        routine->nextStep();
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // call AppData
+        if (routine->updatedHighlightedCardId.has_value()) {
+            Services::instance()->getAppData()->setHighlightedCardId(
+                    EventSource(this), routine->updatedHighlightedCardId.value());
+        }
         routine->nextStep();
     }, this);
 
     routine->addStep([this, routine, cardId]() {
-        // call AppEventsHandler
+        // call AppData
+        // better merge this step with previous step into single AppData method call
         Services::instance()->getAppData()->removeNodeRect(
                 EventSource(this),
                 boardId, cardId,
@@ -753,174 +895,54 @@ void BoardView::userToCloseNodeRect(const int cardId) {
     routine->start();
 }
 
-void BoardView::openExistingCard(const int cardId, const QPointF &scenePos) {
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        QStringList userLabelsList;
-        Card cardData;
-        NodeRectData nodeRectData;
-        QHash<RelationshipId, RelationshipProperties> rels;
-        QString errorMsg;
-    };
-    auto *routine = new AsyncRoutineWithVars;
+void BoardView::onBackgroundClicked() {
+    bool highlightedCardIdChanged; // to -1
+    nodeRectsCollection.unhighlightAllCards(&highlightedCardIdChanged);
 
-    //
-    routine->addStep([this, routine]() {
-        // get the list of user-defined labels
-        using StringListPair = std::pair<QStringList, QStringList>;
-        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
-                // callback
-                [routine](bool ok, const StringListPair &labelsAndRelTypes) {
-                    ContinuationContext context(routine);
-                    if (ok)
-                        routine->userLabelsList = labelsAndRelTypes.first;
-                },
-                this
-        );
-    }, this);
-
-    routine->addStep([this, routine, cardId]() {
-        // query card
-        Services::instance()->getAppData()->queryCards(
-                {cardId},
-                // callback
-                [=](bool ok, const QHash<int, Card> &cards) {
-                    ContinuationContext context(routine);
-
-                    if (!ok) {
-                        context.setErrorFlag();
-                        routine->errorMsg = "Could not open card. See logs for details.";
-                        return;
-                    }
-
-                    if (!cards.contains(cardId)) {
-                        context.setErrorFlag();
-                        routine->errorMsg = QString("Card %1 not found.").arg(cardId);
-                        return;
-                    }
-
-                    routine->cardData = cards.value(cardId);;
-                },
-                this
-        );
-    }, this);
-
-    routine->addStep([this, routine, cardId, scenePos]() {
-        // create NodeRect
-        ContinuationContext context(routine);
-
-        routine->nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
-        routine->nodeRectData.color = defaultNewNodeRectColor;
-
-        auto *nodeRect = nodeRectsCollection.createNodeRect(
-                cardId, routine->cardData, routine->nodeRectData, routine->userLabelsList);
-        nodeRect->setEditable(true);
-
-        adjustSceneRect();
-    }, this);
-
-    routine->addStep([this, routine, cardId]() {
-        // query relationships
-        using RelId = RelationshipId;
-        using RelProperties = RelationshipProperties;
-
-        Services::instance()->getAppData()->queryRelationshipsFromToCards(
-                {cardId},
-                // callback
-                [routine, cardId](bool ok, const QHash<RelId, RelProperties> &rels) {
-                    ContinuationContext context(routine);
-                    if (!ok) {
-                        context.setErrorFlag();
-                        routine->errorMsg
-                                = QString("Could not get relationships connecting card %1. "
-                                          "See logs for details.").arg(cardId);
-                        return;
-                    }
-
-                    routine->rels = rels;
-                },
-                this
-        );
-    }, this);
-
-    routine->addStep([this, routine, cardId]() {
-        // create EdgeArrow's
-        ContinuationContext context(routine);
-
-        EdgeArrowData edgeArrowData;
-        {
-            edgeArrowData.lineColor = defaultEdgeArrowLineColor;
-            edgeArrowData.lineWidth = defaultEdgeArrowLineWidth;
-        }
-
-        for (auto it = routine->rels.constBegin(); it != routine->rels.constEnd(); ++it) {
-            const auto &relId = it.key();
-
-            int otherCardId;
-            bool b = relId.connectsCard(cardId, &otherCardId);
-            Q_ASSERT(b);
-            if (!nodeRectsCollection.contains(otherCardId)) // `otherCardId` not opened in this board
-                continue;
-
-            edgeArrowsCollection.createEdgeArrow(relId, edgeArrowData);
-        }
-    }, this);
-
-    routine->addStep([this, routine, cardId]() {
-        // call AppEventsHandler
-        Services::instance()->getAppData()->createNodeRect(
-                EventSource(this),
-                this->boardId, cardId, routine->nodeRectData,
-                // callbackPersistResult
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        context.setErrorFlag();
-                },
-                this
-        );
-    }, this);
-
-    routine->addStep([this, routine]() {
-        // final step
-        ContinuationContext context(routine);
-
-        if (routine->errorFlag && !routine->errorMsg.isEmpty())
-            showWarningMessageBox(this, " ", routine->errorMsg);
-    }, this);
-
-    routine->start();
+    if (highlightedCardIdChanged) {
+        // call AppData
+        constexpr int highlightedCardId = -1;
+        Services::instance()->getAppData()
+                ->setHighlightedCardId(EventSource(this), highlightedCardId);
+    }
 }
 
-void BoardView::saveCardPropertiesUpdate(
-        NodeRect *nodeRect, const CardPropertiesUpdate &propertiesUpdate,
-        std::function<void ()> callback) {
-    Services::instance()->getAppData()->updateCardProperties(
-            EventSource(this),
-            nodeRect->getCardId(), propertiesUpdate,
-            // callbackPersistResult
-            [callback](bool /*ok*/) {
-                if (callback)
-                    callback();
-            },
-            this
-    );
-}
+void BoardView::closeAllCards(bool *highlightedCardIdChanged_) {
+    *highlightedCardIdChanged_ = false;
 
-void BoardView::onHighlightedCardChanged(const int cardId) {
-    Services::instance()->getAppData()->setHighlightedCardId(EventSource(this), cardId);
-}
-
-void BoardView::closeAllCards() {
     const QSet<int> cardIds = nodeRectsCollection.getAllCardIds();
     for (const int &cardId: cardIds) {
+        bool highlightedCardIdChanged;
         constexpr bool removeConnectedEdgeArrows = false;
-        nodeRectsCollection.closeNodeRect(cardId, removeConnectedEdgeArrows);
+        nodeRectsCollection.closeNodeRect(
+                cardId, removeConnectedEdgeArrows, &highlightedCardIdChanged);
+
+        if (highlightedCardIdChanged)
+            *highlightedCardIdChanged_ = true;
     }
 
     const auto relIds = edgeArrowsCollection.getAllRelationshipIds();
     edgeArrowsCollection.removeEdgeArrows(relIds);
+}
+
+void BoardView::adjustSceneRect() {
+    QGraphicsScene *scene = graphicsView->scene();
+    if (scene == nullptr)
+        return;
+
+    QRectF contentsRect = scene->itemsBoundingRect();
+    if (contentsRect.isEmpty())
+        contentsRect = QRectF(0, 0, 10, 10); // x,y,w,h
+
+    // finite margins prevent user from drag-scrolling too far away from contents
+    constexpr double fraction = 0.8;
+    const double marginX = graphicsView->width() * fraction;
+    const double marginY = graphicsView->height() * fraction;
+
+    //
+    const auto sceneRect
+            = contentsRect.marginsAdded(QMarginsF(marginX, marginY,marginX, marginY));
+    graphicsView->setSceneRect(sceneRect);
 }
 
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {
@@ -1017,7 +1039,10 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
 
         //
         highlightedCardId = cardIdClicked;
-        boardView->onHighlightedCardChanged(cardIdClicked);
+
+        // call AppData
+        Services::instance()->getAppData()
+                ->setHighlightedCardId(EventSource(boardView), highlightedCardId);
     });
 
     QObject::connect(nodeRect, &NodeRect::saveTitleTextUpdate,
@@ -1026,38 +1051,41 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         if (!nodeRectPtr)
             return;
 
+        // call AppData
         CardPropertiesUpdate propertiesUpdate;
         {
             propertiesUpdate.title = updatedTitle;
             propertiesUpdate.text = updatedText;
         }
-        boardView->saveCardPropertiesUpdate( ////
-                nodeRectPtr.data(), propertiesUpdate,
-                // callback:
-                [nodeRectPtr]() {
+        Services::instance()->getAppData()->updateCardProperties(
+                EventSource(boardView),
+                nodeRectPtr->getCardId(), propertiesUpdate,
+                // callbackPersistResult
+                [nodeRectPtr](bool /*ok*/) {
                     if (nodeRectPtr)
                         nodeRectPtr->finishedSaveTitleText();
-                }
+                },
+                boardView
         );
     });
 
     QObject::connect(nodeRect, &NodeRect::userToSetLabels, boardView, [this, nodeRectPtr]() {
         if (!nodeRectPtr)
             return;
-        boardView->userToSetLabels(nodeRectPtr->getCardId());
+        boardView->onUserToSetLabels(nodeRectPtr->getCardId());
     });
 
     QObject::connect(nodeRect, &NodeRect::userToCreateRelationship,
                      boardView, [this, nodeRectPtr]() {
         if (!nodeRectPtr)
             return;
-        boardView->userToCreateRelationship(nodeRectPtr->getCardId());
+        boardView->onUserToCreateRelationship(nodeRectPtr->getCardId());
     });
 
     QObject::connect(nodeRect, &NodeRect::closeByUser, boardView, [this, nodeRectPtr]() {
         if (!nodeRectPtr)
             return;
-        boardView->userToCloseNodeRect(nodeRectPtr->getCardId());
+        boardView->onUserToCloseNodeRect(nodeRectPtr->getCardId());
     });
 
     //
@@ -1065,11 +1093,15 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
 }
 
 void BoardView::NodeRectsCollection::closeNodeRect(
-        const int cardId, const bool removeConnectedEdgeArrows) {
+        const int cardId, const bool removeConnectedEdgeArrows,
+        bool *highlightedCardIdUpdated) {
+    *highlightedCardIdUpdated = false;
+
     NodeRect *nodeRect = cardIdToNodeRect.take(cardId);
     if (nodeRect == nullptr)
         return;
 
+    //
     boardView->graphicsScene->removeItem(nodeRect);
     nodeRect->deleteLater();
 
@@ -1086,17 +1118,19 @@ void BoardView::NodeRectsCollection::closeNodeRect(
     //
     if (highlightedCardId == cardId) {
         highlightedCardId = -1;
-        boardView->onHighlightedCardChanged(-1);
+        *highlightedCardIdUpdated = true;
     }
 }
 
-void BoardView::NodeRectsCollection::unhighlightAllCards() {
+void BoardView::NodeRectsCollection::unhighlightAllCards(bool *highlightedCardIdChanged) {
+    *highlightedCardIdChanged = false;
+
     if (highlightedCardId != -1) {
         Q_ASSERT(cardIdToNodeRect.contains(highlightedCardId));
         cardIdToNodeRect.value(highlightedCardId)->setHighlighted(false);
 
         highlightedCardId = -1;
-        boardView->onHighlightedCardChanged(-1);
+        *highlightedCardIdChanged = true;
     }
 }
 

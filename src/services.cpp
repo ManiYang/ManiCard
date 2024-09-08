@@ -90,6 +90,11 @@ AppData *Services::getAppData() const {
     return appData;
 }
 
+AppData *Services::getAppDataReadonly() const {
+    Q_ASSERT(appData != nullptr);
+    return appData;
+}
+
 bool Services::getPersistedDataAccessHasWriteRequestInProgress() const {
     Q_ASSERT(persistedDataAccess != nullptr);
     return persistedDataAccess->hasWriteRequestInProgress();

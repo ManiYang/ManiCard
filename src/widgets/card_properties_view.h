@@ -35,7 +35,7 @@ private:
 
     void loadCardProperties(
             const QString &title, const QHash<QString, QJsonValue> &customProperties);
-    void onCardPropertiesUpdated(const CardPropertiesUpdate &cardPropertiesUpdate);
+    void updateCardProperties(const CardPropertiesUpdate &cardPropertiesUpdate);
 };
 
 #endif // CARDPROPERTIESVIEW_H

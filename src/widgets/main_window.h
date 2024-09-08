@@ -53,27 +53,29 @@ private:
     ClosingState closingState {ClosingState::NotClosing};
 
     //
-    ActionDebouncer *saveWindowSizeDebounced;
-
-    //
     void setUpWidgets();
     void setUpConnections();
     void setUpMainMenu();
 
-    //
+    // ==== event handlers ====
+
     void onShownForFirstTime();
-    void startUp();
-    void prepareToClose();
+    void onStartUp();
 
     void onBoardSelectedByUser(const int boardId);
     void onUserToCreateNewBoard();
     void onUserToRemoveBoard(const int boardId);
 
+    void onUserToSetCardLabelsList();
+    void onUserToSetRelationshipTypesList();
+
+    void onUserCloseWindow();
+
+    // -- event handling tools
+    ActionDebouncer *saveWindowSizeDebounced;
+
     void saveTopLeftPosOfCurrentBoard(std::function<void (bool ok)> callback);
     void saveBoardsOrdering(std::function<void (bool ok)> callback);
-
-    void showCardLabelsDialog();
-    void showRelationshipTypesDialog();
 };
 
 #endif // MAIN_WINDOW_H

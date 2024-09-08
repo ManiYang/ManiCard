@@ -30,6 +30,7 @@ public:
     bool initialize(QString *errorMsg = nullptr);
 
     AppData *getAppData() const;
+    AppData *getAppDataReadonly() const;
     bool getPersistedDataAccessHasWriteRequestInProgress() const;
 
     QString getUnsavedUpdateRecordFilePath() const;

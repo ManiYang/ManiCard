@@ -52,15 +52,15 @@ signals:
     void userToRemoveBoard(int boardId);
 
 private:
-    void setUpWidgets();
-    void setUpConnections();
-    void setUpBoardContextMenu();
-
     QPushButton *buttonNewBoard;
     CustomListWidget *listWidget;
 
     QMenu *boardContextMenu;
     int boardIdOnContextMenuRequest {-1};
+
+    void setUpWidgets();
+    void setUpConnections();
+    void setUpBoardContextMenu();
 };
 
 #endif // BOARDSLIST_H

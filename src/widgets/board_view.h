@@ -26,15 +26,17 @@ public:
     //! Before calling this method:
     //!   + \c this must be visible
     //!   + \c canClose() must returns true
-    //! \param boardId_: if = -1, will only close the board
-    //! \param callback
+    //! \param boardIdToLoad: if = -1, will only close the board
+    //! \param callback: parameter \e highlightedCardIdChanged will be true if highlighted Card ID
+    //!                  changed to -1
     //!
-    void loadBoard(const int boardIdToLoad, std::function<void (bool ok)> callback);
+    void loadBoard(
+            const int boardIdToLoad,
+            std::function<void (bool loadOk, bool highlightedCardIdChanged)> callback);
 
     void prepareToClose();
 
-    //
-    void rightSideBarClosed();
+    void showButtonRightSidebar();
 
     //
     int getBoardId() const; // can be -1
@@ -77,30 +79,25 @@ private:
     void setUpConnections();
     void installEventFiltersOnComponents();
 
+    // event handlers
+    void onUserToOpenExistingCard(const QPointF &scenePos);
+    void onUserToCreateNewCard(const QPointF &scenePos);
+    void onUserToSetLabels(const int cardId);
+    void onUserToCreateRelationship(const int cardId);
+    void onUserToCloseNodeRect(const int cardId);
+    void onBackgroundClicked();
+
     //
+
+    //!
+    //! Remove all NodeRect's and EdgeArrow's. Does not check canClose().
+    //!
+    void closeAllCards(bool *highlightedCardIdChanged);
 
     //!
     //! Call this whenever graphicsView is resized, or graphics items are added/removed.
     //!
     void adjustSceneRect();
-
-    void userToOpenExistingCard(const QPointF &scenePos);
-    void userToCreateNewCard(const QPointF &scenePos);
-    void userToSetLabels(const int cardId);
-    void userToCreateRelationship(const int cardId);
-    void userToCloseNodeRect(const int cardId);
-
-    void openExistingCard(const int cardId, const QPointF &scenePos);
-    void saveCardPropertiesUpdate(
-            NodeRect *nodeRect, const CardPropertiesUpdate &propertiesUpdate,
-            std::function<void ()> callback); // callback will be called in context of `this`
-
-    void onHighlightedCardChanged(const int cardId); // `cardId` can be -1
-
-    //!
-    //! Remove all NodeRect's and EdgeArrow's. Does not check canClose().
-    //!
-    void closeAllCards();
 
     //
     class NodeRectsCollection
@@ -117,10 +114,18 @@ private:
 
         //!
         //! Does not check NodeRect::canClose().
+        //! \param cardId
+        //! \param removeConnectedEdgeArrows
+        //! \param highlightedCardIdUpdated: will be true if highlighted Card ID changes to -1
         //!
-        void closeNodeRect(const int cardId, const bool removeConnectedEdgeArrows);
+        void closeNodeRect(
+                const int cardId, const bool removeConnectedEdgeArrows,
+                bool *highlightedCardIdUpdated);
 
-        void unhighlightAllCards();
+        //!
+        //! \param highlightedCardIdChanged: will be true if highlighted Card ID changes to -1
+        //!
+        void unhighlightAllCards(bool *highlightedCardIdChanged);
 
         bool contains(const int cardId) const;
         NodeRect *get(const int cardId) const;

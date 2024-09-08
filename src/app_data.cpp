@@ -208,6 +208,8 @@ int AppData::getHighlightedCardId() const {
 }
 
 void AppData::setHighlightedCardId(const EventSource &eventSrc, const int cardId) {
+    qDebug() << "setHighlightedCardId, cardId =" << cardId;
+
     // synchornously update all variables and emit "updated" signals
     highlightedCardId = cardId;
     emit highlightedCardIdUpdated(eventSrc);

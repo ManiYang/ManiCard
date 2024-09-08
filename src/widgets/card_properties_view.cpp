@@ -101,7 +101,7 @@ void CardPropertiesView::setUpConnections() {
         if (cardId_ != cardId)
             return;
 
-        onCardPropertiesUpdated(cardPropertiesUpdate);
+        updateCardProperties(cardPropertiesUpdate);
     });
 }
 
@@ -158,7 +158,7 @@ void CardPropertiesView::loadCardProperties(
 //    }
 }
 
-void CardPropertiesView::onCardPropertiesUpdated(
+void CardPropertiesView::updateCardProperties(
         const CardPropertiesUpdate &cardPropertiesUpdate) {
     if (cardPropertiesUpdate.title.has_value()) {
         labelTitle->setText(cardPropertiesUpdate.title.value());

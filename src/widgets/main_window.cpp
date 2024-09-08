@@ -43,7 +43,7 @@ MainWindow::MainWindow(QWidget *parent)
     );
 
     //
-    startUp();
+    onStartUp();
 }
 
 MainWindow::~MainWindow() {
@@ -74,7 +74,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         boardsList->setEnabled(false);
         boardView->setEnabled(false);
 
-        prepareToClose();
+        onUserCloseWindow();
 
         return;
 
@@ -227,7 +227,7 @@ void MainWindow::setUpConnections() {
     // rightSidebar
     connect(rightSidebar, &RightSidebar::closeRightSidebar, this, [this]() {
         ui->frameRightSideBar->setVisible(false);
-        boardView->rightSideBarClosed();
+        boardView->showButtonRightSidebar();
     });
 }
 
@@ -236,10 +236,10 @@ void MainWindow::setUpMainMenu() {
         auto *submenu = mainMenu->addMenu("Graph");
         {
             submenu->addAction("Labels...", this, [this]() {
-                showCardLabelsDialog();
+                onUserToSetCardLabelsList();
             });
             submenu->addAction("Relationship Types...", this, [this]() {
-                showRelationshipTypesDialog();
+                onUserToSetRelationshipTypesList();
             });
         }
     }
@@ -274,10 +274,10 @@ void MainWindow::onShownForFirstTime() {
     }
 }
 
-void MainWindow::startUp() {
+void MainWindow::onStartUp() {
     {
         const auto sizeOpt
-                = Services::instance()->getAppData()->getMainWindowSize();
+                = Services::instance()->getAppDataReadonly()->getMainWindowSize();
         if (sizeOpt.has_value())
             resize(sizeOpt.value());
     }
@@ -298,7 +298,7 @@ void MainWindow::startUp() {
     //
     routine->addStep([this, routine]() {
         // get boards-list properties
-        Services::instance()->getAppData()->getBoardsListProperties(
+        Services::instance()->getAppDataReadonly()->getBoardsListProperties(
                 [routine](bool ok, BoardsListProperties properties) {
                     ContinuationContext context(routine);
 
@@ -317,7 +317,7 @@ void MainWindow::startUp() {
 
     routine->addStep([this, routine]() {
         // get all board IDs
-        Services::instance()->getAppData()->getBoardIdsAndNames(
+        Services::instance()->getAppDataReadonly()->getBoardIdsAndNames(
                 [routine](bool ok, const QHash<int, QString> &idToName) {
                     ContinuationContext context(routine);
 
@@ -339,19 +339,19 @@ void MainWindow::startUp() {
         boardsList->resetBoards(
                 routine->boardsIdToName, routine->boardsListProperties.boardsOrdering);
 
-        //
-        noBoardOpenSign->setVisible(false);
-        boardView->setVisible(true);
-
         // load last-opened board
-        const int lastOpenedBoardId = routine->boardsListProperties.lastOpenedBoard;
+        const int lastOpenedBoardId = routine->boardsListProperties.lastOpenedBoard; // can be -1
         if (routine->boardsIdToName.contains(lastOpenedBoardId)) {
+            boardView->setVisible(true); // (this must be before calling boardView->loadBoard())
+            noBoardOpenSign->setVisible(false);
+
             boardView->loadBoard(
                     lastOpenedBoardId,
                     // callback
-                    [this, routine, lastOpenedBoardId](bool ok) {
+                    [this, routine, lastOpenedBoardId](bool loadOk, bool highlightedCardIdChanged) {
                         ContinuationContext context(routine);
-                        if (ok) {
+
+                        if (loadOk) {
                             boardsList->setSelectedBoardId(lastOpenedBoardId);
                         }
                         else {
@@ -359,10 +359,22 @@ void MainWindow::startUp() {
                                     = QString("Could not load board %1").arg(lastOpenedBoardId);
                             context.setErrorFlag();
                         }
+
+                        if (highlightedCardIdChanged) {
+                            // call AppData
+                            constexpr int highlightedCardId = -1;
+                            Services::instance()->getAppData()
+                                    ->setHighlightedCardId(EventSource(this), highlightedCardId);
+                        }
                     }
             );
         }
         else {
+            if (lastOpenedBoardId != -1) {
+                qWarning().noquote()
+                        << QString("last-opened board (ID=%1) does not exist")
+                           .arg(lastOpenedBoardId);
+            }
             routine->nextStep();
         }
     }, this);
@@ -376,99 +388,6 @@ void MainWindow::startUp() {
 
         if (routine->errorFlag)
             showWarningMessageBox(this, " ", routine->errorMsg);
-    }, this);
-
-    routine->start();
-}
-
-void MainWindow::prepareToClose() {
-    saveWindowSizeDebounced->actNow();
-
-    //
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        bool hasUnsavedUpdate {false};
-    };
-    auto *routine = new AsyncRoutineWithVars;
-
-    //
-    routine->addStep([routine]() {
-        // wait until CachedDataAccess::hasWriteRequestInProgress() returns false
-        qInfo().noquote() << "awaiting all saving operations to finish";
-        (new PeriodicChecker)->setPeriod(20)->setTimeOut(6000)
-                ->setPredicate([]() {
-                    return !Services::instance()
-                            ->getPersistedDataAccessHasWriteRequestInProgress();
-                })
-                ->onPredicateReturnsTrue([routine]() {
-                    routine->nextStep();
-                })
-                ->onTimeOut([routine]() {
-                    ContinuationContext context(routine);
-                    context.setErrorFlag();
-                    qWarning().noquote()
-                            << "Time-out while awaiting all saving operations to finish";
-                })
-                ->setAutoDelete()->start();
-    }, this);
-
-    routine->addStep([this, routine]() {
-        BoardsListPropertiesUpdate propertiesUpdate;
-        propertiesUpdate.lastOpenedBoard = boardsList->selectedBoardId();
-
-        Services::instance()->getAppData()->updateBoardsListProperties(
-                EventSource(this),
-                propertiesUpdate,
-                // callbackPersistResult
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        routine->hasUnsavedUpdate = true;
-                },
-                this
-        );
-    }, this);
-
-    routine->addStep([this, routine]() {
-        // save current board's topLeftPos
-        saveTopLeftPosOfCurrentBoard(
-                // callback
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        routine->hasUnsavedUpdate = true;
-                }
-        );
-    }, this);
-
-    routine->addStep([this, routine]() {
-        //
-        ContinuationContext context(routine);
-
-        if (routine->hasUnsavedUpdate) {
-            const auto r
-                    = QMessageBox::question(this, " ", "There is unsaved update. Exit anyway?");
-            if (r != QMessageBox::Yes) {
-                context.setErrorFlag();
-                return;
-            }
-        }
-    }, this);
-
-    routine->addStep([this, routine]() {
-        // (final step)
-        ContinuationContext context(routine);
-
-        if (routine->errorFlag) {
-            boardsList->setEnabled(true);
-            boardView->setEnabled(true);
-            closingState = ClosingState::NotClosing;
-        }
-        else {
-            closingState = ClosingState::CloseNow;
-            close();
-        }
     }, this);
 
     routine->start();
@@ -512,11 +431,19 @@ void MainWindow::onBoardSelectedByUser(const int boardId) {
 
         boardView->loadBoard(
                 boardId,
-                [=](bool ok) {
-                    if (!ok) {
+                [=](bool loadOk, bool highlightedCardIdChanged) {
+                    if (!loadOk) {
                         QMessageBox::warning(
                                 this, " ", QString("Could not load board %1").arg(boardId));
                     }
+
+                    if (highlightedCardIdChanged) {
+                        // call AppData
+                        constexpr int highlightedCardId = -1;
+                        Services::instance()->getAppData()
+                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
+                    }
+
                     routine->nextStep();
                 });
     }, this);
@@ -537,7 +464,7 @@ void MainWindow::onUserToCreateNewBoard() {
     //
     routine->addStep([this, routine]() {
         // 1. get new board ID
-        Services::instance()->getAppData()->requestNewBoardId(
+        Services::instance()->getAppDataReadonly()->requestNewBoardId(
                 //callback
                 [routine](std::optional<int> boardId) {
                     ContinuationContext context(routine);
@@ -639,12 +566,20 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
             boardView->loadBoard(
                     -1,
                     // callback
-                    [this, routine](bool ok) {
+                    [this, routine](bool loadOk, bool highlightedCardIdChanged) {
                         ContinuationContext context(routine);
-                        if (!ok) {
+
+                        if (!loadOk) {
                             context.setErrorFlag();
                             routine->errorMsg = "could not close current board";
                             return;
+                        }
+
+                        if (highlightedCardIdChanged) {
+                            // call AppData
+                            constexpr int highlightedCardId = -1;
+                            Services::instance()->getAppData()
+                                    ->setHighlightedCardId(EventSource(this), highlightedCardId);
                         }
 
                         boardView->setVisible(false);
@@ -697,45 +632,7 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
     routine->start();
 }
 
-void MainWindow::saveTopLeftPosOfCurrentBoard(std::function<void (bool)> callback) {
-    const int currentBoardId = boardView->getBoardId();
-    if (currentBoardId == -1) {
-        callback(true);
-        return;
-    }
-
-    BoardNodePropertiesUpdate propertiesUpdate;
-    propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
-
-    //
-    Services::instance()->getAppData()->updateBoardNodeProperties(
-            EventSource(this),
-            currentBoardId, propertiesUpdate,
-            // callbackPersistResult
-            [callback](bool ok) {
-                callback(ok);
-            },
-            this
-    );
-}
-
-void MainWindow::saveBoardsOrdering(std::function<void (bool ok)> callback) {
-    BoardsListPropertiesUpdate propertiesUpdate;
-    propertiesUpdate.boardsOrdering = boardsList->getBoardsOrder();
-
-    Services::instance()->getAppData()->updateBoardsListProperties(
-            EventSource(this),
-            propertiesUpdate,
-            // callbackPersistResult
-            [callback](bool ok) {
-                if (callback)
-                    callback(ok);
-            },
-            this
-    );
-}
-
-void MainWindow::showCardLabelsDialog() {
+void MainWindow::onUserToSetCardLabelsList() {
     using StringListPair = std::pair<QStringList, QStringList>;
 
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
@@ -750,7 +647,7 @@ void MainWindow::showCardLabelsDialog() {
     //
     routine->addStep([this, routine]() {
         // get relationship types list
-        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppDataReadonly()->getUserLabelsAndRelationshipTypes(
                 //callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -808,7 +705,7 @@ void MainWindow::showCardLabelsDialog() {
     routine->start();
 }
 
-void MainWindow::showRelationshipTypesDialog() {
+void MainWindow::onUserToSetRelationshipTypesList() {
     using StringListPair = std::pair<QStringList, QStringList>;
 
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
@@ -823,7 +720,7 @@ void MainWindow::showRelationshipTypesDialog() {
     //
     routine->addStep([this, routine]() {
         // get relationship types list
-        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
+        Services::instance()->getAppDataReadonly()->getUserLabelsAndRelationshipTypes(
                 //callback
                 [routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -880,4 +777,135 @@ void MainWindow::showRelationshipTypesDialog() {
     }, this);
 
     routine->start();
+}
+
+void MainWindow::onUserCloseWindow() {
+    saveWindowSizeDebounced->actNow();
+
+    //
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        bool hasUnsavedUpdate {false};
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([routine]() {
+        // wait until CachedDataAccess::hasWriteRequestInProgress() returns false
+        qInfo().noquote() << "awaiting all saving operations to finish";
+        (new PeriodicChecker)->setPeriod(20)->setTimeOut(6000)
+                ->setPredicate([]() {
+                    return !Services::instance()
+                            ->getPersistedDataAccessHasWriteRequestInProgress();
+                })
+                ->onPredicateReturnsTrue([routine]() {
+                    routine->nextStep();
+                })
+                ->onTimeOut([routine]() {
+                    ContinuationContext context(routine);
+                    context.setErrorFlag();
+                    qWarning().noquote()
+                            << "Time-out while awaiting all saving operations to finish";
+                })
+                ->setAutoDelete()->start();
+    }, this);
+
+    routine->addStep([this, routine]() {
+        BoardsListPropertiesUpdate propertiesUpdate;
+        propertiesUpdate.lastOpenedBoard = boardsList->selectedBoardId();
+
+        Services::instance()->getAppData()->updateBoardsListProperties(
+                EventSource(this),
+                propertiesUpdate,
+                // callbackPersistResult
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        routine->hasUnsavedUpdate = true;
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // save current board's topLeftPos
+        saveTopLeftPosOfCurrentBoard(
+                // callback
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        routine->hasUnsavedUpdate = true;
+                }
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        //
+        ContinuationContext context(routine);
+
+        if (routine->hasUnsavedUpdate) {
+            const auto r
+                    = QMessageBox::question(this, " ", "There is unsaved update. Exit anyway?");
+            if (r != QMessageBox::Yes) {
+                context.setErrorFlag();
+                return;
+            }
+        }
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // (final step)
+        ContinuationContext context(routine);
+
+        if (routine->errorFlag) {
+            boardsList->setEnabled(true);
+            boardView->setEnabled(true);
+            closingState = ClosingState::NotClosing;
+        }
+        else {
+            closingState = ClosingState::CloseNow;
+            close();
+        }
+    }, this);
+
+    routine->start();
+}
+
+void MainWindow::saveTopLeftPosOfCurrentBoard(std::function<void (bool)> callback) {
+    const int currentBoardId = boardView->getBoardId();
+    if (currentBoardId == -1) {
+        callback(true);
+        return;
+    }
+
+    BoardNodePropertiesUpdate propertiesUpdate;
+    propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
+
+    //
+    Services::instance()->getAppData()->updateBoardNodeProperties(
+            EventSource(this),
+            currentBoardId, propertiesUpdate,
+            // callbackPersistResult
+            [callback](bool ok) {
+                callback(ok);
+            },
+            this
+    );
+}
+
+void MainWindow::saveBoardsOrdering(std::function<void (bool ok)> callback) {
+    BoardsListPropertiesUpdate propertiesUpdate;
+    propertiesUpdate.boardsOrdering = boardsList->getBoardsOrder();
+
+    Services::instance()->getAppData()->updateBoardsListProperties(
+            EventSource(this),
+            propertiesUpdate,
+            // callbackPersistResult
+            [callback](bool ok) {
+                if (callback)
+                    callback(ok);
+            },
+            this
+    );
 }
