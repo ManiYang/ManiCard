@@ -35,6 +35,9 @@ public:
 
     QString getUnsavedUpdateRecordFilePath() const;
 
+    //
+    void finalize();
+
 private:
     QNetworkAccessManager *networkAccessManager {nullptr};
     Neo4jHttpApiClient *neo4jHttpApiClient {nullptr};

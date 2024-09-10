@@ -420,18 +420,22 @@ void CardsDataAccess::updateCardProperties(
                     return;
                 }
 
-                bool hasError = false;
-
-                if (queryResponse.hasNetworkOrDbError())
-                    hasError = true;
+                if (queryResponse.hasNetworkOrDbError()) {
+                    callback(false);
+                    return;
+                }
 
                 const auto queryResult = queryResponse.getResult().value();
                 if (queryResult.isEmpty()) {
-                    qWarning().noquote() << QString("card %1 not found").arg(cardId);
-                    hasError = true;
+                    qWarning().noquote()
+                            << QString("card %1 not found while updating card properties")
+                               .arg(cardId);
+                    callback(false);
+                    return;
                 }
 
-                callback(!hasError);
+                qInfo().noquote() << QString("updated properties of card %1").arg(cardId);
+                callback(true);
             },
             callbackContext
     );

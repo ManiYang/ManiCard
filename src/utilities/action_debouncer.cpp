@@ -1,5 +1,4 @@
 #include "action_debouncer.h"
-#include "utilities/functor.h"
 
 ActionDebouncer::ActionDebouncer(
         const int minimumSeperationMsec, const Option option_,
@@ -25,7 +24,7 @@ bool ActionDebouncer::tryAct() {
         return false;
     }
     else {
-        invokeAction(this, action);
+        action();
         delayed = false;
         timer->start();
         return true;
@@ -39,4 +38,8 @@ void ActionDebouncer::actNow() {
 
 void ActionDebouncer::cancelDelayed() {
     delayed = false;
+}
+
+bool ActionDebouncer::hasDelayed() const {
+    return delayed;
 }

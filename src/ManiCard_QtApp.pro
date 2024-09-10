@@ -15,6 +15,7 @@ SOURCES += \
     db_access/abstract_cards_data_access.cpp \
     db_access/boards_data_access.cpp \
     db_access/cards_data_access.cpp \
+    db_access/debounced_db_access.cpp \
     db_access/queued_db_access.cpp \
     file_access/local_settings_file.cpp \
     file_access/unsaved_update_records_file.cpp \
@@ -67,6 +68,7 @@ HEADERS += \
     db_access/abstract_cards_data_access.h \
     db_access/boards_data_access.h \
     db_access/cards_data_access.h \
+    db_access/debounced_db_access.h \
     db_access/queued_db_access.h \
     file_access/app_local_data_dir.h \
     file_access/local_settings_file.h \

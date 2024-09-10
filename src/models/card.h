@@ -69,12 +69,16 @@ struct CardPropertiesUpdate
     //!
     QHash<QString, QJsonValue> getCustomProperties() const;
 
+    //
     enum class UndefinedHandlingOption {
         ReplaceByNull,
         ReplaceByRemoveString // replace by string "<Remove>"
     };
     QJsonObject toJson(
             const UndefinedHandlingOption option = UndefinedHandlingOption::ReplaceByNull) const;
+
+    //
+    void mergeWith(const CardPropertiesUpdate &other);
 
 private:
     QHash<QString, QJsonValue> customProperties;

@@ -52,6 +52,7 @@ public:
             QPointer<QObject> callbackContext) = 0;
 
     using StringListPair = std::pair<QStringList, QStringList>;
+
     virtual void getUserLabelsAndRelationshipTypes(
             std::function<void (bool ok, const StringListPair &labelsAndRelTypes)> callback,
             QPointer<QObject> callbackContext) = 0;

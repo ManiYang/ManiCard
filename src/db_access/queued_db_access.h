@@ -27,6 +27,7 @@ public:
             QObject *parent = nullptr);
 
     void clearErrorFlag();
+    bool hasUnfinishedOperation() const;
 
     // ==== AbstractCardsDataAccess interface ====
 

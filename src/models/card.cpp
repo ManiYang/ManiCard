@@ -160,3 +160,20 @@ QJsonObject CardPropertiesUpdate::toJson(const UndefinedHandlingOption option) c
 
     return obj;
 }
+
+void CardPropertiesUpdate::mergeWith(const CardPropertiesUpdate &other) {
+#define UPDATE_ITEM(item) \
+        if (other.item.has_value()) item = other.item;
+
+    UPDATE_ITEM(title);
+    UPDATE_ITEM(text);
+    UPDATE_ITEM(tags);
+
+#undef UPDATE_ITEM
+
+    //
+    for (auto it = other.customProperties.constBegin();
+            it != other.customProperties.constEnd(); ++it) {
+        customProperties.insert(it.key(), it.value());
+    }
+}

@@ -14,6 +14,10 @@ void QueuedDbAccess::clearErrorFlag() {
     errorFlag = false;
 }
 
+bool QueuedDbAccess::hasUnfinishedOperation() const {
+    return isWaitingResponse;
+}
+
 void QueuedDbAccess::queryCards(
         const QSet<int> &cardIds,
         std::function<void (bool, const QHash<int, Card> &)> callback,

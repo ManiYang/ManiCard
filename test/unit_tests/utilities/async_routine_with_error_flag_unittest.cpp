@@ -24,15 +24,15 @@ TEST_F(AsyncRoutineWithErrorFlagTest, NoSkip) {
 
     QPointer<AsyncRoutineWithErrorFlag> routine = new AsyncRoutineWithErrorFlag;
     routine->addStep([routine, &buffer]() {
-        auto context = routine->continuationContext();
+        AsyncRoutineWithErrorFlag::ContinuationContext context(routine);
         buffer += '1';
     }, app);
     routine->addStep([routine, &buffer]() {
-        auto context = routine->continuationContext();
+        AsyncRoutineWithErrorFlag::ContinuationContext context(routine);
         buffer += '2';
     }, app);
     routine->addStep([routine, &buffer]() {
-        auto context = routine->continuationContext();
+        AsyncRoutineWithErrorFlag::ContinuationContext context(routine);
         buffer += '3';
     }, app);
     routine->start();
@@ -50,16 +50,16 @@ TEST_F(AsyncRoutineWithErrorFlagTest, HasSkip) {
 
     QPointer<AsyncRoutineWithErrorFlag> routine = new AsyncRoutineWithErrorFlag;
     routine->addStep([routine, &buffer]() {
-        auto context = routine->continuationContext();
+        AsyncRoutineWithErrorFlag::ContinuationContext context(routine);
         buffer += '1';
         context.setErrorFlag();
     }, app);
     routine->addStep([routine, &buffer]() {
-        auto context = routine->continuationContext();
+        AsyncRoutineWithErrorFlag::ContinuationContext context(routine);
         buffer += '2';
     }, app);
     routine->addStep([routine, &buffer]() {
-        auto context = routine->continuationContext();
+        AsyncRoutineWithErrorFlag::ContinuationContext context(routine);
         buffer += '3';
     }, app);
     routine->start();
