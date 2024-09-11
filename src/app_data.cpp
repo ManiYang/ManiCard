@@ -1,5 +1,6 @@
 #include "app_data.h"
 #include "persisted_data_access.h"
+#include "utilities/message_box.h"
 
 AppData::AppData(PersistedDataAccess *persistedDataAccess_, QObject *parent)
         : AppDataReadonly(parent)
@@ -65,142 +66,117 @@ std::optional<QSize> AppData::getMainWindowSize() {
 }
 
 void AppData::createNewCardWithId(
-        const EventSource &/*eventSrc*/, const int cardId, const Card &card,
-        std::function<void (bool)> callbackPersistResult,
-        QPointer<QObject> callbackContext) {
+        const EventSource &/*eventSrc*/, const int cardId, const Card &card) {
     // 1. synchornously update all variables and emit "updated" signals
 
     // 2. persist
-    persistedDataAccess->createNewCardWithId(cardId, card, callbackPersistResult, callbackContext);
+    persistedDataAccess->createNewCardWithId(cardId, card);
 }
 
 void AppData::updateCardProperties(
-        const EventSource &eventSrc,
-        const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
-        std::function<void (bool)> callbackPersistResult, QPointer<QObject> callbackContext) {
+        const EventSource &eventSrc, const int cardId,
+        const CardPropertiesUpdate &cardPropertiesUpdate) {
     // 1. synchornously update all variables and emit "updated" signals
     emit cardPropertiesUpdated(eventSrc, cardId, cardPropertiesUpdate);
 
     // 2. persist
-    persistedDataAccess->updateCardProperties(
-                cardId, cardPropertiesUpdate, callbackPersistResult, callbackContext);
+    persistedDataAccess->updateCardProperties(cardId, cardPropertiesUpdate);
 }
 
 void AppData::updateCardLabels(
-        const EventSource &/*eventSrc*/, const int cardId, const QSet<QString> &updatedLabels,
-        std::function<void (bool)> callbackPersistResult, QPointer<QObject> callbackContext) {
+        const EventSource &/*eventSrc*/, const int cardId, const QSet<QString> &updatedLabels) {
     // 1. synchornously update all variables and emit "updated" signals
 
     // 2. persist
-    persistedDataAccess->updateCardLabels(cardId, updatedLabels, callbackPersistResult, callbackContext);
+    persistedDataAccess->updateCardLabels(cardId, updatedLabels);
 }
 
-void AppData::createRelationship(
-        const EventSource &/*eventSrc*/, const RelationshipId &id,
-        std::function<void (bool, bool)> callbackPersistResult,
-        QPointer<QObject> callbackContext) {
+void AppData::createRelationship(const EventSource &/*eventSrc*/, const RelationshipId &id) {
     // 1. synchornously update all variables and emit "updated" signals
 
     // 2. persist
-    persistedDataAccess->createRelationship(id, callbackPersistResult, callbackContext);
+    persistedDataAccess->createRelationship(id);
 }
 
 void AppData::updateUserRelationshipTypes(
-        const EventSource &/*eventSrc*/, const QStringList &updatedRelTypes,
-        std::function<void (bool)> callbackPersistResult, QPointer<QObject> callbackContext)  {
+        const EventSource &/*eventSrc*/, const QStringList &updatedRelTypes)  {
     // 1. synchornously update all variables and emit "updated" signals
 
-    // 2. persist{
-    persistedDataAccess->updateUserRelationshipTypes(
-                updatedRelTypes, callbackPersistResult, callbackContext);
+    // 2. persist
+    persistedDataAccess->updateUserRelationshipTypes(updatedRelTypes);
 }
 
 void AppData::updateUserCardLabels(
-        const EventSource &/*eventSrc*/, const QStringList &updatedCardLabels,
-        std::function<void (bool)> callbackPersistResult, QPointer<QObject> callbackContext) {
+        const EventSource &/*eventSrc*/, const QStringList &updatedCardLabels) {
     // 1. synchornously update all variables and emit "updated" signals
 
     // 2. persist
-    persistedDataAccess->updateUserCardLabels(
-            updatedCardLabels, callbackPersistResult, callbackContext);
+    persistedDataAccess->updateUserCardLabels(updatedCardLabels);
 }
 
 void AppData::updateBoardsListProperties(
-        const EventSource &/*eventSrc*/, const BoardsListPropertiesUpdate &propertiesUpdate,
-        std::function<void (bool)> callbackPersistResult, QPointer<QObject> callbackContext) {
+        const EventSource &/*eventSrc*/, const BoardsListPropertiesUpdate &propertiesUpdate) {
     // 1. synchornously update all variables and emit "updated" signals
 
     // 2. persist
-    persistedDataAccess->updateBoardsListProperties(
-            propertiesUpdate, callbackPersistResult, callbackContext);
+    persistedDataAccess->updateBoardsListProperties(propertiesUpdate);
 }
 
 void AppData::createNewBoardWithId(
-        const EventSource &/*eventSrc*/, const int boardId, const Board &board,
-        std::function<void (bool)> callbackPersistResult, QPointer<QObject> callbackContext) {
+        const EventSource &/*eventSrc*/, const int boardId, const Board &board) {
     // 1. synchornously update all variables and emit "updated" signals
 
     // 2. persist
-    persistedDataAccess->createNewBoardWithId(
-            boardId, board, callbackPersistResult, callbackContext);
+    persistedDataAccess->createNewBoardWithId(boardId, board);
 }
 
 void AppData::updateBoardNodeProperties(
         const EventSource &/*eventSrc*/, const int boardId,
-        const BoardNodePropertiesUpdate &propertiesUpdate,
-        std::function<void (bool)> callbackPersistResult, QPointer<QObject> callbackContext) {
+        const BoardNodePropertiesUpdate &propertiesUpdate) {
     // 1. synchornously update all variables and emit "updated" signals
 
     // 2. persist
-    persistedDataAccess->updateBoardNodeProperties(
-                boardId, propertiesUpdate, callbackPersistResult, callbackContext);
+    persistedDataAccess->updateBoardNodeProperties(boardId, propertiesUpdate);
 }
 
-void AppData::removeBoard(
-        const EventSource &/*eventSrc*/, const int boardId,
-        std::function<void (bool)> callbackPersistResult, QPointer<QObject> callbackContext) {
+void AppData::removeBoard(const EventSource &/*eventSrc*/, const int boardId) {
     // 1. synchornously update all variables and emit "updated" signals
 
     // 2. persist
-    persistedDataAccess->removeBoard(boardId, callbackPersistResult, callbackContext);
+    persistedDataAccess->removeBoard(boardId);
 }
 
 void AppData::updateNodeRectProperties(
         const EventSource &/*eventSrc*/,
-        const int boardId, const int cardId, const NodeRectDataUpdate &update,
-        std::function<void (bool)> callbackPersistResult, QPointer<QObject> callbackContext) {
+        const int boardId, const int cardId, const NodeRectDataUpdate &update) {
     // 1. synchornously update all variables and emit "updated" signals
 
     // 2. persist
-    persistedDataAccess->updateNodeRectProperties(
-                boardId, cardId, update, callbackPersistResult, callbackContext);
+    persistedDataAccess->updateNodeRectProperties(boardId, cardId, update);
 }
 
 void AppData::createNodeRect(
         const EventSource &/*eventSrc*/,
-        const int boardId, const int cardId, const NodeRectData &nodeRectData,
-        std::function<void (bool)> callbackPersistResult, QPointer<QObject> callbackContext) {
+        const int boardId, const int cardId, const NodeRectData &nodeRectData) {
     // 1. synchornously update all variables and emit "updated" signals
 
     // 2. persist
-    persistedDataAccess->createNodeRect(
-            boardId, cardId, nodeRectData, callbackPersistResult, callbackContext);
+    persistedDataAccess->createNodeRect(boardId, cardId, nodeRectData);
 }
 
 void AppData::removeNodeRect(
-        const EventSource &/*eventSrc*/, const int boardId, const int cardId,
-        std::function<void (bool)> callbackPersistResult, QPointer<QObject> callbackContext) {
+        const EventSource &/*eventSrc*/, const int boardId, const int cardId) {
     // 1. synchornously update all variables and emit "updated" signals
 
     // 2. persist
-    persistedDataAccess->removeNodeRect(boardId, cardId, callbackPersistResult, callbackContext);
+    persistedDataAccess->removeNodeRect(boardId, cardId);
 }
 
-bool AppData::updateMainWindowSize(const EventSource &/*eventSrc*/, const QSize &size) {
+void AppData::updateMainWindowSize(const EventSource &/*eventSrc*/, const QSize &size) {
     // 1. synchornously update all variables and emit "updated" signals
 
     // 2. persist
-    return persistedDataAccess->saveMainWindowSize(size);
+    persistedDataAccess->saveMainWindowSize(size);
 }
 
 int AppData::getHighlightedCardId() const {

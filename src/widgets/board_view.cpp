@@ -445,17 +445,9 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
 
     routine->addStep([this, routine, cardId]() {
         // call AppDate
+        ContinuationContext context(routine);
         Services::instance()->getAppData()->createNodeRect(
-                EventSource(this),
-                this->boardId, cardId, routine->nodeRectData,
-                // callbackPersistResult
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        context.setErrorFlag();
-                },
-                this
-        );
+                EventSource(this), this->boardId, cardId, routine->nodeRectData);
     }, this);
 
     routine->addStep([this, routine]() {
@@ -533,34 +525,13 @@ void BoardView::onUserToCreateNewCard(const QPointF &scenePos) {
     }, this);
 
     routine->addStep([this, routine]() {
-        // 3. call AppData: create card
-        Services::instance()->getAppData()->createNewCardWithId(
-                EventSource(this),
-                routine->newCardId, routine->card,
-                // callbackPersistResult
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        context.setErrorFlag();
-                },
-                this
-        );
-    }, this);
+        // 3. call AppData
+        ContinuationContext context(routine);
 
-    routine->addStep([this, routine]() {
-        // 4. call AppData: create NodeRect
-        // better merge this step with previous step into single AppData method call
+        Services::instance()->getAppData()->createNewCardWithId(
+                EventSource(this), routine->newCardId, routine->card);
         Services::instance()->getAppData()->createNodeRect(
-                EventSource(this),
-                this->boardId, routine->newCardId, routine->nodeRectData,
-                // callbackPersistResult
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        context.setErrorFlag();
-                },
-                this
-        );
+                EventSource(this), this->boardId, routine->newCardId, routine->nodeRectData);
     }, this);
 
     routine->addStep([this, routine]() {
@@ -632,18 +603,14 @@ void BoardView::onUserToSetLabels(const int cardId) {
 
     routine->addStep([this, routine, cardId]() {
         // call AppData
+        ContinuationContext context(routine);
+
         Q_ASSERT(routine->updatedLabels.has_value());
         const auto updatedLabels = routine->updatedLabels.value_or(QStringList {});
         Services::instance()->getAppData()->updateCardLabels(
                 EventSource(this),
-                cardId, QSet<QString>(updatedLabels.constBegin(), updatedLabels.constEnd()),
-                // callbackPersistResult
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        context.setErrorFlag();
-                },
-                this
+                cardId,
+                QSet<QString>(updatedLabels.constBegin(), updatedLabels.constEnd())
         );
     }, this);
 
@@ -792,26 +759,9 @@ void BoardView::onUserToCreateRelationship(const int cardId) {
 
     routine->addStep([this, routine]() {
         // call AppData
-        Services::instance()->getAppData()->createRelationship(
-                EventSource(this),
-                routine->relIdToCreate,
-                // callbackPersistResult
-                [routine](bool ok, bool created) {
-                    ContinuationContext context(routine);
-
-                    if (!ok) {
-                        context.setErrorFlag();
-                        return;
-                    }
-                    if (!created) { // (should not happen)
-                        context.setErrorFlag();
-                        routine->errorMsg
-                                = QString("Relationship %1 already exists.")
-                                  .arg(routine->relIdToCreate.toString());
-                    }
-                },
-                this
-        );
+        ContinuationContext context(routine);
+        Services::instance()->getAppData()
+                ->createRelationship(EventSource(this), routine->relIdToCreate);
     }, this);
 
     routine->addStep([routine, this]() {
@@ -879,17 +829,11 @@ void BoardView::onUserToCloseNodeRect(const int cardId) {
     }, this);
 
     routine->addStep([this, routine, cardId]() {
+        // can be merged with previous step...
         // call AppData
-        // better merge this step with previous step into single AppData method call
-        Services::instance()->getAppData()->removeNodeRect(
-                EventSource(this),
-                boardId, cardId,
-                // callbackPersistResult
-                [routine](bool /*ok*/) {
-                    routine->nextStep();
-                },
-                this
-        );
+        Services::instance()->getAppData()
+                ->removeNodeRect(EventSource(this), boardId, cardId);
+        routine->nextStep();
     }, this);
 
     routine->start();
@@ -1016,11 +960,7 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
 
         Services::instance()->getAppData()->updateNodeRectProperties(
                 EventSource(boardView),
-                boardView->boardId, nodeRectPtr->getCardId(), update,
-                // callbackPersistResult
-                [](bool /*ok*/) {},
-                boardView
-        );
+                boardView->boardId, nodeRectPtr->getCardId(), update);
     });
 
     QObject::connect(nodeRect, &NodeRect::clicked, boardView, [this, nodeRectPtr]() {
@@ -1058,15 +998,9 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
             propertiesUpdate.text = updatedText;
         }
         Services::instance()->getAppData()->updateCardProperties(
-                EventSource(boardView),
-                nodeRectPtr->getCardId(), propertiesUpdate,
-                // callbackPersistResult
-                [nodeRectPtr](bool /*ok*/) {
-                    if (nodeRectPtr)
-                        nodeRectPtr->finishedSaveTitleText();
-                },
-                boardView
-        );
+                EventSource(boardView), nodeRectPtr->getCardId(), propertiesUpdate);
+        if (nodeRectPtr) //...
+            nodeRectPtr->finishedSaveTitleText();
     });
 
     QObject::connect(nodeRect, &NodeRect::userToSetLabels, boardView, [this, nodeRectPtr]() {

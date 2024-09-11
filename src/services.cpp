@@ -6,6 +6,7 @@
 #include "app_data.h"
 #include "db_access/boards_data_access.h"
 #include "db_access/cards_data_access.h"
+#include "db_access/debounced_db_access.h"
 #include "db_access/queued_db_access.h"
 #include "file_access/app_local_data_dir.h"
 #include "file_access/local_settings_file.h"
@@ -71,8 +72,11 @@ bool Services::initialize(QString *errorMsg) {
         unsavedUpdateRecordsFile
                 = std::make_shared<UnsavedUpdateRecordsFile>(unsavedUpdateFilePath);
 
+        debouncedDbAccess = new DebouncedDbAccess(
+                    queuedDbAccess, queuedDbAccess, unsavedUpdateRecordsFile, qApp);
+
         persistedDataAccess = new PersistedDataAccess(
-                queuedDbAccess, localSettingsFile, unsavedUpdateRecordsFile, qApp);
+                debouncedDbAccess, localSettingsFile, unsavedUpdateRecordsFile, qApp);
 
         appData = new AppData(persistedDataAccess, qApp);
     }
@@ -95,11 +99,11 @@ AppData *Services::getAppDataReadonly() const {
     return appData;
 }
 
-bool Services::getPersistedDataAccessHasWriteRequestInProgress() const {
-    Q_ASSERT(persistedDataAccess != nullptr);
-    return persistedDataAccess->hasWriteRequestInProgress();
-}
+//bool Services::getPersistedDataAccessHasWriteRequestInProgress() const {
+//    Q_ASSERT(persistedDataAccess != nullptr);
+//    return persistedDataAccess->hasWriteRequestInProgress();
+//}
 
-QString Services::getUnsavedUpdateRecordFilePath() const {
-    return unsavedUpdateFilePath;
-}
+//QString Services::getUnsavedUpdateRecordFilePath() const {
+//    return unsavedUpdateFilePath;
+//}

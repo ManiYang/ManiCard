@@ -4,12 +4,14 @@
 #include <QObject>
 #include <QPointer>
 #include <QReadWriteLock>
+#include "app_event_source.h"
 #include "models/board.h"
 #include "models/boards_list_properties.h"
 #include "models/card.h"
 
+class DebouncedDbAccess;
 class LocalSettingsFile;
-class QueuedDbAccess;
+//class QueuedDbAccess;
 class UnsavedUpdateRecordsFile;
 
 //!
@@ -29,12 +31,12 @@ class PersistedDataAccess : public QObject
     Q_OBJECT
 public:
     explicit PersistedDataAccess(
-            QueuedDbAccess *queuedDbAccess_,
+            DebouncedDbAccess *debouncedDbAccess_,
             std::shared_ptr<LocalSettingsFile> localSettingsFile_,
             std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile_,
             QObject *parent = nullptr);
 
-    bool hasWriteRequestInProgress() const;
+//    bool hasWriteRequestInProgress() const;
 
     // ==== read ====
 
@@ -89,67 +91,44 @@ public:
     // A write operation fails if data cannot be saved to DB or file. In this case, a record of
     // unsaved update is added.
 
-    void createNewCardWithId(
-            const int cardId, const Card &card,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+    void createNewCardWithId(const int cardId, const Card &card);
 
     void updateCardProperties(
-            const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+            const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate);
 
-    void updateCardLabels(
-            const int cardId, const QSet<QString> &updatedLabels,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+    void updateCardLabels(const int cardId, const QSet<QString> &updatedLabels);
 
     //!
     //! The start/end cards must already exist (which is not checked here). Otherwise the cache
     //! will become inconsistent with DB.
     //! It's not an error if the relationship already exists.
     //!
-    void createRelationship(
-            const RelationshipId &id, std::function<void (bool ok, bool created)> callback,
-            QPointer<QObject> callbackContext);
+    void createRelationship(const RelationshipId &id);
 
-    void updateUserRelationshipTypes(
-            const QStringList &updatedRelTypes, std::function<void (bool ok)> callback,
-            QPointer<QObject> callbackContext);
+    void updateUserRelationshipTypes(const QStringList &updatedRelTypes);
 
-    void updateUserCardLabels(
-            const QStringList &updatedCardLabels, std::function<void (bool ok)> callback,
-            QPointer<QObject> callbackContext);
+    void updateUserCardLabels(const QStringList &updatedCardLabels);
 
-    void updateBoardsListProperties(
-            const BoardsListPropertiesUpdate &propertiesUpdate,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+    void updateBoardsListProperties(const BoardsListPropertiesUpdate &propertiesUpdate);
 
-    void createNewBoardWithId(
-            const int boardId, const Board &board,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+    void createNewBoardWithId(const int boardId, const Board &board);
 
     void updateBoardNodeProperties(
-            const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+            const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate);
 
-    void removeBoard(
-            const int boardId,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+    void removeBoard(const int boardId);
 
     void updateNodeRectProperties(
-            const int boardId, const int cardId, const NodeRectDataUpdate &update,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+            const int boardId, const int cardId, const NodeRectDataUpdate &update);
 
-    void createNodeRect(
-            const int boardId, const int cardId, const NodeRectData &nodeRectData,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+    void createNodeRect(const int boardId, const int cardId, const NodeRectData &nodeRectData);
 
-    void removeNodeRect(
-            const int boardId, const int cardId,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+    void removeNodeRect(const int boardId, const int cardId);
 
     bool saveMainWindowSize(const QSize &size);
 
 private:
-    QueuedDbAccess *queuedDbAccess;
+    DebouncedDbAccess *debouncedDbAccess;
     std::shared_ptr<LocalSettingsFile> localSettingsFile;
     std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile;
 
@@ -166,12 +145,16 @@ private:
     Cache cache;
 
     //
-    int lastWriteRequestId {-1};
-    QSet<int> writeRequestsInProgress;
-    mutable QReadWriteLock lockForwriteRequestsInProgress;
+    void showMsgOnFailedToSaveToFile(const QString &dataName);
 
-    int startWriteRequest();
-    void finishWriteRequest(const int requestId); // thread-safe
+
+    //
+//    int lastWriteRequestId {-1};
+//    QSet<int> writeRequestsInProgress;
+//    mutable QReadWriteLock lockForwriteRequestsInProgress;
+
+//    int startWriteRequest();
+//    void finishWriteRequest(const int requestId); // thread-safe ?????????
 };
 
 #endif // PERSISTEDDATAACCESS_H

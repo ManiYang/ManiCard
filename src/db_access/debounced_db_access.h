@@ -3,8 +3,10 @@
 
 #include "abstract_boards_data_access.h"
 #include "abstract_cards_data_access.h"
+#include "app_event_source.h"
 
 class ActionDebouncer;
+class UnsavedUpdateRecordsFile;
 
 //!
 //! A debounced write-operation may start a "debounce session" with a "debounce data key".
@@ -22,15 +24,14 @@ class DebouncedDbAccess : public QObject
     Q_OBJECT
 public:
     DebouncedDbAccess(
-            std::shared_ptr<AbstractBoardsDataAccess> boardsDataAccess,
-            std::shared_ptr<AbstractCardsDataAccess> cardsDataAccess,
+            AbstractBoardsDataAccess *boardsDataAccess_,
+            AbstractCardsDataAccess *cardsDataAccess_,
+            std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile_,
             QObject *parent = nullptr);
 
     void finalize();
 
-    // ==== AbstractCardsDataAccess interface ====
-
-    // read operations
+    // ==== cards data: read operations ====
 
     void queryCards(
             const QSet<int> &cardIds,
@@ -65,34 +66,26 @@ public:
             std::function<void (bool ok, int cardId)> callback,
             QPointer<QObject> callbackContext);
 
-    // write operations
+    // ==== cards data: write operations ====
 
-    void createNewCardWithId(
-            const int cardId, const Card &card,
-            std::function<void (bool)> callback, QPointer<QObject> callbackContext);
+    // If a write operation fails, a record of unsaved update is added and a warning message box
+    // is shown.
 
-    void updateCardPropertiesDebounced(
+    void createNewCardWithId(const int cardId, const Card &card);
+
+    void updateCardProperties(
             const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate);
+            // debounced
 
-    void updateCardLabels(
-            const int cardId, const QSet<QString> &updatedLabels,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+    void updateCardLabels(const int cardId, const QSet<QString> &updatedLabels);
 
-    void createRelationship(
-            const RelationshipId &id, std::function<void (bool ok, bool created)> callback,
-            QPointer<QObject> callbackContext);
+    void createRelationship(const RelationshipId &id);
 
-    void updateUserRelationshipTypes(
-            const QStringList &updatedRelTypes, std::function<void (bool ok)> callback,
-            QPointer<QObject> callbackContext);
+    void updateUserRelationshipTypes(const QStringList &updatedRelTypes);
 
-    void updateUserCardLabels(
-            const QStringList &updatedCardLabels, std::function<void (bool ok)> callback,
-            QPointer<QObject> callbackContext);
+    void updateUserCardLabels(const QStringList &updatedCardLabels);
 
-    // ==== AbstractBoardsDataAccess interface ====
-
-    // read operations
+    // ==== boards data: read operations ====
 
     void getBoardIdsAndNames(
             std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
@@ -103,47 +96,40 @@ public:
             QPointer<QObject> callbackContext);
 
     void getBoardData(
-                const int boardId,
-                std::function<void (bool ok, std::optional<Board> board)> callback,
-                QPointer<QObject> callbackContext);
-
-    // write operations
-
-    void updateBoardsListProperties(
-            const BoardsListPropertiesUpdate &propertiesUpdate,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+            const int boardId,
+            std::function<void (bool ok, std::optional<Board> board)> callback,
+            QPointer<QObject> callbackContext);
 
     void requestNewBoardId(
             std::function<void (bool ok, int boardId)> callback,
             QPointer<QObject> callbackContext);
 
-    void createNewBoardWithId(
-            const int boardId, const Board &board,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+    // ==== boards data: write operations ====
+
+    // If a write operation fails, a record of unsaved update is added and a warning message box
+    // is shown.
+
+    void updateBoardsListProperties(const BoardsListPropertiesUpdate &propertiesUpdate);
+
+    void createNewBoardWithId(const int boardId, const Board &board);
 
     void updateBoardNodeProperties(
-            const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+            const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate);
 
-    void removeBoard(
-            const int boardId,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+    void removeBoard(const int boardId);
 
     void updateNodeRectProperties(
-            const int boardId, const int cardId, const NodeRectDataUpdate &update,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+            const int boardId, const int cardId, const NodeRectDataUpdate &update);
 
     void createNodeRect(
-            const int boardId, const int cardId, const NodeRectData &nodeRectData,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+            const int boardId, const int cardId, const NodeRectData &nodeRectData);
 
-    void removeNodeRect(
-            const int boardId, const int cardId,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext);
+    void removeNodeRect(const int boardId, const int cardId);
 
 private:
-    std::shared_ptr<AbstractBoardsDataAccess> boardsDataAccess;
-    std::shared_ptr<AbstractCardsDataAccess> cardsDataAccess;
+    AbstractBoardsDataAccess *boardsDataAccess;
+    AbstractCardsDataAccess *cardsDataAccess;
+    std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile;
 
     //
     enum class DebounceDataCategory {
@@ -158,6 +144,8 @@ private:
         explicit DebounceSession(
                 const DebounceKey &debounceKey, const int separationMsec,
                 std::function<void ()> action);
+        DebounceSession(const DebounceSession &other) = delete;
+        DebounceSession &operator =(const DebounceSession &other) = delete;
 
         //!
         //! Closes the session, possibly invokes the action.
@@ -185,6 +173,9 @@ private:
         CardPropertiesUpdate cardPropertiesUpdate {};
     };
     CumulatedUpdateData cumulatedUpdateData;
+
+    //
+    void showMsgOnDbWriteFailed(const QString &dataName);
 };
 
 #endif // DEBOUNCEDDBACCESS_H

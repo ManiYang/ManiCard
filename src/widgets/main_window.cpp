@@ -193,12 +193,7 @@ void MainWindow::setUpConnections() {
         update.name = name;
 
         Services::instance()->getAppData()->updateBoardNodeProperties(
-                EventSource(this),
-                boardId, update,
-                // callbackPersistResult
-                [](bool /*ok*/) {},
-                this
-        );
+                EventSource(this), boardId, update);
     });
 
     connect(boardsList, &BoardsList::userToCreateNewBoard, this, [this]() {
@@ -216,7 +211,7 @@ void MainWindow::setUpConnections() {
     });
 
     connect(boardsList, &BoardsList::boardsOrderChanged, this, [this](QVector<int> /*boardIds*/) {
-        saveBoardsOrdering([](bool /*ok*/) {});
+        saveBoardsOrdering();
     });
 
     // boardView
@@ -398,12 +393,8 @@ void MainWindow::onBoardSelectedByUser(const int boardId) {
 
     routine->addStep([this, routine]() {
         // save current board's topLeftPos
-        saveTopLeftPosOfCurrentBoard(
-                // callback
-                [routine](bool /*ok*/) {
-                    routine->nextStep();
-                }
-        );
+        saveTopLeftPosOfCurrentBoard();
+        routine->nextStep();
     }, this);
 
     routine->addStep([this, routine]() {
@@ -493,27 +484,12 @@ void MainWindow::onUserToCreateNewBoard() {
     }, this);
 
     routine->addStep([this, routine]() {
-        // 3. save boards ordering
-        saveBoardsOrdering([routine](bool ok) {
-            ContinuationContext context(routine);
-            if (!ok)
-                context.setErrorFlag();
-        });
-    }, this);
+        // 3. call AppData
+        ContinuationContext context(routine);
 
-    routine->addStep([this, routine]() {
-        //
+        saveBoardsOrdering();
         Services::instance()->getAppData()->createNewBoardWithId(
-                EventSource(this),
-                routine->newBoardId, routine->boardData,
-                // callbackPersistResult
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        context.setErrorFlag();
-                },
-                this
-        );
+                EventSource(this), routine->newBoardId, routine->boardData);
     }, this);
 
     routine->addStep([this, routine]() {
@@ -598,28 +574,11 @@ void MainWindow::onUserToRemoveBoard(const int boardId) {
         boardsList->removeBoard(boardId);
     }, this);
 
-    routine->addStep([this, routine]() {
-        // save boards ordering
-        saveBoardsOrdering([routine](bool ok) {
-            ContinuationContext context(routine);
-            if (!ok)
-                context.setErrorFlag();
-        });
-    }, this);
-
     routine->addStep([this, routine, boardId]() {
-        Services::instance()->getAppData()->removeBoard(
-                EventSource(this),
-                boardId,
-                // callbackPersistResult
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        context.setErrorFlag();
-                },
-                this
-        );
+        ContinuationContext context(routine);
 
+        saveBoardsOrdering();
+        Services::instance()->getAppData()->removeBoard(EventSource(this), boardId);
     }, this);
 
     routine->addStep([this, routine]() {
@@ -676,23 +635,13 @@ void MainWindow::onUserToSetCardLabelsList() {
     }, this);
 
     routine->addStep([this, routine]() {
-        if (routine->updatedLabels == routine->labels) {
-            routine->nextStep();
-            return;
-        }
+        ContinuationContext context(routine);
 
-        //
-        Services::instance()->getAppData()->updateUserCardLabels(
-                EventSource(this),
-                routine->updatedLabels,
-                // callbackPersistResult
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        context.setErrorFlag();
-                },
-                this
-        );
+        if (routine->updatedLabels == routine->labels)
+            return;
+
+        Services::instance()->getAppData()
+                ->updateUserCardLabels(EventSource(this), routine->updatedLabels);
     }, this);
 
     routine->addStep([this, routine]() {
@@ -750,23 +699,13 @@ void MainWindow::onUserToSetRelationshipTypesList() {
     }, this);
 
     routine->addStep([this, routine]() {
-        if (routine->updatedRelTypes == routine->relTypes) {
-            routine->nextStep();
-            return;
-        }
+        ContinuationContext context(routine);
 
-        //
-        Services::instance()->getAppData()->updateUserRelationshipTypes(
-                EventSource(this),
-                routine->updatedRelTypes,
-                // callbackPersistResult
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        context.setErrorFlag();
-                },
-                this
-        );
+        if (routine->updatedRelTypes == routine->relTypes)
+            return;
+
+        Services::instance()->getAppData()
+                ->updateUserRelationshipTypes(EventSource(this), routine->updatedRelTypes);
     }, this);
 
     routine->addStep([this, routine]() {
@@ -791,53 +730,47 @@ void MainWindow::onUserCloseWindow() {
     auto *routine = new AsyncRoutineWithVars;
 
     //
-    routine->addStep([routine]() {
-        // wait until CachedDataAccess::hasWriteRequestInProgress() returns false
-        qInfo().noquote() << "awaiting all saving operations to finish";
-        (new PeriodicChecker)->setPeriod(20)->setTimeOut(6000)
-                ->setPredicate([]() {
-                    return !Services::instance()
-                            ->getPersistedDataAccessHasWriteRequestInProgress();
-                })
-                ->onPredicateReturnsTrue([routine]() {
-                    routine->nextStep();
-                })
-                ->onTimeOut([routine]() {
-                    ContinuationContext context(routine);
-                    context.setErrorFlag();
-                    qWarning().noquote()
-                            << "Time-out while awaiting all saving operations to finish";
-                })
-                ->setAutoDelete()->start();
-    }, this);
-
     routine->addStep([this, routine]() {
+        // save last-opened board ID
+        ContinuationContext context(routine);
+
         BoardsListPropertiesUpdate propertiesUpdate;
         propertiesUpdate.lastOpenedBoard = boardsList->selectedBoardId();
 
-        Services::instance()->getAppData()->updateBoardsListProperties(
-                EventSource(this),
-                propertiesUpdate,
-                // callbackPersistResult
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        routine->hasUnsavedUpdate = true;
-                },
-                this
-        );
+        Services::instance()->getAppData()
+                ->updateBoardsListProperties(EventSource(this), propertiesUpdate);
     }, this);
 
     routine->addStep([this, routine]() {
         // save current board's topLeftPos
-        saveTopLeftPosOfCurrentBoard(
-                // callback
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        routine->hasUnsavedUpdate = true;
-                }
-        );
+        ContinuationContext context(routine);
+        saveTopLeftPosOfCurrentBoard();
+    }, this);
+
+//    routine->addStep([routine]() {
+//        // wait until CachedDataAccess::hasWriteRequestInProgress() returns false
+//        qInfo().noquote() << "awaiting all saving operations to finish";
+//        (new PeriodicChecker)->setPeriod(20)->setTimeOut(6000)
+//                ->setPredicate([]() {
+//                    return !Services::instance()
+//                            ->getPersistedDataAccessHasWriteRequestInProgress();
+//                })
+//                ->onPredicateReturnsTrue([routine]() {
+//                    routine->nextStep();
+//                })
+//                ->onTimeOut([routine]() {
+//                    ContinuationContext context(routine);
+//                    context.setErrorFlag();
+//                    qWarning().noquote()
+//                            << "Time-out while awaiting all saving operations to finish";
+//                })
+//                ->setAutoDelete()->start();
+//    }, this);
+
+    routine->addStep([this, routine]() { // [temp]
+        QTimer::singleShot(1000, this, [routine]() {
+            ContinuationContext context(routine);
+        });
     }, this);
 
     routine->addStep([this, routine]() {
@@ -872,40 +805,22 @@ void MainWindow::onUserCloseWindow() {
     routine->start();
 }
 
-void MainWindow::saveTopLeftPosOfCurrentBoard(std::function<void (bool)> callback) {
+void MainWindow::saveTopLeftPosOfCurrentBoard() {
     const int currentBoardId = boardView->getBoardId();
-    if (currentBoardId == -1) {
-        callback(true);
+    if (currentBoardId == -1)
         return;
-    }
 
     BoardNodePropertiesUpdate propertiesUpdate;
     propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
 
-    //
     Services::instance()->getAppData()->updateBoardNodeProperties(
-            EventSource(this),
-            currentBoardId, propertiesUpdate,
-            // callbackPersistResult
-            [callback](bool ok) {
-                callback(ok);
-            },
-            this
-    );
+            EventSource(this), currentBoardId, propertiesUpdate);
 }
 
-void MainWindow::saveBoardsOrdering(std::function<void (bool ok)> callback) {
+void MainWindow::saveBoardsOrdering() {
     BoardsListPropertiesUpdate propertiesUpdate;
     propertiesUpdate.boardsOrdering = boardsList->getBoardsOrder();
 
-    Services::instance()->getAppData()->updateBoardsListProperties(
-            EventSource(this),
-            propertiesUpdate,
-            // callbackPersistResult
-            [callback](bool ok) {
-                if (callback)
-                    callback(ok);
-            },
-            this
-    );
+    Services::instance()->getAppData()
+            ->updateBoardsListProperties(EventSource(this), propertiesUpdate);
 }

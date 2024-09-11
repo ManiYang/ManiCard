@@ -74,8 +74,8 @@ private:
     // -- event handling tools
     ActionDebouncer *saveWindowSizeDebounced;
 
-    void saveTopLeftPosOfCurrentBoard(std::function<void (bool ok)> callback);
-    void saveBoardsOrdering(std::function<void (bool ok)> callback);
+    void saveTopLeftPosOfCurrentBoard();
+    void saveBoardsOrdering();
 };
 
 #endif // MAIN_WINDOW_H

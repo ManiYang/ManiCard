@@ -74,82 +74,54 @@ public:
 
     std::optional<QSize> getMainWindowSize() override;
 
-
     // ---- persisted data: update ----
 
     // If persistence fails, a record of unsaved update is added.
 
-    void createNewCardWithId(
-            const EventSource &eventSrc,
-            const int cardId, const Card &card,
-            std::function<void (bool ok)> callbackPersistResult, QPointer<QObject> callbackContext);
+    void createNewCardWithId(const EventSource &eventSrc, const int cardId, const Card &card);
 
     void updateCardProperties(
             const EventSource &eventSrc,
-            const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
-            std::function<void (bool ok)> callbackPersistResult, QPointer<QObject> callbackContext);
+            const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate);
 
     void updateCardLabels(
-            const EventSource &eventSrc,
-            const int cardId, const QSet<QString> &updatedLabels,
-            std::function<void (bool ok)> callbackPersistResult, QPointer<QObject> callbackContext);
+            const EventSource &eventSrc, const int cardId, const QSet<QString> &updatedLabels);
 
     //!
     //! The start/end cards must already exist (which is not checked here).
     //! It's not an error if the relationship already exists.
     //!
-    void createRelationship(
-            const EventSource &eventSrc,
-            const RelationshipId &id,
-            std::function<void (bool ok, bool created)> callbackPersistResult,
-            QPointer<QObject> callbackContext);
+    void createRelationship(const EventSource &eventSrc, const RelationshipId &id);
 
     void updateUserRelationshipTypes(
-            const EventSource &eventSrc,
-            const QStringList &updatedRelTypes,
-            std::function<void (bool ok)> callbackPersistResult, QPointer<QObject> callbackContext);
+            const EventSource &eventSrc, const QStringList &updatedRelTypes);
 
     void updateUserCardLabels(
-            const EventSource &eventSrc,
-            const QStringList &updatedCardLabels,
-            std::function<void (bool ok)> callbackPersistResult, QPointer<QObject> callbackContext);
+            const EventSource &eventSrc, const QStringList &updatedCardLabels);
 
     void updateBoardsListProperties(
-            const EventSource &eventSrc,
-            const BoardsListPropertiesUpdate &propertiesUpdate,
-            std::function<void (bool ok)> callbackPersistResult, QPointer<QObject> callbackContext);
+            const EventSource &eventSrc, const BoardsListPropertiesUpdate &propertiesUpdate);
 
     void createNewBoardWithId(
-            const EventSource &eventSrc,
-            const int boardId, const Board &board,
-            std::function<void (bool ok)> callbackPersistResult, QPointer<QObject> callbackContext);
+            const EventSource &eventSrc, const int boardId, const Board &board);
 
     void updateBoardNodeProperties(
             const EventSource &eventSrc,
-            const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,
-            std::function<void (bool ok)> callbackPersistResult, QPointer<QObject> callbackContext);
+            const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate);
 
-    void removeBoard(
-            const EventSource &eventSrc,
-            const int boardId, std::function<void (bool ok)> callbackPersistResult,
-            QPointer<QObject> callbackContext);
+    void removeBoard(const EventSource &eventSrc, const int boardId);
 
     void updateNodeRectProperties(
             const EventSource &eventSrc,
-            const int boardId, const int cardId, const NodeRectDataUpdate &update,
-            std::function<void (bool ok)> callbackPersistResult, QPointer<QObject> callbackContext);
+            const int boardId, const int cardId, const NodeRectDataUpdate &update);
 
     void createNodeRect(
             const EventSource &eventSrc,
-            const int boardId, const int cardId, const NodeRectData &nodeRectData,
-            std::function<void (bool ok)> callbackPersistResult, QPointer<QObject> callbackContext);
+            const int boardId, const int cardId, const NodeRectData &nodeRectData);
 
-    void removeNodeRect(
-            const EventSource &eventSrc,
-            const int boardId, const int cardId,
-            std::function<void (bool ok)> callbackPersistResult, QPointer<QObject> callbackContext);
+    void removeNodeRect(const EventSource &eventSrc, const int boardId, const int cardId);
 
-    bool updateMainWindowSize(const EventSource &eventSrc, const QSize &size);
+    void updateMainWindowSize(const EventSource &eventSrc, const QSize &size);
 
     // ==== non-persisted independent data ====
 
@@ -167,7 +139,6 @@ private:
 
     // derived data (can be cached or not)
     // - cache can be nullopt (not computed yet)
-
 };
 
 #endif // APPDATA_H

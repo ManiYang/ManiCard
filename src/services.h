@@ -7,6 +7,7 @@
 class AppData;
 class BoardsDataAccess;
 class CardsDataAccess;
+class DebouncedDbAccess;
 class LocalSettingsFile;
 class Neo4jHttpApiClient;
 class PersistedDataAccess;
@@ -31,9 +32,9 @@ public:
 
     AppData *getAppData() const;
     AppData *getAppDataReadonly() const;
-    bool getPersistedDataAccessHasWriteRequestInProgress() const;
+//    bool getPersistedDataAccessHasWriteRequestInProgress() const;
 
-    QString getUnsavedUpdateRecordFilePath() const;
+//    QString getUnsavedUpdateRecordFilePath() const;
 
     //
     void finalize();
@@ -43,6 +44,7 @@ private:
     Neo4jHttpApiClient *neo4jHttpApiClient {nullptr};
     std::shared_ptr<CardsDataAccess> cardsDataAccess;
     std::shared_ptr<BoardsDataAccess> boardsDataAccess;
+    DebouncedDbAccess *debouncedDbAccess {nullptr};
     QueuedDbAccess *queuedDbAccess {nullptr};
     std::shared_ptr<LocalSettingsFile> localSettingsFile;
     std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile;

@@ -2,34 +2,37 @@
 #include <QReadLocker>
 #include <QWriteLocker>
 #include "persisted_data_access.h"
-#include "db_access/queued_db_access.h"
+#include "db_access/debounced_db_access.h"
+//#include "db_access/queued_db_access.h"
 #include "file_access/local_settings_file.h"
 #include "file_access/unsaved_update_records_file.h"
 #include "utilities/async_routine.h"
 #include "utilities/functor.h"
 #include "utilities/json_util.h"
 #include "utilities/maps_util.h"
+#include "utilities/message_box.h"
 
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 
 PersistedDataAccess::PersistedDataAccess(
-        QueuedDbAccess *queuedDbAccess_, std::shared_ptr<LocalSettingsFile> localSettingsFile_,
+        DebouncedDbAccess *debouncedDbAccess_,
+        std::shared_ptr<LocalSettingsFile> localSettingsFile_,
         std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile_,
         QObject *parent)
             : QObject(parent)
-            , queuedDbAccess(queuedDbAccess_)
+            , debouncedDbAccess(debouncedDbAccess_)
             , localSettingsFile(localSettingsFile_)
             , unsavedUpdateRecordsFile(unsavedUpdateRecordsFile_) {
 }
 
-bool PersistedDataAccess::hasWriteRequestInProgress() const {
-    bool result;
-    {
-        QReadLocker locker(&lockForwriteRequestsInProgress);
-        result = !writeRequestsInProgress.isEmpty();
-    }
-    return result;
-}
+//bool PersistedDataAccess::hasWriteRequestInProgress() const {
+//    bool result;
+//    {
+//        QReadLocker locker(&lockForwriteRequestsInProgress);
+//        result = !writeRequestsInProgress.isEmpty();
+//    }
+//    return result;
+//}
 
 void PersistedDataAccess::queryCards(
         const QSet<int> &cardIds,
@@ -58,7 +61,7 @@ void PersistedDataAccess::queryCards(
     const QSet<int> cardsToQuery = cardIds - keySet(routine->cardsResult);
 
     routine->addStep([this, cardsToQuery, routine]() {
-        queuedDbAccess->queryCards(
+        debouncedDbAccess->queryCards(
                 cardsToQuery,
                 // callback:
                 [this, routine](bool queryOk, const QHash<int, Card> &cardsFromDb) {
@@ -99,7 +102,7 @@ void PersistedDataAccess::queryRelationship(
     }
 
     // 2. query DB
-    queuedDbAccess->queryRelationship(
+    debouncedDbAccess->queryRelationship(
             relationshipId,
             // callback:
             [=](bool ok, const std::optional<RelProperties> &propertiesOpt) {
@@ -122,7 +125,7 @@ void PersistedDataAccess::queryRelationshipsFromToCards(
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
-    queuedDbAccess->queryRelationshipsFromToCards(
+    debouncedDbAccess->queryRelationshipsFromToCards(
             cardIds,
             // callback
             [this, callback, callbackContext](bool ok, const QHash<RelId, RelProperties> &rels) {
@@ -168,7 +171,7 @@ void PersistedDataAccess::getUserLabelsAndRelationshipTypes(
 
     routine->addStep([this, routine]() {
         // read DB
-        queuedDbAccess->getUserLabelsAndRelationshipTypes(
+        debouncedDbAccess->getUserLabelsAndRelationshipTypes(
                 //callback
                 [this, routine](bool ok, const StringListPair &labelsAndRelTypes) {
                     ContinuationContext context(routine);
@@ -206,7 +209,7 @@ void PersistedDataAccess::requestNewCardId(
         std::function<void (std::optional<int>)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
-    queuedDbAccess->requestNewCardId(
+    debouncedDbAccess->requestNewCardId(
             // callback
             [callback](bool ok, int cardId) {
                 callback(ok ? cardId : std::optional<int>());
@@ -220,7 +223,7 @@ void PersistedDataAccess::getBoardIdsAndNames(
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
-    queuedDbAccess->getBoardIdsAndNames(
+    debouncedDbAccess->getBoardIdsAndNames(
             // callback
             [callback](bool ok, const QHash<int, QString> &idToName) {
                 callback(ok, idToName);
@@ -244,7 +247,7 @@ void PersistedDataAccess::getBoardsListProperties(
     //
     routine->addStep([this, routine]() {
         // get boards ordering from DB
-        queuedDbAccess->getBoardsListProperties(
+        debouncedDbAccess->getBoardsListProperties(
                 // callback
                 [routine](bool ok, BoardsListProperties properties) {
                     ContinuationContext context(routine);
@@ -312,7 +315,7 @@ void PersistedDataAccess::getBoardData(
 
     // 2. query DB
     routine->addStep([this, routine, boardId]() {
-        queuedDbAccess->getBoardData(
+        debouncedDbAccess->getBoardData(
                 boardId,
                 // callback
                 [routine](bool ok, std::optional<Board> board) {
@@ -371,7 +374,7 @@ void PersistedDataAccess::requestNewBoardId(
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
-    queuedDbAccess->requestNewBoardId(
+    debouncedDbAccess->requestNewBoardId(
             // callback
             [callback](bool ok, int boardId) {
                 callback(ok ? boardId : std::optional<int>());
@@ -387,356 +390,81 @@ std::optional<QSize> PersistedDataAccess::getMainWindowSize() {
     return sizeOpt;
 }
 
-void PersistedDataAccess::createNewCardWithId(
-        const int cardId, const Card &card, std::function<void (bool)> callback,
-        QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    const int requestId = startWriteRequest();
-
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        bool writeDbOk;
-    };
-    auto *routine = new AsyncRoutineWithVars;
-
+void PersistedDataAccess::createNewCardWithId(const int cardId, const Card &card) {
     // 1. update cache
-    routine->addStep([this, routine, cardId, card]() {
-        ContinuationContext context(routine);
-
-        if (cache.cards.contains(cardId)) {
-            qWarning().noquote()
-                    << QString("card with ID %1 already exists in cache").arg(cardId);
-            context.setErrorFlag();
-            return;
-        }
-        cache.cards.insert(cardId, card);
-    }, this);
+    if (cache.cards.contains(cardId)) {
+        qWarning().noquote()
+                << QString("card with ID %1 already exists in cache").arg(cardId);
+        return;
+    }
+    cache.cards.insert(cardId, card);
 
     // 2. write DB
-    routine->addStep([this, routine, cardId, card]() {
-        queuedDbAccess->createNewCardWithId(
-                cardId, card,
-                // callback
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    routine->writeDbOk = ok;
-                    // if ok = false, errorFlag is set in the next step
-                },
-                this
-        );
-    }, this);
-
-    // 3. if write DB failed, add to unsaved updates
-    routine->addStep([this, routine, cardId, card]() {
-        ContinuationContext context(routine);
-
-        if (!routine->writeDbOk) {
-            context.setErrorFlag();
-
-            const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-            const QString updateTitle = "createNewCardWithId";
-            const QString updateDetails = printJson(QJsonObject {
-                {"cardId", cardId},
-                {"labels", toJsonArray(card.getLabels())},
-                {"cardProperties", card.getPropertiesJson()}
-            }, false);
-            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-        }
-    }, this);
-
-    // 4. (final step) call callback
-    routine->addStep([this, routine, callback, requestId]() {
-        ContinuationContext context(routine);
-        callback(!routine->errorFlag);
-        finishWriteRequest(requestId);
-    }, callbackContext);
-
-    //
-    routine->start();
+    debouncedDbAccess->createNewCardWithId(cardId, card);
 }
 
 void PersistedDataAccess::updateCardProperties(
-        const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate,
-        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    const int requestId = startWriteRequest();
-
-    class AsyncRoutineWithVars : public AsyncRoutine
-    {
-    public:
-        bool dbWriteOk;
-    };
-    auto *routine = new AsyncRoutineWithVars;
-
+        const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate) {
     // 1. update cache
     if (cache.cards.contains(cardId))
         cache.cards[cardId].updateProperties(cardPropertiesUpdate);
 
     // 2. write DB
-    routine->addStep([this, routine, cardId, cardPropertiesUpdate]() {
-        queuedDbAccess->updateCardProperties(
-                cardId, cardPropertiesUpdate,
-                // callback
-                [routine](bool ok) {
-                    routine->dbWriteOk = ok;
-                    routine->nextStep();
-                },
-                this
-        );
-    }, this);
-
-    // 3. if step 2 failed, add to unsaved updates
-    routine->addStep([this, routine, cardId, cardPropertiesUpdate]() {
-        if (!routine->dbWriteOk) {
-            const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-            const QString updateTitle = "updateCardProperties";
-            const QString updateDetails = printJson(QJsonObject {
-                {"cardId", cardId},
-                {"propertiesUpdate", cardPropertiesUpdate.toJson()}
-            }, false);
-            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-        }
-        routine->nextStep();
-    }, this);
-
-    //
-    routine->addStep([this, routine, callback, requestId]() {
-        callback(routine->dbWriteOk);
-        routine->nextStep();
-        finishWriteRequest(requestId);
-    }, callbackContext);
-
-    routine->start();
+    debouncedDbAccess->updateCardProperties(cardId, cardPropertiesUpdate);
 }
 
 void PersistedDataAccess::updateCardLabels(
-        const int cardId, const QSet<QString> &updatedLabels,
-        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    const int requestId = startWriteRequest();
-
-    class AsyncRoutineWithVars : public AsyncRoutine
-    {
-    public:
-        // variables used by the steps of the routine:
-        bool dbWriteOk;
-    };
-    auto *routine = new AsyncRoutineWithVars;
-
+        const int cardId, const QSet<QString> &updatedLabels) {
     // 1. update cache
     if (cache.cards.contains(cardId))
         cache.cards[cardId].setLabels(updatedLabels);
 
     // 2. write DB
-    routine->addStep([this, routine, cardId, updatedLabels]() {
-        queuedDbAccess->updateCardLabels(
-                cardId, updatedLabels,
-                // callback
-                [routine](bool ok) {
-                    routine->dbWriteOk = ok;
-                    routine->nextStep();
-                },
-                this
-        );
-    }, this);
-
-    // 3. if step 2 failed, add to unsaved updates
-    routine->addStep([this, routine, cardId, updatedLabels]() {
-        if (!routine->dbWriteOk) {
-            const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-            const QString updateTitle = "updateCardLabels";
-            const QString updateDetails = printJson(QJsonObject {
-                {"cardId", cardId},
-                {"updatedLabels", toJsonArray(updatedLabels)}
-            }, false);
-            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-        }
-        routine->nextStep();
-    }, this);
-
-    //
-    routine->addStep([this, routine, callback, requestId]() {
-        callback(routine->dbWriteOk);
-        routine->nextStep();
-        finishWriteRequest(requestId);
-    }, callbackContext);
-
-    routine->start();
+    debouncedDbAccess->updateCardLabels(cardId, updatedLabels);
 }
 
-void PersistedDataAccess::createRelationship(
-        const RelationshipId &id, std::function<void (bool ok, bool created)> callback,
-        QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
+void PersistedDataAccess::createRelationship(const RelationshipId &id) {
+    if (cache.relationships.contains(id))
+        return;
 
     // 1. update cache
-    if (cache.relationships.contains(id)) {
-        invokeAction(callbackContext, [callback]() {
-            callback(true, false);
-        });
-        return;
-    }
-
     cache.relationships.insert(id, RelationshipProperties {});
 
     // 2. write DB
-    const int requestId = startWriteRequest();
-
-    queuedDbAccess->createRelationship(
-            id,
-            // callback
-            [=](bool ok, bool created) {
-                if (!ok) {
-                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-                    const QString updateTitle = "createRelationship";
-                    const QString updateDetails = printJson(QJsonObject {
-                        {"id", id.toString()}
-                    }, false);
-                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-                }
-
-                //
-                invokeAction(callbackContext, [callback, ok, created]() {
-                    callback(ok, created);
-                });
-
-                //
-                finishWriteRequest(requestId);
-            },
-            this
-    );
+    debouncedDbAccess->createRelationship(id);
 }
 
-void PersistedDataAccess::updateUserRelationshipTypes(
-        const QStringList &updatedRelTypes, std::function<void (bool)> callback,
-        QPointer<QObject> callbackContext) {
+void PersistedDataAccess::updateUserRelationshipTypes(const QStringList &updatedRelTypes) {
     // 1. update cache
     cache.userRelTypesList = updatedRelTypes;
 
     // 2. write DB
-    const int requestId = startWriteRequest();
-
-    queuedDbAccess->updateUserRelationshipTypes(
-            updatedRelTypes,
-            // callback
-            [=](bool ok) {
-                if (!ok) {
-                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-                    const QString updateTitle = "updateUserRelationshipTypes";
-                    const QString updateDetails = printJson(QJsonObject {
-                        {"updatedRelTypes", toJsonArray(updatedRelTypes)}
-                    }, false);
-                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-                }
-
-                //
-                invokeAction(callbackContext, [callback, ok]() {
-                    callback(ok);
-                });
-
-                //
-                finishWriteRequest(requestId);
-            },
-            this
-    );
+    debouncedDbAccess->updateUserRelationshipTypes(updatedRelTypes);
 }
 
-void PersistedDataAccess::updateUserCardLabels(
-        const QStringList &updatedCardLabels, std::function<void (bool)> callback,
-        QPointer<QObject> callbackContext) {
+void PersistedDataAccess::updateUserCardLabels(const QStringList &updatedCardLabels) {
     // 1. update cache
     cache.userLabelsList = updatedCardLabels;
 
     // 2. write DB
-    const int requestId = startWriteRequest();
-
-    queuedDbAccess->updateUserCardLabels(
-            updatedCardLabels,
-            // callback
-            [=](bool ok) {
-                if (!ok) {
-                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-                    const QString updateTitle = "updateUserCardLabels";
-                    const QString updateDetails = printJson(QJsonObject {
-                        {"updatedCardLabels", toJsonArray(updatedCardLabels)}
-                    }, false);
-                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-                }
-
-                //
-                invokeAction(callbackContext, [callback, ok]() {
-                    callback(ok);
-                });
-
-                //
-                finishWriteRequest(requestId);
-            },
-            this
-    );
+    debouncedDbAccess->updateUserCardLabels(updatedCardLabels);
 }
 
 void PersistedDataAccess::updateBoardsListProperties(
-        const BoardsListPropertiesUpdate &propertiesUpdate,
-        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    const int requestId = startWriteRequest();
-
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        bool dbWriteOk;
-        bool fileWriteOk;
-    };
-    auto *routine = new AsyncRoutineWithVars;
-
-    //
+        const BoardsListPropertiesUpdate &propertiesUpdate) {
     BoardsListPropertiesUpdate propertiesUpdateForDb = propertiesUpdate;
     propertiesUpdateForDb.boardsOrdering = propertiesUpdate.boardsOrdering;
 
-    routine->addStep([this, routine, propertiesUpdateForDb]() {
-        // write DB for `boardsOrdering`
-        if (propertiesUpdateForDb.toJson().isEmpty()) {
-            ContinuationContext context(routine);
-            routine->dbWriteOk = true;
-            return;
-        }
+    // write DB for `boardsOrdering`
+    if (!propertiesUpdateForDb.toJson().isEmpty()) {
+        debouncedDbAccess->updateBoardsListProperties(propertiesUpdateForDb);
+    }
 
-        queuedDbAccess->updateBoardsListProperties(
-                propertiesUpdateForDb,
-                // callback
-                [=](bool ok) {
-                    ContinuationContext context(routine);
-
-                    if (!ok) {
-                        const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-                        const QString updateTitle = "updateBoardsListProperties";
-                        const QString updateDetails = printJson(QJsonObject {
-                            {"propertiesUpdate", propertiesUpdateForDb.toJson()}
-                        }, false);
-                        unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-                    }
-                    routine->dbWriteOk = ok;
-                },
-                this
-        );
-    }, this);
-
-    routine->addStep([this, routine, propertiesUpdate]() {
-        // write settings file for `lastOpenedBoard`
-        ContinuationContext context(routine);
-
-        if (!propertiesUpdate.lastOpenedBoard.has_value()) {
-            routine->fileWriteOk = true;
-            return;
-        }
-
-        bool ok = localSettingsFile->writeLastOpenedBoardId(
+    // write settings file for `lastOpenedBoard`
+    if (propertiesUpdate.lastOpenedBoard.has_value()) {
+        const bool ok = localSettingsFile->writeLastOpenedBoardId(
                 propertiesUpdate.lastOpenedBoard.value());
+
         if (!ok) {
             const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
             const QString updateTitle = "updateBoardsListProperties";
@@ -744,146 +472,42 @@ void PersistedDataAccess::updateBoardsListProperties(
                 {"lastOpenedBoard", propertiesUpdate.lastOpenedBoard.value()}
             }, false);
             unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+            showMsgOnFailedToSaveToFile("last-opened board");
         }
-        routine->fileWriteOk = ok;
-    }, this);
-
-    routine->addStep([this, routine, callback, requestId]() {
-        // final step
-        ContinuationContext context(routine);
-        callback(routine->dbWriteOk && routine->fileWriteOk);
-        finishWriteRequest(requestId);
-    }, callbackContext);
-
-    routine->start();
+    }
 }
 
-void PersistedDataAccess::createNewBoardWithId(
-        const int boardId, const Board &board,
-        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
+void PersistedDataAccess::createNewBoardWithId(const int boardId, const Board &board) {
     Q_ASSERT(board.cardIdToNodeRectData.isEmpty()); // new board should have no NodeRect
 
-    const int requestId = startWriteRequest();
-
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        bool dbWriteOk;
-    };
-    auto *routine = new AsyncRoutineWithVars;
+    if (cache.boards.contains(boardId)) {
+        qWarning().noquote() << QString("board %1 already exists in cache").arg(boardId);
+        return;
+    }
 
     // 1. update cache
-    routine->addStep([this, routine, boardId, board]() {
-        ContinuationContext context(routine);
-
-        if (cache.boards.contains(boardId)) {
-            qWarning().noquote() << QString("board %1 already exists in cache").arg(boardId);
-            context.setErrorFlag();
-            return;
-        }
-        cache.boards.insert(boardId, board);
-    }, this);
+    cache.boards.insert(boardId, board);
 
     // 2. write DB
-    routine->addStep([this, routine, boardId, board]() {
-        queuedDbAccess->createNewBoardWithId(
-                boardId, board,
-                // callback
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    routine->dbWriteOk = ok;
-                },
-                this
-        );
-    }, this);
-
-    // 3. if step 2 failed, add to unsaved updates
-    routine->addStep([this, routine, boardId, board]() {
-        ContinuationContext context(routine);
-
-        if (!routine->dbWriteOk) {
-            const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-            const QString updateTitle = "createNewBoardWithId";
-            const QString updateDetails = printJson(QJsonObject {
-                {"boardId", boardId},
-                {"boardNodeProperties", board.getNodePropertiesJson()}
-            }, false);
-            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-        }
-    }, this);
-
-    //
-    routine->addStep([this, routine, callback, requestId]() {
-        ContinuationContext context(routine);
-        callback(!routine->errorFlag && routine->dbWriteOk);
-        finishWriteRequest(requestId);
-    }, callbackContext);
-
-    routine->start();
+    debouncedDbAccess->createNewBoardWithId(boardId, board);
 }
 
 void PersistedDataAccess::updateBoardNodeProperties(
-        const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate,
-        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    const int requestId = startWriteRequest();
-
+        const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate) {
     // 1. update cache
     if (cache.boards.contains(boardId))
         cache.boards[boardId].updateNodeProperties(propertiesUpdate);
-
-    //
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        bool dbWriteOk;
-        bool fileWriteOk;
-    };
-    auto *routine = new AsyncRoutineWithVars;
 
     // 2. write DB and/or local settings file
     BoardNodePropertiesUpdate propertiesUpdateForDb = propertiesUpdate;
     propertiesUpdateForDb.topLeftPos = std::nullopt;
 
-    routine->addStep([this, routine, boardId, propertiesUpdateForDb]() {
-        if (propertiesUpdateForDb.toJson().isEmpty()) {
-            ContinuationContext context(routine);
-            routine->dbWriteOk = true;
-            return;
-        }
-
-        queuedDbAccess->updateBoardNodeProperties(
-                boardId, propertiesUpdateForDb,
-                // callback
-                [=](bool ok) {
-                    ContinuationContext context(routine);
-
-                    if (!ok) {
-                        const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-                        const QString updateTitle = "updateBoardNodeProperties";
-                        const QString updateDetails = printJson(QJsonObject {
-                            {"boardId", boardId},
-                            {"propertiesUpdate", propertiesUpdateForDb.toJson()}
-                        }, false);
-                        unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-                    }
-                    routine->dbWriteOk = ok;
-                },
-                this
-        );
-    }, this);
+    if (!propertiesUpdateForDb.toJson().isEmpty())
+        debouncedDbAccess->updateBoardNodeProperties(boardId, propertiesUpdateForDb);
 
     // 3. write settings file for `topLeftPos`
-    routine->addStep([this, routine, boardId, propertiesUpdate]() {
-        ContinuationContext context(routine);
-
-        if (!propertiesUpdate.topLeftPos.has_value()) {
-            routine->fileWriteOk = true;
-            return;
-        }
-
+    if (propertiesUpdate.topLeftPos.has_value()) {
         const bool ok = localSettingsFile->writeTopLeftPosOfBoard(
                 boardId, propertiesUpdate.topLeftPos.value());
         if (!ok) {
@@ -896,84 +520,22 @@ void PersistedDataAccess::updateBoardNodeProperties(
                 {"topLeftPos", QJsonArray {pos.x(), pos.y()}}
             }, false);
             unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+            showMsgOnFailedToSaveToFile("top-left coordinates of board");
         }
-        routine->fileWriteOk = ok;
-    }, this);
-
-
-    // 4. final step
-    routine->addStep([this, routine, callback, requestId]() {
-        ContinuationContext context(routine);
-        callback(routine->dbWriteOk && routine->fileWriteOk);
-        finishWriteRequest(requestId);
-    }, callbackContext);
-
-    routine->start();
+    }
 }
 
-void PersistedDataAccess::removeBoard(
-        const int boardId, std::function<void (bool)> callback,
-        QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    const int requestId = startWriteRequest();
-
+void PersistedDataAccess::removeBoard(const int boardId) {
     // 1. update cache
     cache.boards.remove(boardId);
 
-    //
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        bool dbWriteOk;
-    };
-    auto *routine = new AsyncRoutineWithVars;
-
     // 2. write DB
-    routine->addStep([this, routine, boardId]() {
-        queuedDbAccess->removeBoard(
-                boardId,
-                // callback
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    routine->dbWriteOk = ok;
-                },
-                this
-        );
-    }, this);
-
-    // 3. if step 2 failed, add to unsaved updates
-    routine->addStep([this, routine, boardId]() {
-        ContinuationContext context(routine);
-
-        if (!routine->dbWriteOk) {
-            const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-            const QString updateTitle = "removeBoard";
-            const QString updateDetails = printJson(QJsonObject {
-                {"boardId", boardId},
-            }, false);
-            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-        }
-    }, this);
-
-    //
-    routine->addStep([this, routine, callback, requestId]() {
-        ContinuationContext context(routine);
-        callback(routine->dbWriteOk);
-        finishWriteRequest(requestId);
-    }, callbackContext);
-
-    //
-    routine->start();
+    debouncedDbAccess->removeBoard(boardId);
 }
 
 void PersistedDataAccess::updateNodeRectProperties(
-        const int boardId, const int cardId, const NodeRectDataUpdate &update,
-        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    const int requestId = startWriteRequest();
-
+        const int boardId, const int cardId, const NodeRectDataUpdate &update) {
     // 1. update cache
     if (cache.boards.contains(boardId)) {
         Board &board = cache.boards[boardId];
@@ -982,184 +544,36 @@ void PersistedDataAccess::updateNodeRectProperties(
         }
     }
 
-    //
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        // variables used by the steps of the routine:
-        bool dbWriteOk;
-    };
-    auto *routine = new AsyncRoutineWithVars;
-
     // 2. write DB
-    routine->addStep([this, routine, boardId, cardId, update]() {
-        queuedDbAccess->updateNodeRectProperties(
-                boardId, cardId, update,
-                // callback
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    routine->dbWriteOk = ok;
-                },
-                this
-        );
-    }, this);
-
-    // 3. if step 2 failed, add to unsaved updates
-    routine->addStep([this, routine, boardId, cardId, update]() {
-        ContinuationContext context(routine);
-
-        if (!routine->dbWriteOk) {
-            const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-            const QString updateTitle = "updateNodeRectProperties";
-            const QString updateDetails = printJson(QJsonObject {
-                {"boardId", boardId},
-                {"cardId", cardId},
-                {"update", update.toJson()}
-            }, false);
-            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-        }
-    }, this);
-
-    //
-    routine->addStep([this, routine, callback, requestId]() {
-        ContinuationContext context(routine);
-        callback(routine->dbWriteOk);
-        finishWriteRequest(requestId);
-    }, callbackContext);
-
-    //
-    routine->start();
+    debouncedDbAccess->updateNodeRectProperties(boardId, cardId, update);
 }
 
 void PersistedDataAccess::createNodeRect(
-        const int boardId, const int cardId, const NodeRectData &nodeRectData,
-        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    const int requestId = startWriteRequest();
-
-    //
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        bool dbWriteOk;
-    };
-    auto *routine = new AsyncRoutineWithVars;
-
+        const int boardId, const int cardId, const NodeRectData &nodeRectData) {
     // 1. update cache
-    routine->addStep([this, routine, boardId, cardId, nodeRectData]() {
-        ContinuationContext context(routine);
-
-        if (cache.boards.contains(boardId)) {
-            Board &board = cache.boards[boardId];
-            if (board.cardIdToNodeRectData.contains(cardId)) {
-                qWarning().noquote()
-                        << QString("NodeRect for board %1 & card %2 already exists in cache")
-                           .arg(boardId).arg(cardId);
-                context.setErrorFlag();
-                return;
-            }
-
-            board.cardIdToNodeRectData.insert(cardId, nodeRectData);
+    if (cache.boards.contains(boardId)) {
+        Board &board = cache.boards[boardId];
+        if (board.cardIdToNodeRectData.contains(cardId)) {
+            qWarning().noquote()
+                    << QString("NodeRect for board %1 & card %2 already exists in cache")
+                       .arg(boardId).arg(cardId);
+            return;
         }
-    }, this);
+
+        board.cardIdToNodeRectData.insert(cardId, nodeRectData);
+    }
 
     // 2. write DB
-    routine->addStep([this, routine, boardId, cardId, nodeRectData]() {
-        queuedDbAccess->createNodeRect(
-                boardId, cardId, nodeRectData,
-                // callback
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    routine->dbWriteOk = ok;
-                },
-                this
-        );
-    }, this);
-
-    // 3. if step 2 failed, add to unsaved updates
-    routine->addStep([this, routine, boardId, cardId, nodeRectData]() {
-        ContinuationContext context(routine);
-
-        if (!routine->dbWriteOk) {
-            const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-            const QString updateTitle = "createNodeRect";
-            const QString updateDetails = printJson(QJsonObject {
-                {"boardId", boardId},
-                {"cardId", cardId},
-                {"nodeRectData", nodeRectData.toJson()}
-            }, false);
-            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-        }
-    }, this);
-
-    //
-    routine->addStep([this, routine, callback, requestId]() {
-        ContinuationContext context(routine);
-        callback(routine->dbWriteOk);
-        finishWriteRequest(requestId);
-    }, callbackContext);
-
-    //
-    routine->start();
+    debouncedDbAccess->createNodeRect(boardId, cardId, nodeRectData);
 }
 
-void PersistedDataAccess::removeNodeRect(
-        const int boardId, const int cardId,
-        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    const int requestId = startWriteRequest();
-
+void PersistedDataAccess::removeNodeRect(const int boardId, const int cardId) {
     // 1. update cache
     if (cache.boards.contains(boardId))
         cache.boards[boardId].cardIdToNodeRectData.remove(cardId);
 
-    //
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        bool dbWriteOk;
-    };
-    auto *routine = new AsyncRoutineWithVars;
-
     // 2. write DB
-    routine->addStep([this, routine, boardId, cardId]() {
-        queuedDbAccess->removeNodeRect(
-                boardId, cardId,
-                // callback
-                [routine](bool ok) {
-                    ContinuationContext context(routine);
-                    routine->dbWriteOk = ok;
-                },
-                this
-        );
-    }, this);
-
-    // 3. if step 2 failed, add to unsaved updates
-    routine->addStep([this, routine, boardId, cardId]() {
-        ContinuationContext context(routine);
-
-        if (!routine->dbWriteOk) {
-            const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-            const QString updateTitle = "removeNodeRect";
-            const QString updateDetails = printJson(QJsonObject {
-                {"boardId", boardId},
-                {"cardId", cardId}
-            }, false);
-            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-        }
-    }, this);
-
-    //
-    routine->addStep([this, routine, callback, requestId]() {
-        ContinuationContext context(routine);
-        callback(routine->dbWriteOk);
-        finishWriteRequest(requestId);
-    }, callbackContext);
-
-    //
-    routine->start();
+    debouncedDbAccess->removeNodeRect(boardId, cardId);
 }
 
 bool PersistedDataAccess::saveMainWindowSize(const QSize &size) {
@@ -1171,20 +585,29 @@ bool PersistedDataAccess::saveMainWindowSize(const QSize &size) {
             {"size", QJsonArray {size.width(), size.height()}},
         }, false);
         unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+        showMsgOnFailedToSaveToFile("main-window size");
     }
     return ok;
 }
 
-int PersistedDataAccess::startWriteRequest() {
-    const int requestId = ++lastWriteRequestId;
-    {
-        QWriteLocker locker(&lockForwriteRequestsInProgress);
-        writeRequestsInProgress << requestId;
-    }
-    return requestId;
+void PersistedDataAccess::showMsgOnFailedToSaveToFile(const QString &dataName) {
+    const auto msg
+            = QString("Could not save %1 to file.\n\nThere is unsaved update. See %2")
+              .arg(dataName, unsavedUpdateRecordsFile->getFilePath());
+    showWarningMessageBox(nullptr, "Warning", msg);
 }
 
-void PersistedDataAccess::finishWriteRequest(const int requestId) {
-    QWriteLocker locker(&lockForwriteRequestsInProgress);
-    writeRequestsInProgress.remove(requestId);
-}
+//int PersistedDataAccess::startWriteRequest() {
+//    const int requestId = ++lastWriteRequestId;
+//    {
+//        QWriteLocker locker(&lockForwriteRequestsInProgress);
+//        writeRequestsInProgress << requestId;
+//    }
+//    return requestId;
+//}
+
+//void PersistedDataAccess::finishWriteRequest(const int requestId) {
+//    QWriteLocker locker(&lockForwriteRequestsInProgress);
+//    writeRequestsInProgress.remove(requestId);
+//}
