@@ -722,14 +722,8 @@ void MainWindow::onUserCloseWindow() {
     saveWindowSizeDebounced->actNow();
 
     //
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        bool hasUnsavedUpdate {false};
-    };
-    auto *routine = new AsyncRoutineWithVars;
+    auto *routine = new AsyncRoutineWithErrorFlag;
 
-    //
     routine->addStep([this, routine]() {
         // save last-opened board ID
         ContinuationContext context(routine);
@@ -744,51 +738,42 @@ void MainWindow::onUserCloseWindow() {
     routine->addStep([this, routine]() {
         // save current board's topLeftPos
         ContinuationContext context(routine);
+
         saveTopLeftPosOfCurrentBoard();
     }, this);
 
-//    routine->addStep([routine]() {
-//        // wait until CachedDataAccess::hasWriteRequestInProgress() returns false
-//        qInfo().noquote() << "awaiting all saving operations to finish";
-//        (new PeriodicChecker)->setPeriod(20)->setTimeOut(6000)
-//                ->setPredicate([]() {
-//                    return !Services::instance()
-//                            ->getPersistedDataAccessHasWriteRequestInProgress();
-//                })
-//                ->onPredicateReturnsTrue([routine]() {
-//                    routine->nextStep();
-//                })
-//                ->onTimeOut([routine]() {
-//                    ContinuationContext context(routine);
-//                    context.setErrorFlag();
-//                    qWarning().noquote()
-//                            << "Time-out while awaiting all saving operations to finish";
-//                })
-//                ->setAutoDelete()->start();
+    routine->addStep([this, routine]() {
+        Services::instance()->finalize(
+                6000, // timeout (ms)
+                [this, routine](bool timedOut) {
+                    ContinuationContext context(routine);
+
+                    if (timedOut) {
+                        QMessageBox::warning(
+                                this, " ",
+                                "Time-out while awaiting DB-access operations to finish.");
+                        context.setErrorFlag();
+                    }
+                },
+                this
+        );
+    }, this);
+
+//    routine->addStep([this, routine]() {
+//        ContinuationContext context(routine);
+
+//        if (routine->hasUnsavedUpdate) {
+//            const auto r
+//                    = QMessageBox::question(this, " ", "There is unsaved update. Exit anyway?");
+//            if (r != QMessageBox::Yes) {
+//                context.setErrorFlag();
+//                return;
+//            }
+//        }
 //    }, this);
 
-    routine->addStep([this, routine]() { // [temp]
-        QTimer::singleShot(1000, this, [routine]() {
-            ContinuationContext context(routine);
-        });
-    }, this);
-
     routine->addStep([this, routine]() {
-        //
-        ContinuationContext context(routine);
-
-        if (routine->hasUnsavedUpdate) {
-            const auto r
-                    = QMessageBox::question(this, " ", "There is unsaved update. Exit anyway?");
-            if (r != QMessageBox::Yes) {
-                context.setErrorFlag();
-                return;
-            }
-        }
-    }, this);
-
-    routine->addStep([this, routine]() {
-        // (final step)
+        // final step
         ContinuationContext context(routine);
 
         if (routine->errorFlag) {

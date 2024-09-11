@@ -30,14 +30,14 @@ public:
     //!
     bool initialize(QString *errorMsg = nullptr);
 
+    //
     AppData *getAppData() const;
     AppData *getAppDataReadonly() const;
-//    bool getPersistedDataAccessHasWriteRequestInProgress() const;
-
-//    QString getUnsavedUpdateRecordFilePath() const;
 
     //
-    void finalize();
+    void finalize(
+            const int timeoutMSec, std::function<void (bool timedOut)> callback,
+            QPointer<QObject> callbackContext);
 
 private:
     QNetworkAccessManager *networkAccessManager {nullptr};

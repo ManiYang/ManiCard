@@ -9,12 +9,13 @@ class ActionDebouncer;
 class UnsavedUpdateRecordsFile;
 
 //!
-//! A debounced write-operation may start a "debounce session" with a "debounce data key".
+//! A debounced write-operation can start a "debounce session" with a "debounce data key", if
+//! a debounce session with the same debounce data key is not started yet.
 //! The debounce session is closed when one of the following is invoked:
 //!   - a read operation,
 //!   - a write operation that is not debounced,
 //!   - a debounced write-operation with different debounce data key. (In this case a
-//!     new debounce session is started.)
+//!     new debounce session is then started.)
 //! If a write operation is invoked within a debounce session with the same debounce data key,
 //! the update data (parameters of the operation) is accumulated and the operation is
 //! debounced.
@@ -29,7 +30,12 @@ public:
             std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile_,
             QObject *parent = nullptr);
 
-    void finalize();
+    //!
+    //! Closes the debounce session, if there is one. May call a write-operation of
+    //! \e cardsDataAccess (but does not wait for the operation to finish). Normally this
+    //! should be called when the program is about to quit.
+    //!
+    void performPendingOperation();
 
     // ==== cards data: read operations ====
 

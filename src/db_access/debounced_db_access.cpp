@@ -15,7 +15,7 @@ DebouncedDbAccess::DebouncedDbAccess(AbstractBoardsDataAccess *boardsDataAccess_
             , unsavedUpdateRecordsFile(unsavedUpdateRecordsFile_) {
 }
 
-void DebouncedDbAccess::finalize() {
+void DebouncedDbAccess::performPendingOperation() {
     closeDebounceSession();
 }
 
@@ -134,7 +134,7 @@ void DebouncedDbAccess::updateCardProperties(
         cumulatedUpdateData.cardPropertiesUpdate = cardPropertiesUpdate;
 
         // 3. create debounce session
-        constexpr int separationMsec = 1500;
+        constexpr int separationMsec = 2500;
         currentDebounceSession.emplace(debounceKey, separationMsec, functionWriteDb);
         qInfo().noquote()
                 << QString("entered debounce session %1")

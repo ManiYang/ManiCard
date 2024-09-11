@@ -15,7 +15,7 @@ class LocalSettingsFile;
 class UnsavedUpdateRecordsFile;
 
 //!
-//! Accesses persisted data (DB & files), with a cache.
+//! Accesses persisted data (DB & files), and manages data cache.
 //!
 //! For read operation, this class
 //!   1. gets the parts that are already cached

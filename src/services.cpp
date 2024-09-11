@@ -2,6 +2,7 @@
 #include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMessageBox>
 #include <QNetworkAccessManager>
 #include "app_data.h"
 #include "db_access/boards_data_access.h"
@@ -14,7 +15,9 @@
 #include "neo4j_http_api_client.h"
 #include "persisted_data_access.h"
 #include "services.h"
+#include "utilities/functor.h"
 #include "utilities/json_util.h"
+#include "utilities/periodic_checker.h"
 
 constexpr char configFile[] = "config.json";
 
@@ -99,11 +102,27 @@ AppData *Services::getAppDataReadonly() const {
     return appData;
 }
 
-//bool Services::getPersistedDataAccessHasWriteRequestInProgress() const {
-//    Q_ASSERT(persistedDataAccess != nullptr);
-//    return persistedDataAccess->hasWriteRequestInProgress();
-//}
+void Services::finalize(
+        const int timeoutMSec, std::function<void (bool)> callback,
+        QPointer<QObject> callbackContext) {
+    debouncedDbAccess->performPendingOperation();
+            // this may call a write operation of `queuedDbAccess`
 
-//QString Services::getUnsavedUpdateRecordFilePath() const {
-//    return unsavedUpdateFilePath;
-//}
+    // wait for `queuedDbAccess` to be finished
+    qInfo().noquote() << "awaiting DB-access operations to finish";
+    (new PeriodicChecker(qApp))
+            ->setPeriod(40)->setTimeOut(timeoutMSec)
+            ->setPredicate([this]() {
+                return !queuedDbAccess->hasUnfinishedOperation();
+            })
+            ->onPredicateReturnsTrue([=]() {
+                invokeAction(callbackContext, [callback]() { callback(false); });
+            })
+            ->onTimeOut([=]() {
+//                QMessageBox::warning(
+//                        nullptr, " ",
+//                        "Time-out while awaiting DB-access operations to finish.");
+                invokeAction(callbackContext, [callback]() { callback(true); });
+            })
+            ->setAutoDelete()->start();
+}
