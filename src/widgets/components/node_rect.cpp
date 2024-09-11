@@ -27,8 +27,7 @@ NodeRect::NodeRect(const int cardId_, QGraphicsItem *parent)
         , textEdit(new CustomTextEdit(nullptr))
         , textEditProxyWidget(new QGraphicsProxyWidget(contentsRectItem))
         , moveResizeHelper(new GraphicsItemMoveResize(this))
-        , contextMenu(new QMenu)
-        , titleTextSaveDebouncer(new SaveDebouncer(titleTextSaveDelay, this)) {
+        , contextMenu(new QMenu) {
     textEdit->setVisible(false);
     textEdit->setReadOnly(true);
     textEditProxyWidget->setWidget(textEdit);
@@ -112,18 +111,6 @@ void NodeRect::setHighlighted(const bool highlighted) {
     }
 }
 
-void NodeRect::finishedSaveTitleText() {
-    QTimer::singleShot(0, this, [this]() {
-        titleTextSaveDebouncer->saveFinished();
-    });
-    // use singleShot() in case the receiver of signal savePropertiesUpdate() calls this method
-    // synchronously
-}
-
-void NodeRect::prepareToClose() {
-    titleTextSaveDebouncer->saveNow();
-}
-
 QRectF NodeRect::getRect() const {
     return enclosingRect;
 }
@@ -146,10 +133,6 @@ QString NodeRect::getText() const {
 
 bool NodeRect::getIsHighlighted() const {
     return isHighlighted;
-}
-
-bool NodeRect::canClose() const {
-    return titleTextSaveDebouncer->isCleared();
 }
 
 QRectF NodeRect::boundingRect() const {
@@ -243,7 +226,6 @@ void NodeRect::setUpContextMenu() {
     {
         auto *action = contextMenu->addAction(QIcon(":/icons/close_box_black_24"), "Close");
         connect(action, &QAction::triggered, this, [this]() {
-            titleTextSaveDebouncer->saveNow();
             const auto r = QMessageBox::question(getView(), " ", "Close the card?");
             if (r == QMessageBox::Yes)
                 emit closeByUser();
@@ -253,8 +235,7 @@ void NodeRect::setUpContextMenu() {
 
 void NodeRect::setUpConnections() {
     connect(titleItem, &CustomGraphicsTextItem::textEdited, this, [this](bool heightChanged) {
-        titleEdited = true;
-        titleTextSaveDebouncer->setUpdated();
+        emit titleTextUpdated(titleItem->toPlainText(), std::nullopt);
         if (heightChanged)
             adjustChildItems();
     });
@@ -265,8 +246,7 @@ void NodeRect::setUpConnections() {
 
     //
     connect(textEdit, &CustomTextEdit::textEdited, this, [this]() {
-        textEdited = true;
-        titleTextSaveDebouncer->setUpdated();
+        emit titleTextUpdated(std::nullopt, textEdit->toPlainText());
     });
 
     connect(textEdit, &CustomTextEdit::clicked, this, [this]() {
@@ -321,32 +301,6 @@ void NodeRect::setUpConnections() {
             setCursor(cursorShape.value());
         else
             unsetCursor();
-    });
-
-    // ==== propertiesSaving ====
-
-    connect(titleTextSaveDebouncer, &SaveDebouncer::saveCurrentState, this, [this]() {
-        std::optional<QString> updatedTitle;
-        if (titleEdited)
-            updatedTitle = titleItem->toPlainText();
-
-        std::optional<QString> updatedText;
-        if (textEdited)
-            updatedText = textEdit->toPlainText();
-
-        emit saveTitleTextUpdate(updatedTitle, updatedText);
-
-        //
-        titleEdited = false;
-        textEdited = false;
-    });
-
-    connect(titleTextSaveDebouncer, &SaveDebouncer::saveScheduled, this, [this]() {
-        qDebug().noquote() << QString("card %1 save scheduled").arg(cardId);
-    });
-
-    connect(titleTextSaveDebouncer, &SaveDebouncer::cleared, this, [this]() {
-        qDebug().noquote() << QString("card %1 save cleared").arg(cardId);
     });
 }
 

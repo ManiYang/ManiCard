@@ -203,9 +203,9 @@ void BoardView::loadBoard(
 }
 
 void BoardView::prepareToClose() {
-    const auto nodeRects = nodeRectsCollection.getAllNodeRects();
-    for (NodeRect *nodeRect: nodeRects)
-        nodeRect->prepareToClose();
+//    const auto nodeRects = nodeRectsCollection.getAllNodeRects();
+//    for (NodeRect *nodeRect: nodeRects)
+//        nodeRect->prepareToClose();
 }
 
 void BoardView::showButtonRightSidebar() {
@@ -221,11 +221,11 @@ QPointF BoardView::getViewTopLeftPos() const {
 }
 
 bool BoardView::canClose() const {
-    const auto nodeRects = nodeRectsCollection.getAllNodeRects();
-    for (NodeRect *nodeRect: nodeRects) {
-        if (!nodeRect->canClose())
-            return false;
-    }
+//    const auto nodeRects = nodeRectsCollection.getAllNodeRects();
+//    for (NodeRect *nodeRect: nodeRects) {
+//        if (!nodeRect->canClose())
+//            return false;
+//    }
     return true;
 }
 
@@ -786,26 +786,26 @@ void BoardView::onUserToCloseNodeRect(const int cardId) {
     auto *routine = new AsyncRoutineWithVars;
 
     //
-    routine->addStep([this, routine, cardId]() {
-        NodeRect *nodeRect = nodeRectsCollection.get(cardId);
-        nodeRect->prepareToClose();
+//    routine->addStep([this, routine, cardId]() {
+//        NodeRect *nodeRect = nodeRectsCollection.get(cardId);
+//        nodeRect->prepareToClose();
 
-        // wait until nodeRect->canClose() returns true
-        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
-            ->setPredicate([nodeRect]() {
-                return nodeRect->canClose();
-            })
-            ->onPredicateReturnsTrue([routine]() {
-                routine->nextStep();
-            })
-            ->onTimeOut([routine, cardId]() {
-                qWarning().noquote()
-                        << QString("time-out while awaiting NodeRect::canClose() for card %1")
-                           .arg(cardId);
-                routine->nextStep();
-            })
-            ->setAutoDelete()->start();
-    }, this);
+//        // wait until nodeRect->canClose() returns true
+//        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
+//            ->setPredicate([nodeRect]() {
+//                return nodeRect->canClose();
+//            })
+//            ->onPredicateReturnsTrue([routine]() {
+//                routine->nextStep();
+//            })
+//            ->onTimeOut([routine, cardId]() {
+//                qWarning().noquote()
+//                        << QString("time-out while awaiting NodeRect::canClose() for card %1")
+//                           .arg(cardId);
+//                routine->nextStep();
+//            })
+//            ->setAutoDelete()->start();
+//    }, this);
 
     routine->addStep([this, routine, cardId]() {
         bool highlightedCardIdChanged;
@@ -985,7 +985,7 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
                 ->setHighlightedCardId(EventSource(boardView), highlightedCardId);
     });
 
-    QObject::connect(nodeRect, &NodeRect::saveTitleTextUpdate,
+    QObject::connect(nodeRect, &NodeRect::titleTextUpdated,
             boardView,
             [this, nodeRectPtr](const StringOpt &updatedTitle, const StringOpt &updatedText) {
         if (!nodeRectPtr)
@@ -999,8 +999,6 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         }
         Services::instance()->getAppData()->updateCardProperties(
                 EventSource(boardView), nodeRectPtr->getCardId(), propertiesUpdate);
-        if (nodeRectPtr) //...
-            nodeRectPtr->finishedSaveTitleText();
     });
 
     QObject::connect(nodeRect, &NodeRect::userToSetLabels, boardView, [this, nodeRectPtr]() {

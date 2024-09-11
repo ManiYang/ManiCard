@@ -10,7 +10,6 @@
 #include <QGraphicsView>
 #include <QMenu>
 #include <QSet>
-#include "utilities/save_debouncer.h"
 
 using StringOpt = std::optional<QString>;
 
@@ -46,10 +45,6 @@ public:
     void setHighlighted(const bool highlighted);
 
     //
-    void finishedSaveTitleText(); // cf. signal saveTitleTextUpdate()
-    void prepareToClose(); // cf. canClose()
-
-    //
     QRectF getRect() const;
 
     int getCardId() const;
@@ -57,8 +52,6 @@ public:
     QString getTitle() const;
     QString getText() const;
     bool getIsHighlighted() const;
-
-    bool canClose() const;
 
     //
     QRectF boundingRect() const override;
@@ -72,11 +65,7 @@ signals:
 
     void clicked();
 
-    //!
-    //! The receiver should start saving the properties update, and call
-    //! \c finishedSaveTitleText() when finished saving.
-    //!
-    void saveTitleTextUpdate(const StringOpt &updatedTitle, const StringOpt &updatedText);
+    void titleTextUpdated(const StringOpt &updatedTitle, const StringOpt &updatedText);
 
     void userToSetLabels();
     void userToCreateRelationship();
@@ -117,11 +106,6 @@ private:
     //
     GraphicsItemMoveResize *moveResizeHelper;
     QMenu *contextMenu;
-
-    SaveDebouncer *titleTextSaveDebouncer;
-    bool titleEdited {false};
-    bool textEdited {false};
-    constexpr static int titleTextSaveDelay {3000}; // (ms)
 
     //
     void installEventFilterOnChildItems();
