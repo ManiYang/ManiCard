@@ -25,15 +25,6 @@ PersistedDataAccess::PersistedDataAccess(
             , unsavedUpdateRecordsFile(unsavedUpdateRecordsFile_) {
 }
 
-//bool PersistedDataAccess::hasWriteRequestInProgress() const {
-//    bool result;
-//    {
-//        QReadLocker locker(&lockForwriteRequestsInProgress);
-//        result = !writeRequestsInProgress.isEmpty();
-//    }
-//    return result;
-//}
-
 void PersistedDataAccess::queryCards(
         const QSet<int> &cardIds,
         std::function<void (bool, const QHash<int, Card> &)> callback,
@@ -597,17 +588,3 @@ void PersistedDataAccess::showMsgOnFailedToSaveToFile(const QString &dataName) {
               .arg(dataName, unsavedUpdateRecordsFile->getFilePath());
     showWarningMessageBox(nullptr, "Warning", msg);
 }
-
-//int PersistedDataAccess::startWriteRequest() {
-//    const int requestId = ++lastWriteRequestId;
-//    {
-//        QWriteLocker locker(&lockForwriteRequestsInProgress);
-//        writeRequestsInProgress << requestId;
-//    }
-//    return requestId;
-//}
-
-//void PersistedDataAccess::finishWriteRequest(const int requestId) {
-//    QWriteLocker locker(&lockForwriteRequestsInProgress);
-//    writeRequestsInProgress.remove(requestId);
-//}

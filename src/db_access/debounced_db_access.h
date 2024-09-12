@@ -9,16 +9,31 @@ class ActionDebouncer;
 class UnsavedUpdateRecordsFile;
 
 //!
-//! A debounced write-operation can start a "debounce session" with a "debounce data key", if
-//! a debounce session with the same debounce data key is not started yet.
-//! The debounce session is closed when one of the following is invoked:
-//!   - a read operation,
-//!   - a write operation that is not debounced,
-//!   - a debounced write-operation with different debounce data key. (In this case a
-//!     new debounce session is then started.)
-//! If a write operation is invoked within a debounce session with the same debounce data key,
-//! the update data (parameters of the operation) is accumulated and the operation is
-//! debounced.
+//! Provides access to DB, with a debounce mechanism for write operations, where multiple calls
+//! to the same write operation (for example, update of \e text property of the same card)
+//! can be buffered so that the frequency of actual DB write is limited.
+//!
+//! Notes for implementing this class:
+//!
+//! 1. Each write method is either debounced or not debounced. For a write method to be able to
+//!    be debounced, its parameters (update data) must be able to be accumulated.
+//!
+//! 2. A debounced write-method, when called, creates a "debounce data key" using its parameters.
+//!    It then starts a "debounce session" identified by that debounce data key, if a debounce
+//!    session with the same debounce data key is not started yet.
+//!
+//! 3. When a debounced write-method is called within a debounce session with the same debounce
+//!    data key, the update data (parameters of the operation) is accumulated and the actual DB
+//!    operation is possibly delayed. When the operation is actually performed on DB, the
+//!    accumulated update data is used (which is then cleared).
+//!
+//! 4. The debounce session is closed when one of the following is called:
+//!     - a read method,
+//!     - a write method that is not debounced,
+//!     - a debounced write-method with different debounce data key (in this case a new debounce
+//!       session is then started).
+//!   Thus, there is at most one debounce session at a time. When a debounce session is closed,
+//!   its delayed DB operation, if there is one, is performed immediately.
 //!
 class DebouncedDbAccess : public QObject
 {

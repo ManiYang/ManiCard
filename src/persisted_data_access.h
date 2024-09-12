@@ -36,8 +36,6 @@ public:
             std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile_,
             QObject *parent = nullptr);
 
-//    bool hasWriteRequestInProgress() const;
-
     // ==== read ====
 
     void queryCards(
@@ -89,7 +87,7 @@ public:
     // ==== write ====
 
     // A write operation fails if data cannot be saved to DB or file. In this case, a record of
-    // unsaved update is added.
+    // unsaved update is added and a message box is shown.
 
     void createNewCardWithId(const int cardId, const Card &card);
 
@@ -146,15 +144,6 @@ private:
 
     //
     void showMsgOnFailedToSaveToFile(const QString &dataName);
-
-
-    //
-//    int lastWriteRequestId {-1};
-//    QSet<int> writeRequestsInProgress;
-//    mutable QReadWriteLock lockForwriteRequestsInProgress;
-
-//    int startWriteRequest();
-//    void finishWriteRequest(const int requestId); // thread-safe ?????????
 };
 
 #endif // PERSISTEDDATAACCESS_H

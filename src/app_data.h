@@ -12,14 +12,17 @@
 class PersistedDataAccess;
 
 //!
-//! independent data (persisted, non-persisted), derived data
+//! Data managed here are categorized into
+//!  - independent data
+//!    - persisted
+//!    - non-persisted
+//!  - derived data (computed from independent data)
 //!
-//! get
-//!   - can be asynchronous
+//! A Method for update of independent data
+//!  1. synchornously compute all derived variables and emit "updated" signals for updated ones,
+//!  2. save (persist) the independent data if needed.
 //!
-//! update
-//!   1. synchornously update all variables and emit "updated" signals
-//!   2. persist (if needed)
+//! "Get" methods can be asynchronous.
 //!
 class AppData : public AppDataReadonly
 {
@@ -76,7 +79,7 @@ public:
 
     // ---- persisted data: update ----
 
-    // If persistence fails, a record of unsaved update is added.
+    // If persistence fails, a record of unsaved update is added and a message box is shown.
 
     void createNewCardWithId(const EventSource &eventSrc, const int cardId, const Card &card);
 
