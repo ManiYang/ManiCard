@@ -12,6 +12,19 @@ PropertyValueEditor::PropertyValueEditor(
 
 }
 
+void PropertyValueEditor::setDataTypeChangable(const bool changable) {
+    dataTypeChangable = changable;
+
+    comboBox->setEnabled(!readonly && dataTypeChangable);
+}
+
+void PropertyValueEditor::setReadonly(const bool readonly_) {
+    readonly = readonly_;
+
+    comboBox->setEnabled(!readonly && dataTypeChangable);
+    textEdit->setReadOnly(readonly);
+}
+
 void PropertyValueEditor::setUpWidgets() {
     auto *layout = new QVBoxLayout;
     setLayout(layout);
@@ -60,7 +73,7 @@ QString PropertyValueEditor::getDataTypeName(const DataType dataType) {
     case DataType::Integer: return "Integer";
     case DataType::Float: return "Float";
     case DataType::String: return "String";
-    case DataType::HomogenouesList: return "HomogenouesList";
+    case DataType::HomogeneousList: return "HomogenouesList";
     case DataType::_Count: return "";
     }
     Q_ASSERT(false); // not implemented

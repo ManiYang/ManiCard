@@ -12,14 +12,15 @@ class PropertyValueEditor : public QFrame
     Q_OBJECT
 
 public:
-    enum class DataType {Boolean=0, Integer, Float, String, HomogenouesList, _Count};
+    enum class DataType {Boolean=0, Integer, Float, String, HomogeneousList, _Count};
 
 public:
     explicit PropertyValueEditor(
             const DataType initialDataType_, const QJsonValue &initialValue_,
             QWidget *parent = nullptr);
 
-    void setDataTypeChangable(const bool changable);
+    void setDataTypeChangable(const bool changable); // default: true
+    void setReadonly(const bool readonly_); // default: false
 
     DataType getDataType() const;
     QJsonValue getValue() const; // Undefined if not valid
@@ -31,6 +32,9 @@ signals:
 private:
     const DataType initialDataType;
     const QJsonValue initialValue;
+
+    bool dataTypeChangable {true};
+    bool readonly {false};
 
     QComboBox *comboBox {nullptr};
     QTextEdit *textEdit {nullptr};

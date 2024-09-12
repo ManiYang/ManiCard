@@ -1,11 +1,11 @@
 #include <QDebug>
 #include <QHBoxLayout>
+#include <QGridLayout>
 #include <QVBoxLayout>
 #include "app_data.h"
 #include "card_properties_view.h"
 #include "services.h"
 #include "utilities/json_util.h"
-#include "widgets/components/property_value_editor.h"
 
 CardPropertiesView::CardPropertiesView(QWidget *parent)
         : QFrame(parent) {
@@ -38,13 +38,13 @@ void CardPropertiesView::setUpWidgets() {
         layout->addWidget(labelTitle);
         labelTitle->setWordWrap(true);
 
-//        // [temp]
-//        textEdit = new QTextEdit;
-//        layout->addWidget(textEdit);
-//        textEdit->setReadOnly(true);
+        labelLoadingMsg = new QLabel;
+        layout->addWidget(labelLoadingMsg);
+        labelLoadingMsg->setVisible(false);
 
-
-        layout->addStretch();
+        customPropertiesArea = new CustomPropertiesArea;
+        customPropertiesArea->addToLayout(layout);
+        customPropertiesArea->setOverallEditable(checkBoxEdit->isChecked());
     }
 
     //
@@ -61,23 +61,15 @@ void CardPropertiesView::setUpWidgets() {
     labelTitle->setStyleSheet(
             "font-size: 13pt;"
             "font-weight: bold;");
-
-//    textEdit->setStyleSheet(
-//            "QTextEdit {"
-//            "  font-size: 11pt;"
-//            "}");
 }
 
 void CardPropertiesView::setUpConnections() {
     //
     connect(checkBoxEdit, &QCheckBox::toggled, this, [this](bool checked) {
         if (checked)
-            qDebug() << "set editable...";
+            customPropertiesArea->setOverallEditable(true);
         else
-            qDebug() << "set readonly...";
-        // todo ...
-
-
+            customPropertiesArea->setOverallEditable(false);
     });
 
     // from AppData
@@ -122,9 +114,14 @@ void CardPropertiesView::loadCard(const int cardIdToLoad) {
         checkBoxEdit->setChecked(false);
     }
 
+    labelLoadingMsg->setVisible(false);
+
     //
     loadCardProperties("", {});
     if (cardIdToLoad != -1) {
+        labelLoadingMsg->setText("<font color=\"#888\">Loading...</font>");
+        labelLoadingMsg->setVisible(true);
+
         Services::instance()->getAppData()->queryCards(
             {cardIdToLoad},
             // callback
@@ -132,10 +129,13 @@ void CardPropertiesView::loadCard(const int cardIdToLoad) {
                 if (!ok || !cardsData.contains(cardIdToLoad)) {
                     qWarning().noquote()
                             << QString("could not get data of card %1").arg(cardIdToLoad);
+                    labelLoadingMsg->setText("<font color=\"#e77\">Failed to load data</font>");
                     return;
                 }
+
                 Card cardData = cardsData.value(cardIdToLoad);
                 loadCardProperties(cardData.title, cardData.getCustomProperties());
+                labelLoadingMsg->setVisible(false);
             },
             this
         );
@@ -144,26 +144,150 @@ void CardPropertiesView::loadCard(const int cardIdToLoad) {
 
 void CardPropertiesView::loadCardProperties(
         const QString &title, const QHash<QString, QJsonValue> &customProperties) {
+    // title
     labelTitle->setText(title);
 
-//    // [temp]
-//    if (customProperties.isEmpty()) {
-//        textEdit->clear();
-//    }
-//    else {
-//        QJsonObject customPropsJson;
-//        for (auto it = customProperties.constBegin(); it != customProperties.constEnd(); ++it)
-//            customPropsJson.insert(it.key(), it.value());
-//        textEdit->append(printJson(customPropsJson, false));
-//    }
+    // custom properties
+    customPropertiesArea->clear();
+
+    for (auto it = customProperties.constBegin(); it != customProperties.constEnd(); ++it) {
+        const QString &propertyName = it.key();
+        QJsonValue value = it.value();
+
+        if (value.isNull() || value.isUndefined())
+            continue;
+
+        // data type
+        // temp: deduce from `value`
+        // todo: use schema
+        bool canEdit = true;
+        PropertyValueEditor::DataType dataType;
+
+        switch (value.type()) {
+
+        case QJsonValue::Bool:
+            dataType = PropertyValueEditor::DataType::Boolean;
+            break;
+        case QJsonValue::Double:
+            // [temp] -> float
+            // todo: -> float or int, according to schema
+            dataType = PropertyValueEditor::DataType::Float;
+            break;
+        case QJsonValue::String:
+            dataType = PropertyValueEditor::DataType::String;
+            break;
+        case QJsonValue::Array:
+        {
+            // [temp] convert to readonly string
+            // todo: check the list is homogeneous (of "primitive" type)
+            constexpr bool compact = false;
+            value = printJson(value.toArray(), compact);
+            dataType = PropertyValueEditor::DataType::String;
+            canEdit = false;
+            break;
+        }
+        case QJsonValue::Object:
+        {
+            // convert to readonly string
+            constexpr bool compact = false;
+            value = printJson(value.toObject(), compact);
+            dataType = PropertyValueEditor::DataType::String;
+            canEdit = false;
+            break;
+        }
+        case QJsonValue::Null: [[fallthrough]];
+        case QJsonValue::Undefined:
+            continue;
+        }
+
+        customPropertiesArea->addProperty(propertyName, dataType, value, !canEdit);
+    }
 }
 
 void CardPropertiesView::updateCardProperties(
         const CardPropertiesUpdate &cardPropertiesUpdate) {
-    if (cardPropertiesUpdate.title.has_value()) {
+    // title
+    if (cardPropertiesUpdate.title.has_value())
         labelTitle->setText(cardPropertiesUpdate.title.value());
+
+
+
+}
+
+//====
+
+CardPropertiesView::CustomPropertiesArea::CustomPropertiesArea()
+        : scrollArea(new QScrollArea)
+        , gridLayout(new QGridLayout) {
+    gridLayout->setContentsMargins(0, 0, 0, 0);
+    gridLayout->setColumnMinimumWidth(0, 20);
+
+    auto *frame = new QFrame;
+    frame->setLayout(gridLayout);
+    frame->setFrameShape(QFrame::NoFrame);
+    frame->setStyleSheet(
+            ".QFrame {"
+            "  background-color: white;"
+            "}"
+            "QFrame > QLabel {"
+            "  font-size: 11pt;"
+            "  font-weight: bold;"
+            "}");
+
+    scrollArea->setWidget(frame);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+}
+
+void CardPropertiesView::CustomPropertiesArea::addToLayout(QBoxLayout *layout) {
+    layout->addWidget(scrollArea);
+}
+
+void CardPropertiesView::CustomPropertiesArea::clear() {
+    // delete all widgets
+    for (const PropertyData &data: qAsConst(propertiesData)) {
+        data.nameLabel->deleteLater();
+        data.editor->deleteLater();
     }
+    propertiesData.clear();
 
+    // remove all items of `gridLayout`
+    QLayoutItem *child;
+    while ((child = gridLayout->takeAt(0)) != nullptr)
+        delete child;
 
+    //
+    lastPopulatedGridRow = -1;
+}
 
+void CardPropertiesView::CustomPropertiesArea::addProperty(
+        const QString propertyName, const PropertyValueEditor::DataType dataType,
+        const QJsonValue &value, const bool readonly) {
+    // property name
+    int row = ++lastPopulatedGridRow;
+
+    auto *label = new QLabel(propertyName);
+    gridLayout->addWidget(
+            label, row, 0,
+            1, 2 // row-span, column-span
+    );
+
+    // editor
+    row = ++lastPopulatedGridRow;
+
+    auto *editor = new PropertyValueEditor(dataType, value);
+    editor->setDataTypeChangable(false);
+    gridLayout->addWidget(editor, row, 1);
+    editor->setReadonly(!overallEditable || readonly);
+
+    //
+    propertiesData << PropertyData {label, editor, !readonly};
+}
+
+void CardPropertiesView::CustomPropertiesArea::setOverallEditable(const bool overallEditable_) {
+    overallEditable = overallEditable_;
+
+    for (const PropertyData &data: qAsConst(propertiesData))
+        data.editor->setReadonly(!overallEditable || !data.editable);
 }
