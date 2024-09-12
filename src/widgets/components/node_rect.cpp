@@ -24,7 +24,7 @@ NodeRect::NodeRect(const int cardId_, QGraphicsItem *parent)
         , cardIdItem(new QGraphicsSimpleTextItem(this))
         , contentsRectItem(new QGraphicsRectItem(this))
         , titleItem(new CustomGraphicsTextItem(contentsRectItem))
-        , textEdit(new CustomTextEdit(nullptr))
+        , textEdit(new CustomTextEdit(true, nullptr))
         , textEditProxyWidget(new QGraphicsProxyWidget(contentsRectItem))
         , moveResizeHelper(new GraphicsItemMoveResize(this))
         , contextMenu(new QMenu) {

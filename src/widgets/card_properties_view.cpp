@@ -6,6 +6,7 @@
 #include "card_properties_view.h"
 #include "services.h"
 #include "utilities/json_util.h"
+#include "widgets/components/property_value_editor.h"
 
 CardPropertiesView::CardPropertiesView(QWidget *parent)
         : QFrame(parent) {
@@ -44,10 +45,15 @@ void CardPropertiesView::setUpWidgets() {
 
         customPropertiesArea = new CustomPropertiesArea;
         customPropertiesArea->addToLayout(layout);
-        customPropertiesArea->setOverallEditable(checkBoxEdit->isChecked());
+        customPropertiesArea->setReadonly(true);
     }
 
     //
+    setStyleSheet(
+            "QScrollBar:vertical {"
+            "  width: 12px;"
+            "}");
+
     labelCardId->setStyleSheet(
             "color: #444;"
             "font-size: 11pt;"
@@ -67,9 +73,9 @@ void CardPropertiesView::setUpConnections() {
     //
     connect(checkBoxEdit, &QCheckBox::toggled, this, [this](bool checked) {
         if (checked)
-            customPropertiesArea->setOverallEditable(true);
+            customPropertiesArea->setReadonly(false);
         else
-            customPropertiesArea->setOverallEditable(false);
+            customPropertiesArea->setReadonly(true);
     });
 
     // from AppData
@@ -95,6 +101,10 @@ void CardPropertiesView::setUpConnections() {
 
         updateCardProperties(cardPropertiesUpdate);
     });
+
+    // from PropertyValueEditor
+    // ....
+
 }
 
 void CardPropertiesView::loadCard(const int cardIdToLoad) {
@@ -114,6 +124,7 @@ void CardPropertiesView::loadCard(const int cardIdToLoad) {
         checkBoxEdit->setChecked(false);
     }
 
+    checkBoxEdit->setVisible(false);
     labelLoadingMsg->setVisible(false);
 
     //
@@ -136,6 +147,11 @@ void CardPropertiesView::loadCard(const int cardIdToLoad) {
                 Card cardData = cardsData.value(cardIdToLoad);
                 loadCardProperties(cardData.title, cardData.getCustomProperties());
                 labelLoadingMsg->setVisible(false);
+                if (!cardData.getCustomProperties().isEmpty()) {
+                    checkBoxEdit->setVisible(true);
+                    checkBoxEdit->setChecked(false);
+                    customPropertiesArea->setReadonly(true);
+                }
             },
             this
         );
@@ -154,53 +170,13 @@ void CardPropertiesView::loadCardProperties(
         const QString &propertyName = it.key();
         QJsonValue value = it.value();
 
-        if (value.isNull() || value.isUndefined())
-            continue;
-
-        // data type
-        // temp: deduce from `value`
-        // todo: use schema
-        bool canEdit = true;
-        PropertyValueEditor::DataType dataType;
-
-        switch (value.type()) {
-
-        case QJsonValue::Bool:
-            dataType = PropertyValueEditor::DataType::Boolean;
-            break;
-        case QJsonValue::Double:
-            // [temp] -> float
-            // todo: -> float or int, according to schema
-            dataType = PropertyValueEditor::DataType::Float;
-            break;
-        case QJsonValue::String:
-            dataType = PropertyValueEditor::DataType::String;
-            break;
-        case QJsonValue::Array:
-        {
-            // [temp] convert to readonly string
-            // todo: check the list is homogeneous (of "primitive" type)
-            constexpr bool compact = false;
-            value = printJson(value.toArray(), compact);
-            dataType = PropertyValueEditor::DataType::String;
-            canEdit = false;
-            break;
-        }
-        case QJsonValue::Object:
-        {
-            // convert to readonly string
-            constexpr bool compact = false;
-            value = printJson(value.toObject(), compact);
-            dataType = PropertyValueEditor::DataType::String;
-            canEdit = false;
-            break;
-        }
-        case QJsonValue::Null: [[fallthrough]];
-        case QJsonValue::Undefined:
+        if (value.isUndefined()) {
+            qWarning().noquote()
+                    << QString("got Undefined value of property %1").arg(propertyName);
             continue;
         }
 
-        customPropertiesArea->addProperty(propertyName, dataType, value, !canEdit);
+        customPropertiesArea->addProperty(propertyName, value);
     }
 }
 
@@ -219,8 +195,9 @@ void CardPropertiesView::updateCardProperties(
 CardPropertiesView::CustomPropertiesArea::CustomPropertiesArea()
         : scrollArea(new QScrollArea)
         , gridLayout(new QGridLayout) {
-    gridLayout->setContentsMargins(0, 0, 0, 0);
+    gridLayout->setContentsMargins(0, 0, 6, 0);
     gridLayout->setColumnMinimumWidth(0, 20);
+    gridLayout->setSpacing(2);
 
     auto *frame = new QFrame;
     frame->setLayout(gridLayout);
@@ -262,32 +239,37 @@ void CardPropertiesView::CustomPropertiesArea::clear() {
 }
 
 void CardPropertiesView::CustomPropertiesArea::addProperty(
-        const QString propertyName, const PropertyValueEditor::DataType dataType,
-        const QJsonValue &value, const bool readonly) {
-    // property name
+        const QString propertyName, const QJsonValue &value) {
+    // name label
     int row = ++lastPopulatedGridRow;
+    gridLayout->setRowStretch(row, 0);
 
-    auto *label = new QLabel(propertyName);
+    auto *label = new QLabel(QString("%1:").arg(propertyName));
     gridLayout->addWidget(
             label, row, 0,
             1, 2 // row-span, column-span
     );
+    label->setStyleSheet(
+            "QLabel {"
+            "  margin-top: 4px;"
+            "}");
 
     // editor
     row = ++lastPopulatedGridRow;
+    gridLayout->setRowStretch(row, 0);
 
-    auto *editor = new PropertyValueEditor(dataType, value);
-    editor->setDataTypeChangable(false);
+    auto *editor = new PropertyValueEditor(value);
     gridLayout->addWidget(editor, row, 1);
-    editor->setReadonly(!overallEditable || readonly);
+    editor->setReadonly(true);
 
     //
-    propertiesData << PropertyData {label, editor, !readonly};
+    propertiesData << PropertyData {label, editor};
+
+    // set stretch factor of the next row
+    gridLayout->setRowStretch(row + 1, 1);
 }
 
-void CardPropertiesView::CustomPropertiesArea::setOverallEditable(const bool overallEditable_) {
-    overallEditable = overallEditable_;
-
+void CardPropertiesView::CustomPropertiesArea::setReadonly(const bool readonly) {
     for (const PropertyData &data: qAsConst(propertiesData))
-        data.editor->setReadonly(!overallEditable || !data.editable);
+        data.editor->setReadonly(readonly);
 }

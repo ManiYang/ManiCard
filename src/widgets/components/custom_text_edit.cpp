@@ -4,9 +4,9 @@
 #include <QWheelEvent>
 #include "custom_text_edit.h"
 
-CustomTextEdit::CustomTextEdit(QWidget *parent)
+CustomTextEdit::CustomTextEdit(const bool acceptEveryWheelEvent, QWidget *parent)
         : QFrame(parent)
-        , textEdit(new TextEditTweak) {
+        , textEdit(new TextEditTweak(acceptEveryWheelEvent)) {
     QFrame::setContextMenuPolicy(Qt::NoContextMenu);
 
     auto *layout = new QVBoxLayout;
@@ -51,15 +51,22 @@ QString CustomTextEdit::toPlainText() const {
     return textEdit->toPlainText();
 }
 
+QTextDocument *CustomTextEdit::document() const {
+    return textEdit->document();
+}
+
 //====
 
-TextEditTweak::TextEditTweak(QWidget *parent)
-        : QTextEdit(parent) {
+TextEditTweak::TextEditTweak(const bool acceptEveryWheelEvent_, QWidget *parent)
+        : QTextEdit(parent)
+        , acceptEveryWheelEvent(acceptEveryWheelEvent_) {
 }
 
 void TextEditTweak::wheelEvent(QWheelEvent *event) {
     QTextEdit::wheelEvent(event);
-    event->accept();
+
+    if (acceptEveryWheelEvent)
+        event->accept();
 }
 
 void TextEditTweak::focusOutEvent(QFocusEvent *event) {

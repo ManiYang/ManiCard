@@ -6,46 +6,126 @@
 #include <QJsonValue>
 #include <QLabel>
 #include <QTextEdit>
+#include <QVBoxLayout>
+
+class CustomTextEdit;
 
 class PropertyValueEditor : public QFrame
 {
     Q_OBJECT
 
 public:
-    enum class DataType {Boolean=0, Integer, Float, String, HomogeneousList, _Count};
-
-public:
+    //!
+    //! \param initialValue_: If is Undefined, will be replaced by \c null. The (initial) data
+    //!         type will be deduced from it. If the data type is one that the class cannot
+    //!         perform validation on, the whole editor will be readonly (even after
+    //!         \c setReadonly(false) is called).
+    //! \param parent
+    //!
     explicit PropertyValueEditor(
-            const DataType initialDataType_, const QJsonValue &initialValue_,
-            QWidget *parent = nullptr);
+            const QJsonValue &initialValue_, QWidget *parent = nullptr);
 
-    void setDataTypeChangable(const bool changable); // default: true
+    //!
+    //! If the value is of a data type that the class cannot perform validation on, the whole
+    //! editor is readonly even if parameter \e readonly_ is false.
+    //!
     void setReadonly(const bool readonly_); // default: false
 
-    DataType getDataType() const;
     QJsonValue getValue() const; // Undefined if not valid
-    bool isUpdated() const; // compared with initial data-type and value
 
 signals:
     void edited();
 
+protected:
+    void showEvent(QShowEvent *event) override;
+
 private:
-    const DataType initialDataType;
+    // data types for validation of edited value:
+    enum class DataType {
+        Boolean, Number, String,
+        ListOfBoolean, ListOfNumber, ListOfString,
+        Null,
+        Other, // This represents other data types, which the class doesn't know how to perfrom
+               // validation on. The whole editor is read-only if it has this type (overriding
+               // the member variable `readonly`).
+    };
+
+    //
+    const int textEditMinHeight {24};
+    const int textEditMaxHeight {72};
     const QJsonValue initialValue;
 
-    bool dataTypeChangable {true};
     bool readonly {false};
+    bool isValid {true};
 
-    QComboBox *comboBox {nullptr};
-    QTextEdit *textEdit {nullptr};
+    CustomTextEdit *textEdit {nullptr};
     QLabel *labelInvalid {nullptr};
+
+    struct DataTypeView
+    {
+        explicit DataTypeView(PropertyValueEditor *propertyValueEditor_);
+        void addToLayout(QVBoxLayout *layout);
+        void setType(const DataType type);
+
+        //!
+        //! If current data type is Other, `this` will be readonly even if parameter `readonly`
+        //! is false.
+        //!
+        void setReadonly(const bool readonly);
+
+        DataType getCurrentType() const;
+
+    private:
+        PropertyValueEditor *const propertyValueEditor;
+        QLabel *labelDataType;
+        QComboBox *comboBoxDataType;
+        bool comboBoxCurrentIndexChangeIsByUser {true};
+
+        DataType currentType {DataType::Other};
+        bool readonly {false};
+
+        void setActualReadonly(const bool readonly_, const DataType dataType);
+    };
+    DataTypeView dataTypeView {this};
+
+    std::function<void (const bool readonly, const bool valid)> setStyleSheetForTextEdit;
 
     void setUpWidgets();
     void setUpConnections();
 
+    // event handler
+    void onDataTypeSelectedByUser();
+
+    //
+    void setTextEditReadonly(const bool overallReadonly, const DataType currentDataType);
+    void adjustTextEditHeight();
+    void validateAndSetInvalidMsgVisible(); // sets `isValid`
+
     // tools
+    static QJsonValue alteredInitialValue(const QJsonValue &initialValue_);
+
     static QString getDataTypeName(const DataType dataType);
-    static QString getTextRepresentation(const QJsonValue &value);
+
+    static DataType deduceDataType(
+            const QJsonValue &value, const DataType typeForEmptyArray = DataType::ListOfString);
+
+    //!
+    //! Determine how `value` is represented as a string in `textEdit`
+    //!
+    static QString getTextualRepresentation(
+            const QJsonValue &value, const DataType deducedDataType);
+
+    //!
+    //! \return Undefined if failed to parse `text` as `dataType`
+    //!
+    static QJsonValue parseTextualRepresentation(const QString &text, const DataType dataType);
+
+    static QString stringifyJsonValue(const QJsonValue &value);
+
+    //!
+    //! \return Undefined if failed (including the case where `text` is empty)
+    //!
+    static QJsonValue parseAsJsonValue(const QString &text);
 };
 
 #endif // PROPERTYVALUEEDITOR_H

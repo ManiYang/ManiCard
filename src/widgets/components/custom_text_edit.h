@@ -13,11 +13,15 @@ class CustomTextEdit : public QFrame
 {
     Q_OBJECT
 public:
-    explicit CustomTextEdit(QWidget *parent = nullptr);
+    //!
+    //! \param acceptEveryWheelEvent: If true, every QWheelEvent is accepted after calling the
+    //!             base implementation, so that the event is never passed to parent widget.
+    //! \param parent
+    //!
+    explicit CustomTextEdit(const bool acceptEveryWheelEvent = false, QWidget *parent = nullptr);
 
     void clear();
     void setPlainText(const QString &text);
-
     void setReadOnly(const bool readonly);
 
     //!
@@ -25,8 +29,10 @@ public:
     //!
     void setContextMenuPolicy(Qt::ContextMenuPolicy policy);
 
-    //
     QString toPlainText() const;
+
+    //
+    QTextDocument *document() const;
 
 signals:
     void textEdited();
@@ -39,14 +45,13 @@ private:
 
 
 //!
-//! - Wheel events will be accepted.
-//! - Clear selection on focus-out event.
+//! Clears the selection when focused-out.
 //!
 class TextEditTweak : public QTextEdit
 {
     Q_OBJECT
 public:
-    explicit TextEditTweak(QWidget *parent = nullptr);
+    explicit TextEditTweak(const bool acceptEveryWheelEvent_ = false, QWidget *parent = nullptr);
 
 signals:
     void mouseReleased();
@@ -55,6 +60,9 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
     void focusOutEvent(QFocusEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+
+private:
+    bool acceptEveryWheelEvent;
 };
 
 #endif // TEXTEDIT_H

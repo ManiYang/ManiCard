@@ -8,6 +8,10 @@ inline int nearestInteger(const double x) {
     return static_cast<int>(std::floor(x + 0.5));
 }
 
+inline int ceilInteger(const double x) {
+    return static_cast<int>(std::ceil(x));
+}
+
 inline bool isInteger(const double x, const double tolerance = 1e-8) {
     return std::fabs(x - nearestInteger(x)) <= tolerance;
 }

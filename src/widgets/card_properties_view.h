@@ -11,8 +11,8 @@
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include "models/card.h"
-#include "widgets/components/property_value_editor.h"
 
+class PropertyValueEditor;
 
 class CardPropertiesView : public QFrame
 {
@@ -27,19 +27,8 @@ private:
 
         void addToLayout(QBoxLayout *layout);
         void clear();
-
-        //!
-        //! \param propertyName
-        //! \param dataType
-        //! \param value
-        //! \param readonly: if true, this property cannot be edited even if
-        //!                  \e overallEditable is true
-        //!
-        void addProperty(
-                const QString propertyName, const PropertyValueEditor::DataType dataType,
-                const QJsonValue &value, const bool readonly);
-
-        void setOverallEditable(const bool editable);
+        void addProperty(const QString propertyName, const QJsonValue &value);
+        void setReadonly(const bool readonly); // default: true
 
     private:
         QScrollArea *scrollArea;
@@ -49,12 +38,10 @@ private:
         {
             QLabel *nameLabel;
             PropertyValueEditor *editor;
-            bool editable;
         };
         QList<PropertyData> propertiesData;
 
         int lastPopulatedGridRow {-1};
-        bool overallEditable {false};
     };
 
 private:
