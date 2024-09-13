@@ -25,6 +25,8 @@ public:
     explicit PropertyValueEditor(
             const QJsonValue &initialValue_, QWidget *parent = nullptr);
 
+    void setValue(const QJsonValue &value);
+
     //!
     //! If the value is of a data type that the class cannot perform validation on, the whole
     //! editor is readonly even if parameter \e readonly_ is false.
@@ -34,7 +36,7 @@ public:
     QJsonValue getValue() const; // Undefined if not valid
 
 signals:
-    void edited();
+    void edited(); // emitted only when the value is valid
 
 protected:
     void showEvent(QShowEvent *event) override;
@@ -45,21 +47,10 @@ private:
         Boolean, Number, String,
         ListOfBoolean, ListOfNumber, ListOfString,
         Null,
-        Other, // This represents other data types, which the class doesn't know how to perfrom
-               // validation on. The whole editor is read-only if it has this type (overriding
-               // the member variable `readonly`).
+        Other, // This represents all other data types, which the class doesn't know how to
+               // perform validation on. The whole editor is read-only if it has this type
+               // (overriding the member variable `readonly`).
     };
-
-    //
-    const int textEditMinHeight {24};
-    const int textEditMaxHeight {72};
-    const QJsonValue initialValue;
-
-    bool readonly {false};
-    bool isValid {true};
-
-    CustomTextEdit *textEdit {nullptr};
-    QLabel *labelInvalid {nullptr};
 
     struct DataTypeView
     {
@@ -86,17 +77,28 @@ private:
 
         void setActualReadonly(const bool readonly_, const DataType dataType);
     };
+
+private:
+    const int textEditMinHeight {24};
+    const int textEditMaxHeight {72};
+
+    CustomTextEdit *textEdit {nullptr};
+    QLabel *labelInvalid {nullptr};
     DataTypeView dataTypeView {this};
+
+    bool readonly {false};
+    bool isValid {true};
 
     std::function<void (const bool readonly, const bool valid)> setStyleSheetForTextEdit;
 
-    void setUpWidgets();
+    void setUpWidgets(const QJsonValue &initialValue);
     void setUpConnections();
 
     // event handler
     void onDataTypeSelectedByUser();
 
     //
+    void loadValue(const QJsonValue &value);
     void setTextEditReadonly(const bool overallReadonly, const DataType currentDataType);
     void adjustTextEditHeight();
     void validateAndSetInvalidMsgVisible(); // sets `isValid`

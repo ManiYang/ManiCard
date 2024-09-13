@@ -2,6 +2,7 @@
 #include <QRegularExpression>
 #include "dialog_user_relationship_types.h"
 #include "ui_dialog_user_relationship_types.h"
+#include "utilities/naming_rules.h"
 
 DialogUserRelationshipTypes::DialogUserRelationshipTypes(const QStringList relTypes, QWidget *parent)
         : QDialog(parent)
@@ -25,7 +26,7 @@ QStringList DialogUserRelationshipTypes::getRelationshipTypesList() const {
 }
 
 void DialogUserRelationshipTypes::setUpConnections() {
-    static QRegularExpression re("^[a-zA-Z_][a-zA-Z0-9_]*$");
+    static QRegularExpression re(regexPatternForRelationshipType);
 
     connect(ui->pushButtonAdd, &QPushButton::clicked, this, [this]() {
         QString newRelType = ui->lineEdit->text().trimmed();

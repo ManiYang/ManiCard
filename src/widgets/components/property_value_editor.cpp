@@ -10,10 +10,15 @@
 #include "widgets/components/custom_text_edit.h"
 
 PropertyValueEditor::PropertyValueEditor(const QJsonValue &initialValue_, QWidget *parent)
-        : QFrame(parent)
-        , initialValue(alteredInitialValue(initialValue_)) {
-    setUpWidgets();
+        : QFrame(parent) {
+    const auto initialValue = alteredInitialValue(initialValue_);
+
+    setUpWidgets(initialValue);
     setUpConnections();
+}
+
+void PropertyValueEditor::setValue(const QJsonValue &value) {
+    loadValue(value);
 }
 
 void PropertyValueEditor::setReadonly(const bool readonly_) {
@@ -34,9 +39,7 @@ void PropertyValueEditor::showEvent(QShowEvent *event) {
     adjustTextEditHeight();
 }
 
-void PropertyValueEditor::setUpWidgets() {
-    const DataType initialDataType = deduceDataType(initialValue);
-
+void PropertyValueEditor::setUpWidgets(const QJsonValue &initialValue) {
     auto *layout = new QVBoxLayout;
     setLayout(layout);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -73,14 +76,7 @@ void PropertyValueEditor::setUpWidgets() {
             "color: #e66;");
 
     // initialize
-    dataTypeView.setType(initialDataType);
-    dataTypeView.setReadonly(readonly);
-    setTextEditReadonly(readonly, initialDataType);
-    textEdit->setPlainText(getTextualRepresentation(initialValue, initialDataType));
-
-    validateAndSetInvalidMsgVisible(); // sets `isValid`
-    Q_ASSERT(isValid);
-    setStyleSheetForTextEdit(readonly, isValid);
+    loadValue(initialValue);
 }
 
 void PropertyValueEditor::setUpConnections() {
@@ -92,7 +88,8 @@ void PropertyValueEditor::setUpConnections() {
         validateAndSetInvalidMsgVisible();
         setStyleSheetForTextEdit(readonly, isValid);
 
-        emit edited();
+        if (isValid)
+            emit edited();
     });
 }
 
@@ -100,7 +97,20 @@ void PropertyValueEditor::onDataTypeSelectedByUser() {
     validateAndSetInvalidMsgVisible();
     setStyleSheetForTextEdit(readonly, isValid);
 
-    emit edited();
+    if (isValid)
+        emit edited();
+}
+
+void PropertyValueEditor::loadValue(const QJsonValue &value) {
+    const DataType dataType = deduceDataType(value);
+    dataTypeView.setType(dataType);
+    dataTypeView.setReadonly(readonly);
+    setTextEditReadonly(readonly, dataType);
+    textEdit->setPlainText(getTextualRepresentation(value, dataType));
+
+    validateAndSetInvalidMsgVisible(); // sets `isValid`
+    Q_ASSERT(isValid);
+    setStyleSheetForTextEdit(readonly, isValid);
 }
 
 void PropertyValueEditor::setTextEditReadonly(
@@ -344,8 +354,7 @@ PropertyValueEditor::DataTypeView::DataTypeView(PropertyValueEditor *propertyVal
             "}");
 
     // connections
-    QObject::connect(
-            comboBoxDataType, QOverload<int>::of(&QComboBox::currentIndexChanged),
+    connect(comboBoxDataType, QOverload<int>::of(&QComboBox::currentIndexChanged),
             propertyValueEditor, [this](int index) {
         if (!comboBoxCurrentIndexChangeIsByUser)
             return;

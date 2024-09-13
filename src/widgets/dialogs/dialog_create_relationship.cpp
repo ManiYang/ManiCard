@@ -4,6 +4,7 @@
 #include <QPushButton>
 #include "dialog_create_relationship.h"
 #include "ui_dialog_create_relationship.h"
+#include "utilities/naming_rules.h"
 
 DialogCreateRelationship::DialogCreateRelationship(
         const int cardId_, const QString &cardTitle,
@@ -115,9 +116,25 @@ void DialogCreateRelationship::validate() {
     }
 
     //
-    const bool acceptable
-            = otherCardIdAcceptable
-              && !ui->comboBoxRelType->currentText().isEmpty();
+    static const QRegularExpression re(regexPatternForRelationshipType);
 
+    bool relationshipTypeAcceptable = true;
+    {
+        const QString relType = ui->comboBoxRelType->currentText();
+        if (relType.isEmpty()) {
+            relationshipTypeAcceptable = false;
+        }
+        else {
+            if (!re.match(relType).hasMatch()) {
+                relationshipTypeAcceptable = false;
+                ui->labelWarningMsg->setText(
+                        "Relationship type does not satisfy the naming rule.");
+                        // (It's ok that this may overwrite original warning msg.)
+            }
+        }
+    }
+
+    //
+    const bool acceptable = otherCardIdAcceptable && relationshipTypeAcceptable;
     ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(acceptable);
 }

@@ -97,6 +97,9 @@ void BoardsList::setUpWidgets() {
             "}"
             "QPushButton:hover {"
             "  background: #e0e0e0;"
+            "}"
+            "QPushButton:pressed {"
+            "  background: #c0c0c0;"
             "}");
 }
 

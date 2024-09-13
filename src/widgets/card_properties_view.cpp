@@ -1,11 +1,15 @@
 #include <QDebug>
+#include <QDialogButtonBox>
 #include <QHBoxLayout>
 #include <QGridLayout>
+#include <QInputDialog>
+#include <QMessageBox>
 #include <QVBoxLayout>
 #include "app_data.h"
 #include "card_properties_view.h"
 #include "services.h"
 #include "utilities/json_util.h"
+#include "utilities/naming_rules.h"
 #include "widgets/components/property_value_editor.h"
 
 CardPropertiesView::CardPropertiesView(QWidget *parent)
@@ -39,13 +43,16 @@ void CardPropertiesView::setUpWidgets() {
         layout->addWidget(labelTitle);
         labelTitle->setWordWrap(true);
 
+        buttonNewProperty = new QPushButton(QIcon(":/icons/add_black_24"), "New Property");
+        layout->addWidget(buttonNewProperty, 0, Qt::AlignLeft);
+        buttonNewProperty->setVisible(false);
+
         labelLoadingMsg = new QLabel;
         layout->addWidget(labelLoadingMsg);
         labelLoadingMsg->setVisible(false);
 
-        customPropertiesArea = new CustomPropertiesArea;
-        customPropertiesArea->addToLayout(layout);
-        customPropertiesArea->setReadonly(true);
+        customPropertiesArea.addToLayout(layout);
+        customPropertiesArea.setReadonly(true);
     }
 
     //
@@ -67,15 +74,65 @@ void CardPropertiesView::setUpWidgets() {
     labelTitle->setStyleSheet(
             "font-size: 13pt;"
             "font-weight: bold;");
+
+    buttonNewProperty->setStyleSheet(
+            "QPushButton {"
+            "  color: #606060;"
+            "  border: none;"
+            "  border-radius: 4px;"
+            "  padding: 2px 4px 2px 2px;"
+            "  background: transparent;"
+            "  margin-left: 14px;"
+            "}"
+            "QPushButton:hover {"
+            "  background: #e0e0e0;"
+            "}"
+            "QPushButton:pressed {"
+            "  background: #c0c0c0;"
+            "}");
 }
 
 void CardPropertiesView::setUpConnections() {
     //
     connect(checkBoxEdit, &QCheckBox::toggled, this, [this](bool checked) {
-        if (checked)
-            customPropertiesArea->setReadonly(false);
-        else
-            customPropertiesArea->setReadonly(true);
+        customPropertiesArea.setReadonly(!checked);
+        buttonNewProperty->setVisible(checked);
+    });
+
+    //
+    connect(buttonNewProperty, &QCheckBox::clicked, this, [this]() {
+        // ask property name
+        auto *dialog = createDialogAskPropertyName(this);
+
+        connect(dialog, &QDialog::finished, this, [this, dialog](int result) {
+            if (result != QDialog::Accepted)
+                return;
+
+            const QString propertyName = dialog->property("enteredPropertyName").toString();
+            dialog->deleteLater();
+
+            // check property name not already exists
+            if (customPropertiesArea.hasPropertyName(propertyName)) {
+                QMessageBox::information(
+                        this, " ",
+                        QString("Property \"%1\" already exists.").arg(propertyName));
+                return;
+            }
+
+            //
+            const QJsonValue value(QJsonValue::Null);
+            customPropertiesArea.addProperty(propertyName, value);
+
+            // call AppData
+            CardPropertiesUpdate update;
+            update.setCustomProperties({{propertyName, value}});
+
+            Services::instance()->getAppData()
+                    ->updateCardProperties(EventSource(this), cardId, update);
+
+        });
+
+        dialog->open();
     });
 
     // from AppData
@@ -101,10 +158,16 @@ void CardPropertiesView::setUpConnections() {
 
         updateCardProperties(cardPropertiesUpdate);
     });
+}
 
-    // from PropertyValueEditor
-    // ....
+void CardPropertiesView::onPropertyUpdated(
+        const QString &propertyName, const QJsonValue &updatedValue) {
+    // call AppData
+    CardPropertiesUpdate update;
+    update.setCustomProperties({{propertyName, updatedValue}});
 
+    Services::instance()->getAppData()
+            ->updateCardProperties(EventSource(this), cardId, update);
 }
 
 void CardPropertiesView::loadCard(const int cardIdToLoad) {
@@ -125,6 +188,7 @@ void CardPropertiesView::loadCard(const int cardIdToLoad) {
     }
 
     checkBoxEdit->setVisible(false);
+    buttonNewProperty->setVisible(false);
     labelLoadingMsg->setVisible(false);
 
     //
@@ -133,7 +197,7 @@ void CardPropertiesView::loadCard(const int cardIdToLoad) {
         labelLoadingMsg->setText("<font color=\"#888\">Loading...</font>");
         labelLoadingMsg->setVisible(true);
 
-        Services::instance()->getAppData()->queryCards(
+        Services::instance()->getAppDataReadonly()->queryCards(
             {cardIdToLoad},
             // callback
             [this, cardIdToLoad](bool ok, const QHash<int, Card> &cardsData) {
@@ -150,7 +214,7 @@ void CardPropertiesView::loadCard(const int cardIdToLoad) {
                 if (!cardData.getCustomProperties().isEmpty()) {
                     checkBoxEdit->setVisible(true);
                     checkBoxEdit->setChecked(false);
-                    customPropertiesArea->setReadonly(true);
+                    customPropertiesArea.setReadonly(true);
                 }
             },
             this
@@ -164,7 +228,7 @@ void CardPropertiesView::loadCardProperties(
     labelTitle->setText(title);
 
     // custom properties
-    customPropertiesArea->clear();
+    customPropertiesArea.clear();
 
     for (auto it = customProperties.constBegin(); it != customProperties.constEnd(); ++it) {
         const QString &propertyName = it.key();
@@ -176,31 +240,99 @@ void CardPropertiesView::loadCardProperties(
             continue;
         }
 
-        customPropertiesArea->addProperty(propertyName, value);
+        customPropertiesArea.addProperty(propertyName, value);
     }
 }
 
 void CardPropertiesView::updateCardProperties(
         const CardPropertiesUpdate &cardPropertiesUpdate) {
+
+    qDebug() << "updateCardProperties()";
+
     // title
     if (cardPropertiesUpdate.title.has_value())
         labelTitle->setText(cardPropertiesUpdate.title.value());
 
+    // custom properties
+    // for updated properties: set the editor
+    // for removed properties: set the editor with value null
+    // for added properties: add editor
 
+}
 
+QDialog *CardPropertiesView::createDialogAskPropertyName(QWidget *parent) {
+    auto *dialog = new QDialog(parent);
+
+    auto *layout = new QGridLayout;
+    dialog->setLayout(layout);
+    {
+        auto *label = new QLabel("Property Name:");
+        layout->addWidget(label, 0, 0);
+
+        auto *lineEdit = new QLineEdit;
+        layout->addWidget(lineEdit, 0, 1);
+        {
+            lineEdit->setPlaceholderText("propertyName");
+        }
+
+        auto *labelWarningMsg = new QLabel;
+        layout->addWidget(labelWarningMsg, 1, 0, 1, 2);
+        {
+            labelWarningMsg->setWordWrap(true);
+            labelWarningMsg->setStyleSheet("color: red;");
+        }
+
+        layout->addItem(
+                    new QSpacerItem(10, 10, QSizePolicy::Preferred, QSizePolicy::Expanding),
+                    2, 0);
+
+        auto *buttonBox
+                = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        layout->addWidget(buttonBox, 3, 0, 1, 2);
+        {
+            connect(buttonBox, &QDialogButtonBox::accepted, dialog, &QDialog::accept);
+            connect(buttonBox, &QDialogButtonBox::rejected, dialog, &QDialog::reject);
+
+            buttonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
+        }
+
+        //
+        connect(lineEdit, &QLineEdit::textEdited,
+                dialog, [dialog, buttonBox, labelWarningMsg](const QString &text) {
+            // validate
+            static const QRegularExpression re(regexPatternForPropertyName);
+            const bool validateOk = re.match(text).hasMatch();
+
+            //
+            if (validateOk) {
+                dialog->setProperty("enteredPropertyName", text);
+                buttonBox->button(QDialogButtonBox::Ok)->setEnabled(true);
+                labelWarningMsg->setText("");
+            }
+            else {
+                buttonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
+                labelWarningMsg->setText("Property name does not satisfy the naming rule.");
+            }
+        });
+    }
+
+    dialog->resize(350, 150);
+    return dialog;
 }
 
 //====
 
-CardPropertiesView::CustomPropertiesArea::CustomPropertiesArea()
-        : scrollArea(new QScrollArea)
-        , gridLayout(new QGridLayout) {
-    gridLayout->setContentsMargins(0, 0, 6, 0);
-    gridLayout->setColumnMinimumWidth(0, 20);
-    gridLayout->setSpacing(2);
+CardPropertiesView::CustomPropertiesArea::CustomPropertiesArea(
+        CardPropertiesView *cardPropertiesView_)
+            : cardPropertiesView(cardPropertiesView_)
+            , scrollArea(new QScrollArea)
+            , vBoxLayout(new QVBoxLayout) {
+    vBoxLayout->setContentsMargins(0, 0, 6, 0);
+    vBoxLayout->setSpacing(2);
+    vBoxLayout->addStretch(1);
 
     auto *frame = new QFrame;
-    frame->setLayout(gridLayout);
+    frame->setLayout(vBoxLayout);
     frame->setFrameShape(QFrame::NoFrame);
     frame->setStyleSheet(
             ".QFrame {"
@@ -223,53 +355,88 @@ void CardPropertiesView::CustomPropertiesArea::addToLayout(QBoxLayout *layout) {
 
 void CardPropertiesView::CustomPropertiesArea::clear() {
     // delete all widgets
-    for (const PropertyData &data: qAsConst(propertiesData)) {
-        data.nameLabel->deleteLater();
-        data.editor->deleteLater();
+    for (const PropertyWidgets &widgets: qAsConst(propertyWidgetsList)) {
+        widgets.nameLabel->deleteLater();
+        widgets.editor->deleteLater();
     }
-    propertiesData.clear();
 
-    // remove all items of `gridLayout`
-    QLayoutItem *child;
-    while ((child = gridLayout->takeAt(0)) != nullptr)
-        delete child;
+    propertyWidgetsList.clear();
+    addedPropertyNames.clear();
 
-    //
-    lastPopulatedGridRow = -1;
+    // remove all layout items, then add a stretch
+    QLayoutItem *item;
+    while ((item = vBoxLayout->takeAt(0)) != nullptr)
+        delete item;
+
+    vBoxLayout->addStretch(1);
 }
 
 void CardPropertiesView::CustomPropertiesArea::addProperty(
         const QString propertyName, const QJsonValue &value) {
-    // name label
-    int row = ++lastPopulatedGridRow;
-    gridLayout->setRowStretch(row, 0);
+    if (addedPropertyNames.contains(propertyName)) {
+        qWarning().noquote() << QString("property \"%1\" is already added").arg(propertyName);
+        return;
+    }
 
+    // determine which row to insert this property (so that the properties are laid out in
+    // ascending order of their names)
+    int row;
+    {
+        auto iter = std::find_if(
+                addedPropertyNames.cbegin(), addedPropertyNames.cend(),
+                [propertyName](QString name) { return name > propertyName; }
+        );
+
+        if (iter == addedPropertyNames.cend())
+            row = addedPropertyNames.count();
+        else
+            row = iter - addedPropertyNames.cbegin();
+    }
+
+    // create widgets, put them in a grid layout, and insert the grid layout to `vBoxLayout`
+    // -- label
     auto *label = new QLabel(QString("%1:").arg(propertyName));
-    gridLayout->addWidget(
-            label, row, 0,
-            1, 2 // row-span, column-span
-    );
     label->setStyleSheet(
             "QLabel {"
             "  margin-top: 4px;"
             "}");
 
-    // editor
-    row = ++lastPopulatedGridRow;
-    gridLayout->setRowStretch(row, 0);
-
+    // -- editor
     auto *editor = new PropertyValueEditor(value);
-    gridLayout->addWidget(editor, row, 1);
-    editor->setReadonly(true);
+    editor->setReadonly(readonly);
+    connect(editor, &PropertyValueEditor::edited,
+            cardPropertiesView, [this, propertyName, editor]() {
+        const QJsonValue value = editor->getValue();
+        if (value.isUndefined()) // not valid
+            return;
 
-    //
-    propertiesData << PropertyData {label, editor};
+        cardPropertiesView->onPropertyUpdated(propertyName, value);
+    });
 
-    // set stretch factor of the next row
-    gridLayout->setRowStretch(row + 1, 1);
+    // -- grid layout
+    auto gridLayout = new QGridLayout;
+    gridLayout->setContentsMargins(0, 0, 0, 0);
+    gridLayout->setColumnMinimumWidth(0, 20);
+
+    gridLayout->addWidget(
+            label, 0, 0,
+            1, 2); // row-span, column-span
+    gridLayout->addWidget(editor, 1, 1);
+
+    // --
+    vBoxLayout->insertLayout(row, gridLayout);
+    propertyWidgetsList.insert(row, PropertyWidgets {label, editor});
+    addedPropertyNames.insert(row, propertyName);
 }
 
-void CardPropertiesView::CustomPropertiesArea::setReadonly(const bool readonly) {
-    for (const PropertyData &data: qAsConst(propertiesData))
-        data.editor->setReadonly(readonly);
+void CardPropertiesView::CustomPropertiesArea::setReadonly(const bool readonly_) {
+    readonly = readonly_;
+
+    for (const PropertyWidgets &widgets: qAsConst(propertyWidgetsList))
+        widgets.editor->setReadonly(readonly);
+}
+
+bool CardPropertiesView::CustomPropertiesArea::hasPropertyName(
+        const QString &propertyName) const {
+    return addedPropertyNames.contains(propertyName);
 }

@@ -95,6 +95,7 @@ HEADERS += \
     utilities/maps_util.h \
     utilities/margins_util.h \
     utilities/message_box.h \
+    utilities/naming_rules.h \
     utilities/numbers_util.h \
     utilities/periodic_checker.h \
     utilities/periodic_timer.h \

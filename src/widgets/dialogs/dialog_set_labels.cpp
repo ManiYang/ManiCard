@@ -1,8 +1,9 @@
+#include <QMessageBox>
+#include <QRegularExpression>
 #include "dialog_set_labels.h"
 #include "ui_dialog_set_labels.h"
 #include "utilities/lists_vectors_util.h"
-
-#include <QMessageBox>
+#include "utilities/naming_rules.h"
 
 DialogSetLabels::DialogSetLabels(
         const QSet<QString> &initialCardLabels, const QStringList &userDefinedLabelsList,
@@ -60,7 +61,7 @@ void DialogSetLabels::setUpConnections() {
     });
 
     //
-    static QRegularExpression re("^[a-zA-Z_][a-zA-Z0-9_]*$");
+    static QRegularExpression re(regexPatternForCardLabelName);
 
     connect(ui->pushButtonAdd, &QPushButton::clicked, this, [this]() {
         QString newLabel = ui->lineEdit->text().trimmed();

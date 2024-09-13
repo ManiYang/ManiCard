@@ -382,7 +382,7 @@ std::optional<QSize> PersistedDataAccess::getMainWindowSize() {
 }
 
 void PersistedDataAccess::createNewCardWithId(const int cardId, const Card &card) {
-    // 1. update cache
+    // 1. update cache synchronously
     if (cache.cards.contains(cardId)) {
         qWarning().noquote()
                 << QString("card with ID %1 already exists in cache").arg(cardId);
@@ -396,7 +396,7 @@ void PersistedDataAccess::createNewCardWithId(const int cardId, const Card &card
 
 void PersistedDataAccess::updateCardProperties(
         const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate) {
-    // 1. update cache
+    // 1. update cache synchronously
     if (cache.cards.contains(cardId))
         cache.cards[cardId].updateProperties(cardPropertiesUpdate);
 
@@ -406,7 +406,7 @@ void PersistedDataAccess::updateCardProperties(
 
 void PersistedDataAccess::updateCardLabels(
         const int cardId, const QSet<QString> &updatedLabels) {
-    // 1. update cache
+    // 1. update cache synchronously
     if (cache.cards.contains(cardId))
         cache.cards[cardId].setLabels(updatedLabels);
 
@@ -418,7 +418,7 @@ void PersistedDataAccess::createRelationship(const RelationshipId &id) {
     if (cache.relationships.contains(id))
         return;
 
-    // 1. update cache
+    // 1. update cache synchronously
     cache.relationships.insert(id, RelationshipProperties {});
 
     // 2. write DB
@@ -426,7 +426,7 @@ void PersistedDataAccess::createRelationship(const RelationshipId &id) {
 }
 
 void PersistedDataAccess::updateUserRelationshipTypes(const QStringList &updatedRelTypes) {
-    // 1. update cache
+    // 1. update cache synchronously
     cache.userRelTypesList = updatedRelTypes;
 
     // 2. write DB
@@ -434,7 +434,7 @@ void PersistedDataAccess::updateUserRelationshipTypes(const QStringList &updated
 }
 
 void PersistedDataAccess::updateUserCardLabels(const QStringList &updatedCardLabels) {
-    // 1. update cache
+    // 1. update cache synchronously
     cache.userLabelsList = updatedCardLabels;
 
     // 2. write DB
@@ -477,7 +477,7 @@ void PersistedDataAccess::createNewBoardWithId(const int boardId, const Board &b
         return;
     }
 
-    // 1. update cache
+    // 1. update cache synchronously
     cache.boards.insert(boardId, board);
 
     // 2. write DB
@@ -486,7 +486,7 @@ void PersistedDataAccess::createNewBoardWithId(const int boardId, const Board &b
 
 void PersistedDataAccess::updateBoardNodeProperties(
         const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate) {
-    // 1. update cache
+    // 1. update cache synchronously
     if (cache.boards.contains(boardId))
         cache.boards[boardId].updateNodeProperties(propertiesUpdate);
 
@@ -518,7 +518,7 @@ void PersistedDataAccess::updateBoardNodeProperties(
 }
 
 void PersistedDataAccess::removeBoard(const int boardId) {
-    // 1. update cache
+    // 1. update cache synchronously
     cache.boards.remove(boardId);
 
     // 2. write DB
@@ -527,7 +527,7 @@ void PersistedDataAccess::removeBoard(const int boardId) {
 
 void PersistedDataAccess::updateNodeRectProperties(
         const int boardId, const int cardId, const NodeRectDataUpdate &update) {
-    // 1. update cache
+    // 1. update cache synchronously
     if (cache.boards.contains(boardId)) {
         Board &board = cache.boards[boardId];
         if (board.cardIdToNodeRectData.contains(cardId)) {
@@ -541,7 +541,7 @@ void PersistedDataAccess::updateNodeRectProperties(
 
 void PersistedDataAccess::createNodeRect(
         const int boardId, const int cardId, const NodeRectData &nodeRectData) {
-    // 1. update cache
+    // 1. update cache synchronously
     if (cache.boards.contains(boardId)) {
         Board &board = cache.boards[boardId];
         if (board.cardIdToNodeRectData.contains(cardId)) {
@@ -559,7 +559,7 @@ void PersistedDataAccess::createNodeRect(
 }
 
 void PersistedDataAccess::removeNodeRect(const int boardId, const int cardId) {
-    // 1. update cache
+    // 1. update cache synchronously
     if (cache.boards.contains(boardId))
         cache.boards[boardId].cardIdToNodeRectData.remove(cardId);
 

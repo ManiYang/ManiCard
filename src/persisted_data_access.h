@@ -23,7 +23,7 @@ class UnsavedUpdateRecordsFile;
 //! The operation fails only if step 2 is needed and fails.
 //!
 //! For write operation, this class
-//!   1. updates the cache
+//!   1. synchronously updates the cache
 //!   2. writes to DB or files, and if failed, adds to the records of unsaved updates.
 //!
 class PersistedDataAccess : public QObject
