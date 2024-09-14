@@ -246,18 +246,29 @@ void CardPropertiesView::loadCardProperties(
 
 void CardPropertiesView::updateCardProperties(
         const CardPropertiesUpdate &cardPropertiesUpdate) {
-
-    qDebug() << "updateCardProperties()";
-
     // title
     if (cardPropertiesUpdate.title.has_value())
         labelTitle->setText(cardPropertiesUpdate.title.value());
 
     // custom properties
-    // for updated properties: set the editor
-    // for removed properties: set the editor with value null
-    // for added properties: add editor
+    const QHash<QString, QJsonValue> customPropertiesUpdate
+            = cardPropertiesUpdate.getCustomProperties();
+    for (auto it = customPropertiesUpdate.constBegin();
+            it != customPropertiesUpdate.constEnd(); ++it) {
+        const QString &propertyName = it.key();
+        const QJsonValue &updatedValue = it.value();
 
+        if (customPropertiesArea.hasPropertyName(propertyName)) {
+            if (updatedValue.isUndefined()) // (removal)
+                customPropertiesArea.setProperty(propertyName, QJsonValue::Null);
+            else
+                customPropertiesArea.setProperty(propertyName, updatedValue);
+        }
+        else { // (`propertyName` does not already exists)
+            if (!updatedValue.isUndefined())
+                customPropertiesArea.addProperty(propertyName, updatedValue);
+        }
+    }
 }
 
 QDialog *CardPropertiesView::createDialogAskPropertyName(QWidget *parent) {
@@ -372,8 +383,9 @@ void CardPropertiesView::CustomPropertiesArea::clear() {
 }
 
 void CardPropertiesView::CustomPropertiesArea::addProperty(
-        const QString propertyName, const QJsonValue &value) {
+        const QString &propertyName, const QJsonValue &value) {
     if (addedPropertyNames.contains(propertyName)) {
+        Q_ASSERT(false);
         qWarning().noquote() << QString("property \"%1\" is already added").arg(propertyName);
         return;
     }
@@ -427,6 +439,18 @@ void CardPropertiesView::CustomPropertiesArea::addProperty(
     vBoxLayout->insertLayout(row, gridLayout);
     propertyWidgetsList.insert(row, PropertyWidgets {label, editor});
     addedPropertyNames.insert(row, propertyName);
+}
+
+void CardPropertiesView::CustomPropertiesArea::setProperty(
+        const QString &propertyName, const QJsonValue &newValue) {
+    const int row = addedPropertyNames.indexOf(propertyName);
+    if (row == -1) {
+        Q_ASSERT(false);
+        qWarning().noquote() << QString("property \"%1\" does not exist").arg(propertyName);
+        return;
+    }
+
+    propertyWidgetsList.at(row).editor->setValue(newValue);
 }
 
 void CardPropertiesView::CustomPropertiesArea::setReadonly(const bool readonly_) {

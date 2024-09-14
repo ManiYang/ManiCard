@@ -46,10 +46,10 @@ private:
     enum class DataType {
         Boolean, Number, String,
         ListOfBoolean, ListOfNumber, ListOfString,
-        Null,
+        Null, // Neo4j DB actually removes the property when it is set with null value.
         Other, // This represents all other data types, which the class doesn't know how to
-               // perform validation on. The whole editor is read-only if it has this type
-               // (overriding the member variable `readonly`).
+               //     perform validation on. The whole editor is read-only if it has this
+               //     type (overriding the member variable `readonly`).
     };
 
     struct DataTypeView

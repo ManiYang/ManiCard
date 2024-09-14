@@ -27,7 +27,8 @@ private:
 
         void addToLayout(QBoxLayout *layout);
         void clear();
-        void addProperty(const QString propertyName, const QJsonValue &value);
+        void addProperty(const QString &propertyName, const QJsonValue &value);
+        void setProperty(const QString &propertyName, const QJsonValue &newValue);
         void setReadonly(const bool readonly_); // default: true
 
         bool hasPropertyName(const QString &propertyName) const;
@@ -44,7 +45,7 @@ private:
             QLabel *nameLabel;
             PropertyValueEditor *editor;
         };
-        QList<PropertyWidgets> propertyWidgetsList;
+        QList<PropertyWidgets> propertyWidgetsList; // in layout order
         QStringList addedPropertyNames; // in layout order
     };
 
