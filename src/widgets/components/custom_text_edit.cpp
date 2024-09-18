@@ -1,6 +1,7 @@
 #include <QDebug>
-#include <QVBoxLayout>
+#include <QKeyEvent>
 #include <QTextCursor>
+#include <QVBoxLayout>
 #include <QWheelEvent>
 #include "custom_text_edit.h"
 
@@ -16,6 +17,7 @@ CustomTextEdit::CustomTextEdit(const bool acceptEveryWheelEvent, QWidget *parent
 
     textEdit->setFrameShape(QFrame::NoFrame);
     textEdit->setAcceptRichText(false);
+    textEdit->installEventFilter(this);
 
     connect(textEdit, &TextEditTweak::textChanged, this, [this]() {
         if (textChangeIsByUser)
@@ -51,6 +53,10 @@ void CustomTextEdit::setReadOnly(const bool readonly) {
     textEdit->setReadOnly(readonly);
 }
 
+void CustomTextEdit::setReplaceTabBySpaces(const int numberOfSpaces) {
+    numberOfSpacesToReplaceTab = numberOfSpaces;
+}
+
 void CustomTextEdit::setContextMenuPolicy(Qt::ContextMenuPolicy policy) {
     textEdit->setContextMenuPolicy(policy);
 }
@@ -69,6 +75,34 @@ QString CustomTextEdit::toPlainText() const {
 
 QTextDocument *CustomTextEdit::document() const {
     return textEdit->document();
+}
+
+bool CustomTextEdit::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == textEdit) {
+        if (event->type() == QEvent::KeyPress) {
+            auto *keyEvent = dynamic_cast<QKeyEvent *>(event);
+            Q_ASSERT(keyEvent != nullptr);
+
+            if (keyEvent->key() == Qt::Key_Tab
+                    && keyEvent->modifiers() == Qt::NoModifier) { // (TAB pressed without modifier)
+                if (numberOfSpacesToReplaceTab >= 0) {
+                    insertSpaces(numberOfSpacesToReplaceTab);
+                    return true;
+                }
+            }
+        }
+    }
+    return QFrame::eventFilter(watched, event);
+}
+
+void CustomTextEdit::insertSpaces(const int count) {
+    if (count <= 0)
+        return;
+
+    auto cursor = textEdit->textCursor();
+    for (int i = 0; i < count; ++i)
+        cursor.insertText(" ");
+    textEdit->setTextCursor(cursor);
 }
 
 //====

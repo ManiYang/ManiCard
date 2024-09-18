@@ -33,6 +33,7 @@ NodeRect::NodeRect(const int cardId_, QGraphicsItem *parent)
         , contextMenu(new QMenu) {
     textEdit->setVisible(false);
     textEdit->setReadOnly(true);
+    textEdit->setReplaceTabBySpaces(4);
     textEditProxyWidget->setWidget(textEdit);
 
     setFlag(QGraphicsItem::ItemClipsChildrenToShape, true);
@@ -401,16 +402,14 @@ void NodeRect::adjustChildItems() {
     }
 
     // title
-    double titleBottom = 0;
+    double yTitleBottom = 0;
     {
         constexpr int padding = 3;
         constexpr int fontPointSize = 18;
-        const QString fontFamily = "Arial";
         const QColor textColor(Qt::black);
 
         //
         QFont font = fontOfView;
-        font.setFamily(fontFamily);
         font.setPointSize(fontPointSize);
         font.setBold(true);
 
@@ -424,7 +423,7 @@ void NodeRect::adjustChildItems() {
         titleItem->setPos(
                 contentsRectItem->rect().topLeft() + QPointF(padding, padding));
 
-        titleBottom
+        yTitleBottom
                 = contentsRectItem->rect().top()
                   + std::max(titleItem->boundingRect().height(), minHeight)
                   + padding * 2;
@@ -436,7 +435,7 @@ void NodeRect::adjustChildItems() {
         constexpr int fontPointSize = 12;
 
         //
-        const double height = contentsRectItem->rect().bottom() - titleBottom;
+        const double height = contentsRectItem->rect().bottom() - yTitleBottom;
         if (height < 0.1) {
             textEditProxyWidget->setVisible(false);
         }
@@ -445,7 +444,7 @@ void NodeRect::adjustChildItems() {
             textEditProxyWidget->setVisible(true);
         }
 
-        textEditProxyWidget->setPos(contentsRectItem->rect().left() + leftPadding, titleBottom);
+        textEditProxyWidget->setPos(contentsRectItem->rect().left() + leftPadding, yTitleBottom);
 
         textEdit->setFrameShape(QFrame::NoFrame);
         textEdit->setMinimumHeight(10);
@@ -462,8 +461,8 @@ void NodeRect::adjustChildItems() {
         // focus indicator rect
         constexpr double lineWidth = 2.0;
         textEditFocusIndicator->setRect(
-                QRectF(contentsRectItem->rect().left(), titleBottom - 1.0,
-                       contentsRectItem->rect().width(), height + 1.0)
+                QRectF(contentsRectItem->rect().left(), yTitleBottom - 2.0,
+                       contentsRectItem->rect().width(), height + 2.0)
                     .marginsRemoved(uniformMarginsF(lineWidth / 2.0))
         );
         textEditFocusIndicator->setBrush(Qt::NoBrush);

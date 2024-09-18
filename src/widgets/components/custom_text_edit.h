@@ -25,6 +25,11 @@ public:
     void setReadOnly(const bool readonly);
 
     //!
+    //! \param numberOfSpaces: if < 0, won't replace TAB
+    //!
+    void setReplaceTabBySpaces(const int numberOfSpaces);
+
+    //!
     //! Sets context-menu policy for the wrapped QTextEdit.
     //!
     void setContextMenuPolicy(Qt::ContextMenuPolicy policy);
@@ -37,6 +42,9 @@ public:
     //
     QTextDocument *document() const;
 
+    //
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 signals:
     void textEdited();
     void clicked();
@@ -46,6 +54,9 @@ signals:
 private:
     TextEditTweak *textEdit;
     bool textChangeIsByUser {true};
+    int numberOfSpacesToReplaceTab {-1}; // negative number: won't replace TAB
+
+    void insertSpaces(const int count);
 };
 
 
