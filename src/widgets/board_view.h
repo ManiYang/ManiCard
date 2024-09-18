@@ -95,7 +95,7 @@ private:
     void closeAllCards(bool *highlightedCardIdChanged);
 
     //!
-    //! Call this whenever graphicsView is resized, or graphics items are added/removed.
+    //! Call this whenever graphicsView is resized, or graphics items are added/moved/removed.
     //!
     void adjustSceneRect();
 

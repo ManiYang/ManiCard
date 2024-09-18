@@ -786,27 +786,6 @@ void BoardView::onUserToCloseNodeRect(const int cardId) {
     auto *routine = new AsyncRoutineWithVars;
 
     //
-//    routine->addStep([this, routine, cardId]() {
-//        NodeRect *nodeRect = nodeRectsCollection.get(cardId);
-//        nodeRect->prepareToClose();
-
-//        // wait until nodeRect->canClose() returns true
-//        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
-//            ->setPredicate([nodeRect]() {
-//                return nodeRect->canClose();
-//            })
-//            ->onPredicateReturnsTrue([routine]() {
-//                routine->nextStep();
-//            })
-//            ->onTimeOut([routine, cardId]() {
-//                qWarning().noquote()
-//                        << QString("time-out while awaiting NodeRect::canClose() for card %1")
-//                           .arg(cardId);
-//                routine->nextStep();
-//            })
-//            ->setAutoDelete()->start();
-//    }, this);
-
     routine->addStep([this, routine, cardId]() {
         bool highlightedCardIdChanged;
         constexpr bool removeConnectedEdgeArrows = true;
@@ -815,6 +794,8 @@ void BoardView::onUserToCloseNodeRect(const int cardId) {
 
         if (highlightedCardIdChanged)
             routine->updatedHighlightedCardId = -1;
+
+        adjustSceneRect();
 
         routine->nextStep();
     }, this);
@@ -947,6 +928,9 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
             constexpr bool updateOtherEdgeArrows = false;
             boardView->edgeArrowsCollection.updateEdgeArrow(relId, updateOtherEdgeArrows);
         }
+
+        //
+        boardView->adjustSceneRect();
     });
 
     QObject::connect(nodeRect, &NodeRect::finishedMovingOrResizing,
