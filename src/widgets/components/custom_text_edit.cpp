@@ -25,6 +25,14 @@ CustomTextEdit::CustomTextEdit(const bool acceptEveryWheelEvent, QWidget *parent
     connect(textEdit, &TextEditTweak::mouseReleased, this, [this]() {
         emit clicked();
     });
+
+    connect(textEdit, &TextEditTweak::focusedIn, this, [this]() {
+        emit focusedIn();
+    });
+
+    connect(textEdit, &TextEditTweak::focusedOut, this, [this]() {
+        emit focusedOut();
+    });
 }
 
 void CustomTextEdit::clear() {
@@ -45,6 +53,14 @@ void CustomTextEdit::setReadOnly(const bool readonly) {
 
 void CustomTextEdit::setContextMenuPolicy(Qt::ContextMenuPolicy policy) {
     textEdit->setContextMenuPolicy(policy);
+}
+
+QTextCursor CustomTextEdit::textCursor() const {
+    return textEdit->textCursor();
+}
+
+void CustomTextEdit::setTextCursor(const QTextCursor &cursor) {
+    textEdit->setTextCursor(cursor);
 }
 
 QString CustomTextEdit::toPlainText() const {
@@ -69,6 +85,11 @@ void TextEditTweak::wheelEvent(QWheelEvent *event) {
         event->accept();
 }
 
+void TextEditTweak::focusInEvent(QFocusEvent *event) {
+    QTextEdit::focusInEvent(event);
+    emit focusedIn();
+}
+
 void TextEditTweak::focusOutEvent(QFocusEvent *event) {
     auto cursor = textCursor();
     if (cursor.hasSelection()) {
@@ -77,6 +98,7 @@ void TextEditTweak::focusOutEvent(QFocusEvent *event) {
     }
 
     QTextEdit::focusOutEvent(event);
+    emit focusedOut();
 }
 
 void TextEditTweak::mouseReleaseEvent(QMouseEvent *event) {

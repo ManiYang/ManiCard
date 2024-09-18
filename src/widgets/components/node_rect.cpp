@@ -9,6 +9,8 @@
 #include <QGraphicsSceneContextMenuEvent>
 #include <QGraphicsView>
 #include <QMessageBox>
+#include <QTextBlockFormat>
+#include <QTextCursor>
 #include "models/node_labels.h"
 #include "node_rect.h"
 #include "utilities/margins_util.h"
@@ -26,6 +28,7 @@ NodeRect::NodeRect(const int cardId_, QGraphicsItem *parent)
         , titleItem(new CustomGraphicsTextItem(contentsRectItem))
         , textEdit(new CustomTextEdit(true, nullptr))
         , textEditProxyWidget(new QGraphicsProxyWidget(contentsRectItem))
+        , textEditFocusIndicator(new QGraphicsRectItem(this))
         , moveResizeHelper(new GraphicsItemMoveResize(this))
         , contextMenu(new QMenu) {
     textEdit->setVisible(false);
@@ -94,6 +97,16 @@ void NodeRect::setTitle(const QString &title) {
 
 void NodeRect::setText(const QString &text) {
     textEdit->setPlainText(text);
+    {
+        // set line height of whole document
+        auto cursor = textEdit->textCursor();
+        auto blockFormat = cursor.blockFormat();
+        blockFormat.setLineHeight(
+                textEditLineHeightPercent, QTextBlockFormat::ProportionalHeight);
+        cursor.select(QTextCursor::Document);
+        cursor.setBlockFormat(blockFormat);
+    }
+
     adjustChildItems();
 }
 
@@ -253,6 +266,14 @@ void NodeRect::setUpConnections() {
         emit clicked();
     });
 
+    connect(textEdit, &CustomTextEdit::focusedIn, this, [this]() {
+        textEditFocusIndicator->setVisible(true);
+    });
+
+    connect(textEdit, &CustomTextEdit::focusedOut, this, [this]() {
+        textEditFocusIndicator->setVisible(false);
+    });
+
     // ==== moveResizeHelper ====
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::getTargetItemPosition,
@@ -373,7 +394,7 @@ void NodeRect::adjustChildItems() {
     //
     {
         contentsRectItem->setRect(
-                borderInnerRect.marginsRemoved({0.0, captionHeight, 0.0, 0.0})); // L,T,R,B
+                borderInnerRect.marginsRemoved({0.0, captionHeight, 0.0, 0.0})); // <^>v
         contentsRectItem->setPen(Qt::NoPen);
         contentsRectItem->setBrush(Qt::white);
         contentsRectItem->setFlag(QGraphicsItem::ItemClipsChildrenToShape);
@@ -413,12 +434,6 @@ void NodeRect::adjustChildItems() {
     {
         constexpr int leftPadding = 3;
         constexpr int fontPointSize = 12;
-        const QString fontFamily = "Arial";
-
-        //
-        QFont font = fontOfView;
-        font.setFamily(fontFamily);
-        font.setPointSize(fontPointSize);
 
         //
         const double height = contentsRectItem->rect().bottom() - titleBottom;
@@ -427,7 +442,6 @@ void NodeRect::adjustChildItems() {
         }
         else {
             textEditProxyWidget->resize(contentsRectItem->rect().width() - leftPadding, height);
-            textEditProxyWidget->setFont(font);
             textEditProxyWidget->setVisible(true);
         }
 
@@ -438,12 +452,23 @@ void NodeRect::adjustChildItems() {
         textEdit->setContextMenuPolicy(Qt::NoContextMenu);
         textEdit->setStyleSheet(
                 "QTextEdit {"
-                "  font-size: "+QString::number(fontPointSize)+"pt;"
+                "  font-size: " + QString::number(fontPointSize) + "pt;"
                 "}"
                 "QScrollBar:vertical {"
                 "  width: 12px;"
                 "}"
         );
+
+        // focus indicator rect
+        constexpr double lineWidth = 2.0;
+        textEditFocusIndicator->setRect(
+                QRectF(contentsRectItem->rect().left(), titleBottom - 1.0,
+                       contentsRectItem->rect().width(), height + 1.0)
+                    .marginsRemoved(uniformMarginsF(lineWidth / 2.0))
+        );
+        textEditFocusIndicator->setBrush(Qt::NoBrush);
+        textEditFocusIndicator->setPen(QPen(QBrush(QColor(195, 225, 255)), lineWidth));
+        textEditFocusIndicator->setVisible(false);
     }
 }
 

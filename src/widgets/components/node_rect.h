@@ -78,7 +78,8 @@ protected:
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 
 private:
-    QSizeF minSizeForResizing {100, 60};
+    const QSizeF minSizeForResizing {100, 60};
+    const double textEditLineHeightPercent {120};
 
     QRectF enclosingRect {QPointF(0, 0), QSizeF(90, 150)};
     QColor color {160, 160, 160};
@@ -102,6 +103,7 @@ private:
     //    functionality.)
     CustomTextEdit *textEdit;
     QGraphicsProxyWidget *textEditProxyWidget;
+    QGraphicsRectItem *textEditFocusIndicator;
 
     //
     GraphicsItemMoveResize *moveResizeHelper;

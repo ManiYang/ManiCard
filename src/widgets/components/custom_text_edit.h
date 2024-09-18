@@ -29,6 +29,9 @@ public:
     //!
     void setContextMenuPolicy(Qt::ContextMenuPolicy policy);
 
+    QTextCursor textCursor() const;
+    void setTextCursor(const QTextCursor &cursor);
+
     QString toPlainText() const;
 
     //
@@ -37,6 +40,8 @@ public:
 signals:
     void textEdited();
     void clicked();
+    void focusedIn();
+    void focusedOut();
 
 private:
     TextEditTweak *textEdit;
@@ -55,9 +60,12 @@ public:
 
 signals:
     void mouseReleased();
+    void focusedIn();
+    void focusedOut();
 
 protected:
     void wheelEvent(QWheelEvent *event) override;
+    void focusInEvent(QFocusEvent *event) override;
     void focusOutEvent(QFocusEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
 

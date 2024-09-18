@@ -67,116 +67,116 @@ std::optional<QSize> AppData::getMainWindowSize() {
 
 void AppData::createNewCardWithId(
         const EventSource &/*eventSrc*/, const int cardId, const Card &card) {
-    // 1. synchornously update all variables and emit "updated" signals
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->createNewCardWithId(cardId, card);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 void AppData::updateCardProperties(
         const EventSource &eventSrc, const int cardId,
         const CardPropertiesUpdate &cardPropertiesUpdate) {
-    // 1. synchornously update all variables and emit "updated" signals
-    emit cardPropertiesUpdated(eventSrc, cardId, cardPropertiesUpdate);
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->updateCardProperties(cardId, cardPropertiesUpdate);
+
+    // 2. update all variables and emit "updated" signals
+    emit cardPropertiesUpdated(eventSrc, cardId, cardPropertiesUpdate);
 }
 
 void AppData::updateCardLabels(
         const EventSource &/*eventSrc*/, const int cardId, const QSet<QString> &updatedLabels) {
-    // 1. synchornously update all variables and emit "updated" signals
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->updateCardLabels(cardId, updatedLabels);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 void AppData::createRelationship(const EventSource &/*eventSrc*/, const RelationshipId &id) {
-    // 1. synchornously update all variables and emit "updated" signals
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->createRelationship(id);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 void AppData::updateUserRelationshipTypes(
         const EventSource &/*eventSrc*/, const QStringList &updatedRelTypes)  {
-    // 1. synchornously update all variables and emit "updated" signals
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->updateUserRelationshipTypes(updatedRelTypes);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 void AppData::updateUserCardLabels(
         const EventSource &/*eventSrc*/, const QStringList &updatedCardLabels) {
-    // 1. synchornously update all variables and emit "updated" signals
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->updateUserCardLabels(updatedCardLabels);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 void AppData::updateBoardsListProperties(
         const EventSource &/*eventSrc*/, const BoardsListPropertiesUpdate &propertiesUpdate) {
-    // 1. synchornously update all variables and emit "updated" signals
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->updateBoardsListProperties(propertiesUpdate);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 void AppData::createNewBoardWithId(
         const EventSource &/*eventSrc*/, const int boardId, const Board &board) {
-    // 1. synchornously update all variables and emit "updated" signals
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->createNewBoardWithId(boardId, board);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 void AppData::updateBoardNodeProperties(
         const EventSource &/*eventSrc*/, const int boardId,
         const BoardNodePropertiesUpdate &propertiesUpdate) {
-    // 1. synchornously update all variables and emit "updated" signals
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->updateBoardNodeProperties(boardId, propertiesUpdate);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 void AppData::removeBoard(const EventSource &/*eventSrc*/, const int boardId) {
-    // 1. synchornously update all variables and emit "updated" signals
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->removeBoard(boardId);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 void AppData::updateNodeRectProperties(
         const EventSource &/*eventSrc*/,
         const int boardId, const int cardId, const NodeRectDataUpdate &update) {
-    // 1. synchornously update all variables and emit "updated" signals
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->updateNodeRectProperties(boardId, cardId, update);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 void AppData::createNodeRect(
         const EventSource &/*eventSrc*/,
         const int boardId, const int cardId, const NodeRectData &nodeRectData) {
-    // 1. synchornously update all variables and emit "updated" signals
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->createNodeRect(boardId, cardId, nodeRectData);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 void AppData::removeNodeRect(
         const EventSource &/*eventSrc*/, const int boardId, const int cardId) {
-    // 1. synchornously update all variables and emit "updated" signals
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->removeNodeRect(boardId, cardId);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 void AppData::updateMainWindowSize(const EventSource &/*eventSrc*/, const QSize &size) {
-    // 1. synchornously update all variables and emit "updated" signals
-
-    // 2. persist
+    // 1. persist
     persistedDataAccess->saveMainWindowSize(size);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 int AppData::getHighlightedCardId() const {
