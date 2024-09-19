@@ -51,6 +51,7 @@ SOURCES += \
     widgets/components/node_rect.cpp \
     widgets/components/property_value_editor.cpp \
     widgets/components/simple_toolbar.cpp \
+    widgets/dialogs/dialog_board_card_colors.cpp \
     widgets/dialogs/dialog_create_relationship.cpp \
     widgets/dialogs/dialog_set_labels.cpp \
     widgets/dialogs/dialog_user_card_labels.cpp \
@@ -113,6 +114,7 @@ HEADERS += \
     widgets/components/node_rect.h \
     widgets/components/property_value_editor.h \
     widgets/components/simple_toolbar.h \
+    widgets/dialogs/dialog_board_card_colors.h \
     widgets/dialogs/dialog_create_relationship.h \
     widgets/dialogs/dialog_set_labels.h \
     widgets/dialogs/dialog_user_card_labels.h \
@@ -122,6 +124,7 @@ HEADERS += \
     widgets/right_sidebar_toolbar.h
 
 FORMS += \
+    widgets/dialogs/dialog_board_card_colors.ui \
     widgets/dialogs/dialog_create_relationship.ui \
     widgets/dialogs/dialog_set_labels.ui \
     widgets/dialogs/dialog_user_card_labels.ui \

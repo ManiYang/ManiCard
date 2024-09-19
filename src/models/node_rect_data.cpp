@@ -3,10 +3,14 @@
 #include "utilities/json_util.h"
 
 QJsonObject NodeRectData::toJson() const {
-    return {
-        {"rect", QJsonArray {rect.left(), rect.top(), rect.width(), rect.height()}},
-        {"color", color.name(QColor::HexRgb)}
-    };
+    QJsonObject obj;
+
+    obj.insert("rect", QJsonArray {rect.left(), rect.top(), rect.width(), rect.height()});
+
+    if (color.isValid())
+        obj.insert("color", color.name(QColor::HexRgb));
+
+    return obj;
 }
 
 std::optional<NodeRectData> NodeRectData::fromJson(const QJsonObject &obj) {
@@ -23,7 +27,7 @@ std::optional<NodeRectData> NodeRectData::fromJson(const QJsonObject &obj) {
     data.rect = QRectF(
             rectLeftTopWidthHeight.at(0), rectLeftTopWidthHeight.at(1),
             rectLeftTopWidthHeight.at(2), rectLeftTopWidthHeight.at(3));
-    data.color = QColor(obj.value("color").toString());
+    data.color = QColor(obj.value("color").toString()); // invalid color if key not found
 
     return data;
 }
@@ -54,7 +58,7 @@ QJsonObject NodeRectDataUpdate::toJson() const {
         );
     }
 
-    if (color.has_value())
+    if (color.has_value() && color.value().isValid())
         obj.insert("color", color.value().name(QColor::HexRgb));
 
     return obj;

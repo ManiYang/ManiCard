@@ -13,5 +13,8 @@
         <file alias="label_black_24">resources/icons/label_black_24.png</file>
         <file alias="close_right_panel_24">resources/icons/close_right_panel_24.png</file>
         <file alias="open_right_panel_24">resources/icons/open_right_panel_24.png</file>
+        <file alias="more_vert_24">resources/icons/more_vert_24.png</file>
+        <file alias="arrow_upward_24">resources/icons/arrow_upward_24.png</file>
+        <file alias="arrow_downward_24">resources/icons/arrow_downward_24.png</file>
     </qresource>
 </RCC>

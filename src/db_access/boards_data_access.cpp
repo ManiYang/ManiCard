@@ -291,6 +291,7 @@ void BoardsDataAccess::updateBoardNodeProperties(
                     hasError = true;
                 }
 
+                qInfo().noquote() << QString("updated properties of board %1").arg(boardId);
                 callback(!hasError);
             },
             callbackContext

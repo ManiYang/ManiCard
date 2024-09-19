@@ -7,7 +7,9 @@ class TextEditTweak;
 
 //!
 //! Wraps a QTextEdit.
-//! Emits signal textEdited() only when the text is updated by user.
+//! - emits signal textEdited() only when the text is updated by user
+//! - ignores Shift-Tab
+//! - can be set to replace Tab with spaces
 //!
 class CustomTextEdit : public QFrame
 {

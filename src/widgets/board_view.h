@@ -4,6 +4,7 @@
 #include <QFrame>
 #include <QGraphicsView>
 #include <QMenu>
+#include "models/board.h"
 #include "models/edge_arrow_data.h"
 #include "models/node_rect_data.h"
 #include "models/relationship.h"
@@ -60,6 +61,10 @@ private:
     constexpr static double zValueForEdgeArrows {15.0};
 
     int boardId {-1}; // -1: no board loaded
+    QString boardName;
+    QVector<Board::LabelAndColor> cardLabelsAndAssociatedColors;
+            // in the order of precedence (high to low)
+    QColor defaultNodeRectColor;
 
     //
     BoardViewToolBar *toolBar {nullptr};
@@ -85,6 +90,7 @@ private:
     void onUserToSetLabels(const int cardId);
     void onUserToCreateRelationship(const int cardId);
     void onUserToCloseNodeRect(const int cardId);
+    void onUserToSetCardColors();
     void onBackgroundClicked();
 
     //
@@ -110,7 +116,8 @@ private:
         //!
         NodeRect *createNodeRect(
                 const int cardId, const Card &cardData,
-                const NodeRectData &nodeRectData, const QStringList &userLabelsList);
+                const QRectF &rect, const QColor &color,
+                const QStringList &userLabelsList);
 
         //!
         //! Does not check NodeRect::canClose().
@@ -126,6 +133,8 @@ private:
         //! \param highlightedCardIdChanged: will be true if highlighted Card ID changes to -1
         //!
         void unhighlightAllCards(bool *highlightedCardIdChanged);
+
+        void updateAllNodeRectColors();
 
         bool contains(const int cardId) const;
         NodeRect *get(const int cardId) const;
@@ -180,6 +189,12 @@ private:
     // tools
     QPoint getScreenPosFromScenePos(const QPointF &scenePos);
     void setViewTopLeftPos(const QPointF &scenePos);
+
+    static QColor computeNodeRectColor(
+            const QColor &nodeRectColor,
+            const QSet<QString> &cardLabels,
+            const QVector<Board::LabelAndColor> &cardLabelsAndAssociatedColors,
+            const QColor &boardDefaultColor);
 
     QSet<RelationshipId> getEdgeArrowsConnectingNodeRect(const int cardId);
 };

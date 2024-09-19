@@ -90,6 +90,11 @@ bool CustomTextEdit::eventFilter(QObject *watched, QEvent *event) {
                     return true;
                 }
             }
+            else if (keyEvent->key() == Qt::Key_Backtab
+                    && keyEvent->modifiers() == Qt::ShiftModifier) { // (SHIFT-TAB pressed)
+                // do nothing
+                return true;
+            }
         }
     }
     return QFrame::eventFilter(watched, event);

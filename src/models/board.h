@@ -11,9 +11,14 @@
 struct BoardNodePropertiesUpdate;
 
 struct Board {
-    // properties of Board node in DB
+    // properties of Board node
     QString name;
-    QPointF topLeftPos; // in scene coordinates
+    QPointF topLeftPos; // the scene coordinates at view's top-left corner
+
+    QColor defaultNodeRectColor {170, 170, 170};
+    using LabelAndColor = std::pair<QString, QColor>;
+    QVector<LabelAndColor> cardLabelsAndAssociatedColors;
+            // in the order of precedence (high to low)
 
     //
     QHash<int, NodeRectData> cardIdToNodeRectData;
@@ -30,6 +35,8 @@ struct BoardNodePropertiesUpdate
 {
     std::optional<QString> name;
     std::optional<QPointF> topLeftPos;
+    std::optional<QColor> defaultNodeRectColor;
+    std::optional<QVector<Board::LabelAndColor>> cardLabelsAndAssociatedColors;
 
     QJsonObject toJson() const;
     QSet<QString> keys() const;

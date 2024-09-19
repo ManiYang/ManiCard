@@ -19,6 +19,7 @@
 #include "widgets/components/edge_arrow.h"
 #include "widgets/components/graphics_scene.h"
 #include "widgets/components/node_rect.h"
+#include "widgets/dialogs/dialog_board_card_colors.h"
 #include "widgets/dialogs/dialog_create_relationship.h"
 #include "widgets/dialogs/dialog_set_labels.h"
 
@@ -129,14 +130,21 @@ void BoardView::loadBoard(
         // 3. open cards, creating NodeRect's
         ContinuationContext context(routine);
 
-        for (auto it = routine->cardsData.constBegin(); it != routine->cardsData.constEnd(); ++it) {
+        for (auto it = routine->cardsData.constBegin();
+                it != routine->cardsData.constEnd(); ++it) {
             const int &cardId = it.key();
             const Card &cardData = it.value();
 
             const NodeRectData nodeRectData = routine->board.cardIdToNodeRectData.value(cardId);
 
+            const QColor nodeRectColor = computeNodeRectColor(
+                    nodeRectData.color, cardData.getLabels(),
+                    routine->board.cardLabelsAndAssociatedColors,
+                    routine->board.defaultNodeRectColor);
+
             NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
-                    cardId, cardData, nodeRectData, routine->userLabelsList);
+                    cardId, cardData, nodeRectData.rect, nodeRectColor,
+                    routine->userLabelsList);
             nodeRect->setEditable(true);
         }
 
@@ -193,8 +201,12 @@ void BoardView::loadBoard(
         // final step
         ContinuationContext context(routine);
 
-        if (!routine->errorFlag)
+        if (!routine->errorFlag) {
             boardId = boardIdToLoad;
+            boardName = routine->board.name;
+            cardLabelsAndAssociatedColors = routine->board.cardLabelsAndAssociatedColors;
+            defaultNodeRectColor = routine->board.defaultNodeRectColor;
+        }
 
         callback(!routine->errorFlag, highlightedCardIdChanged);
     }, this);
@@ -307,6 +319,10 @@ void BoardView::setUpConnections() {
     connect(toolBar, &BoardViewToolBar::openRightSidebar, this, [this]() {
         emit openRightSideBar();
     });
+
+    connect(toolBar, &BoardViewToolBar::openCardColorsDialog, this, [this]() {
+        onUserToSetCardColors();
+    });
 }
 
 void BoardView::installEventFiltersOnComponents() {
@@ -387,10 +403,15 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
         ContinuationContext context(routine);
 
         routine->nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
-        routine->nodeRectData.color = defaultNewNodeRectColor;
+        routine->nodeRectData.color = QColor();
+
+        const QColor nodeRectColor = computeNodeRectColor(
+                routine->nodeRectData.color, routine->cardData.getLabels(),
+                cardLabelsAndAssociatedColors, defaultNodeRectColor);
 
         auto *nodeRect = nodeRectsCollection.createNodeRect(
-                cardId, routine->cardData, routine->nodeRectData, routine->userLabelsList);
+                cardId, routine->cardData, routine->nodeRectData.rect, nodeRectColor,
+                routine->userLabelsList);
         nodeRect->setEditable(true);
 
         adjustSceneRect();
@@ -510,14 +531,19 @@ void BoardView::onUserToCreateNewCard(const QPointF &scenePos) {
         // 2. create new NodeRect
         routine->card.title = "New Card";
         routine->card.text = "";
+        const QSet<QString> cardLabels {};
 
         ContinuationContext context(routine);
 
         routine->nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
-        routine->nodeRectData.color = defaultNewNodeRectColor;
+        routine->nodeRectData.color = QColor();
+
+        const QColor nodeRectColor = computeNodeRectColor(
+                routine->nodeRectData.color, cardLabels, cardLabelsAndAssociatedColors,
+                defaultNodeRectColor);
 
         NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
-                routine->newCardId, routine->card, routine->nodeRectData,
+                routine->newCardId, routine->card, routine->nodeRectData.rect, nodeRectColor,
                 routine->userLabelsList);
         nodeRect->setEditable(true);
 
@@ -554,7 +580,6 @@ void BoardView::onUserToSetLabels(const int cardId) {
     public:
         QStringList userCardLabelsList;
         std::optional<QStringList> updatedLabels;
-//        QString errorMsg;
     };
     auto *routine = new AsyncRoutineWithVars;
 
@@ -594,11 +619,21 @@ void BoardView::onUserToSetLabels(const int cardId) {
     }, this);
 
     routine->addStep([this, routine, cardId]() {
-        // update labels in node rect
+        // update labels and color of node rect
         ContinuationContext context(routine);
+
         Q_ASSERT(routine->updatedLabels.has_value());
-        nodeRectsCollection.get(cardId)->setNodeLabels(
-                routine->updatedLabels.value_or(QStringList {}));
+        const QStringList updatedLabels = routine->updatedLabels.value();
+
+        auto *nodeRect = nodeRectsCollection.get(cardId);
+        nodeRect->setNodeLabels(updatedLabels);
+
+        const QColor nodeRectOwnColor {}; // [temp]........
+        const QColor nodeRectColor = computeNodeRectColor(
+                nodeRectOwnColor, QSet<QString>(updatedLabels.cbegin(), updatedLabels.cend()),
+                cardLabelsAndAssociatedColors, defaultNodeRectColor);
+        nodeRect->setColor(nodeRectColor);
+
     }, this);
 
     routine->addStep([this, routine, cardId]() {
@@ -820,6 +855,32 @@ void BoardView::onUserToCloseNodeRect(const int cardId) {
     routine->start();
 }
 
+void BoardView::onUserToSetCardColors() {
+    auto *dialog = new DialogBoardCardColors(
+            boardName, cardLabelsAndAssociatedColors, defaultNodeRectColor, this);
+    connect(dialog, &QDialog::finished, this, [this, dialog](int result) {
+        dialog->deleteLater();
+
+        if (result != QDialog::Accepted)
+            return;
+
+        //
+        defaultNodeRectColor = dialog->getDefaultColor();
+        cardLabelsAndAssociatedColors = dialog->getCardLabelsAndAssociatedColors();
+        nodeRectsCollection.updateAllNodeRectColors();
+
+        // call AppData
+        BoardNodePropertiesUpdate propertiesUpdate;
+        {
+            propertiesUpdate.defaultNodeRectColor = defaultNodeRectColor;
+            propertiesUpdate.cardLabelsAndAssociatedColors = cardLabelsAndAssociatedColors;
+        }
+        Services::instance()->getAppData()->updateBoardNodeProperties(
+                EventSource(this), boardId, propertiesUpdate);
+    });
+    dialog->open();
+}
+
 void BoardView::onBackgroundClicked() {
     bool highlightedCardIdChanged; // to -1
     nodeRectsCollection.unhighlightAllCards(&highlightedCardIdChanged);
@@ -882,6 +943,28 @@ void BoardView::setViewTopLeftPos(const QPointF &scenePos) {
     graphicsView->centerOn(centerX, centerY);
 }
 
+QColor BoardView::computeNodeRectColor(
+        const QColor &nodeRectColor, const QSet<QString> &cardLabels,
+        const QVector<Board::LabelAndColor> &cardLabelsAndAssociatedColors,
+        const QColor &boardDefaultColor) {
+    // 1. NodeRect's own color
+    if (nodeRectColor.isValid())
+        return nodeRectColor;
+
+    // 2. card labels & board's `cardLabelsAndAssociatedColors`
+    for (const auto &labelAndColor: cardLabelsAndAssociatedColors) {
+        if (cardLabels.contains(labelAndColor.first))
+            return labelAndColor.second;
+    }
+
+    // 3. board's default
+    if (boardDefaultColor.isValid())
+        return boardDefaultColor;
+
+    //
+    return QColor(170, 170, 170);
+}
+
 QSet<RelationshipId> BoardView::getEdgeArrowsConnectingNodeRect(const int cardId) {
     QSet<RelationshipId> result;
 
@@ -897,7 +980,7 @@ QSet<RelationshipId> BoardView::getEdgeArrowsConnectingNodeRect(const int cardId
 //====
 
 NodeRect *BoardView::NodeRectsCollection::createNodeRect(
-        const int cardId, const Card &cardData, const NodeRectData &nodeRectData,
+        const int cardId, const Card &cardData, const QRectF &rect, const QColor &color,
         const QStringList &userLabelsList) {
     Q_ASSERT(!cardIdToNodeRect.contains(cardId));
 
@@ -912,8 +995,8 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
     nodeRect->setTitle(cardData.title);
     nodeRect->setText(cardData.text);
 
-    nodeRect->setRect(nodeRectData.rect);
-    nodeRect->setColor(nodeRectData.color);
+    nodeRect->setRect(rect);
+    nodeRect->setColor(color);
 
     // set up connections
     QPointer<NodeRect> nodeRectPtr(nodeRect);
@@ -1047,6 +1130,19 @@ void BoardView::NodeRectsCollection::unhighlightAllCards(bool *highlightedCardId
 
         highlightedCardId = -1;
         *highlightedCardIdChanged = true;
+    }
+}
+
+void BoardView::NodeRectsCollection::updateAllNodeRectColors() {
+    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it) {
+        NodeRect *nodeRect = it.value();
+
+        const QColor nodeRectOwnColor {}; // [temp]
+        const QColor color = computeNodeRectColor(
+                nodeRectOwnColor, nodeRect->getNodeLabels(),
+                boardView->cardLabelsAndAssociatedColors, boardView->defaultNodeRectColor);
+
+        nodeRect->setColor(color);
     }
 }
 
