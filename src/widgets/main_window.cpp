@@ -417,7 +417,7 @@ void MainWindow::onBoardSelectedByUser(const int boardId) {
 
     routine->addStep([this, routine]() {
         // save current board's topLeftPos
-        saveTopLeftPosOfCurrentBoard();
+        saveTopLeftPosAndZoomRatioOfCurrentBoard();
         routine->nextStep();
     }, this);
 
@@ -763,7 +763,7 @@ void MainWindow::onUserCloseWindow() {
         // save current board's topLeftPos
         ContinuationContext context(routine);
 
-        saveTopLeftPosOfCurrentBoard();
+        saveTopLeftPosAndZoomRatioOfCurrentBoard();
     }, this);
 
     routine->addStep([this, routine]() {
@@ -814,14 +814,22 @@ void MainWindow::onUserCloseWindow() {
     routine->start();
 }
 
-void MainWindow::saveTopLeftPosOfCurrentBoard() {
+void MainWindow::saveTopLeftPosAndZoomRatioOfCurrentBoard() {
     const int currentBoardId = boardView->getBoardId();
     if (currentBoardId == -1)
         return;
 
     BoardNodePropertiesUpdate propertiesUpdate;
-    propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
+    {
+        propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
+        propertiesUpdate.zoomRatio = boardView->getZoomRatio();
 
+//        qDebug() << "save board" << currentBoardId;
+//        qDebug() << "  | zoomRation: " << boardView->getZoomRatio();
+//        qDebug() << "  | topLeftPos: " << boardView->getViewTopLeftPos();
+
+
+    }
     Services::instance()->getAppData()->updateBoardNodeProperties(
             EventSource(this), currentBoardId, propertiesUpdate);
 }

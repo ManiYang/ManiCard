@@ -13,7 +13,9 @@ struct BoardNodePropertiesUpdate;
 struct Board {
     // properties of Board node
     QString name;
-    QPointF topLeftPos; // the scene coordinates at view's top-left corner
+
+    QPointF topLeftPos {0, 0}; // view's top-left corner
+    double zoomRatio {1.0};
 
     QColor defaultNodeRectColor {170, 170, 170};
     using LabelAndColor = std::pair<QString, QColor>;
@@ -35,6 +37,7 @@ struct BoardNodePropertiesUpdate
 {
     std::optional<QString> name;
     std::optional<QPointF> topLeftPos;
+    std::optional<double> zoomRatio;
     std::optional<QColor> defaultNodeRectColor;
     std::optional<QVector<Board::LabelAndColor>> cardLabelsAndAssociatedColors;
 

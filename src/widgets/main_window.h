@@ -74,7 +74,7 @@ private:
     // -- event handling tools
     ActionDebouncer *saveWindowSizeDebounced;
 
-    void saveTopLeftPosOfCurrentBoard();
+    void saveTopLeftPosAndZoomRatioOfCurrentBoard();
     void saveBoardsOrdering();
 };
 

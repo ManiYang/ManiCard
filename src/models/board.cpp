@@ -10,6 +10,7 @@ QJsonObject Board::getNodePropertiesJson() const {
     return QJsonObject {
         {"name", name},
         {"topLeftPos", QJsonArray {topLeftPos.x(), topLeftPos.y()}},
+        {"zoomRatio", zoomRatio},
         {"defaultNodeRectColor", defaultNodeRectColor.name(QColor::HexRgb)},
         {"cardLabelsAndAssociatedColors",
             printJson(convertToJsonArray(cardLabelsAndAssociatedColors), true)}
@@ -26,6 +27,10 @@ void Board::updateNodeProperties(const QJsonObject &obj) {
             topLeftPos = QPointF(array.at(0).toDouble(), array.at(1).toDouble());
         else
             topLeftPos = QPointF(0, 0);
+    }
+
+    if (const auto v = obj.value("zoomRatio"); !v.isUndefined()) {
+        zoomRatio = v.toDouble(1.0);
     }
 
     if (const auto v = obj.value("defaultNodeRectColor"); !v.isUndefined()) {
@@ -61,6 +66,7 @@ void Board::updateNodeProperties(const BoardNodePropertiesUpdate &update) {
 
     UPDATE_PROPERTY(name);
     UPDATE_PROPERTY(topLeftPos);
+    UPDATE_PROPERTY(zoomRatio);
     UPDATE_PROPERTY(defaultNodeRectColor);
     UPDATE_PROPERTY(cardLabelsAndAssociatedColors);
 
@@ -77,6 +83,9 @@ QJsonObject BoardNodePropertiesUpdate::toJson() const {
 
     if (topLeftPos.has_value())
         obj.insert("topLeftPos", QJsonArray{topLeftPos.value().x(), topLeftPos.value().y()});
+
+    if (zoomRatio.has_value())
+        obj.insert("zoomRatio", zoomRatio.value());
 
     if (defaultNodeRectColor.has_value()) {
         obj.insert("defaultNodeRectColor", defaultNodeRectColor.value().name(QColor::HexRgb));

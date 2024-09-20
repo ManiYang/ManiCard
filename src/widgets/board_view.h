@@ -43,7 +43,8 @@ public:
 
     //
     int getBoardId() const; // can be -1
-    QPointF getViewTopLeftPos() const;
+    QPointF getViewTopLeftPos() const; // in canvas coordinates
+    double getZoomRatio() const;
 
     bool canClose() const;
 
@@ -104,13 +105,17 @@ private:
     void closeAllCards(bool *highlightedCardIdChanged);
 
     //!
-    //! Call this whenever graphicsView is resized, or graphics items are added/moved/removed.
+    //! Call this when
+    //!   - graphicsView is resized,
+    //!   - NodeRect is added/moved/resized/removed,
+    //!   - canvas's scale is set.
     //!
     void adjustSceneRect();
 
     //!
     //! \param zoomAction
-    //! \param anchorScenePos: a point on the canvas at this position will be kept stationary
+    //! \param anchorScenePos: a point on the canvas at this position will be stationary relative
+    //!                        to view
     //!
     void doApplyZoomAction(const ZoomAction zoomAction, const QPointF &anchorScenePos);
 
@@ -200,7 +205,7 @@ private:
     // tools
     QPoint getScreenPosFromScenePos(const QPointF &scenePos) const;
     QPointF getViewCenterInScene() const;
-    void setViewTopLeftPos(const QPointF &scenePos);
+    void setViewTopLeftPos(const QPointF &canvasPos);
     void moveSceneRelativeToView(const QPointF &displacement); // displacement: in pixel
 
     static QColor computeNodeRectDisplayColor(

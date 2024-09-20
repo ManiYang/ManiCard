@@ -92,13 +92,18 @@ void BoardView::loadBoard(
         Services::instance()->getAppDataReadonly()->getBoardData(
                 boardIdToLoad,
                 // callback
-                [routine](bool ok, std::optional<Board> board) {
+                [routine, boardIdToLoad](bool ok, std::optional<Board> board) {
                     ContinuationContext context(routine);
 
                     if (!ok || !board.has_value())
                         context.setErrorFlag();
-                    else
+                    else {
                         routine->board = board.value();
+
+                        qDebug() << "board" << boardIdToLoad;
+                        qDebug() << "  | zoomRation: " << routine->board.zoomRatio;
+                        qDebug() << "  | topLeftPos: " << routine->board.topLeftPos;
+                    }
                 },
                 this
         );
@@ -152,8 +157,9 @@ void BoardView::loadBoard(
         }
 
         //
-        adjustSceneRect();
-        setViewTopLeftPos(routine->board.topLeftPos);
+        canvas->setScale(routine->board.zoomRatio); // (1)
+        adjustSceneRect(); // (2)
+        setViewTopLeftPos(routine->board.topLeftPos); // (3)
     }, this);
 
     routine->addStep([this, routine]() {
@@ -209,6 +215,9 @@ void BoardView::loadBoard(
             boardName = routine->board.name;
             cardLabelsAndAssociatedColors = routine->board.cardLabelsAndAssociatedColors;
             defaultNodeRectColor = routine->board.defaultNodeRectColor;
+
+            qDebug() << "getViewTopLeftPos():" << getViewTopLeftPos();
+
         }
 
         callback(!routine->errorFlag, highlightedCardIdChanged);
@@ -218,9 +227,7 @@ void BoardView::loadBoard(
 }
 
 void BoardView::prepareToClose() {
-//    const auto nodeRects = nodeRectsCollection.getAllNodeRects();
-//    for (NodeRect *nodeRect: nodeRects)
-//        nodeRect->prepareToClose();
+    // do nothing
 }
 
 void BoardView::showButtonRightSidebar() {
@@ -237,7 +244,12 @@ int BoardView::getBoardId() const {
 }
 
 QPointF BoardView::getViewTopLeftPos() const {
-    return graphicsView->mapToScene(0, 0);
+    const auto topLeftPosInScene = graphicsView->mapToScene(0, 0);
+    return canvas->mapFromScene(topLeftPosInScene);
+}
+
+double BoardView::getZoomRatio() const {
+    return canvas->scale();
 }
 
 bool BoardView::canClose() const {
@@ -953,6 +965,7 @@ void BoardView::adjustSceneRect() {
     const auto sceneRect
             = contentsRectInScene.marginsAdded(QMarginsF(marginX, marginY, marginX, marginY));
     graphicsView->setSceneRect(sceneRect);
+    qDebug() << "sceneRect:" << sceneRect;
 }
 
 void BoardView::doApplyZoomAction(const ZoomAction zoomAction, const QPointF &anchorScenePos) {
@@ -976,7 +989,7 @@ void BoardView::doApplyZoomAction(const ZoomAction zoomAction, const QPointF &an
         canvas->setScale(scale);
     }
 
-    // adjust scene center
+    // move the scene
     const QPointF driftedAnchorPosInScene = canvas->mapToScene(anchorPosInCanvas);
     const auto displacementToApply = anchorScenePos - driftedAnchorPosInScene;
     moveSceneRelativeToView(displacementToApply);
@@ -997,7 +1010,8 @@ QPointF BoardView::getViewCenterInScene() const {
             graphicsView->viewport()->height() / 2);
 }
 
-void BoardView::setViewTopLeftPos(const QPointF &scenePos) {
+void BoardView::setViewTopLeftPos(const QPointF &canvasPos) {
+    const auto scenePos = canvas->mapToScene(canvasPos);
     const double centerX = scenePos.x() + graphicsView->viewport()->width() * 0.5;
     const double centerY = scenePos.y() + graphicsView->viewport()->height() * 0.5;
     graphicsView->centerOn(centerX, centerY);
