@@ -97,13 +97,8 @@ void BoardView::loadBoard(
 
                     if (!ok || !board.has_value())
                         context.setErrorFlag();
-                    else {
+                    else
                         routine->board = board.value();
-
-                        qDebug() << "board" << boardIdToLoad;
-                        qDebug() << "  | zoomRation: " << routine->board.zoomRatio;
-                        qDebug() << "  | topLeftPos: " << routine->board.topLeftPos;
-                    }
                 },
                 this
         );
@@ -215,9 +210,6 @@ void BoardView::loadBoard(
             boardName = routine->board.name;
             cardLabelsAndAssociatedColors = routine->board.cardLabelsAndAssociatedColors;
             defaultNodeRectColor = routine->board.defaultNodeRectColor;
-
-            qDebug() << "getViewTopLeftPos():" << getViewTopLeftPos();
-
         }
 
         callback(!routine->errorFlag, highlightedCardIdChanged);
@@ -965,7 +957,6 @@ void BoardView::adjustSceneRect() {
     const auto sceneRect
             = contentsRectInScene.marginsAdded(QMarginsF(marginX, marginY, marginX, marginY));
     graphicsView->setSceneRect(sceneRect);
-    qDebug() << "sceneRect:" << sceneRect;
 }
 
 void BoardView::doApplyZoomAction(const ZoomAction zoomAction, const QPointF &anchorScenePos) {
@@ -992,7 +983,8 @@ void BoardView::doApplyZoomAction(const ZoomAction zoomAction, const QPointF &an
     // move the scene
     const QPointF driftedAnchorPosInScene = canvas->mapToScene(anchorPosInCanvas);
     const auto displacementToApply = anchorScenePos - driftedAnchorPosInScene;
-    moveSceneRelativeToView(displacementToApply);
+    if (vectorLength(displacementToApply) > 1e-3)
+        moveSceneRelativeToView(displacementToApply);
 
     //
     adjustSceneRect();

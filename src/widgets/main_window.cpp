@@ -823,12 +823,6 @@ void MainWindow::saveTopLeftPosAndZoomRatioOfCurrentBoard() {
     {
         propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
         propertiesUpdate.zoomRatio = boardView->getZoomRatio();
-
-//        qDebug() << "save board" << currentBoardId;
-//        qDebug() << "  | zoomRation: " << boardView->getZoomRatio();
-//        qDebug() << "  | topLeftPos: " << boardView->getViewTopLeftPos();
-
-
     }
     Services::instance()->getAppData()->updateBoardNodeProperties(
             EventSource(this), currentBoardId, propertiesUpdate);
