@@ -285,6 +285,7 @@ void NodeRect::setUpConnections() {
     connect(moveResizeHelper, &GraphicsItemMoveResize::setTargetItemPosition,
             this, [this](const QPointF &pos) {
         prepareGeometryChange();
+//        qDebug() << "-->" << pos;
         enclosingRect.moveTopLeft(pos);
         redraw();
 

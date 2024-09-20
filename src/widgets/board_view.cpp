@@ -269,7 +269,9 @@ void BoardView::setUpWidgets() {
     graphicsScene = new GraphicsScene(this);
     graphicsScene->setBackgroundBrush(sceneBackgroundColor);
 
-    canvas = new QGraphicsRectItem;
+    canvas = new QGraphicsRectItem(0, 0, 100, 100); // [temp]
+    canvas->setPen(QPen(QBrush(Qt::gray), 4.0)); // [temp]
+//    canvas->setFlag(QGraphicsItem::ItemHasNoContents, true);
     graphicsScene->addItem(canvas);
 
     // set up `graphicsView`
@@ -902,14 +904,16 @@ void BoardView::onBackgroundClicked() {
 }
 
 void BoardView::onUserToZoomInOut(const bool zoomIn) {
-    qDebug() << "zoom" << (zoomIn ? "in" : "out");
+    const double oldScale = canvas->scale();
+    const int oldZoomLevel = nearestInteger((oldScale - 1.0) / 0.1);
 
-//    const double oldScale = canvas->scale();
-//    const int oldZoomLevel = nearestInteger((oldScale - 1.0) / 0.1);
+    int zoomLevel = oldZoomLevel + (zoomIn ? 1 : -1);
+    zoomLevel = std::max(zoomLevel, -5);
+    zoomLevel = std::min(zoomLevel, 5);
+    const double scale = 1.0 + zoomLevel * 0.1;
+    canvas->setScale(scale);
 
-//    const int zoomLevel = oldZoomLevel + nearestInteger(wheelDelta / 120.0);
-//    const double scaleFactor = 1.0 + (wheelDelta / 120.0) * 0.1;
-
+    adjustSceneRect();
 }
 
 void BoardView::closeAllCards(bool *highlightedCardIdChanged_) {
@@ -931,11 +935,18 @@ void BoardView::closeAllCards(bool *highlightedCardIdChanged_) {
 }
 
 void BoardView::adjustSceneRect() {
+    qDebug() << "adjustSceneRect()";
+
     QGraphicsScene *scene = graphicsView->scene();
     if (scene == nullptr)
         return;
 
     QRectF contentsRect = scene->itemsBoundingRect();
+    if (std::isnan(contentsRect.width()) || std::isnan(contentsRect.height())) {
+        // This happens occasionally. A Qt bug?
+        qWarning().noquote() << "got NaN width or height of `contentsRect`";
+        return;
+    }
     if (contentsRect.isEmpty())
         contentsRect = QRectF(0, 0, 10, 10); // x,y,w,h
 
@@ -1007,7 +1018,6 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
     auto *nodeRect = new NodeRect(cardId, boardView->canvas);
     cardIdToNodeRect.insert(cardId, nodeRect);
     cardIdToNodeRectOwnColor.insert(cardId, nodeRectOwnColor);
-//    boardView->graphicsScene->addItem(nodeRect);
     nodeRect->setZValue(zValueForNodeRects);
     nodeRect->initialize();
 
@@ -1032,9 +1042,6 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
             constexpr bool updateOtherEdgeArrows = false;
             boardView->edgeArrowsCollection.updateEdgeArrow(relId, updateOtherEdgeArrows);
         }
-
-        //
-        boardView->adjustSceneRect();
     });
 
     QObject::connect(nodeRect, &NodeRect::finishedMovingOrResizing,
@@ -1043,6 +1050,9 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
             return;
 
         //
+        boardView->adjustSceneRect();
+
+        // call AppData
         NodeRectDataUpdate update;
         update.rect = nodeRectPtr->getRect();
 
@@ -1204,7 +1214,6 @@ EdgeArrow *BoardView::EdgeArrowsCollection::createEdgeArrow(
     relIdToEdgeArrow.insert(relId, edgeArrow);
     cardIdPairToParallelRels[QSet<int> {relId.startCardId, relId.endCardId}] << relId;
 
-//    boardView->graphicsScene->addItem(edgeArrow);
     edgeArrow->setZValue(zValueForEdgeArrows);
 
     constexpr bool updateOtherEdgeArrows = true;
