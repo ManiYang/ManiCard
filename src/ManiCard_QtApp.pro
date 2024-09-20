@@ -87,6 +87,7 @@ HEADERS += \
     utilities/action_debouncer.h \
     utilities/app_instances_shared_memory.h \
     utilities/async_routine.h \
+    utilities/binary_search.h \
     utilities/functor.h \
     utilities/geometry_util.h \
     utilities/hash.h \

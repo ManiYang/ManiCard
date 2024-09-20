@@ -9,6 +9,7 @@
 #include "persisted_data_access.h"
 #include "services.h"
 #include "utilities/async_routine.h"
+#include "utilities/binary_search.h"
 #include "utilities/geometry_util.h"
 #include "utilities/lists_vectors_util.h"
 #include "utilities/maps_util.h"
@@ -903,13 +904,15 @@ void BoardView::onBackgroundClicked() {
 }
 
 void BoardView::onUserToZoomInOut(const bool zoomIn) {
-    const double oldScale = canvas->scale();
-    const int oldZoomLevel = nearestInteger((oldScale - 1.0) / 0.1);
+    const QVector<double> scaleFactors {0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0};
 
-    int zoomLevel = oldZoomLevel + (zoomIn ? 1 : -1);
-    zoomLevel = std::max(zoomLevel, -5);
-    zoomLevel = std::min(zoomLevel, 5);
-    const double scale = 1.0 + zoomLevel * 0.1;
+    const double oldScale = canvas->scale();
+    const int oldZoomLevel = findIndexOfClosestValue(scaleFactors, oldScale, true);
+
+    const int zoomLevel = zoomIn
+            ? std::min(oldZoomLevel + 1, scaleFactors.count() - 1)
+            : std::max(oldZoomLevel - 1, 0);
+    const double scale = scaleFactors.at(zoomLevel);
     canvas->setScale(scale);
 
     adjustSceneRect();

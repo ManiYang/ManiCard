@@ -104,7 +104,6 @@ private:
 
     //!
     //! Call this whenever graphicsView is resized, or graphics items are added/moved/removed.
-    //! However, this can be slow for large graphics scene.
     //!
     void adjustSceneRect();
 
