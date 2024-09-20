@@ -78,7 +78,7 @@ protected:
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 
 private:
-    const QSizeF minSizeForResizing {100, 60};
+    const QSizeF minSizeForResizing {100, 60}; // (pixel)
     const double textEditLineHeightPercent {120};
 
     QRectF enclosingRect {QPointF(0, 0), QSizeF(90, 150)};

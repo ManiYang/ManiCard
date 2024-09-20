@@ -142,8 +142,8 @@ private:
         bool contains(const int cardId) const;
         NodeRect *get(const int cardId) const;
         QSet<int> getAllCardIds() const;
-        QSet<NodeRect *> getAllNodeRects() const;
         QColor getNodeRectOwnColor(const int cardId) const;
+        QRectF getBoundingRectOfAllNodeRects() const; // returns QRectF() if no NodeRect exists
 
     private:
         BoardView *boardView;

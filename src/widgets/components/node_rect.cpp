@@ -53,7 +53,7 @@ void NodeRect::initialize() {
 
     moveResizeHelper->setMoveHandle(captionBarItem);
 
-    constexpr double resizeAreaMaxWidth = 6.0;
+    constexpr double resizeAreaMaxWidth = 6.0; // in pixel
     moveResizeHelper->setResizeHandle(this, resizeAreaMaxWidth, minSizeForResizing);
 
     //
@@ -279,14 +279,13 @@ void NodeRect::setUpConnections() {
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::getTargetItemPosition,
             this, [this](QPointF *pos) {
-        *pos = enclosingRect.topLeft();
+        *pos = this->mapToScene(enclosingRect.topLeft());
     }, Qt::DirectConnection);
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::setTargetItemPosition,
             this, [this](const QPointF &pos) {
         prepareGeometryChange();
-//        qDebug() << "-->" << pos;
-        enclosingRect.moveTopLeft(pos);
+        enclosingRect.moveTopLeft(this->mapFromScene(pos));
         redraw();
 
         scene()->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
@@ -302,13 +301,17 @@ void NodeRect::setUpConnections() {
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::getTargetItemRect,
             this, [this](QRectF *rect) {
-        *rect = enclosingRect;
+        *rect = QRectF(
+            this->mapToScene(enclosingRect.topLeft()),
+            this->mapToScene(enclosingRect.bottomRight()));
     }, Qt::DirectConnection);
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::setTargetItemRect,
             this, [this](const QRectF &rect) {
         prepareGeometryChange();
-        enclosingRect = rect;
+        enclosingRect = QRectF(
+                this->mapFromScene(rect.topLeft()),
+                this->mapFromScene(rect.bottomRight()));
         redraw();
 
         emit movedOrResized();

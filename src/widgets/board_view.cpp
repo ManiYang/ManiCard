@@ -269,9 +269,8 @@ void BoardView::setUpWidgets() {
     graphicsScene = new GraphicsScene(this);
     graphicsScene->setBackgroundBrush(sceneBackgroundColor);
 
-    canvas = new QGraphicsRectItem(0, 0, 100, 100); // [temp]
-    canvas->setPen(QPen(QBrush(Qt::gray), 4.0)); // [temp]
-//    canvas->setFlag(QGraphicsItem::ItemHasNoContents, true);
+    canvas = new QGraphicsRectItem;
+    canvas->setFlag(QGraphicsItem::ItemHasNoContents, true);
     graphicsScene->addItem(canvas);
 
     // set up `graphicsView`
@@ -941,23 +940,22 @@ void BoardView::adjustSceneRect() {
     if (scene == nullptr)
         return;
 
-    QRectF contentsRect = scene->itemsBoundingRect();
-    if (std::isnan(contentsRect.width()) || std::isnan(contentsRect.height())) {
-        // This happens occasionally. A Qt bug?
-        qWarning().noquote() << "got NaN width or height of `contentsRect`";
-        return;
-    }
-    if (contentsRect.isEmpty())
-        contentsRect = QRectF(0, 0, 10, 10); // x,y,w,h
+    const QRectF contentsRectInCanvas
+            = nodeRectsCollection.getBoundingRectOfAllNodeRects(); // in canvas coordinates
+    const QRectF contentsRectInScene = contentsRectInCanvas.isNull()
+            ? QRectF(0, 0, 10, 10)
+            : QRectF(
+                  canvas->mapToScene(contentsRectInCanvas.topLeft()),
+                  canvas->mapToScene(contentsRectInCanvas.bottomRight()));
 
     // finite margins prevent user from drag-scrolling too far away from contents
     constexpr double fraction = 0.8;
-    const double marginX = graphicsView->width() * fraction;
-    const double marginY = graphicsView->height() * fraction;
+    const double marginX = graphicsView->width() * fraction; // (pixel)
+    const double marginY = graphicsView->height() * fraction; // (pixel)
 
     //
     const auto sceneRect
-            = contentsRect.marginsAdded(QMarginsF(marginX, marginY, marginX, marginY));
+            = contentsRectInScene.marginsAdded(QMarginsF(marginX, marginY, marginX, marginY));
     graphicsView->setSceneRect(sceneRect);
 }
 
@@ -1191,15 +1189,19 @@ QSet<int> BoardView::NodeRectsCollection::getAllCardIds() const {
     return keySet(cardIdToNodeRect);
 }
 
-QSet<NodeRect *> BoardView::NodeRectsCollection::getAllNodeRects() const {
-    QSet<NodeRect *> result;
-    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it)
-        result << it.value();
-    return result;
-}
-
 QColor BoardView::NodeRectsCollection::getNodeRectOwnColor(const int cardId) const {
     return cardIdToNodeRectOwnColor.value(cardId, QColor());
+}
+
+QRectF BoardView::NodeRectsCollection::getBoundingRectOfAllNodeRects() const {
+    QRectF result;
+    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it) {
+        if (result.isNull())
+            result = it.value()->boundingRect();
+        else
+            result = result.united(it.value()->boundingRect());
+    }
+    return result;
 }
 
 //====

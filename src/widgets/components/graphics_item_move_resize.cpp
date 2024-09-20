@@ -67,7 +67,7 @@ bool GraphicsItemMoveResize::eventFilterForMoveHandle(QEvent *event) {
             auto *mouseEvent = dynamic_cast<QGraphicsSceneMouseEvent *>(event);
             Q_ASSERT(mouseEvent != nullptr);
 
-            const QPoint displacement = mouseEvent->screenPos() - mousePressScreenPos;
+            const QPoint displacement = mouseEvent->screenPos() - mousePressScreenPos; // (pix)
             constexpr double bufferDistance = 4.0;
             if (vectorLength(displacement) >= bufferDistance) {
                 emit setTargetItemPosition(targetItemPosBeforeMove + displacement);
@@ -79,7 +79,7 @@ bool GraphicsItemMoveResize::eventFilterForMoveHandle(QEvent *event) {
             auto *mouseEvent = dynamic_cast<QGraphicsSceneMouseEvent *>(event);
             Q_ASSERT(mouseEvent != nullptr);
 
-            const QPoint displacement = mouseEvent->screenPos() - mousePressScreenPos;
+            const QPoint displacement = mouseEvent->screenPos() - mousePressScreenPos; // (pix)
             emit setTargetItemPosition(targetItemPosBeforeMove + displacement);
             return true;
         }
@@ -151,7 +151,7 @@ bool GraphicsItemMoveResize::eventFilterForResizeHandle(QEvent *event) {
         if (state == State::Resizing) {
             auto *mouseEvent = dynamic_cast<QGraphicsSceneMouseEvent *>(event);
             Q_ASSERT(mouseEvent != nullptr);
-            const QPoint displacement = mouseEvent->screenPos() - mousePressScreenPos;
+            const QPoint displacement = mouseEvent->screenPos() - mousePressScreenPos; // (pix)
             doResize(displacement);
             return true;
         }
@@ -172,7 +172,7 @@ bool GraphicsItemMoveResize::eventFilterForResizeHandle(QEvent *event) {
 }
 
 void GraphicsItemMoveResize::doResize(const QPoint displacement) {
-    QRectF rect = targetItemRectBeforeResize;
+    QRectF rect = targetItemRectBeforeResize; // (pix)
 
     if (resizeDirection.contains('E')) {
         rect.setRight(
@@ -214,7 +214,8 @@ void GraphicsItemMoveResize::doResize(const QPoint displacement) {
 bool GraphicsItemMoveResize::isWithinResizeHandleBorder(const QPointF scenePos) const {
     const QRectF handleRect = QRectF(
             resizeHandle->mapToScene(resizeHandle->boundingRect().topLeft()),
-            resizeHandle->boundingRect().size()); // in scene coordinates
+            resizeHandle->mapToScene(resizeHandle->boundingRect().bottomRight()));
+            // in scene coordinates
 
     const auto w = resizeHandleBorderWidth;
     return !handleRect.marginsRemoved({w, w, w, w}).contains(scenePos);
@@ -223,7 +224,8 @@ bool GraphicsItemMoveResize::isWithinResizeHandleBorder(const QPointF scenePos) 
 QString GraphicsItemMoveResize::getRegionInResizeHandle(const QPointF scenePos) const {
     const QRectF handleRect = QRectF(
             resizeHandle->mapToScene(resizeHandle->boundingRect().topLeft()),
-            resizeHandle->boundingRect().size()); // in scene coordinates
+            resizeHandle->mapToScene(resizeHandle->boundingRect().bottomRight()));
+            // in scene coordinates
 
     QString result;
     if (scenePos.y() < handleRect.top() + 16)

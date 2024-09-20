@@ -19,8 +19,8 @@ public:
     //! The resize activation region is the visible part of \e item, subtracted by the area
     //! given by \c item->boundingRect().marginRemoved(maxWidth) .
     //! \param item: must accept hover event and mouse left-button events
-    //! \param maxWidth
-    //! \param targetItemMinimumSize
+    //! \param maxWidth: in pixel
+    //! \param targetItemMinimumSize: in pixel
     //!
     void setResizeHandle(
             QGraphicsItem *item, const double maxWidth,
@@ -34,10 +34,14 @@ public:
 signals:
     void getTargetItemPosition(QPointF *pos); // use Qt::DirectConnection
     void setTargetItemPosition(const QPointF &pos);
+            // the `pos` parameter in the above 2 methods must be in the same coordinates
+            // (not necessarily the scene or screen coordinates) whose length unit is pixel.
     void movingEnded();
 
     void getTargetItemRect(QRectF *rect); // use Qt::DirectConnection
     void setTargetItemRect(const QRectF &rect);
+            // the `rect` parameter in the above 2 methods must be in the same coordinates
+            // (not necessarily the scene or screen coordinates) whose length unit is pixel.
     void resizingEnded();
 
     void setCursorShape(const std::optional<Qt::CursorShape> cursorShape);
@@ -48,8 +52,8 @@ protected:
 private:
     QGraphicsItem *moveHandle {nullptr};
     QGraphicsItem *resizeHandle {nullptr};
-    double resizeHandleBorderWidth;
-    QSizeF targetItemMinSize;
+    double resizeHandleBorderWidth; // (pix)
+    QSizeF targetItemMinSize; // (pix)
 
     enum class State {
         Normal, BeforeMove, Moving, Resizing
@@ -58,13 +62,13 @@ private:
 
     QPoint mousePressScreenPos;
     QString resizeDirection;
-    QPointF targetItemPosBeforeMove;
-    QRectF targetItemRectBeforeResize;
+    QPointF targetItemPosBeforeMove; // (pix)
+    QRectF targetItemRectBeforeResize; // (pix)
 
     bool eventFilterForMoveHandle(QEvent *event);
     bool eventFilterForResizeHandle(QEvent *event);
 
-    void doResize(const QPoint displacement);
+    void doResize(const QPoint displacement); // `displacement`: in pix
 
     bool isWithinResizeHandleBorder(const QPointF scenePos) const;
     QString getRegionInResizeHandle(const QPointF scenePos) const;
