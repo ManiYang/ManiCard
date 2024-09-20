@@ -227,6 +227,10 @@ void BoardView::showButtonRightSidebar() {
     toolBar->showButtonOpenRightSidebar();
 }
 
+void BoardView::applyZoomAction(const ZoomAction zoomAction) {
+    doApplyZoomAction(zoomAction);
+}
+
 int BoardView::getBoardId() const {
     return boardId;
 }
@@ -320,7 +324,7 @@ void BoardView::setUpConnections() {
     });
 
     connect(graphicsScene, &GraphicsScene::userToZoomInOut, this, [this](bool zoomIn) {
-        onUserToZoomInOut(zoomIn);
+        doApplyZoomAction(zoomIn ? ZoomAction::ZoomIn : ZoomAction::ZoomOut);
     });
 
     //
@@ -903,21 +907,6 @@ void BoardView::onBackgroundClicked() {
     }
 }
 
-void BoardView::onUserToZoomInOut(const bool zoomIn) {
-    const QVector<double> scaleFactors {0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0};
-
-    const double oldScale = canvas->scale();
-    const int oldZoomLevel = findIndexOfClosestValue(scaleFactors, oldScale, true);
-
-    const int zoomLevel = zoomIn
-            ? std::min(oldZoomLevel + 1, scaleFactors.count() - 1)
-            : std::max(oldZoomLevel - 1, 0);
-    const double scale = scaleFactors.at(zoomLevel);
-    canvas->setScale(scale);
-
-    adjustSceneRect();
-}
-
 void BoardView::closeAllCards(bool *highlightedCardIdChanged_) {
     *highlightedCardIdChanged_ = false;
 
@@ -960,6 +949,29 @@ void BoardView::adjustSceneRect() {
     const auto sceneRect
             = contentsRectInScene.marginsAdded(QMarginsF(marginX, marginY, marginX, marginY));
     graphicsView->setSceneRect(sceneRect);
+}
+
+void BoardView::doApplyZoomAction(const ZoomAction zoomAction) {
+    if (zoomAction == ZoomAction::ResetZoom) {
+        canvas->setScale(1.0);
+    }
+    else {
+        const QVector<double> scaleFactors {
+            0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0
+        }; // must be non-empty & strictly increasing
+
+        const double oldScale = canvas->scale();
+        const int oldZoomLevel = findIndexOfClosestValue(scaleFactors, oldScale, true);
+
+        const int zoomLevel = (zoomAction == ZoomAction::ZoomIn)
+                ? std::min(oldZoomLevel + 1, scaleFactors.count() - 1)
+                : std::max(oldZoomLevel - 1, 0);
+        const double scale = scaleFactors.at(zoomLevel);
+        canvas->setScale(scale);
+    }
+
+    //
+    adjustSceneRect();
 }
 
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {

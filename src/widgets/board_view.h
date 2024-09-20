@@ -38,6 +38,8 @@ public:
     void prepareToClose();
 
     void showButtonRightSidebar();
+    enum class ZoomAction { ZoomIn, ZoomOut, ResetZoom };
+    void applyZoomAction(const ZoomAction zoomAction);
 
     //
     int getBoardId() const; // can be -1
@@ -93,7 +95,6 @@ private:
     void onUserToCloseNodeRect(const int cardId);
     void onUserToSetCardColors();
     void onBackgroundClicked();
-    void onUserToZoomInOut(const bool zoomIn);
 
     //
 
@@ -106,6 +107,8 @@ private:
     //! Call this whenever graphicsView is resized, or graphics items are added/moved/removed.
     //!
     void adjustSceneRect();
+
+    void doApplyZoomAction(const ZoomAction zoomAction);
 
     //
     class NodeRectsCollection
