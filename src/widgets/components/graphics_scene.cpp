@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QDebug>
 #include <QGraphicsSceneMouseEvent>
+#include <QGraphicsSceneWheelEvent>
 #include <QGraphicsView>
 #include <QKeyEvent>
 #include <QTimer>
@@ -8,7 +9,13 @@
 #include "utilities/numbers_util.h"
 
 GraphicsScene::GraphicsScene(QObject *parent)
-        : QGraphicsScene(parent) {
+        : QGraphicsScene(parent)
+        , timerResetAccumulatedWheelDelta(new QTimer(this)) {
+    timerResetAccumulatedWheelDelta->setInterval(200);
+    timerResetAccumulatedWheelDelta->setSingleShot(true);
+    connect(timerResetAccumulatedWheelDelta, &QTimer::timeout, this, [this]() {
+        accumulatedWheelDelta = 0;
+    });
 }
 
 void GraphicsScene::keyPressEvent(QKeyEvent *event) {
@@ -223,6 +230,35 @@ void GraphicsScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
     Q_ASSERT(false); // case not implemented
 }
 
+void GraphicsScene::wheelEvent(QGraphicsSceneWheelEvent *event) {
+    if (event->modifiers() == Qt::ControlModifier) {
+        if (event->delta() == 0)
+            return;
+
+        timerResetAccumulatedWheelDelta->start();
+
+        //
+        const int delta = discretizeWheelDelta(event->delta());
+                // the absolute value of `delta` is a divisor of 120
+        accumulatedWheelDelta += delta;
+
+        if (accumulatedWheelDelta >= 120) {
+            accumulatedWheelDelta -= 120;
+            emit userToZoomInOut(true);
+        }
+        else if (accumulatedWheelDelta <= -120) {
+            accumulatedWheelDelta += 120;
+            emit userToZoomInOut(false);
+        }
+
+        //
+        event->accept();
+        return;
+    }
+
+    QGraphicsScene::wheelEvent(event);
+}
+
 void GraphicsScene::focusOutEvent(QFocusEvent *event) {
     switch (state) {
     case State::Normal: [[fallthrough]];
@@ -303,4 +339,25 @@ QPointF GraphicsScene::getViewCenterInScene() const {
     if (view == nullptr)
         return {0.0, 0.0};
     return view->mapToScene(view->viewport()->width() / 2, view->viewport()->height() / 2);
+}
+
+int GraphicsScene::discretizeWheelDelta(const int delta) {
+    if (delta >= 90)
+        return 120;
+    else if (delta <= -90)
+        return -120;
+    else if (delta >= 45)
+        return 60;
+    else if (delta <= -45)
+        return -60;
+    else if (delta >= 20)
+        return 30;
+    else if (delta <= -20)
+        return -30;
+    else if (delta >= 5)
+        return 10;
+    else if (delta <= -5)
+        return -10;
+    else // (delta is within [-4, 4])
+        return delta;
 }

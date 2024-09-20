@@ -13,6 +13,7 @@
 #include "utilities/lists_vectors_util.h"
 #include "utilities/maps_util.h"
 #include "utilities/message_box.h"
+#include "utilities/numbers_util.h"
 #include "utilities/periodic_checker.h"
 #include "utilities/strings_util.h"
 #include "widgets/board_view_toolbar.h"
@@ -264,9 +265,14 @@ void BoardView::setUpWidgets() {
         layout->addWidget(graphicsView);
     }
 
-    // set up `graphicsView`
+    // set up `graphicsScene`, & `canvas`
     graphicsScene = new GraphicsScene(this);
     graphicsScene->setBackgroundBrush(sceneBackgroundColor);
+
+    canvas = new QGraphicsRectItem;
+    graphicsScene->addItem(canvas);
+
+    // set up `graphicsView`
     graphicsView->setScene(graphicsScene);
 
     graphicsView->setRenderHint(QPainter::Antialiasing, true);
@@ -309,6 +315,10 @@ void BoardView::setUpConnections() {
 
     connect(graphicsScene, &GraphicsScene::clickedOnBackground, this, [this]() {
         onBackgroundClicked();
+    });
+
+    connect(graphicsScene, &GraphicsScene::userToZoomInOut, this, [this](bool zoomIn) {
+        onUserToZoomInOut(zoomIn);
     });
 
     //
@@ -891,6 +901,17 @@ void BoardView::onBackgroundClicked() {
     }
 }
 
+void BoardView::onUserToZoomInOut(const bool zoomIn) {
+    qDebug() << "zoom" << (zoomIn ? "in" : "out");
+
+//    const double oldScale = canvas->scale();
+//    const int oldZoomLevel = nearestInteger((oldScale - 1.0) / 0.1);
+
+//    const int zoomLevel = oldZoomLevel + nearestInteger(wheelDelta / 120.0);
+//    const double scaleFactor = 1.0 + (wheelDelta / 120.0) * 0.1;
+
+}
+
 void BoardView::closeAllCards(bool *highlightedCardIdChanged_) {
     *highlightedCardIdChanged_ = false;
 
@@ -925,7 +946,7 @@ void BoardView::adjustSceneRect() {
 
     //
     const auto sceneRect
-            = contentsRect.marginsAdded(QMarginsF(marginX, marginY,marginX, marginY));
+            = contentsRect.marginsAdded(QMarginsF(marginX, marginY, marginX, marginY));
     graphicsView->setSceneRect(sceneRect);
 }
 
@@ -983,10 +1004,10 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         const QStringList &userLabelsList) {
     Q_ASSERT(!cardIdToNodeRect.contains(cardId));
 
-    auto *nodeRect = new NodeRect(cardId);
+    auto *nodeRect = new NodeRect(cardId, boardView->canvas);
     cardIdToNodeRect.insert(cardId, nodeRect);
     cardIdToNodeRectOwnColor.insert(cardId, nodeRectOwnColor);
-    boardView->graphicsScene->addItem(nodeRect);
+//    boardView->graphicsScene->addItem(nodeRect);
     nodeRect->setZValue(zValueForNodeRects);
     nodeRect->initialize();
 
@@ -1179,11 +1200,11 @@ EdgeArrow *BoardView::EdgeArrowsCollection::createEdgeArrow(
     Q_ASSERT(boardView->nodeRectsCollection.contains(relId.startCardId));
     Q_ASSERT(boardView->nodeRectsCollection.contains(relId.endCardId));
 
-    auto *edgeArrow = new EdgeArrow(relId);
+    auto *edgeArrow = new EdgeArrow(relId, boardView->canvas);
     relIdToEdgeArrow.insert(relId, edgeArrow);
     cardIdPairToParallelRels[QSet<int> {relId.startCardId, relId.endCardId}] << relId;
 
-    boardView->graphicsScene->addItem(edgeArrow);
+//    boardView->graphicsScene->addItem(edgeArrow);
     edgeArrow->setZValue(zValueForEdgeArrows);
 
     constexpr bool updateOtherEdgeArrows = true;

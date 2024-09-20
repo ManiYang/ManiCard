@@ -70,6 +70,7 @@ private:
     BoardViewToolBar *toolBar {nullptr};
     QGraphicsView *graphicsView {nullptr};
     GraphicsScene *graphicsScene {nullptr};
+    QGraphicsRectItem *canvas {nullptr}; // draw everything on this
 
     struct ContextMenuData
     {
@@ -92,6 +93,7 @@ private:
     void onUserToCloseNodeRect(const int cardId);
     void onUserToSetCardColors();
     void onBackgroundClicked();
+    void onUserToZoomInOut(const bool zoomIn);
 
     //
 
@@ -112,7 +114,7 @@ private:
         explicit NodeRectsCollection(BoardView *boardView_) : boardView(boardView_) {}
 
         //!
-        //! The returned NodeRect is already added to the scene.
+        //! The returned NodeRect is already added to canvas.
         //!
         NodeRect *createNodeRect(
                 const int cardId, const Card &cardData, const QRectF &rect,

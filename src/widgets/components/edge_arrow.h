@@ -10,7 +10,7 @@
 class EdgeArrow : public QGraphicsItem
 {
 public:
-    explicit EdgeArrow(const RelationshipId &relId_);
+    explicit EdgeArrow(const RelationshipId &relId_, QGraphicsItem *parent = nullptr);
 
     //
     void setStartEndPoint(const QPointF &startPoint, const QPointF &endPoint);

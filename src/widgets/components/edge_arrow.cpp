@@ -1,8 +1,9 @@
 #include <QPen>
 #include "edge_arrow.h"
 
-EdgeArrow::EdgeArrow(const RelationshipId &relId_)
-        : relId(relId_)
+EdgeArrow::EdgeArrow(const RelationshipId &relId_, QGraphicsItem *parent)
+        : QGraphicsItem(parent)
+        , relId(relId_)
         , lineItem(new QGraphicsLineItem(this))
         , labelItem(new QGraphicsSimpleTextItem(this))
         , arrowHeadItem(new QGraphicsPolygonItem(this)) {
