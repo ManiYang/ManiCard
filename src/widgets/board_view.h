@@ -108,7 +108,11 @@ private:
     //!
     void adjustSceneRect();
 
-    void doApplyZoomAction(const ZoomAction zoomAction);
+    //!
+    //! \param zoomAction
+    //! \param anchorScenePos: a point on the canvas at this position will be kept stationary
+    //!
+    void doApplyZoomAction(const ZoomAction zoomAction, const QPointF &anchorScenePos);
 
     //
     class NodeRectsCollection
@@ -194,8 +198,10 @@ private:
     EdgeArrowsCollection edgeArrowsCollection {this};
 
     // tools
-    QPoint getScreenPosFromScenePos(const QPointF &scenePos);
+    QPoint getScreenPosFromScenePos(const QPointF &scenePos) const;
+    QPointF getViewCenterInScene() const;
     void setViewTopLeftPos(const QPointF &scenePos);
+    void moveSceneRelativeToView(const QPointF &displacement); // displacement: in pixel
 
     static QColor computeNodeRectDisplayColor(
             const QColor &nodeRectOwnColor,

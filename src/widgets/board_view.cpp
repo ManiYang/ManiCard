@@ -228,7 +228,8 @@ void BoardView::showButtonRightSidebar() {
 }
 
 void BoardView::applyZoomAction(const ZoomAction zoomAction) {
-    doApplyZoomAction(zoomAction);
+    const auto anchorScenePos = getViewCenterInScene();
+    doApplyZoomAction(zoomAction, anchorScenePos);
 }
 
 int BoardView::getBoardId() const {
@@ -323,8 +324,11 @@ void BoardView::setUpConnections() {
         onBackgroundClicked();
     });
 
-    connect(graphicsScene, &GraphicsScene::userToZoomInOut, this, [this](bool zoomIn) {
-        doApplyZoomAction(zoomIn ? ZoomAction::ZoomIn : ZoomAction::ZoomOut);
+    connect(graphicsScene, &GraphicsScene::userToZoomInOut,
+            this, [this](bool zoomIn, const QPointF &anchorScenePos) {
+        doApplyZoomAction(
+                zoomIn ? ZoomAction::ZoomIn : ZoomAction::ZoomOut,
+                anchorScenePos);
     });
 
     //
@@ -951,7 +955,9 @@ void BoardView::adjustSceneRect() {
     graphicsView->setSceneRect(sceneRect);
 }
 
-void BoardView::doApplyZoomAction(const ZoomAction zoomAction) {
+void BoardView::doApplyZoomAction(const ZoomAction zoomAction, const QPointF &anchorScenePos) {
+    const QPointF anchorPosInCanvas = canvas->mapFromScene(anchorScenePos);
+
     if (zoomAction == ZoomAction::ResetZoom) {
         canvas->setScale(1.0);
     }
@@ -970,20 +976,37 @@ void BoardView::doApplyZoomAction(const ZoomAction zoomAction) {
         canvas->setScale(scale);
     }
 
+    // adjust scene center
+    const QPointF driftedAnchorPosInScene = canvas->mapToScene(anchorPosInCanvas);
+    const auto displacementToApply = anchorScenePos - driftedAnchorPosInScene;
+    moveSceneRelativeToView(displacementToApply);
+
     //
     adjustSceneRect();
 }
 
-QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) {
+QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) const {
 
     QPoint posInViewport = graphicsView->mapFromScene(scenePos);
     return graphicsView->viewport()->mapToGlobal(posInViewport);
+}
+
+QPointF BoardView::getViewCenterInScene() const {
+    return graphicsView->mapToScene(
+            graphicsView->viewport()->width() / 2,
+            graphicsView->viewport()->height() / 2);
 }
 
 void BoardView::setViewTopLeftPos(const QPointF &scenePos) {
     const double centerX = scenePos.x() + graphicsView->viewport()->width() * 0.5;
     const double centerY = scenePos.y() + graphicsView->viewport()->height() * 0.5;
     graphicsView->centerOn(centerX, centerY);
+}
+
+void BoardView::moveSceneRelativeToView(const QPointF &displacement) {
+    const auto viewCenter = getViewCenterInScene();
+    const auto newViewCenter = viewCenter - displacement;
+    graphicsView->centerOn(newViewCenter);
 }
 
 QColor BoardView::computeNodeRectDisplayColor(

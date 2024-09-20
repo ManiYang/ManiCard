@@ -18,7 +18,7 @@ signals:
     void dragScrollingEnded();
     void contextMenuRequestedOnScene(const QPointF &scenePos);
     void clickedOnBackground();
-    void userToZoomInOut(bool zoomIn);
+    void userToZoomInOut(bool zoomIn, const QPointF &anchorScenePos);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;

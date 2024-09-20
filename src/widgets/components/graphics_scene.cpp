@@ -244,11 +244,11 @@ void GraphicsScene::wheelEvent(QGraphicsSceneWheelEvent *event) {
 
         if (accumulatedWheelDelta >= 120) {
             accumulatedWheelDelta -= 120;
-            emit userToZoomInOut(true);
+            emit userToZoomInOut(true, event->scenePos());
         }
         else if (accumulatedWheelDelta <= -120) {
             accumulatedWheelDelta += 120;
-            emit userToZoomInOut(false);
+            emit userToZoomInOut(false, event->scenePos());
         }
 
         //
