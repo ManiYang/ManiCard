@@ -42,6 +42,8 @@ private:
     void addRowToLabelColorAssociationTable(const QString &label, const QColor &color);
     void swapRows(const int row1, const int row2); // precedence cells are not swapped
     void updatePrecedenceNumbers();
+    void validateLabels();
+
     void setDefaultColor(const QColor &color);
 
     //!

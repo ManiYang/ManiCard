@@ -1,10 +1,13 @@
+#include <QAbstractItemModel>
 #include <QColorDialog>
 #include <QFont>
 #include <QMessageBox>
 #include <QPainter>
+#include <QRegularExpression>
 #include <QTableWidgetItem>
 #include "dialog_board_card_colors.h"
 #include "ui_dialog_board_card_colors.h"
+#include "utilities/naming_rules.h"
 
 namespace {
 enum class Column {Label=0, Color, Precedence};
@@ -22,6 +25,8 @@ DialogBoardCardColors::DialogBoardCardColors(
 
     setUpWidgets(boardName, cardLabelsAndAssociatedColors, defaultNodeRectColor);
     setUpConnections();
+
+    validateLabels();
 }
 
 DialogBoardCardColors::~DialogBoardCardColors() {
@@ -73,6 +78,10 @@ void DialogBoardCardColors::setUpWidgets(
     }
     updatePrecedenceNumbers();
 
+    //
+    ui->labelWarningMsg->setVisible(false);
+    ui->labelWarningMsg->setWordWrap(true);
+
     // default color
     setDefaultColor(defaultNodeRectColor);
 
@@ -91,6 +100,8 @@ void DialogBoardCardColors::setUpWidgets(
     ui->buttonDown->setEnabled(false);
 
     //
+    ui->labelWarningMsg->setStyleSheet("color: red;");
+
     ui->tableWidget->setStyleSheet(
             "QHeaderView::section {"
             "  font-weight: bold;"
@@ -99,7 +110,7 @@ void DialogBoardCardColors::setUpWidgets(
             "}"
             "QTableWidget::item:selected {"
             "  color: black;"
-            "  background-color: #d8d8d8;"
+            "  background-color: #d0d0d0;"
             "}");
 }
 
@@ -120,6 +131,12 @@ void DialogBoardCardColors::setUpConnections() {
         }
     });
 
+    connect(ui->tableWidget->itemDelegate(), &QAbstractItemDelegate::commitData,
+            this, [this](QWidget */*editor*/) {
+        // (cell editing finished)
+        validateLabels();
+    });
+
     // buttons
     connect(ui->buttonAdd, &QPushButton::clicked, this, [this]() {
         addRowToLabelColorAssociationTable("Enter Label", QColor(170, 170, 170));
@@ -127,6 +144,7 @@ void DialogBoardCardColors::setUpConnections() {
 
         const int addedRow = ui->tableWidget->rowCount() - 1;
         ui->tableWidget->editItem(ui->tableWidget->item(addedRow, int(Column::Label)));
+        validateLabels();
     });
 
     connect(ui->buttonPickColor, &QPushButton::clicked, this, [this]() {
@@ -213,6 +231,7 @@ void DialogBoardCardColors::onUserToRemoveRow(const int row, const QString &card
     //
     ui->tableWidget->removeRow(row);
     updatePrecedenceNumbers();
+    validateLabels();
 }
 
 void DialogBoardCardColors::addRowToLabelColorAssociationTable(
@@ -289,6 +308,52 @@ void DialogBoardCardColors::updatePrecedenceNumbers() {
     for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
         const QString text = (row == 0) ? "1 (highest)" : QString::number(row + 1);
         ui->tableWidget->item(row, int(Column::Precedence))->setText(text);
+    }
+}
+
+void DialogBoardCardColors::validateLabels() {
+    static const QRegularExpression re(regexPatternForCardLabelName);
+
+    // check each label is valid
+    QStringList allLabels;
+    QString errorMsg;
+    for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
+        const QString label = ui->tableWidget->item(row, int(Column::Label))->text().trimmed();
+
+        if (label.isEmpty()) {
+            errorMsg = "Label cannot be empty.";
+            break;
+        }
+
+        if (label == "Card") {
+            errorMsg = "Label cannot be \"Card\".";
+            break;
+        }
+
+        if (!re.match(label).hasMatch()) {
+            errorMsg = QString("Label \"%1\" does not satisfy the naming rule.").arg(label);
+            break;
+        }
+
+        allLabels << label;
+    }
+
+    // check no duplicated labels
+    if (errorMsg.isEmpty()) {
+        const QSet<QString> set(allLabels.constBegin(), allLabels.constEnd());
+        if (allLabels.count() != set.count())
+            errorMsg = "There is duplicated label.";
+    }
+
+    //
+    if (!errorMsg.isEmpty()) {
+        ui->labelWarningMsg->setText(errorMsg);
+        ui->labelWarningMsg->setVisible(true);
+        ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
+    }
+    else {
+        ui->labelWarningMsg->setVisible(false);
+        ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(true);
     }
 }
 

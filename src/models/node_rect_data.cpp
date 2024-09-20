@@ -7,8 +7,8 @@ QJsonObject NodeRectData::toJson() const {
 
     obj.insert("rect", QJsonArray {rect.left(), rect.top(), rect.width(), rect.height()});
 
-    if (color.isValid())
-        obj.insert("color", color.name(QColor::HexRgb));
+    if (ownColor.isValid())
+        obj.insert("ownColor", ownColor.name(QColor::HexRgb));
 
     return obj;
 }
@@ -27,7 +27,7 @@ std::optional<NodeRectData> NodeRectData::fromJson(const QJsonObject &obj) {
     data.rect = QRectF(
             rectLeftTopWidthHeight.at(0), rectLeftTopWidthHeight.at(1),
             rectLeftTopWidthHeight.at(2), rectLeftTopWidthHeight.at(3));
-    data.color = QColor(obj.value("color").toString()); // invalid color if key not found
+    data.ownColor = QColor(obj.value("ownColor").toString()); // invalid color if key not found
 
     return data;
 }
@@ -38,7 +38,7 @@ void NodeRectData::update(const NodeRectDataUpdate &update) {
             this->member = update.member.value();
 
     UPDATE_PROPERTY(rect);
-    UPDATE_PROPERTY(color);
+    UPDATE_PROPERTY(ownColor);
 
 #undef UPDATE_PROPERTY
 }
@@ -58,8 +58,8 @@ QJsonObject NodeRectDataUpdate::toJson() const {
         );
     }
 
-    if (color.has_value() && color.value().isValid())
-        obj.insert("color", color.value().name(QColor::HexRgb));
+    if (ownColor.has_value() && ownColor.value().isValid())
+        obj.insert("ownColor", ownColor.value().name(QColor::HexRgb));
 
     return obj;
 }

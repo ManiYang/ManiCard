@@ -115,8 +115,8 @@ private:
         //! The returned NodeRect is already added to the scene.
         //!
         NodeRect *createNodeRect(
-                const int cardId, const Card &cardData,
-                const QRectF &rect, const QColor &color,
+                const int cardId, const Card &cardData, const QRectF &rect,
+                const QColor &displayColor, const QColor &nodeRectOwnColor,
                 const QStringList &userLabelsList);
 
         //!
@@ -140,10 +140,12 @@ private:
         NodeRect *get(const int cardId) const;
         QSet<int> getAllCardIds() const;
         QSet<NodeRect *> getAllNodeRects() const;
+        QColor getNodeRectOwnColor(const int cardId) const;
 
     private:
         BoardView *boardView;
         QHash<int, NodeRect *> cardIdToNodeRect;
+        QHash<int, QColor> cardIdToNodeRectOwnColor;
         int highlightedCardId {-1};
     };
     NodeRectsCollection nodeRectsCollection {this};
@@ -190,8 +192,8 @@ private:
     QPoint getScreenPosFromScenePos(const QPointF &scenePos);
     void setViewTopLeftPos(const QPointF &scenePos);
 
-    static QColor computeNodeRectColor(
-            const QColor &nodeRectColor,
+    static QColor computeNodeRectDisplayColor(
+            const QColor &nodeRectOwnColor,
             const QSet<QString> &cardLabels,
             const QVector<Board::LabelAndColor> &cardLabelsAndAssociatedColors,
             const QColor &boardDefaultColor);

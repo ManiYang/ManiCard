@@ -11,7 +11,7 @@ struct NodeRectDataUpdate;
 struct NodeRectData
 {
     QRectF rect;
-    QColor color;
+    QColor ownColor;
 
     QJsonObject toJson() const;
     static std::optional<NodeRectData> fromJson(const QJsonObject &obj);
@@ -22,7 +22,7 @@ struct NodeRectData
 struct NodeRectDataUpdate
 {
     std::optional<QRectF> rect;
-    std::optional<QColor> color;
+    std::optional<QColor> ownColor;
 
     QJsonObject toJson() const;
     QSet<QString> keys() const;

@@ -63,7 +63,8 @@ private:
 
 
 //!
-//! Clears the selection when focused-out.
+//! - When texts are pasted, they are inserted as plain texts.
+//! - Clears the selection when focused-out.
 //!
 class TextEditTweak : public QTextEdit
 {
@@ -81,6 +82,8 @@ protected:
     void focusInEvent(QFocusEvent *event) override;
     void focusOutEvent(QFocusEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+
+    void insertFromMimeData(const QMimeData *source) override;
 
 private:
     bool acceptEveryWheelEvent;

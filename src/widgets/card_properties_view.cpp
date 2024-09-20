@@ -187,7 +187,6 @@ void CardPropertiesView::loadCard(const int cardIdToLoad) {
         checkBoxEdit->setChecked(false);
     }
 
-    checkBoxEdit->setVisible(false);
     buttonNewProperty->setVisible(false);
     labelLoadingMsg->setVisible(false);
 

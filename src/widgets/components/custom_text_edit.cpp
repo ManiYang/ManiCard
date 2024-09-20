@@ -1,5 +1,6 @@
 #include <QDebug>
 #include <QKeyEvent>
+#include <QMimeData>
 #include <QTextCursor>
 #include <QVBoxLayout>
 #include <QWheelEvent>
@@ -145,4 +146,11 @@ void TextEditTweak::mouseReleaseEvent(QMouseEvent *event) {
 
     if (event->button() == Qt::LeftButton)
         emit mouseReleased();
+}
+
+void TextEditTweak::insertFromMimeData(const QMimeData *source) {
+    if (source->hasText())
+        QTextEdit::insertPlainText(source->text());
+    else
+        QTextEdit::insertFromMimeData(source);
 }

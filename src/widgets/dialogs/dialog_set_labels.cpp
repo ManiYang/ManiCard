@@ -76,10 +76,6 @@ void DialogSetLabels::setUpConnections() {
         }
 
         //
-        newLabel = newLabel.toLower();
-        newLabel[0] = newLabel[0].toUpper();
-
-        //
         addLabelToCurrentCardLabels(newLabel);
         updateLabelsList(getCurrentCardLabels());
         ui->lineEdit->clear();
