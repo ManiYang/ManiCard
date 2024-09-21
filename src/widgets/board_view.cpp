@@ -934,8 +934,6 @@ void BoardView::closeAllCards(bool *highlightedCardIdChanged_) {
 }
 
 void BoardView::adjustSceneRect() {
-    qDebug() << "adjustSceneRect()";
-
     QGraphicsScene *scene = graphicsView->scene();
     if (scene == nullptr)
         return;

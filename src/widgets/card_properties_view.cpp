@@ -406,7 +406,8 @@ void CardPropertiesView::CustomPropertiesArea::addProperty(
 
     // create widgets, put them in a grid layout, and insert the grid layout to `vBoxLayout`
     // -- label
-    auto *label = new QLabel(QString("%1:").arg(propertyName));
+    auto *label = new QLabel(QString("%1").arg(propertyName));
+    label->setTextInteractionFlags(Qt::TextSelectableByMouse);
     label->setStyleSheet(
             "QLabel {"
             "  margin-top: 4px;"

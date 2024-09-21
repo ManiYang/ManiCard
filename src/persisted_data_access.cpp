@@ -52,6 +52,12 @@ void PersistedDataAccess::queryCards(
     const QSet<int> cardsToQuery = cardIds - keySet(routine->cardsResult);
 
     routine->addStep([this, cardsToQuery, routine]() {
+        if (cardsToQuery.isEmpty()) {
+            routine->dbQueryOk = true;
+            routine->nextStep();
+            return;
+        }
+
         debouncedDbAccess->queryCards(
                 cardsToQuery,
                 // callback:
