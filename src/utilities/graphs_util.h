@@ -19,4 +19,5 @@ std::vector<int> topologicalSort(
 
 QVector<int> topologicalSort(const QHash<int, QSet<int>> &nodeToDependencies);
 
+
 #endif // GRAPHS_UTIL_H

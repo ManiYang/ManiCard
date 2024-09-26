@@ -5,7 +5,7 @@
 
 std::vector<int> topologicalSort(
         const std::unordered_map<int, std::unordered_set<int>> &nodeToDependencies) {
-    using Graph = boost::adjacency_list<boost::listS, boost::vecS, boost::bidirectionalS>;
+    using Graph = boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS>;
     using Vertex = boost::graph_traits<Graph>::vertex_descriptor;
 
     Graph graph;

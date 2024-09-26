@@ -6,7 +6,7 @@ void example() {
     propagator
             .addFreeVar(Var::A, 123)
             .addFreeVar(Var::B, BType{4.56})
-            .addDependentVar([](VariablesUpdatePropagator<Var>::VariablesAccess &varsAccess) {
+            .addDependentVar([](VariablesAccess<Var> &varsAccess) {
                 const int a = varsAccess.getInputValue(Var::A).toInt();
                 const BType b = varsAccess.getInputValue(Var::B).value<BType>();
 

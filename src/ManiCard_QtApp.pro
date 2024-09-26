@@ -31,6 +31,7 @@ SOURCES += \
     utilities/action_debouncer.cpp \
     utilities/app_instances_shared_memory.cpp \
     utilities/async_routine.cpp \
+    utilities/directed_graph.cpp \
     utilities/geometry_util.cpp \
     utilities/graphs_util.cpp \
     utilities/json_util.cpp \
@@ -90,6 +91,7 @@ HEADERS += \
     utilities/app_instances_shared_memory.h \
     utilities/async_routine.h \
     utilities/binary_search.h \
+    utilities/directed_graph.h \
     utilities/functor.h \
     utilities/geometry_util.h \
     utilities/graphs_util.h \
