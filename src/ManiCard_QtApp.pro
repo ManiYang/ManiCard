@@ -32,6 +32,7 @@ SOURCES += \
     utilities/app_instances_shared_memory.cpp \
     utilities/async_routine.cpp \
     utilities/geometry_util.cpp \
+    utilities/graphs_util.cpp \
     utilities/json_util.cpp \
     utilities/logging.cpp \
     utilities/message_box.cpp \
@@ -91,6 +92,7 @@ HEADERS += \
     utilities/binary_search.h \
     utilities/functor.h \
     utilities/geometry_util.h \
+    utilities/graphs_util.h \
     utilities/hash.h \
     utilities/json_util.h \
     utilities/lists_vectors_util.h \
@@ -148,3 +150,5 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 
 DEFINES += QT_MESSAGELOGCONTEXT
+
+include(boost_dependency.pri)
