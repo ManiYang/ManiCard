@@ -33,7 +33,6 @@ SOURCES += \
     utilities/async_routine.cpp \
     utilities/directed_graph.cpp \
     utilities/geometry_util.cpp \
-    utilities/graphs_util.cpp \
     utilities/json_util.cpp \
     utilities/logging.cpp \
     utilities/message_box.cpp \
@@ -94,7 +93,6 @@ HEADERS += \
     utilities/directed_graph.h \
     utilities/functor.h \
     utilities/geometry_util.h \
-    utilities/graphs_util.h \
     utilities/hash.h \
     utilities/json_util.h \
     utilities/lists_vectors_util.h \

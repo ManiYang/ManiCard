@@ -22,4 +22,8 @@ void example() {
                 varsAccess.setOutputValue(x);
             })
             .initialize();
+
+    propagator
+            .addUpdate(Var::A, 789)
+            .compute();
 }

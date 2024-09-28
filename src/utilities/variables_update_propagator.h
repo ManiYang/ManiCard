@@ -6,7 +6,9 @@
 #include <QDebug>
 #include <QHash>
 #include <QVariant>
-#include "utilities/graphs_util.h"
+#include "utilities/directed_graph.h"
+#include "utilities/lists_vectors_util.h"
+#include "utilities/maps_util.h"
 
 /**
  * todo:
@@ -16,7 +18,7 @@
  */
 
 
-
+//==== example ====
 enum class Var {A, B, X};
 
 inline QString getVarName(const Var var) { // mainly for debugging
@@ -29,15 +31,20 @@ inline QString getVarName(const Var var) { // mainly for debugging
     return "";
 }
 
-inline uint qHash(Var var, uint seed) {
-   return ::qHash(static_cast<int>(var), seed);
+inline uint qHash(const Var &var, uint seed) {
+   return qHash(static_cast<int>(var), seed);
 }
 
-//====
+//inline uint qHash(const QSet<Var> &varSet, uint seed) {
+//    QSet<int> intSet;
+//    for (Var v: varSet)
+//        intSet << static_cast<int>(v);
+//    return qHash(intSet, seed);
+//}
 
 struct BType
 {
-    BType();
+    BType() {}
     BType(const double &v_) : v(v_) {}
     double value() const { return v; }
 private:
@@ -45,6 +52,9 @@ private:
 };
 
 Q_DECLARE_METATYPE(BType);
+//==== END example ====
+
+
 
 //========
 
@@ -107,7 +117,7 @@ public:
 
 
 public:
-    explicit VariablesUpdatePropagator() : variablesAccess(&values) {}
+    explicit VariablesUpdatePropagator() {}
 
     // ==== initialization ====
 
@@ -211,23 +221,29 @@ public:
             return;
         }
 
-        // find a topological order
-        {
-            QHash<int, QSet<int>> nodeIdToDependencies;
-            for (auto it = dependencies.constBegin(); it != dependencies.constEnd(); ++it) {
-                const QSet<VarEnum> &varSet = it.value();
-                QSet<int> set;
-                for (const VarEnum var: varSet)
-                    set << static_cast<int>(var);
-                nodeIdToDependencies.insert(static_cast<int>(it.key()), set);
-            }
-            const QVector<int> sortedVars = topologicalSort(nodeIdToDependencies);
+        initializeOk = true; // can be set to false in following steps
 
-            dependentVarsInTopologicalOrder.clear();
-            dependentVarsInTopologicalOrder.reserve(sortedVars.count());
-            for (const int varInt: sortedVars) {
-                const VarEnum var = static_cast<VarEnum>(varInt);
-                if (functions.contains(var))
+        // create graph
+        for (auto it = dependencies.constBegin(); it != dependencies.constEnd(); ++it) {
+            VarEnum dependentVar = it.key();
+            const QSet<VarEnum> &varSet = it.value();
+            for (const VarEnum var: varSet)
+                graph.addEdge(var, dependentVar);
+        }
+
+        // find a topological order
+        const QSet<VarEnum> allVars = keySet(dependencies) | freeVariables;
+        {
+            const std::vector<VarEnum> sortedVars = graph.topologicalOrder(); // empty if failed
+            if (!allVars.isEmpty() && sortedVars.empty()) {
+                qWarning().noquote() << "the dependency graph is cyclic";
+                Q_ASSERT(false);
+                initializeOk = false;
+            }
+
+            dependentVarsInTopologicalOrder.reserve(sortedVars.size());
+            for (const VarEnum var: sortedVars) {
+                if (dependencies.contains(var))
                     dependentVarsInTopologicalOrder << var;
             }
         }
@@ -239,32 +255,63 @@ public:
         // compute initial values of dependent variables
         for (const VarEnum var: dependentVarsInTopologicalOrder)
             functions[var](variablesAccess);
+
+        if (initializeOk)
+            Q_ASSERT(keySet(values) == allVars); // check that every variable has been initialized
     }
 
     // ==== get ====
     bool hasVar(const VarEnum var) const {
+        Q_ASSERT(isInitialized); // must call initialize() beforehand
         return values.contains(var);
     }
 
     template <typename ValueType>
     ValueType getValue(const VarEnum var) {
+        Q_ASSERT(isInitialized); // must call initialize() beforehand
+        if (!initializeOk) {
+            qWarning().noquote() << "initialization was not successful";
+            return ValueType();
+        }
+
         Q_ASSERT(values.contains(var));
         return values[var].template value<ValueType>();
     }
 
     template <typename ValueType>
     QVariant getValueAsVariant(const VarEnum var) {
+        Q_ASSERT(isInitialized); // must call initialize() beforehand
+        if (!initializeOk) {
+            qWarning().noquote() << "initialization was not successful";
+            return {};
+        }
+
         Q_ASSERT(values.contains(var));
         return values[var];
     }
 
     // ==== update ====
 
+    //!
+    //! \param var: must be a free variable
+    //! \param updatedValue
+    //!
     template <typename ValueType>
-    VariablesUpdatePropagator &addUpdate(const VarEnum var, const ValueType &updatedValue) {
-        Q_ASSERT(isInitialized);
-        Q_ASSERT(values.contains(var));
-        updatedVars.insert(var, QVariant::fromValue<ValueType>(updatedValue));
+    VariablesUpdatePropagator &addUpdate(const VarEnum freeVar, const ValueType &updatedValue) {
+        Q_ASSERT(isInitialized); // must call initialize() beforehand
+        if (!initializeOk) {
+            qWarning().noquote() << "initialization was not successful";
+            return *this;
+        }
+
+        if (!freeVariables.contains(freeVar)) {
+            qWarning().noquote()
+                    << QString("%1 is not a free variable").arg(getVarName(freeVar));
+            Q_ASSERT(false);
+            return *this;
+        }
+
+        updatedFreeVarToValue.insert(freeVar, QVariant::fromValue<ValueType>(updatedValue));
         return *this;
     }
 
@@ -272,17 +319,51 @@ public:
     //! \return updated variables
     //!
     QSet<VarEnum> compute() {
-        Q_ASSERT(isInitialized);
+        Q_ASSERT(isInitialized); // must call initialize() beforehand
+        if (!initializeOk) {
+            qWarning().noquote() << "initialization was not successful";
+            return {};
+        }
 
+        const QSet<VarEnum> updatedFreeVarsSet = keySet(updatedFreeVarToValue);
+        if (!updatedFreeVarsToAffectedDependentVars.contains(updatedFreeVarsSet)) {
+            // find the affected dependent vars
+            QSet<VarEnum> affectedVarsSet;
+            for (const auto var: updatedFreeVarsSet) {
+                std::vector<VarEnum> visitedVars = graph.breadthFirstSearch(var);
+                QSet<VarEnum> visitedDependentVars
+                        = QSet<VarEnum>(visitedVars.cbegin(), visitedVars.cend())
+                          & keySet(dependencies);
 
+                affectedVarsSet |= visitedDependentVars;
+            }
 
+            const QVector<VarEnum> affectedVarsSorted = sortByOrdering(
+                    affectedVarsSet, dependentVarsInTopologicalOrder, false);
+
+            updatedFreeVarsToAffectedDependentVars.insert(
+                    updatedFreeVarsSet, affectedVarsSorted);
+        }
 
         //
-        updatedVars.clear();
+        const QVector<VarEnum> varsToCompute
+                = updatedFreeVarsToAffectedDependentVars.value(updatedFreeVarsSet);
+        for (const auto var: varsToCompute) {
+            if (!functions.contains(var)) {
+                qWarning().noquote() << QString("`functions[%1]` not found").arg(getVarName(var));
+                continue;
+            }
+            functions.value(var)(variablesAccess);
+        }
+
+        //
+        updatedFreeVarToValue.clear();
+        return QSet<VarEnum>(varsToCompute.constBegin(), varsToCompute.constEnd());
     }
 
 private:
-    bool isInitialized {false};
+    bool isInitialized {false}; // has initialize() been called?
+    bool initializeOk {true}; // is initialization successful?
 
     QSet<VarEnum> freeVariables; // populated during initialization
 
@@ -291,12 +372,42 @@ private:
             // - keys are the dependent variables
             // - populated during initialization
 
+    DirectedGraphWithVertexEnum<VarEnum> graph;
+            // - an edge from A to B means that B depends on A
+            // - set in initialize()
+    QVector<VarEnum> dependentVarsInTopologicalOrder; // set in initialize()
+
     QHash<VarEnum, QVariant> values; // keys are all variables
-    QVector<VarEnum> dependentVarsInTopologicalOrder;
+    VariablesAccess<VarEnum> variablesAccess {&values};
+    QHash<VarEnum, QVariant> updatedFreeVarToValue; // populated in addUpdate(), cleared in compute()
 
-    VariablesAccess<VarEnum> variablesAccess;
+    template <typename ValueType>
+    struct HashMapWithVarSetAsKey
+    {
+        // purpose of this struct is to avoid the need of defining `qHash(QSet<VarEnum> s)`
 
-    QHash<VarEnum, QVariant> updatedVars; // populated in addUpdate(), cleared in compute()
+        bool contains(const QSet<VarEnum> &varSet) const {
+            return map.contains(toIntSet(varSet));
+        }
+        void insert(const QSet<VarEnum> &varSet, const ValueType &value) {
+            map.insert(toIntSet(varSet), value);
+        }
+        ValueType value(const QSet<VarEnum> &varSet) const {
+            return map.value(toIntSet(varSet));
+        }
+    private:
+        QHash<QSet<int>, ValueType> map;
+
+        static QSet<int> toIntSet(const QSet<VarEnum> &varSet) {
+            QSet<int> intSet;
+            for (const VarEnum var: varSet)
+                intSet << static_cast<int>(var);
+            return intSet;
+        }
+    };
+    HashMapWithVarSetAsKey<QVector<VarEnum>> updatedFreeVarsToAffectedDependentVars;
+            // - values are in topological order
+            // - populated and used in compute(), as a cache
 };
 
 #endif // VARIABLES_UPDATE_PROPAGATOR_H
