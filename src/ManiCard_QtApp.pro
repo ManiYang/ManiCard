@@ -39,7 +39,6 @@ SOURCES += \
     utilities/periodic_checker.cpp \
     utilities/periodic_timer.cpp \
     utilities/strings_util.cpp \
-    utilities/variables_update_propagator.cpp \
     widgets/board_view.cpp \
     widgets/board_view_toolbar.cpp \
     widgets/boards_list.cpp \
