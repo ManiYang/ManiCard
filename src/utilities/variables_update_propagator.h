@@ -5,6 +5,7 @@
 #include <functional>
 #include <QDebug>
 #include <QHash>
+#include <QMap>
 #include <QVariant>
 #include "utilities/directed_graph.h"
 #include "utilities/lists_vectors_util.h"
@@ -15,69 +16,33 @@
 //!
 //! The class \c VariablesUpdatePropagator helps build a dependency graph of a set of variables.
 //! To use it, you first
-//!    - register the free variables (variables that are not depend on other variables) and
-//!      their initial values, and
-//!    - register dependent variables by defining the functions that compute them (see
-//!      \c VariablesUpdatePropagator::addDependentVar() for more details).
+//!   - register the free variables (variables that are not depend on other variables) and
+//!     their initial values, and
+//!   - register dependent variables by defining the functions that compute them (see
+//!     \c VariablesUpdatePropagator::addDependentVar() for more details).
 //! You then call \c VariablesUpdatePropagator::initialize() to build the graph, after which,
 //! when a set of free variables are updated, the class can compute the updated value of the
 //! variables that are affected.
 //!
-//! Variables are identified by the items of the specified enum type \c VarEnum. You must define
-//! the following functions for your \c VarEnum:
-//!    - <tt>QString getVarName(const VarEnum var);</tt> (mainly for debugging)
-//!    - <tt>uint qHash(const VarEnum &var, uint seed);</tt>
+//! Variable enum types:
+//!   - Free variables are identified by items of the specified enum type \e FreeVarEnum, and
+//!     dependent variables by items of enum type \e DependentVarEnum.
+//!   - The types \e FreeVarEnum and \e DependentVarEnum must have \c int as the underlying type,
+//!     and the items cannot have negative value.
 //!
-//! A custom value type must have a default constructor, and must be declared with
-//! \c Q_DECLARE_METATYPE(CustomValueType) .
+//! Variable values:
+//!   - The \c VariablesUpdatePropagator class does not check the types of variable values. It
+//!     stores the values as \c QVariant objects.
+//!   - A custom value type must have a default constructor, and must be declared with
+//!     \c Q_DECLARE_METATYPE(CustomValueType).
+//!   - The value of every variable is cached.
 //!
-//! The \c VariablesUpdatePropagator class does not check the types of variable values (it stores
-//! the values as \c QVariant objects).
-//!
-//! The value of every variable is cached.
-//!
-
-
-// FreeVarEnum, DependentVarEnum must have \c int as the underlying type, and the items cannot
-// have negative value.
-
 
 template <typename FreeVarEnum, typename DependentVarEnum>
 class VariablesUpdatePropagator;
 
 template <typename FreeVarEnum, typename DependentVarEnum>
-class VarIdHelper
-{
-    VarIdHelper(const int maxOfFreeVarItemValue)
-        : dependentVarIdMin(maxOfFreeVarItemValue + 1) {}
-
-public:
-    int toVarId(const FreeVarEnum freeVar) const {
-        return static_cast<int>(freeVar);
-    }
-
-    int toVarId(const DependentVarEnum dependentVar) const {
-        return dependentVarIdMin + static_cast<int>(dependentVar);
-    }
-
-    bool isFreeVar(const int varId) const {
-        return varId < dependentVarIdMin;
-    }
-
-    FreeVarEnum toFreeVar (const int varId) const {
-        Q_ASSERT(isFreeVar(varId));
-        return static_cast<FreeVarEnum>(varId);
-    }
-
-    DependentVarEnum toDependentVar (const int varId) const {
-        Q_ASSERT(!isFreeVar(varId));
-        return static_cast<DependentVarEnum>(varId - dependentVarIdMin);
-    }
-
-private:
-    friend class VariablesUpdatePropagator<FreeVarEnum, DependentVarEnum>;
-    const int dependentVarIdMin;
-};
+class VarIdHelper;
 
 //!
 //! Ths class is used in \c VariablesUpdatePropagator::addDependentVar().
@@ -169,11 +134,18 @@ public:
     //!                               FreeVarEnum items
     //! \param name: mainly for debugging
     //!
-    explicit VariablesUpdatePropagator(const int maxOfFreeVarItemValue, const QString &name)
-        : name(name)
-        , varIdHelper(maxOfFreeVarItemValue)
-        , variablesAccess(name, &values, &varIdHelper)
+    explicit VariablesUpdatePropagator(
+            const int maxOfFreeVarItemValue, const QString &name,
+            const QMap<FreeVarEnum, QString> &freeVarNames,
+            const QMap<DependentVarEnum, QString> &dependentVarNames)
+        : name(name), freeVarNames(freeVarNames), dependentVarNames(dependentVarNames)
+        , varIdHelper(new VarIdHelper<FreeVarEnum, DependentVarEnum>(maxOfFreeVarItemValue))
+        , variablesAccess(name, &values, varIdHelper)
     {}
+
+    ~VariablesUpdatePropagator() {
+        delete varIdHelper;
+    }
 
     // ==== initialization ====
 
@@ -187,10 +159,10 @@ public:
             return *this;
         }
 
-        const int varId = varIdHelper.toVarId(freeVar);
+        const int varId = varIdHelper->toVarId(freeVar);
 
         if (freeVariables.contains(varId) || functions.contains(varId)) {
-            logWarning(QString("variable %1 already registered").arg(getVarName(freeVar)));
+            logWarning(QString("variable %1 already registered").arg(getVariableName(varId)));
             hasInitializationError = true;
             return *this;
         }
@@ -227,12 +199,12 @@ public:
     //!
     //! Example of computation function:
     //! \code{.cpp}
-    //!     void computeX(VariablesAccess<Var> &varsAccess) {
+    //!     void computeX(VariablesAccess<FreeVar, DependentVar> &varsAccess) {
     //!          // 1. register output variable & get input variables
-    //!          varsAccess.registerOutputVar(Var::X);
+    //!          varsAccess.registerOutputVar(DependentVar::X);
     //!
-    //!          const int a = varsAccess.getInputValue<int>(Var::A);
-    //!          const double b = varsAccess.getInputValue<double>(Var::B);
+    //!          const int a = varsAccess.getInputValue<int>(FreeVar::A);
+    //!          const double b = varsAccess.getInputValue<double>(DependentVar::B);
     //!
     //!          if (varsAccess.doCompute()) {
     //!              // 2. compute x
@@ -388,13 +360,13 @@ public:
     // ==== get ====
     bool hasVar(const FreeVarEnum freeVar) const {
         Q_ASSERT(isInitialized); // must call initialize() beforehand
-        const int varId = varIdHelper.toVarId(freeVar);
+        const int varId = varIdHelper->toVarId(freeVar);
         return values.contains(varId);
     }
 
     bool hasVar(const DependentVarEnum dependentVar) const {
         Q_ASSERT(isInitialized); // must call initialize() beforehand
-        const int varId = varIdHelper.toVarId(dependentVar);
+        const int varId = varIdHelper->toVarId(dependentVar);
         return values.contains(varId);
     }
 
@@ -403,14 +375,14 @@ public:
     //!         \e ValueType
     //!
     template <typename ValueType>
-    ValueType getValue(const FreeVarEnum freeVar) {
+    ValueType getValue(const FreeVarEnum freeVar) const {
         Q_ASSERT(isInitialized); // must call initialize() beforehand
         if (hasInitializationError) {
             logWarning("initialization was not successful");
             return ValueType();
         }
 
-        const int varId = varIdHelper.toVarId(freeVar);
+        const int varId = varIdHelper->toVarId(freeVar);
         Q_ASSERT(values.contains(varId));
         if (!values[varId].template canConvert<ValueType>())
             logWarning("value cannot be converted to required value type");
@@ -422,40 +394,40 @@ public:
     //!         \e ValueType
     //!
     template <typename ValueType>
-    ValueType getValue(const DependentVarEnum dependentVar) {
+    ValueType getValue(const DependentVarEnum dependentVar) const {
         Q_ASSERT(isInitialized); // must call initialize() beforehand
         if (hasInitializationError) {
             logWarning("initialization was not successful");
             return ValueType();
         }
 
-        const int varId = varIdHelper.toVarId(dependentVar);
+        const int varId = varIdHelper->toVarId(dependentVar);
         Q_ASSERT(values.contains(varId));
         if (!values[varId].template canConvert<ValueType>())
             logWarning("value cannot be converted to required value type");
         return values[varId].template value<ValueType>();
     }
 
-    QVariant getValueAsVariant(const FreeVarEnum freeVar) {
+    QVariant getValueAsVariant(const FreeVarEnum freeVar) const {
         Q_ASSERT(isInitialized); // must call initialize() beforehand
         if (hasInitializationError) {
             logWarning("initialization was not successful");
             return {};
         }
 
-        const int varId = varIdHelper.toVarId(freeVar);
+        const int varId = varIdHelper->toVarId(freeVar);
         Q_ASSERT(values.contains(varId));
         return values[varId];
     }
 
-    QVariant getValueAsVariant(const DependentVarEnum dependentVar) {
+    QVariant getValueAsVariant(const DependentVarEnum dependentVar) const {
         Q_ASSERT(isInitialized); // must call initialize() beforehand
         if (hasInitializationError) {
             logWarning("initialization was not successful");
             return {};
         }
 
-        const int varId = varIdHelper.toVarId(dependentVar);
+        const int varId = varIdHelper->toVarId(dependentVar);
         Q_ASSERT(values.contains(varId));
         return values[varId];
     }
@@ -470,7 +442,7 @@ public:
             return *this;
         }
 
-        const int varId = varIdHelper.toVarId(freeVar);
+        const int varId = varIdHelper->toVarId(freeVar);
         updatedFreeVarToValue.insert(varId, updatedValue);
         return *this;
     }
@@ -484,8 +456,8 @@ public:
         return addUpdate(freeVar, QVariant::fromValue<ValueType>(updatedValue));
     }
 
-    using FreeVarsUpdatedValues = QHash<FreeVarEnum, QVariant>;
-    using DependentVarsUpdatedValues = QHash<DependentVarEnum, QVariant>;
+    using FreeVarsUpdatedValues = QMap<FreeVarEnum, QVariant>;
+    using DependentVarsUpdatedValues = QMap<DependentVarEnum, QVariant>;
 
     //!
     //! \return updated variables and values (You can also use \c getValue() or
@@ -525,7 +497,7 @@ public:
         for (auto it = updatedFreeVarToValue.constBegin();
                 it != updatedFreeVarToValue.constEnd(); ++it) {
             values.insert(it.key(), it.value());
-            freeVarsUpdatedValues.insert(varIdHelper.toFreeVar(it.key()), it.value());
+            freeVarsUpdatedValues.insert(varIdHelper->toFreeVar(it.key()), it.value());
         }
 
         const QVector<int> varsToCompute
@@ -537,7 +509,7 @@ public:
             }
             functions.value(var)(variablesAccess);
             dependentVarsUpdatedValues.insert(
-                    varIdHelper.toDependentVar(var), values.value(var));
+                    varIdHelper->toDependentVar(var), values.value(var));
         }
 
         //
@@ -547,7 +519,10 @@ public:
 
 private:
     const QString name;
-    VarIdHelper<FreeVarEnum, DependentVarEnum> varIdHelper;
+    const QMap<FreeVarEnum, QString> freeVarNames;
+    const QMap<DependentVarEnum, QString> dependentVarNames;
+
+    VarIdHelper<FreeVarEnum, DependentVarEnum> *varIdHelper;
 
     bool isInitialized {false}; // has initialize() been called?
     bool hasInitializationError {false};
@@ -576,15 +551,49 @@ private:
 
     // tools
     const QString getVariableName(const int varId) const {
-        if (varIdHelper.isFreeVar(varId))
-            return getVarName(varIdHelper.toFreeVar(varId));
+        if (varIdHelper->isFreeVar(varId))
+            return freeVarNames.value(varIdHelper->toFreeVar(varId));
         else
-            return getVarName(varIdHelper.toDependentVar(varId));
+            return dependentVarNames.value(varIdHelper->toDependentVar(varId));
     }
 
     void logWarning(const QString &msg) const {
         qWarning().noquote() << QString("%1: %2").arg(name, msg);
     }
+};
+
+template <typename FreeVarEnum, typename DependentVarEnum>
+class VarIdHelper
+{
+    VarIdHelper(const int maxOfFreeVarItemValue)
+        : dependentVarIdMin(maxOfFreeVarItemValue + 1) {}
+
+public:
+    int toVarId(const FreeVarEnum freeVar) const {
+        return static_cast<int>(freeVar);
+    }
+
+    int toVarId(const DependentVarEnum dependentVar) const {
+        return dependentVarIdMin + static_cast<int>(dependentVar);
+    }
+
+    bool isFreeVar(const int varId) const {
+        return varId < dependentVarIdMin;
+    }
+
+    FreeVarEnum toFreeVar (const int varId) const {
+        Q_ASSERT(isFreeVar(varId));
+        return static_cast<FreeVarEnum>(varId);
+    }
+
+    DependentVarEnum toDependentVar (const int varId) const {
+        Q_ASSERT(!isFreeVar(varId));
+        return static_cast<DependentVarEnum>(varId - dependentVarIdMin);
+    }
+
+private:
+    friend class VariablesUpdatePropagator<FreeVarEnum, DependentVarEnum>;
+    const int dependentVarIdMin;
 };
 
 #endif // VARIABLES_UPDATE_PROPAGATOR_H

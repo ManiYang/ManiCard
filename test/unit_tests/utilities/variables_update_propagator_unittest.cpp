@@ -21,46 +21,38 @@ Q_DECLARE_METATYPE(CustomType);
 
 //====
 
-enum class FreeVar {A=0, B, C};
+enum class FreeVar {A=0, B, C, _Count};
 
-inline QString getVarName(const FreeVar var) { // mainly for debugging
-    switch(var) {
-    case FreeVar::A: return "A";
-    case FreeVar::B: return "B";
-    case FreeVar::C: return "C";
-    }
-    Q_ASSERT(false); // case not implemented
-    return "";
-}
-
-inline uint qHash(const FreeVar &var, uint seed) {
-   return qHash(static_cast<int>(var), seed);
-}
+const QMap<FreeVar, QString> freeVarNames {
+    {FreeVar::A, "A"},
+    {FreeVar::B, "B"},
+    {FreeVar::C, "C"},
+};
 
 //====
 
 enum class DependentVar {X=0, Y};
 
-inline QString getVarName(const DependentVar var) { // mainly for debugging
-    switch(var) {
-    case DependentVar::X: return "X";
-    case DependentVar::Y: return "Y";
-    }
-    Q_ASSERT(false); // case not implemented
-    return "";
-}
-
-inline uint qHash(const DependentVar &var, uint seed) {
-   return qHash(static_cast<int>(var), seed);
-}
+const QMap<DependentVar, QString> dependentVarNames {
+    {DependentVar::X, "X"},
+    {DependentVar::Y, "Y"},
+};
 
 //====
 
 using VarsUpdatePropagator = VariablesUpdatePropagator<FreeVar, DependentVar>;
 using VarsAccess = VariablesAccess<FreeVar, DependentVar>;
 
+std::unique_ptr<VarsUpdatePropagator> createPropagator() {
+    return std::make_unique<VarsUpdatePropagator>(
+            static_cast<int>(FreeVar::_Count), "UnitTest", freeVarNames, dependentVarNames
+    );
+}
+
 TEST(VarsUpdatePropagator, SimpleGraph_FreeVarsOnly) {
-    VarsUpdatePropagator propagator(1000, "UnitTest");
+    std::unique_ptr<VarsUpdatePropagator> propagatorPtr = createPropagator();
+    VarsUpdatePropagator &propagator = *propagatorPtr;
+
     bool ok = propagator
             .addFreeVar(FreeVar::A, 1)
             .addFreeVar(FreeVar::B, 2)
@@ -94,7 +86,9 @@ TEST(VarsUpdatePropagator, SimpleGraph_FreeVarsOnly) {
 }
 
 TEST(VarsUpdatePropagator, SimpleGraph1) {
-    VarsUpdatePropagator propagator(1000, "UnitTest");
+    std::unique_ptr<VarsUpdatePropagator> propagatorPtr = createPropagator();
+    VarsUpdatePropagator &propagator = *propagatorPtr;
+
     bool ok = propagator
             .addDependentVar([](VarsAccess &varsAccess) {
                 varsAccess.registerOutputVar(DependentVar::X);
@@ -140,7 +134,9 @@ TEST(VarsUpdatePropagator, SimpleGraph1) {
 }
 
 TEST(VarsUpdatePropagator, SimpleGraph2) {
-    VarsUpdatePropagator propagator(1000, "UnitTest");
+    std::unique_ptr<VarsUpdatePropagator> propagatorPtr = createPropagator();
+    VarsUpdatePropagator &propagator = *propagatorPtr;
+
     bool ok = propagator
             .addFreeVar(FreeVar::A, 1)
             .addDependentVar([](VarsAccess &varsAccess) {
@@ -190,7 +186,9 @@ TEST(VarsUpdatePropagator, SimpleGraph2) {
 }
 
 TEST(VarsUpdatePropagator, InitFail_DoubleRegister1) {
-    VarsUpdatePropagator propagator(1000, "UnitTest");
+    std::unique_ptr<VarsUpdatePropagator> propagatorPtr = createPropagator();
+    VarsUpdatePropagator &propagator = *propagatorPtr;
+
     bool ok = propagator
             .addFreeVar(FreeVar::A, 0)
             .addFreeVar(FreeVar::B, 0)
@@ -217,7 +215,9 @@ TEST(VarsUpdatePropagator, InitFail_DoubleRegister1) {
 }
 
 TEST(VarsUpdatePropagator, InitFail_DoubleRegister2) {
-    VarsUpdatePropagator propagator(1000, "UnitTest");
+    std::unique_ptr<VarsUpdatePropagator> propagatorPtr = createPropagator();
+    VarsUpdatePropagator &propagator = *propagatorPtr;
+
     bool ok = propagator
             .addFreeVar(FreeVar::A, 0)
             .addFreeVar(FreeVar::A, 0) // error: already registered
@@ -226,7 +226,9 @@ TEST(VarsUpdatePropagator, InitFail_DoubleRegister2) {
 }
 
 TEST(VarsUpdatePropagator, InitFail_NoInputVar) {
-    VarsUpdatePropagator propagator(1000, "UnitTest");
+    std::unique_ptr<VarsUpdatePropagator> propagatorPtr = createPropagator();
+    VarsUpdatePropagator &propagator = *propagatorPtr;
+
     bool ok = propagator
             .addDependentVar([](VarsAccess &varsAccess) {
                 varsAccess.registerOutputVar(DependentVar::X);
@@ -241,7 +243,9 @@ TEST(VarsUpdatePropagator, InitFail_NoInputVar) {
 }
 
 TEST(VarsUpdatePropagator, InitFail_FuncOutputDependsOnSelf) {
-    VarsUpdatePropagator propagator(1000, "UnitTest");
+    std::unique_ptr<VarsUpdatePropagator> propagatorPtr = createPropagator();
+    VarsUpdatePropagator &propagator = *propagatorPtr;
+
     bool ok = propagator
             .addDependentVar([](VarsAccess &varsAccess) {
                 const int x = varsAccess.getInputValue<int>(DependentVar::X);
@@ -257,7 +261,9 @@ TEST(VarsUpdatePropagator, InitFail_FuncOutputDependsOnSelf) {
 }
 
 TEST(VarsUpdatePropagator, InitFail_NoOutputVar) {
-    VarsUpdatePropagator propagator(1000, "UnitTest");
+    std::unique_ptr<VarsUpdatePropagator> propagatorPtr = createPropagator();
+    VarsUpdatePropagator &propagator = *propagatorPtr;
+
     bool ok = propagator
             .addDependentVar([](VarsAccess &varsAccess) {
                 const int a = varsAccess.getInputValue<int>(FreeVar::A);
@@ -267,7 +273,9 @@ TEST(VarsUpdatePropagator, InitFail_NoOutputVar) {
 }
 
 TEST(VarsUpdatePropagator, InitFail_OutputValueNotSet) {
-    VarsUpdatePropagator propagator(1000, "UnitTest");
+    std::unique_ptr<VarsUpdatePropagator> propagatorPtr = createPropagator();
+    VarsUpdatePropagator &propagator = *propagatorPtr;
+
     bool ok = propagator
             .addFreeVar(FreeVar::A, 0)
             .addDependentVar([](VarsAccess &varsAccess) {
@@ -279,7 +287,9 @@ TEST(VarsUpdatePropagator, InitFail_OutputValueNotSet) {
 }
 
 TEST(VarsUpdatePropagator, InitFail_MultipleOutputVars) {
-    VarsUpdatePropagator propagator(1000, "UnitTest");
+    std::unique_ptr<VarsUpdatePropagator> propagatorPtr = createPropagator();
+    VarsUpdatePropagator &propagator = *propagatorPtr;
+
     bool ok = propagator
             .addFreeVar(FreeVar::A, 0)
             .addDependentVar([](VarsAccess &varsAccess) {
@@ -295,7 +305,9 @@ TEST(VarsUpdatePropagator, InitFail_MultipleOutputVars) {
 }
 
 TEST(VarsUpdatePropagator, InitFail_CyclicGraph) {
-    VarsUpdatePropagator propagator(1000, "UnitTest");
+    std::unique_ptr<VarsUpdatePropagator> propagatorPtr = createPropagator();
+    VarsUpdatePropagator &propagator = *propagatorPtr;
+
     bool ok = propagator
             .addDependentVar([](VarsAccess &varsAccess) {
                 const int x = varsAccess.getInputValue<int>(DependentVar::X);

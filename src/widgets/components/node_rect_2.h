@@ -30,18 +30,17 @@ public:
 
     //
 
-    enum class Var {
-        Rect, // QRectF
+    enum class InputVar {
+        Rect=0, // QRectF
         Color, // QColor
-        MarginWidht, // double
+        MarginWidth, // double
         BorderWidth, // double
         NodeLabels, // QStringList
         Title, // QString
-        Text, // QString
         IsEditable, // bool
         IsHighlighted, // bool
+        _Count
     };
-
 
 
     // Call these "set" methods only after this item is initialized:
@@ -54,15 +53,14 @@ public:
 //    void setNodeLabels(const QStringList &labels);
 //    void setNodeLabels(const QVector<QString> &labels);
 //    void setTitle(const QString &title);
-//    void setText(const QString &text);
+    void setText(const QString &text);
 
 //    void setEditable(const bool editable);
 //    void setHighlighted(const bool highlighted);
 
     //
-    QRectF getRect() const;
-
     int getCardId() const;
+    QRectF getRect() const;
     QSet<QString> getNodeLabels() const;
     QString getTitle() const;
     QString getText() const;
@@ -98,17 +96,14 @@ private:
     const int cardId;
     const QSizeF minSizeForResizing {100, 60}; // (pixel)
     const double textEditLineHeightPercent {120};
+    const double highlightBoxWidth {3.0};
 
-    VariablesUpdatePropagator<Var> varsUpdatePropagator;
+    enum class DependentVar {
+        HighlightBoxColor=0, // QColor
+        _Count
+    };
 
-//    QRectF enclosingRect {QPointF(0, 0), QSizeF(90, 150)};
-//    QColor color {160, 160, 160};
-//    double marginWidth {2.0};
-//    double borderWidth {5.0};
-//    QStringList nodeLabels;
-//    bool isEditable {true};
-//    bool isHighlighted {false};
-//    const double highlightBoxWidth {3.0};
+    VariablesUpdatePropagator<InputVar, DependentVar> vars;
 
     // child items
     QGraphicsRectItem *captionBarItem; // also serves as move handle
@@ -128,9 +123,9 @@ private:
     QMenu *contextMenu;
 
     //
-    void installEventFilterOnChildItems();
     void setUpContextMenu();
     void setUpConnections();
+    void installEventFilterOnChildItems();
 
     void redraw() {
         update(); // re-paint
@@ -140,8 +135,12 @@ private:
 
     // tools
     QGraphicsView *getView() const; // can be nullptr
-    static QString getNodeLabelsString(const QStringList &labels);
+    QString getNodeLabelsString() const;
     static QColor getHighlightBoxColor(const QColor &color);
+
+    static QMap<InputVar, QString> inputVariableNames();
+    static QMap<DependentVar, QString> dependentVariableNames();
+
 };
 
 #endif // NODERECT2_H
