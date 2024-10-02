@@ -91,6 +91,7 @@ private:
     // event handlers
     void onUserToOpenExistingCard(const QPointF &scenePos);
     void onUserToCreateNewCard(const QPointF &scenePos);
+    void onUserToDuplicateCard(const QPointF &scenePos);
     void onUserToSetLabels(const int cardId);
     void onUserToCreateRelationship(const int cardId);
     void onUserToCloseNodeRect(const int cardId);

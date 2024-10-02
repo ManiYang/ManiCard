@@ -311,6 +311,13 @@ void BoardView::setUpContextMenu() {
             onUserToCreateNewCard(contextMenuData.requestScenePos);
         });
     }
+    {
+        QAction *action = contextMenu->addAction(
+                QIcon(":/icons/content_copy_24"), "Duplicate Card");
+        connect(action, &QAction::triggered, this, [this]() {
+            onUserToDuplicateCard(contextMenuData.requestScenePos);
+        });
+    }
 }
 
 void BoardView::setUpConnections() {
@@ -422,7 +429,8 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
         // create NodeRect
         ContinuationContext context(routine);
 
-        routine->nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
+        routine->nodeRectData.rect
+                = QRectF(canvas->mapFromScene(scenePos), defaultNewNodeRectSize);
         routine->nodeRectData.ownColor = QColor();
 
         const QColor displayColor = computeNodeRectDisplayColor(
@@ -556,7 +564,8 @@ void BoardView::onUserToCreateNewCard(const QPointF &scenePos) {
 
         ContinuationContext context(routine);
 
-        routine->nodeRectData.rect = QRectF(scenePos, defaultNewNodeRectSize);
+        routine->nodeRectData.rect
+                = QRectF(canvas->mapFromScene(scenePos), defaultNewNodeRectSize);
         routine->nodeRectData.ownColor = QColor();
 
         const QColor displayColor = computeNodeRectDisplayColor(
@@ -578,6 +587,135 @@ void BoardView::onUserToCreateNewCard(const QPointF &scenePos) {
 
         Services::instance()->getAppData()->createNewCardWithId(
                 EventSource(this), routine->newCardId, routine->card);
+        Services::instance()->getAppData()->createNodeRect(
+                EventSource(this), this->boardId, routine->newCardId, routine->nodeRectData);
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
+
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+            showWarningMessageBox(this, " ", routine->errorMsg);
+    }, this);
+
+    routine->start();
+}
+
+void BoardView::onUserToDuplicateCard(const QPointF &scenePos) {
+    // open dialog
+    int cardIdToDuplicate = -1;
+    {
+        constexpr int minValue = 0;
+        constexpr int step = 1;
+
+        bool ok;
+        cardIdToDuplicate = QInputDialog::getInt(
+                this, "Duplicate Card", "ID of card to duplicate:",
+                0, minValue, INT_MAX, step, &ok);
+        if (!ok)
+            return;
+    }
+
+    //
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        Card cardData;
+        QStringList userLabelsList;
+        int newCardId;
+        NodeRectData nodeRectData;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine, cardIdToDuplicate]() {
+        // get card data of `cardIdToDuplicate`
+        Services::instance()->getAppData()->queryCards(
+                QSet<int> {cardIdToDuplicate},
+                // callback
+                [routine, cardIdToDuplicate](bool ok, const QHash<int, Card> &cards) {
+                    ContinuationContext context(routine);
+                    if (ok) {
+                        if (cards.contains(cardIdToDuplicate)) {
+                            routine->cardData = cards.value(cardIdToDuplicate);
+                        }
+                        else {
+                            context.setErrorFlag();
+                            routine->errorMsg
+                                    = QString("Card %1 not found.").arg(cardIdToDuplicate);
+                        }
+                    }
+                    else {
+                        context.setErrorFlag();
+                        routine->errorMsg
+                                = QString("Failed to query card data. See logs for details.");
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // get the list of user-defined labels
+        using StringListPair = std::pair<QStringList, QStringList>;
+        Services::instance()->getAppData()->getUserLabelsAndRelationshipTypes(
+                // callback
+                [routine](bool ok, const StringListPair &labelsAndRelTypes) {
+                    ContinuationContext context(routine);
+                    if (ok)
+                        routine->userLabelsList = labelsAndRelTypes.first;
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([routine]() {
+        // request new card ID
+        Services::instance()->getAppData()->requestNewCardId(
+                // callback:
+                [routine](std::optional<int> cardId) {
+                    ContinuationContext context(routine);
+                    if (cardId.has_value()) {
+                        routine->newCardId = cardId.value();
+                    }
+                    else {
+                        context.setErrorFlag();
+                        routine->errorMsg = "Could not create new card. See logs for details.";
+                    }
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([this, routine, scenePos]() {
+        // create new NodeRect
+        ContinuationContext context(routine);
+
+        routine->nodeRectData.rect
+                = QRectF(canvas->mapFromScene(scenePos), defaultNewNodeRectSize);
+        routine->nodeRectData.ownColor = QColor();
+
+        const QColor displayColor = computeNodeRectDisplayColor(
+                routine->nodeRectData.ownColor, routine->cardData.getLabels(),
+                cardLabelsAndAssociatedColors, defaultNodeRectColor);
+
+        NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
+                routine->newCardId, routine->cardData, routine->nodeRectData.rect,
+                displayColor, routine->nodeRectData.ownColor,
+                routine->userLabelsList);
+        nodeRect->setEditable(true);
+
+        adjustSceneRect();
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // call AppData
+        ContinuationContext context(routine);
+
+        Services::instance()->getAppData()->createNewCardWithId(
+                EventSource(this), routine->newCardId, routine->cardData);
         Services::instance()->getAppData()->createNodeRect(
                 EventSource(this), this->boardId, routine->newCardId, routine->nodeRectData);
     }, this);
