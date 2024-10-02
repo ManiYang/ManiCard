@@ -25,7 +25,6 @@
 #include "widgets/dialogs/dialog_create_relationship.h"
 #include "widgets/dialogs/dialog_set_labels.h"
 
-using StringOpt = std::optional<QString>;
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 
 BoardView::BoardView(QWidget *parent)
@@ -1263,7 +1262,9 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
 
     QObject::connect(nodeRect, &NodeRect::titleTextUpdated,
             boardView,
-            [this, nodeRectPtr](const StringOpt &updatedTitle, const StringOpt &updatedText) {
+            [this, nodeRectPtr](
+                    const std::optional<QString> &updatedTitle,
+                    const std::optional<QString> &updatedText) {
         if (!nodeRectPtr)
             return;
 

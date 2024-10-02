@@ -37,103 +37,179 @@
 //! The value of every variable is cached.
 //!
 
-template <typename VarEnum>
+
+// FreeVarEnum, DependentVarEnum must have \c int as the underlying type, and the items cannot
+// have negative value.
+
+
+template <typename FreeVarEnum, typename DependentVarEnum>
 class VariablesUpdatePropagator;
 
+template <typename FreeVarEnum, typename DependentVarEnum>
+class VarIdHelper
+{
+    VarIdHelper(const int maxOfFreeVarItemValue)
+        : dependentVarIdMin(maxOfFreeVarItemValue + 1) {}
+
+public:
+    int toVarId(const FreeVarEnum freeVar) const {
+        return static_cast<int>(freeVar);
+    }
+
+    int toVarId(const DependentVarEnum dependentVar) const {
+        return dependentVarIdMin + static_cast<int>(dependentVar);
+    }
+
+    bool isFreeVar(const int varId) const {
+        return varId < dependentVarIdMin;
+    }
+
+    FreeVarEnum toFreeVar (const int varId) const {
+        Q_ASSERT(isFreeVar(varId));
+        return static_cast<FreeVarEnum>(varId);
+    }
+
+    DependentVarEnum toDependentVar (const int varId) const {
+        Q_ASSERT(!isFreeVar(varId));
+        return static_cast<DependentVarEnum>(varId - dependentVarIdMin);
+    }
+
+private:
+    friend class VariablesUpdatePropagator<FreeVarEnum, DependentVarEnum>;
+    const int dependentVarIdMin;
+};
+
 //!
-//! See \c VariablesUpdatePropagator::addDependentVar().
+//! Ths class is used in \c VariablesUpdatePropagator::addDependentVar().
 //!
-template <typename VarEnum>
+template <typename FreeVarEnum, typename DependentVarEnum>
 class VariablesAccess
 {
-    VariablesAccess(QHash<VarEnum, QVariant> *const valuesPtr_) : valuesPtr(valuesPtr_) {}
+    VariablesAccess(
+            const QString &propagatorName_,
+            QHash<int, QVariant> *const valuesPtr_,
+            VarIdHelper<FreeVarEnum, DependentVarEnum> *varIdHelper_)
+        : propagatorName(propagatorName_), valuesPtr(valuesPtr_), varIdHelper(varIdHelper_) {}
 
 public:
     template <typename ValueType>
-    ValueType getInputValue(const VarEnum var) {
-        if (isPreparingVariables)
-            inputVars << var;
+    ValueType getInputValue(const FreeVarEnum freeVar) {
+        const int varId = varIdHelper->toVarId(freeVar);
 
-        return valuesPtr->value(var).template value<ValueType>();
+        if (isPreparingVariables)
+            inputVars << varId;
+
+        return valuesPtr->value(varId).template value<ValueType>();
     }
 
-    void registerOutputVar(const VarEnum var) {
-        if (isPreparingVariables)
-            outputVars << var;
+    template <typename ValueType>
+    ValueType getInputValue(const DependentVarEnum dependentVar) {
+        const int varId = varIdHelper->toVarId(dependentVar);
 
-        registeredOutputVar = var;
+        if (isPreparingVariables)
+            inputVars << varId;
+
+        return valuesPtr->value(varId).template value<ValueType>();
+    }
+
+    void registerOutputVar(const DependentVarEnum dependentVar) {
+        const int varId = varIdHelper->toVarId(dependentVar);
+
+        if (isPreparingVariables)
+            outputVars << varId;
+
+        registeredOutputVarId = varId;
     }
 
     template <typename ValueType>
     void setOutputValue(const ValueType &value) {
-        if (!registeredOutputVar.has_value()) {
+        if (!registeredOutputVarId.has_value()) {
             qWarning().noquote()
-                    << QString("You must call registerOutputVar() before setOutputValue().");
+                    << QString("%1: You must call registerOutputVar() before setOutputValue().")
+                       .arg(propagatorName);
             Q_ASSERT(false);
             return;
         }
+
         if (isPreparingVariables)
             return;
 
-        valuesPtr->insert(registeredOutputVar.value(), QVariant::fromValue<ValueType>(value));
-        registeredOutputVar = std::nullopt;
+        valuesPtr->insert(registeredOutputVarId.value(), QVariant::fromValue<ValueType>(value));
+        registeredOutputVarId = std::nullopt;
         isOutputValueSet = true;
     }
 
     bool doCompute() const { return !isPreparingVariables; }
 
 private:
-    friend class VariablesUpdatePropagator<VarEnum>;
+    friend class VariablesUpdatePropagator<FreeVarEnum, DependentVarEnum>;
 
-    QHash<VarEnum, QVariant> *const valuesPtr;
+    const QString propagatorName;
+    QHash<int, QVariant> *const valuesPtr; // key: var ID
+    VarIdHelper<FreeVarEnum, DependentVarEnum> *const varIdHelper;
 
     bool isPreparingVariables {true};
 
-    QSet<VarEnum> inputVars; // used only when `isPreparingVariables` is true
-    QSet<VarEnum> outputVars;  // used only when `isPreparingVariables` is true
+    QSet<int> inputVars; // used only when `isPreparingVariables` is true
+    QSet<int> outputVars;  // used only when `isPreparingVariables` is true
 
     bool isOutputValueSet {false}; // used only when computing initial value
 
-    std::optional<VarEnum> registeredOutputVar;
+    std::optional<int> registeredOutputVarId;
 };
 
 //====
 
-template <typename VarEnum>
+template <typename FreeVarEnum, typename DependentVarEnum>
 class VariablesUpdatePropagator
 {
 public:
-
-
-public:
-    explicit VariablesUpdatePropagator() {}
+    //!
+    //! \param maxOfFreeVarItemValue: a number that is >= the largest \c int value of the
+    //!                               FreeVarEnum items
+    //! \param name: mainly for debugging
+    //!
+    explicit VariablesUpdatePropagator(const int maxOfFreeVarItemValue, const QString &name)
+        : name(name)
+        , varIdHelper(maxOfFreeVarItemValue)
+        , variablesAccess(name, &values, &varIdHelper)
+    {}
 
     // ==== initialization ====
 
     //!
     //! Registers a free variable and sets its initial value.
     //!
-    template<typename ValueType>
-    VariablesUpdatePropagator &addFreeVar(const VarEnum var, const ValueType &initValue) {
+    VariablesUpdatePropagator &addFreeVar(const FreeVarEnum freeVar, const QVariant &initValue) {
         if (isInitialized) {
-            qWarning().noquote() << "VariablesUpdatePropagator already initialized";
+            logWarning("VariablesUpdatePropagator already initialized");
             Q_ASSERT(false);
             return *this;
         }
 
-        if (freeVariables.contains(var) || functions.contains(var)) {
-            qWarning().noquote()
-                    << QString("variable %1 already registered").arg(getVarName(var));
+        const int varId = varIdHelper.toVarId(freeVar);
+
+        if (freeVariables.contains(varId) || functions.contains(varId)) {
+            logWarning(QString("variable %1 already registered").arg(getVarName(freeVar)));
             hasInitializationError = true;
             return *this;
         }
 
-        freeVariables << var;
-        values.insert(var, QVariant::fromValue(initValue));
+        freeVariables << varId;
+        values.insert(varId, initValue);
         return *this;
     }
 
-    using VarComputeFunc = std::function<void (VariablesAccess<VarEnum> &varsAccess)>;
+    //!
+    //! Convenience method.
+    //!
+    template<typename ValueType>
+    VariablesUpdatePropagator &addFreeVar(const FreeVarEnum freeVar, const ValueType &initValue) {
+        return addFreeVar(freeVar, QVariant::fromValue<ValueType>(initValue));
+    }
+
+    using VarComputeFunc
+        = std::function<void (VariablesAccess<FreeVarEnum, DependentVarEnum> &varsAccess)>;
 
     //!
     //! Registers a dependent variable and sets the "computation function" that computes it.
@@ -170,7 +246,7 @@ public:
     //!
     VariablesUpdatePropagator &addDependentVar(VarComputeFunc func) {
         if (isInitialized) {
-            qWarning().noquote() << "VariablesUpdatePropagator already initialized";
+            logWarning("VariablesUpdatePropagator already initialized");
             Q_ASSERT(false);
             return *this;
         }
@@ -184,35 +260,35 @@ public:
         bool hasError = false;
 
         if (variablesAccess.outputVars.isEmpty()) {
-            qWarning() << QString("function does not register any output variable");
+            logWarning("function does not register any output variable");
             hasError = true;
         }
         if (!hasError && variablesAccess.outputVars.count() != 1) {
             QStringList varNames;
-            for (const VarEnum var: qAsConst(variablesAccess.outputVars))
-                varNames << getVarName(var);
-            qWarning() << QString("function registers multiple output variables: %1")
-                          .arg(varNames.join(", "));
+            for (const int varId: qAsConst(variablesAccess.outputVars))
+                varNames << getVariableName(varId);
+            logWarning(
+                    QString("function registers multiple output variables: %1")
+                    .arg(varNames.join(", ")));
             hasError = true;
         }
 
-        const auto dependentVar = *variablesAccess.outputVars.constBegin();
+        const int dependentVarId = *variablesAccess.outputVars.constBegin();
         if (!hasError && variablesAccess.inputVars.isEmpty()) {
-            qWarning()
-                    << QString("function for variable %1 does not register any input variable")
-                       .arg(getVarName(dependentVar));
+            logWarning(
+                    QString("function for variable %1 does not register any input variable")
+                    .arg(getVariableName(dependentVarId)));
             hasError = true;
         }
         if (!hasError
-                && (freeVariables.contains(dependentVar) || functions.contains(dependentVar))) {
-            qWarning().noquote()
-                    << QString("variable %1 already registered").arg(getVarName(dependentVar));
+                && (freeVariables.contains(dependentVarId) || functions.contains(dependentVarId))) {
+            logWarning(
+                    QString("variable %1 already registered").arg(getVariableName(dependentVarId)));
             hasError = true;
         }
-        if (!hasError && variablesAccess.inputVars.contains(dependentVar)) {
-            qWarning().noquote()
-                    << QString("variable %1 depends on itself")
-                       .arg(getVarName(dependentVar));
+        if (!hasError && variablesAccess.inputVars.contains(dependentVarId)) {
+            logWarning(
+                    QString("variable %1 depends on itself").arg(getVariableName(dependentVarId)));
             hasError = true;
         }
 
@@ -223,8 +299,8 @@ public:
 
         //
         allInputVars |= variablesAccess.inputVars;
-        functions.insert(dependentVar, func);
-        dependencies.insert(dependentVar, variablesAccess.inputVars);
+        functions.insert(dependentVarId, func);
+        dependencies.insert(dependentVarId, variablesAccess.inputVars);
         return *this;
     }
 
@@ -233,44 +309,44 @@ public:
     //!
     bool initialize() {
         if (isInitialized) {
-            qWarning().noquote() << "VariablesUpdatePropagator already initialized";
+            logWarning("VariablesUpdatePropagator already initialized");
             Q_ASSERT(false);
             return isInitializationSuccessful();
         }
 
         //
-        const QSet<VarEnum> allRegisteredVars = keySet(dependencies) | freeVariables;
+        const QSet<int> allRegisteredVars = keySet(dependencies) | freeVariables;
 
         if (!allRegisteredVars.contains(allInputVars)) {
             const auto missingVars = allInputVars - allRegisteredVars;
             QStringList missingVarNames;
-            for (const VarEnum var: missingVars)
-                missingVarNames << getVarName(var);
-            qWarning().noquote()
-                    << QString("the following variables are not registered "
-                               "but are used as dependencies: %1")
-                       .arg(missingVarNames.join(", "));
+            for (const int varId: missingVars)
+                missingVarNames << getVariableName(varId);
+            logWarning(
+                    QString("the following variables are not registered "
+                            "but are used as dependencies: %1")
+                    .arg(missingVarNames.join(", ")));
             hasInitializationError = true;
         }
 
         // create graph
         for (auto it = dependencies.constBegin(); it != dependencies.constEnd(); ++it) {
-            VarEnum dependentVar = it.key();
-            const QSet<VarEnum> &varSet = it.value();
-            for (const VarEnum var: varSet)
+            const int dependentVar = it.key();
+            const QSet<int> &varSet = it.value();
+            for (const int var: varSet)
                 graph.addEdge(var, dependentVar);
         }
 
         // find a topological order
         {
-            const std::vector<VarEnum> sortedVars = graph.topologicalOrder(); // empty if failed
+            const std::vector<int> sortedVars = graph.topologicalOrder(); // empty if graph is cyclic
             if (!dependencies.isEmpty() && sortedVars.empty()) {
-                qWarning().noquote() << "the dependency graph is cyclic";
+                logWarning("the dependency graph is cyclic");
                 hasInitializationError = true;
             }
 
             dependentVarsInTopologicalOrder.reserve(sortedVars.size());
-            for (const VarEnum var: sortedVars) {
+            for (const int var: sortedVars) {
                 if (dependencies.contains(var))
                     dependentVarsInTopologicalOrder << var;
             }
@@ -279,14 +355,14 @@ public:
         // compute initial values of dependent variables
         variablesAccess.isPreparingVariables = false;
 
-        for (const VarEnum var: dependentVarsInTopologicalOrder) {
+        for (const int varId: qAsConst(dependentVarsInTopologicalOrder)) {
             variablesAccess.isOutputValueSet = false;
-            functions[var](variablesAccess);
+            functions[varId](variablesAccess);
 
             if (!variablesAccess.isOutputValueSet) {
-                qWarning()
-                        << QString("function for variable %1 does not set output value")
-                           .arg(getVarName(var));
+                logWarning(
+                        QString("function for variable %1 does not set output value")
+                        .arg(getVariableName(varId)));
                 hasInitializationError = true;
             }
         }
@@ -310,9 +386,16 @@ public:
     }
 
     // ==== get ====
-    bool hasVar(const VarEnum var) const {
+    bool hasVar(const FreeVarEnum freeVar) const {
         Q_ASSERT(isInitialized); // must call initialize() beforehand
-        return values.contains(var);
+        const int varId = varIdHelper.toVarId(freeVar);
+        return values.contains(varId);
+    }
+
+    bool hasVar(const DependentVarEnum dependentVar) const {
+        Q_ASSERT(isInitialized); // must call initialize() beforehand
+        const int varId = varIdHelper.toVarId(dependentVar);
+        return values.contains(varId);
     }
 
     //!
@@ -320,80 +403,115 @@ public:
     //!         \e ValueType
     //!
     template <typename ValueType>
-    ValueType getValue(const VarEnum var) {
+    ValueType getValue(const FreeVarEnum freeVar) {
         Q_ASSERT(isInitialized); // must call initialize() beforehand
         if (hasInitializationError) {
-            qWarning().noquote() << "initialization was not successful";
+            logWarning("initialization was not successful");
             return ValueType();
         }
 
-        Q_ASSERT(values.contains(var));
-        if (!values[var].template canConvert<ValueType>())
-            qWarning().noquote() << "value cannot be converted to required value type";
-        return values[var].template value<ValueType>();
+        const int varId = varIdHelper.toVarId(freeVar);
+        Q_ASSERT(values.contains(varId));
+        if (!values[varId].template canConvert<ValueType>())
+            logWarning("value cannot be converted to required value type");
+        return values[varId].template value<ValueType>();
     }
 
-    QVariant getValueAsVariant(const VarEnum var) {
+    //!
+    //! \return a default-constructed value if the stored \c QVariant cannot be converted to
+    //!         \e ValueType
+    //!
+    template <typename ValueType>
+    ValueType getValue(const DependentVarEnum dependentVar) {
         Q_ASSERT(isInitialized); // must call initialize() beforehand
         if (hasInitializationError) {
-            qWarning().noquote() << "initialization was not successful";
+            logWarning("initialization was not successful");
+            return ValueType();
+        }
+
+        const int varId = varIdHelper.toVarId(dependentVar);
+        Q_ASSERT(values.contains(varId));
+        if (!values[varId].template canConvert<ValueType>())
+            logWarning("value cannot be converted to required value type");
+        return values[varId].template value<ValueType>();
+    }
+
+    QVariant getValueAsVariant(const FreeVarEnum freeVar) {
+        Q_ASSERT(isInitialized); // must call initialize() beforehand
+        if (hasInitializationError) {
+            logWarning("initialization was not successful");
             return {};
         }
 
-        Q_ASSERT(values.contains(var));
-        return values[var];
+        const int varId = varIdHelper.toVarId(freeVar);
+        Q_ASSERT(values.contains(varId));
+        return values[varId];
+    }
+
+    QVariant getValueAsVariant(const DependentVarEnum dependentVar) {
+        Q_ASSERT(isInitialized); // must call initialize() beforehand
+        if (hasInitializationError) {
+            logWarning("initialization was not successful");
+            return {};
+        }
+
+        const int varId = varIdHelper.toVarId(dependentVar);
+        Q_ASSERT(values.contains(varId));
+        return values[varId];
     }
 
     // ==== update ====
 
-    //!
-    //! \param var: must be a free variable
-    //! \param updatedValue
-    //!
-    template <typename ValueType>
-    VariablesUpdatePropagator &addUpdate(const VarEnum freeVar, const ValueType &updatedValue) {
+    VariablesUpdatePropagator &addUpdate(
+            const FreeVarEnum freeVar, const QVariant &updatedValue) {
         Q_ASSERT(isInitialized); // must call initialize() beforehand
         if (hasInitializationError) {
-            qWarning().noquote() << "initialization was not successful";
+            logWarning("initialization was not successful");
             return *this;
         }
 
-        if (!freeVariables.contains(freeVar)) {
-            qWarning().noquote()
-                    << QString("%1 is not a free variable").arg(getVarName(freeVar));
-            Q_ASSERT(false);
-            return *this;
-        }
-
-        updatedFreeVarToValue.insert(freeVar, QVariant::fromValue<ValueType>(updatedValue));
+        const int varId = varIdHelper.toVarId(freeVar);
+        updatedFreeVarToValue.insert(varId, updatedValue);
         return *this;
     }
+
+    //!
+    //! Convenience method.
+    //!
+    template <typename ValueType>
+    VariablesUpdatePropagator &addUpdate(
+            const FreeVarEnum freeVar, const ValueType &updatedValue) {
+        return addUpdate(freeVar, QVariant::fromValue<ValueType>(updatedValue));
+    }
+
+    using FreeVarsUpdatedValues = QHash<FreeVarEnum, QVariant>;
+    using DependentVarsUpdatedValues = QHash<DependentVarEnum, QVariant>;
 
     //!
     //! \return updated variables and values (You can also use \c getValue() or
     //!         \c getValueAsVariant() to get updated values.)
     //!
-    QHash<VarEnum, QVariant> compute() {
+    std::pair<FreeVarsUpdatedValues, DependentVarsUpdatedValues> compute() {
         Q_ASSERT(isInitialized); // must call initialize() beforehand
         if (hasInitializationError) {
-            qWarning().noquote() << "initialization was not successful";
+            logWarning("initialization was not successful");
             return {};
         }
 
-        const QSet<VarEnum> updatedFreeVarsSet = keySet(updatedFreeVarToValue);
+        const QSet<int> updatedFreeVarsSet = keySet(updatedFreeVarToValue);
         if (!updatedFreeVarsToAffectedDependentVars.contains(updatedFreeVarsSet)) {
             // find the affected dependent vars
-            QSet<VarEnum> affectedVarsSet;
+            QSet<int> affectedVarsSet;
             for (const auto var: updatedFreeVarsSet) {
-                std::vector<VarEnum> visitedVars = graph.breadthFirstSearch(var);
-                QSet<VarEnum> visitedDependentVars
-                        = QSet<VarEnum>(visitedVars.cbegin(), visitedVars.cend())
+                std::vector<int> visitedVars = graph.breadthFirstSearch(var);
+                QSet<int> visitedDependentVars
+                        = QSet<int>(visitedVars.cbegin(), visitedVars.cend())
                           & keySet(dependencies);
 
                 affectedVarsSet |= visitedDependentVars;
             }
 
-            const QVector<VarEnum> affectedVarsSorted = sortByOrdering(
+            const QVector<int> affectedVarsSorted = sortByOrdering(
                     affectedVarsSet, dependentVarsInTopologicalOrder, false);
 
             updatedFreeVarsToAffectedDependentVars.insert(
@@ -401,79 +519,72 @@ public:
         }
 
         // compute
-        QHash<VarEnum, QVariant> updatedValues; // for return
+        FreeVarsUpdatedValues freeVarsUpdatedValues; // for return
+        DependentVarsUpdatedValues dependentVarsUpdatedValues; // for return
 
         for (auto it = updatedFreeVarToValue.constBegin();
                 it != updatedFreeVarToValue.constEnd(); ++it) {
             values.insert(it.key(), it.value());
-            updatedValues.insert(it.key(), it.value());
+            freeVarsUpdatedValues.insert(varIdHelper.toFreeVar(it.key()), it.value());
         }
 
-        const QVector<VarEnum> varsToCompute
+        const QVector<int> varsToCompute
                 = updatedFreeVarsToAffectedDependentVars.value(updatedFreeVarsSet);
         for (const auto var: varsToCompute) {
             if (!functions.contains(var)) {
-                qWarning().noquote() << QString("`functions[%1]` not found").arg(getVarName(var));
+                logWarning(QString("`functions[%1]` not found").arg(getVariableName(var)));
                 continue;
             }
             functions.value(var)(variablesAccess);
-            updatedValues.insert(var, values.value(var));
+            dependentVarsUpdatedValues.insert(
+                    varIdHelper.toDependentVar(var), values.value(var));
         }
 
         //
         updatedFreeVarToValue.clear();
-        return updatedValues;
+        return {freeVarsUpdatedValues, dependentVarsUpdatedValues};
     }
 
 private:
+    const QString name;
+    VarIdHelper<FreeVarEnum, DependentVarEnum> varIdHelper;
+
     bool isInitialized {false}; // has initialize() been called?
     bool hasInitializationError {false};
 
-    QSet<VarEnum> freeVariables; // populated during initialization
+    QSet<int> freeVariables; // populated during initialization
 
-    QHash<VarEnum, VarComputeFunc> functions;
-    QHash<VarEnum, QSet<VarEnum>> dependencies;
-            // - keys are the dependent variables
+    QHash<int, VarComputeFunc> functions;
+    QHash<int, QSet<int>> dependencies;
+            // - keys are ID's of the dependent variables
             // - populated during initialization
 
-    QSet<VarEnum> allInputVars; // populated during initialization
+    QSet<int> allInputVars; // populated during initialization
 
-    DirectedGraphWithVertexEnum<VarEnum> graph;
+    DirectedGraph graph;
             // - an edge from A to B means that B depends on A
             // - set in initialize()
-    QVector<VarEnum> dependentVarsInTopologicalOrder; // set in initialize()
+    QVector<int> dependentVarsInTopologicalOrder; // set in initialize()
 
-    QHash<VarEnum, QVariant> values; // keys are all variables
-    VariablesAccess<VarEnum> variablesAccess {&values};
-    QHash<VarEnum, QVariant> updatedFreeVarToValue; // populated in addUpdate(), cleared in compute()
+    QHash<int, QVariant> values; // keys are all variables
+    VariablesAccess<FreeVarEnum, DependentVarEnum> variablesAccess;
+    QHash<int, QVariant> updatedFreeVarToValue; // populated in addUpdate(), cleared in compute()
 
-    template <typename ValueType>
-    struct HashMapWithVarSetAsKey
-    {
-        // purpose of this struct is to avoid the need of defining `qHash(QSet<VarEnum> s)`
-
-        bool contains(const QSet<VarEnum> &varSet) const {
-            return map.contains(toIntSet(varSet));
-        }
-        void insert(const QSet<VarEnum> &varSet, const ValueType &value) {
-            map.insert(toIntSet(varSet), value);
-        }
-        ValueType value(const QSet<VarEnum> &varSet) const {
-            return map.value(toIntSet(varSet));
-        }
-    private:
-        QHash<QSet<int>, ValueType> map;
-
-        static QSet<int> toIntSet(const QSet<VarEnum> &varSet) {
-            QSet<int> intSet;
-            for (const VarEnum var: varSet)
-                intSet << static_cast<int>(var);
-            return intSet;
-        }
-    };
-    HashMapWithVarSetAsKey<QVector<VarEnum>> updatedFreeVarsToAffectedDependentVars;
+    QHash<QSet<int>, QVector<int>> updatedFreeVarsToAffectedDependentVars;
             // - values are in topological order
             // - populated and used in compute(), as a cache
+
+    // tools
+    const QString getVariableName(const int varId) const {
+        if (varIdHelper.isFreeVar(varId))
+            return getVarName(varIdHelper.toFreeVar(varId));
+        else
+            return getVarName(varIdHelper.toDependentVar(varId));
+    }
+
+    void logWarning(const QString &msg) const {
+        qWarning().noquote() << QString("%1: %2").arg(name, msg);
+    }
 };
 
 #endif // VARIABLES_UPDATE_PROPAGATOR_H
