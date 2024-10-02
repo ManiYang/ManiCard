@@ -18,7 +18,9 @@ class AsyncRoutine : public QObject
 {
     Q_OBJECT
 public:
-    AsyncRoutine();
+    AsyncRoutine(const QString &name = "");
+
+    void setName(const QString &name);
 
     //!
     //! \e Func will be invoked in the thread of \e context. If \e context is destroyed before
@@ -45,12 +47,15 @@ public:
     void skipToFinalStep();
 
 private:
+    inline static int startedInstances {0};
+
     struct Step
     {
         std::function<void ()> func;
         QPointer<QObject> context;
     };
 
+    QString name;
     std::vector<Step> steps;
     size_t currentStep {0};
     bool isStarted {false};
@@ -66,7 +71,7 @@ class AsyncRoutineWithErrorFlag : public AsyncRoutine
 {
     Q_OBJECT
 public:
-    AsyncRoutineWithErrorFlag();
+    AsyncRoutineWithErrorFlag(const QString &name = "");
 
     bool errorFlag {false};
 

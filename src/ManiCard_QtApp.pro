@@ -50,7 +50,6 @@ SOURCES += \
     widgets/components/graphics_item_move_resize.cpp \
     widgets/components/graphics_scene.cpp \
     widgets/components/node_rect.cpp \
-    widgets/components/node_rect_2.cpp \
     widgets/components/property_value_editor.cpp \
     widgets/components/simple_toolbar.cpp \
     widgets/dialogs/dialog_board_card_colors.cpp \
@@ -104,6 +103,7 @@ HEADERS += \
     utilities/numbers_util.h \
     utilities/periodic_checker.h \
     utilities/periodic_timer.h \
+    utilities/sets_util.h \
     utilities/strings_util.h \
     utilities/variables_update_propagator.h \
     widgets/board_view.h \
@@ -117,7 +117,6 @@ HEADERS += \
     widgets/components/graphics_item_move_resize.h \
     widgets/components/graphics_scene.h \
     widgets/components/node_rect.h \
-    widgets/components/node_rect_2.h \
     widgets/components/property_value_editor.h \
     widgets/components/simple_toolbar.h \
     widgets/dialogs/dialog_board_card_colors.h \

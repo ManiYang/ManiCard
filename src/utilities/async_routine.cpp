@@ -4,8 +4,13 @@
 #include "async_routine.h"
 #include "global_constants.h"
 
-AsyncRoutine::AsyncRoutine()
-        : QObject(nullptr) {
+AsyncRoutine::AsyncRoutine(const QString &name)
+        : QObject(nullptr)
+        , name(name) {
+}
+
+void AsyncRoutine::setName(const QString &name_) {
+    name = name_;
 }
 
 AsyncRoutine &AsyncRoutine::addStep(std::function<void ()> func, QPointer<QObject> context) {
@@ -28,6 +33,14 @@ AsyncRoutine &AsyncRoutine::addStep(std::function<void ()> func, QPointer<QObjec
 void AsyncRoutine::start() {
     Q_ASSERT(!isStarted);
     isStarted = true;
+
+    if constexpr (!buildInReleaseMode) {
+        if (!name.isEmpty())
+            qDebug().noquote() << QString("routine %1 started").arg(name);
+        else
+            qDebug().noquote() << "routine" << this << "started";
+    }
+    ++startedInstances;
 
     if (steps.empty())
         finish();
@@ -74,10 +87,17 @@ void AsyncRoutine::skipToFinalStep() {
 void AsyncRoutine::invokeStep(const size_t i) {
     Q_ASSERT(i < steps.size());
 
-    if (steps.at(i).context.isNull() || !steps.at(i).func) {
+    if (!steps.at(i).func) {
+        qWarning().noquote() << "routine step not defined";
         nextStep();
         return;
     }
+    if (steps.at(i).context.isNull()) {
+        qWarning().noquote() << QString("context of step %1 has been destroyed").arg(i);
+        nextStep();
+        return;
+    }
+
     QMetaObject::invokeMethod(steps.at(i).context, steps.at(i).func, Qt::AutoConnection);
 }
 
@@ -85,13 +105,24 @@ void AsyncRoutine::finish() {
     if (!isFinished) {
         isFinished = true;
         this->deleteLater();
+
+        --startedInstances;
+        if constexpr (!buildInReleaseMode) {
+            if (!name.isEmpty())
+                qDebug().noquote() << QString("routine %1 finished").arg(name);
+            else
+                qDebug().noquote() << "routine" << this << "finished";
+
+            qDebug().noquote()
+                    << QString("there are %1 unfinished routines").arg(startedInstances);
+        }
     }
 }
 
 //====
 
-AsyncRoutineWithErrorFlag::AsyncRoutineWithErrorFlag()
-    : AsyncRoutine() {
+AsyncRoutineWithErrorFlag::AsyncRoutineWithErrorFlag(const QString &name)
+    : AsyncRoutine(name) {
 }
 
 // ====

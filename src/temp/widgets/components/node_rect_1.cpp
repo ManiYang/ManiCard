@@ -12,17 +12,15 @@
 #include <QTextBlockFormat>
 #include <QTextCursor>
 #include "models/node_labels.h"
-#include "node_rect_2.h"
+#include "node_rect.h"
 #include "utilities/margins_util.h"
 #include "widgets/components/custom_text_edit.h"
 #include "widgets/components/graphics_item_move_resize.h"
 #include "widgets/components/custom_graphics_text_item.h"
 
-NodeRect2::NodeRect2(const int cardId_, QGraphicsItem *parent)
+NodeRect1::NodeRect1(const int cardId_, QGraphicsItem *parent)
         : QGraphicsObject(parent)
         , cardId(cardId_)
-        , vars(static_cast<int>(InputVar::_Count), "NodeRect2",
-               inputVariableNames(), dependentVariableNames())
         , captionBarItem(new QGraphicsRectItem(this))
         , nodeLabelItem(new QGraphicsSimpleTextItem(this))
         , cardIdItem(new QGraphicsSimpleTextItem(this))
@@ -33,19 +31,6 @@ NodeRect2::NodeRect2(const int cardId_, QGraphicsItem *parent)
         , textEditFocusIndicator(new QGraphicsRectItem(this))
         , moveResizeHelper(new GraphicsItemMoveResize(this))
         , contextMenu(new QMenu) {
-    //
-    const bool ok = vars
-            .addFreeVar(InputVar::Rect, QRectF(QPointF(0, 0), QSizeF(90, 150)))
-            .addFreeVar(InputVar::Color, QColor(160, 160, 160))
-            .addFreeVar(InputVar::MarginWidth, 2.0)
-            .addFreeVar(InputVar::BorderWidth, 5.0)
-            .addFreeVar(InputVar::NodeLabels, QStringList())
-            .addFreeVar(InputVar::IsEditable, true)
-            .addFreeVar(InputVar::IsHighlighted, false)
-            .initialize();
-    Q_ASSERT(ok);
-
-    //
     textEdit->setVisible(false);
     textEdit->setReadOnly(true);
     textEdit->setReplaceTabBySpaces(4);
@@ -59,12 +44,11 @@ NodeRect2::NodeRect2(const int cardId_, QGraphicsItem *parent)
     adjustChildItems();
 }
 
-NodeRect2::~NodeRect2() {
-    if (contextMenu != nullptr)
-        contextMenu->deleteLater();
+NodeRect1::~NodeRect1() {
+    contextMenu->deleteLater();
 }
 
-void NodeRect2::initialize() {
+void NodeRect1::initialize() {
     Q_ASSERT(scene() != nullptr);
 
     moveResizeHelper->setMoveHandle(captionBarItem);
@@ -76,7 +60,43 @@ void NodeRect2::initialize() {
     installEventFilterOnChildItems();
 }
 
-void NodeRect2::setText(const QString &text) {
+void NodeRect1::setRect(const QRectF rect_) {
+    prepareGeometryChange();
+    enclosingRect = rect_;
+    redraw();
+}
+
+void NodeRect1::setColor(const QColor color_) {
+    color = color_;
+    redraw();
+}
+
+void NodeRect1::setMarginWidth(const double width) {
+    marginWidth = width;
+    redraw();
+}
+
+void NodeRect1::setBorderWidth(const double width) {
+    borderWidth = width;
+    redraw();
+}
+
+void NodeRect1::setNodeLabels(const QStringList &labels) {
+    nodeLabels = labels;
+    adjustChildItems();
+}
+
+void NodeRect1::setNodeLabels(const QVector<QString> &labels) {
+    nodeLabels = QStringList(labels.constBegin(), labels.constEnd());
+    adjustChildItems();
+}
+
+void NodeRect1::setTitle(const QString &title) {
+    titleItem->setPlainText(title);
+    adjustChildItems();
+}
+
+void NodeRect1::setText(const QString &text) {
     textEdit->setPlainText(text);
     {
         // set line height of whole document
@@ -91,39 +111,74 @@ void NodeRect2::setText(const QString &text) {
     adjustChildItems();
 }
 
-int NodeRect2::getCardId() const {
+void NodeRect1::setEditable(const bool editable) {
+    isEditable = editable;
+
+    titleItem->setEditable(editable);
+    textEdit->setReadOnly(!editable);
+}
+
+void NodeRect1::setHighlighted(const bool highlighted) {
+    if (isHighlighted != highlighted) {
+        isHighlighted = highlighted;
+        update();
+    }
+}
+
+void NodeRect1::set(const QMap<InputVar, QVariant> &values) {
+    if (const QVariant v = values.value(InputVar::Rect); v.isValid())
+        setRect(v.value<QRectF>());
+    if (const QVariant v = values.value(InputVar::Color); v.isValid())
+        setColor(v.value<QColor>());
+    if (const QVariant v = values.value(InputVar::MarginWidth); v.isValid())
+        setMarginWidth(v.value<double>());
+    if (const QVariant v = values.value(InputVar::BorderWidth); v.isValid())
+        setBorderWidth(v.value<double>());
+    if (const QVariant v = values.value(InputVar::NodeLabels); v.isValid())
+        setNodeLabels(v.value<QStringList>());
+    if (const QVariant v = values.value(InputVar::IsEditable); v.isValid())
+        setEditable(v.value<bool>());
+    if (const QVariant v = values.value(InputVar::IsHighlighted); v.isValid())
+        setHighlighted(v.value<bool>());
+}
+
+QRectF NodeRect1::getRect() const {
+    return enclosingRect;
+}
+
+int NodeRect1::getCardId() const {
     return cardId;
 }
 
-QRectF NodeRect2::getRect() const {
-    return vars.getValue<QRectF>(InputVar::Rect);
+QSet<QString> NodeRect1::getNodeLabels() const {
+    return QSet<QString>(nodeLabels.constBegin(), nodeLabels.constEnd());
 }
 
-QSet<QString> NodeRect2::getNodeLabels() const {
-    const auto labels = vars.getValue<QStringList>(InputVar::NodeLabels);
-    return QSet<QString>(labels.constBegin(), labels.constEnd());
+QString NodeRect1::getTitle() const {
+    return titleItem->toPlainText();
 }
 
-QRectF NodeRect2::boundingRect() const {
-    const auto marginWidth = vars.getValue<double>(InputVar::MarginWidth);
-    return getRect().marginsAdded(uniformMarginsF(marginWidth));
+QString NodeRect1::getText() const {
+    return textEdit->toPlainText();
 }
 
-void NodeRect2::paint(
+bool NodeRect1::getIsHighlighted() const {
+    return isHighlighted;
+}
+
+QRectF NodeRect1::boundingRect() const {
+    return enclosingRect.marginsAdded(uniformMarginsF(marginWidth));
+}
+
+void NodeRect1::paint(
         QPainter *painter, const QStyleOptionGraphicsItem */*option*/, QWidget */*widget*/) {
     painter->save();
-
-    //
-    const auto color = vars.getValue<QColor>(InputVar::Color);
-    const auto borderWidth = vars.getValue<double>(InputVar::BorderWidth);
-    const auto marginWidth = vars.getValue<double>(InputVar::MarginWidth);
-    const auto isHighlighted = vars.getValue<bool>(InputVar::IsHighlighted);
 
     // background rect
     painter->setBrush(color);
     painter->setPen(Qt::NoPen);
     const double radius = borderWidth;
-    painter->drawRoundedRect(getRect(), radius, radius);
+    painter->drawRoundedRect(enclosingRect, radius, radius);
 
     // highlight box
     if (isHighlighted) {
@@ -131,7 +186,7 @@ void NodeRect2::paint(
         painter->setPen(QPen(getHighlightBoxColor(color), highlightBoxWidth));
         const double radius = borderWidth;
         painter->drawRoundedRect(
-                getRect()
+                enclosingRect
                     .marginsAdded(uniformMarginsF(marginWidth))
                     .marginsRemoved(uniformMarginsF(highlightBoxWidth / 2.0)),
                 radius, radius);
@@ -141,11 +196,11 @@ void NodeRect2::paint(
     painter->restore();
 }
 
-void NodeRect2::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
+void NodeRect1::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
     event->accept();
 }
 
-bool NodeRect2::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
+bool NodeRect1::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
     if (watched == captionBarItem || watched == nodeLabelItem || watched == cardIdItem) {
         if (event->type() == QEvent::GraphicsSceneContextMenu) {
             auto *e = dynamic_cast<QGraphicsSceneContextMenuEvent *>(event);
@@ -161,7 +216,7 @@ bool NodeRect2::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
     return false;
 }
 
-void NodeRect2::mousePressEvent(QGraphicsSceneMouseEvent */*event*/) {
+void NodeRect1::mousePressEvent(QGraphicsSceneMouseEvent */*event*/) {
     // do nothing
 
     // This method is reimplemented so that
@@ -170,14 +225,20 @@ void NodeRect2::mousePressEvent(QGraphicsSceneMouseEvent */*event*/) {
     //    through `this` and reach the QGraphicsScene.
 }
 
-void NodeRect2::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+void NodeRect1::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
     QGraphicsObject::mouseReleaseEvent(event);
 
     if (event->button() == Qt::LeftButton)
         emit clicked();
 }
 
-void NodeRect2::setUpContextMenu() {
+void NodeRect1::installEventFilterOnChildItems() {
+    captionBarItem->installSceneEventFilter(this);
+    nodeLabelItem->installSceneEventFilter(this);
+    cardIdItem->installSceneEventFilter(this);
+}
+
+void NodeRect1::setUpContextMenu() {
     {
         auto *action = contextMenu->addAction(
                 QIcon(":/icons/label_black_24"), "Set Labels...");
@@ -203,7 +264,7 @@ void NodeRect2::setUpContextMenu() {
     }
 }
 
-void NodeRect2::setUpConnections() {
+void NodeRect1::setUpConnections() {
     connect(titleItem, &CustomGraphicsTextItem::textEdited, this, [this](bool heightChanged) {
         emit titleTextUpdated(titleItem->toPlainText(), std::nullopt);
         if (heightChanged)
@@ -235,13 +296,13 @@ void NodeRect2::setUpConnections() {
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::getTargetItemPosition,
             this, [this](QPointF *pos) {
-        *pos = this->mapToScene(getRect().topLeft());
+        *pos = this->mapToScene(enclosingRect.topLeft());
     }, Qt::DirectConnection);
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::setTargetItemPosition,
             this, [this](const QPointF &pos) {
         prepareGeometryChange();
-        getRect().moveTopLeft(this->mapFromScene(pos));
+        enclosingRect.moveTopLeft(this->mapFromScene(pos));
         redraw();
 
         scene()->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
@@ -258,14 +319,14 @@ void NodeRect2::setUpConnections() {
     connect(moveResizeHelper, &GraphicsItemMoveResize::getTargetItemRect,
             this, [this](QRectF *rect) {
         *rect = QRectF(
-            this->mapToScene(getRect().topLeft()),
-            this->mapToScene(getRect().bottomRight()));
+            this->mapToScene(enclosingRect.topLeft()),
+            this->mapToScene(enclosingRect.bottomRight()));
     }, Qt::DirectConnection);
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::setTargetItemRect,
             this, [this](const QRectF &rect) {
         prepareGeometryChange();
-        getRect() = QRectF(
+        enclosingRect = QRectF(
                 this->mapFromScene(rect.topLeft()),
                 this->mapFromScene(rect.bottomRight()));
         redraw();
@@ -286,13 +347,9 @@ void NodeRect2::setUpConnections() {
     });
 }
 
-void NodeRect2::installEventFilterOnChildItems() {
-    captionBarItem->installSceneEventFilter(this);
-    nodeLabelItem->installSceneEventFilter(this);
-    cardIdItem->installSceneEventFilter(this);
-}
+void NodeRect1::adjustChildItems() {
+//    qDebug().noquote() << "adjustChildItems()";
 
-void NodeRect2::adjustChildItems() {
     // get view's font
     QFont fontOfView;
     if (scene() != nullptr) {
@@ -304,8 +361,7 @@ void NodeRect2::adjustChildItems() {
 
     //
     const auto borderInnerRect
-            = getRect().marginsRemoved(
-                  uniformMarginsF(vars.getValue<double>(InputVar::BorderWidth)));
+            = enclosingRect.marginsRemoved(uniformMarginsF(borderWidth));
 
     // caption bar
     double captionHeight = 0;
@@ -331,12 +387,12 @@ void NodeRect2::adjustChildItems() {
                 QSizeF(borderInnerRect.width(), fontHeight + padding * 2));
         captionBarItem->setRect(captionRect);
         captionBarItem->setPen(Qt::NoPen);
-        captionBarItem->setBrush(vars.getValue<QColor>(InputVar::Color));
+        captionBarItem->setBrush(color);
 
         captionHeight = captionRect.height();
 
         // node label
-        nodeLabelItem->setText(getNodeLabelsString());
+        nodeLabelItem->setText(getNodeLabelsString(nodeLabels));
         nodeLabelItem->setFont(boldFont);
         nodeLabelItem->setBrush(textColor);
         nodeLabelItem->setPos(captionRect.topLeft() + QPointF(padding, padding));
@@ -436,7 +492,7 @@ void NodeRect2::adjustChildItems() {
     }
 }
 
-QGraphicsView *NodeRect2::getView() const {
+QGraphicsView *NodeRect1::getView() {
     if (scene() == nullptr)
         return nullptr;
 
@@ -446,15 +502,14 @@ QGraphicsView *NodeRect2::getView() const {
         return nullptr;
 }
 
-QString NodeRect2::getNodeLabelsString() const {
-    const auto labels = vars.getValue<QStringList>(InputVar::NodeLabels);
+QString NodeRect1::getNodeLabelsString(const QStringList &labels) {
     QStringList labels2;
     for (const QString &label: labels)
         labels2 << (":" + label);
     return labels2.join(" ");
 }
 
-QColor NodeRect2::getHighlightBoxColor(const QColor &color) {
+QColor NodeRect1::getHighlightBoxColor(const QColor &color) {
     int h, s, v;
     color.getHsv(&h, &s, &v);
 
@@ -466,53 +521,4 @@ QColor NodeRect2::getHighlightBoxColor(const QColor &color) {
     else {
         return QColor(36, 128, 220); // hue = 210
     }
-}
-
-QMap<NodeRect2::InputVar, QString> NodeRect2::inputVariableNames() {
-    QMap<InputVar, QString> result;
-
-#define CASE(item) case InputVar::item: name = #item; break;
-    for (int i = 0; i < static_cast<int>(InputVar::_Count); ++i) {
-        const InputVar var = static_cast<InputVar>(i);
-
-        QString name;
-        switch (var) {
-        CASE(Rect);
-        CASE(Color);
-        CASE(MarginWidth);
-        CASE(BorderWidth);
-        CASE(NodeLabels);
-        CASE(Title);
-        CASE(IsEditable);
-        CASE(IsHighlighted);
-        CASE(_Count); // (should not happen)
-        }
-
-        if (name.isEmpty())
-            Q_ASSERT(false); // case for `var` is missing
-        result.insert(var, name);
-    }
-    return result;
-#undef CASE
-}
-
-QMap<NodeRect2::DependentVar, QString> NodeRect2::dependentVariableNames() {
-    QMap<NodeRect2::DependentVar, QString> result;
-
-#define CASE(item) case DependentVar::item: name = #item; break;
-    for (int i = 0; i < static_cast<int>(DependentVar::_Count); ++i) {
-        const DependentVar var = static_cast<DependentVar>(i);
-
-        QString name;
-        switch (var) {
-        CASE(HighlightBoxColor);
-        CASE(_Count); // (should not happen)
-        }
-
-        if (name.isEmpty())
-            Q_ASSERT(false); // case for `var` is missing
-        result.insert(var, name);
-    }
-    return result;
-#undef CASE
 }

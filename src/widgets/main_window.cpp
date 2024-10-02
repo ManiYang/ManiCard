@@ -414,6 +414,7 @@ void MainWindow::onStartUp() {
 
 void MainWindow::onBoardSelectedByUser(const int boardId) {
     auto *routine = new AsyncRoutine;
+    routine->setName("MainWindow::onBoardSelectedByUser");
 
     routine->addStep([this, routine]() {
         // save current board's topLeftPos

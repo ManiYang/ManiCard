@@ -1,5 +1,5 @@
-#ifndef NODERECT2_H
-#define NODERECT2_H
+#ifndef NODERECT_H
+#define NODERECT_H
 
 #include <optional>
 #include <QColor>
@@ -10,57 +10,61 @@
 #include <QGraphicsView>
 #include <QMenu>
 #include <QSet>
-#include "utilities/variables_update_propagator.h"
 
 class CustomTextEdit;
 class CustomGraphicsTextItem;
 class GraphicsItemMoveResize;
 
-class NodeRect2 : public QGraphicsObject
+class NodeRect1 : public QGraphicsObject
 {
     Q_OBJECT
 public:
-    explicit NodeRect2(const int cardId, QGraphicsItem *parent = nullptr);
-    ~NodeRect2();
+    explicit NodeRect1(const int cardId, QGraphicsItem *parent = nullptr);
+    ~NodeRect1();
 
     //!
     //! Call this after this item is added to a scene.
     //!
     void initialize();
 
-    //
+    // Call these "set" methods only after this item is added to a scene:
 
+    void setRect(const QRectF rect_);
+    void setColor(const QColor color_);
+    void setMarginWidth(const double width);
+    void setBorderWidth(const double width);
+
+    void setNodeLabels(const QStringList &labels);
+    void setNodeLabels(const QVector<QString> &labels);
+
+    void setTitle(const QString &title);
+    void setText(const QString &text);
+
+    void setEditable(const bool editable);
+    void setHighlighted(const bool highlighted);
+
+
+    // [temp]
     enum class InputVar {
         Rect=0, // QRectF
         Color, // QColor
         MarginWidth, // double
         BorderWidth, // double
         NodeLabels, // QStringList
-        Title, // QString
         IsEditable, // bool
         IsHighlighted, // bool
         _Count
     };
+    void set(const QMap<InputVar, QVariant> &values);
 
 
-    // Call these "set" methods only after this item is initialized:
 
-//    void setRect(const QRectF rect_);
-//    void setColor(const QColor color_);
-//    void setMarginWidth(const double width);
-//    void setBorderWidth(const double width);
 
-//    void setNodeLabels(const QStringList &labels);
-//    void setNodeLabels(const QVector<QString> &labels);
-//    void setTitle(const QString &title);
-    void setText(const QString &text);
-
-//    void setEditable(const bool editable);
-//    void setHighlighted(const bool highlighted);
 
     //
-    int getCardId() const;
     QRectF getRect() const;
+
+    int getCardId() const;
     QSet<QString> getNodeLabels() const;
     QString getTitle() const;
     QString getText() const;
@@ -98,12 +102,14 @@ private:
     const double textEditLineHeightPercent {120};
     const double highlightBoxWidth {3.0};
 
-    enum class DependentVar {
-        HighlightBoxColor=0, // QColor
-        _Count
-    };
+    QRectF enclosingRect {QPointF(0, 0), QSizeF(90, 150)};
+    QColor color {160, 160, 160};
+    double marginWidth {2.0};
+    double borderWidth {5.0};
+    QStringList nodeLabels;
+    bool isEditable {true};
+    bool isHighlighted {false};
 
-    VariablesUpdatePropagator<InputVar, DependentVar> vars;
 
     // child items
     QGraphicsRectItem *captionBarItem; // also serves as move handle
@@ -123,9 +129,9 @@ private:
     QMenu *contextMenu;
 
     //
+    void installEventFilterOnChildItems();
     void setUpContextMenu();
     void setUpConnections();
-    void installEventFilterOnChildItems();
 
     void redraw() {
         update(); // re-paint
@@ -134,13 +140,9 @@ private:
     void adjustChildItems();
 
     // tools
-    QGraphicsView *getView() const; // can be nullptr
-    QString getNodeLabelsString() const;
+    QGraphicsView *getView(); // can be nullptr
+    static QString getNodeLabelsString(const QStringList &labels);
     static QColor getHighlightBoxColor(const QColor &color);
-
-    static QMap<InputVar, QString> inputVariableNames();
-    static QMap<DependentVar, QString> dependentVariableNames();
-
 };
 
-#endif // NODERECT2_H
+#endif // NODERECT_H

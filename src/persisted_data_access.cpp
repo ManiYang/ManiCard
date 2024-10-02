@@ -39,6 +39,7 @@ void PersistedDataAccess::queryCards(
         bool dbQueryOk;
     };
     auto *routine = new AsyncRoutineWithVars;
+    routine->setName("PersistedDataAccess::queryCards");
 
     // 1. get the parts that are already cached
     for (const int id: cardIds) {
@@ -309,6 +310,7 @@ void PersistedDataAccess::getBoardData(
         std::optional<Board> result;
     };
     auto *routine = new AsyncRoutineWithVars;
+    routine->setName("PersistedDataAccess::getBoardData");
 
     // 2. query DB
     routine->addStep([this, routine, boardId]() {
