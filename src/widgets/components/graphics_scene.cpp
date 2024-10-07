@@ -10,11 +10,18 @@
 
 GraphicsScene::GraphicsScene(QObject *parent)
         : QGraphicsScene(parent)
-        , timerResetAccumulatedWheelDelta(new QTimer(this)) {
+        , timerResetAccumulatedWheelDelta(new QTimer(this))
+        , timerFinishViewScrolling(new QTimer(this)) {
     timerResetAccumulatedWheelDelta->setInterval(200);
     timerResetAccumulatedWheelDelta->setSingleShot(true);
     connect(timerResetAccumulatedWheelDelta, &QTimer::timeout, this, [this]() {
         accumulatedWheelDelta = 0;
+    });
+
+    timerFinishViewScrolling->setInterval(800);
+    timerFinishViewScrolling->setSingleShot(true);
+    connect(timerFinishViewScrolling, &QTimer::timeout, this, [this]() {
+        emit viewScrollingFinished();
     });
 }
 
@@ -253,6 +260,16 @@ void GraphicsScene::wheelEvent(QGraphicsSceneWheelEvent *event) {
 
         //
         event->accept();
+        return;
+    }
+    else if (event->modifiers() == Qt::NoModifier) {
+        QGraphicsScene::wheelEvent(event);
+
+        if (!event->isAccepted()) {
+            // assume that the QGraphicsView will be scrolled
+            timerFinishViewScrolling->start();
+            emit viewScrollingStarted();
+        }
         return;
     }
 

@@ -1,14 +1,15 @@
 #include <QDebug>
 #include <QKeyEvent>
 #include <QMimeData>
+#include <QScrollBar>
 #include <QTextCursor>
 #include <QVBoxLayout>
 #include <QWheelEvent>
 #include "custom_text_edit.h"
 
-CustomTextEdit::CustomTextEdit(const bool acceptEveryWheelEvent, QWidget *parent)
+CustomTextEdit::CustomTextEdit(QWidget *parent)
         : QFrame(parent)
-        , textEdit(new TextEditTweak(acceptEveryWheelEvent)) {
+        , textEdit(new TextEditTweak) {
     QFrame::setContextMenuPolicy(Qt::NoContextMenu);
 
     auto *layout = new QVBoxLayout;
@@ -54,6 +55,10 @@ void CustomTextEdit::setReadOnly(const bool readonly) {
     textEdit->setReadOnly(readonly);
 }
 
+void CustomTextEdit::enableSetEveryWheelEventAccepted(const bool enable){
+    textEdit->enableSetEveryWheelEventAccepted(enable);
+}
+
 void CustomTextEdit::setReplaceTabBySpaces(const int numberOfSpaces) {
     numberOfSpacesToReplaceTab = numberOfSpaces;
 }
@@ -76,6 +81,10 @@ QString CustomTextEdit::toPlainText() const {
 
 QTextDocument *CustomTextEdit::document() const {
     return textEdit->document();
+}
+
+bool CustomTextEdit::isVerticalScrollBarVisible() const {
+    return textEdit->verticalScrollBar()->isVisible();
 }
 
 bool CustomTextEdit::eventFilter(QObject *watched, QEvent *event) {
@@ -113,15 +122,18 @@ void CustomTextEdit::insertSpaces(const int count) {
 
 //====
 
-TextEditTweak::TextEditTweak(const bool acceptEveryWheelEvent_, QWidget *parent)
-        : QTextEdit(parent)
-        , acceptEveryWheelEvent(acceptEveryWheelEvent_) {
+TextEditTweak::TextEditTweak(QWidget *parent)
+    : QTextEdit(parent) {
+}
+
+void TextEditTweak::enableSetEveryWheelEventAccepted(const bool enable) {
+    setEveryWheelEventAccepted = enable;
 }
 
 void TextEditTweak::wheelEvent(QWheelEvent *event) {
     QTextEdit::wheelEvent(event);
 
-    if (acceptEveryWheelEvent)
+    if (setEveryWheelEventAccepted)
         event->accept();
 }
 

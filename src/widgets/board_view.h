@@ -150,6 +150,7 @@ private:
         void unhighlightAllCards(bool *highlightedCardIdChanged);
 
         void updateAllNodeRectColors();
+        void setAllNodeRectsTextEditorIgnoreWheelEvent(const bool b);
 
         bool contains(const int cardId) const;
         NodeRect *get(const int cardId) const;

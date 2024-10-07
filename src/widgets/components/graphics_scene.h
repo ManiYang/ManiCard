@@ -1,6 +1,7 @@
 #ifndef GRAPHICSSCENE_H
 #define GRAPHICSSCENE_H
 
+#include <QBasicTimer>
 #include <QGraphicsScene>
 #include <QTimer>
 
@@ -19,6 +20,9 @@ signals:
     void contextMenuRequestedOnScene(const QPointF &scenePos);
     void clickedOnBackground();
     void userToZoomInOut(bool zoomIn, const QPointF &anchorScenePos);
+
+    void viewScrollingStarted();
+    void viewScrollingFinished();
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -46,6 +50,8 @@ private:
 
     QTimer *timerResetAccumulatedWheelDelta;
     int accumulatedWheelDelta {0};
+
+    QTimer *timerFinishViewScrolling;
 
     void startDragScrolling();
     void dragScroll(

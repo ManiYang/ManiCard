@@ -20,11 +20,12 @@ public:
     //!             base implementation, so that the event is never passed to parent widget.
     //! \param parent
     //!
-    explicit CustomTextEdit(const bool acceptEveryWheelEvent = false, QWidget *parent = nullptr);
+    explicit CustomTextEdit(QWidget *parent = nullptr);
 
     void clear();
     void setPlainText(const QString &text);
     void setReadOnly(const bool readonly);
+    void enableSetEveryWheelEventAccepted(const bool enable);
 
     //!
     //! \param numberOfSpaces: if < 0, won't replace TAB
@@ -41,8 +42,9 @@ public:
 
     QString toPlainText() const;
 
-    //
     QTextDocument *document() const;
+
+    bool isVerticalScrollBarVisible() const;
 
     //
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -70,7 +72,9 @@ class TextEditTweak : public QTextEdit
 {
     Q_OBJECT
 public:
-    explicit TextEditTweak(const bool acceptEveryWheelEvent_ = false, QWidget *parent = nullptr);
+    explicit TextEditTweak(QWidget *parent = nullptr);
+
+    void enableSetEveryWheelEventAccepted(const bool enable);
 
 signals:
     void mouseReleased();
@@ -82,11 +86,10 @@ protected:
     void focusInEvent(QFocusEvent *event) override;
     void focusOutEvent(QFocusEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-
     void insertFromMimeData(const QMimeData *source) override;
 
 private:
-    bool acceptEveryWheelEvent;
+    bool setEveryWheelEventAccepted {false};
 };
 
 #endif // TEXTEDIT_H

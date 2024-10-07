@@ -44,6 +44,7 @@ public:
     void set(const QMap<InputVar, QVariant> &values);
     void setTitle(const QString &title);
     void setText(const QString &text);
+    void setTextEditorIgnoreWheelEvent(const bool b);
 
     //
     int getCardId() const;
@@ -86,7 +87,7 @@ private:
     const double highlightBoxWidth {3.0};
 
     enum class DependentVar {
-        HighlightBoxColor=0, // QColor
+        HighlightBoxColor=0, // QColor // (not added to `vars`)
         _Count
     };
 
@@ -108,6 +109,8 @@ private:
     //
     GraphicsItemMoveResize *moveResizeHelper;
     QMenu *contextMenu;
+
+    bool textEditIgnoreWheelEvent {false};
 
     //
     void setUpContextMenu();

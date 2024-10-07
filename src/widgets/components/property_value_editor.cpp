@@ -47,7 +47,7 @@ void PropertyValueEditor::setUpWidgets(const QJsonValue &initialValue) {
     {
         dataTypeView.addToLayout(layout);
 
-        textEdit = new CustomTextEdit(false);
+        textEdit = new CustomTextEdit;
         layout->addWidget(textEdit);
         {
             textEdit->setFrameShape(QFrame::Box);

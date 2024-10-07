@@ -29,7 +29,7 @@ NodeRect::NodeRect(const int cardId_, QGraphicsItem *parent)
         , cardIdItem(new QGraphicsSimpleTextItem(this))
         , contentsRectItem(new QGraphicsRectItem(this))
         , titleItem(new CustomGraphicsTextItem(contentsRectItem))
-        , textEdit(new CustomTextEdit(true, nullptr))
+        , textEdit(new CustomTextEdit(nullptr))
         , textEditProxyWidget(new QGraphicsProxyWidget(contentsRectItem))
         , textEditFocusIndicator(new QGraphicsRectItem(this))
         , moveResizeHelper(new GraphicsItemMoveResize(this))
@@ -47,6 +47,7 @@ NodeRect::NodeRect(const int cardId_, QGraphicsItem *parent)
     Q_ASSERT(ok);
 
     //
+    textEdit->enableSetEveryWheelEventAccepted(true);
     textEdit->setVisible(false);
     textEdit->setReadOnly(true);
     textEdit->setReplaceTabBySpaces(4);
@@ -98,6 +99,10 @@ void NodeRect::setText(const QString &text) {
     }
 
     adjustChildItems();
+}
+
+void NodeRect::setTextEditorIgnoreWheelEvent(const bool b) {
+    textEditIgnoreWheelEvent = b;
 }
 
 int NodeRect::getCardId() const {
@@ -176,6 +181,15 @@ bool NodeRect::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
         }
         else if (event->type() == QEvent::GraphicsSceneMouseRelease) {
             emit clicked();
+        }
+    }
+    else if (watched == textEditProxyWidget) {
+        if (event->type() == QEvent::GraphicsSceneWheel) {
+            if (textEditIgnoreWheelEvent)
+                return true;
+
+            if (!textEdit->isVerticalScrollBarVisible())
+                return true;
         }
     }
 
@@ -310,6 +324,8 @@ void NodeRect::installEventFilterOnChildItems() {
     captionBarItem->installSceneEventFilter(this);
     nodeLabelItem->installSceneEventFilter(this);
     cardIdItem->installSceneEventFilter(this);
+
+    textEditProxyWidget->installSceneEventFilter(this);
 }
 
 void NodeRect::updateInputVars(const QMap<InputVar, QVariant> &values) {

@@ -307,14 +307,14 @@ void BoardView::setUpContextMenu() {
     }
     {
         QAction *action = contextMenu->addAction(
-                QIcon(":/icons/add_box_black_24"), "Create New Card");
+                QIcon(":/icons/add_box_black_24"), "Create New Card...");
         connect(action, &QAction::triggered, this, [this]() {
             onUserToCreateNewCard(contextMenuData.requestScenePos);
         });
     }
     {
         QAction *action = contextMenu->addAction(
-                QIcon(":/icons/content_copy_24"), "Duplicate Card");
+                QIcon(":/icons/content_copy_24"), "Duplicate Card...");
         connect(action, &QAction::triggered, this, [this]() {
             onUserToDuplicateCard(contextMenuData.requestScenePos);
         });
@@ -341,6 +341,14 @@ void BoardView::setUpConnections() {
         doApplyZoomAction(
                 zoomIn ? ZoomAction::ZoomIn : ZoomAction::ZoomOut,
                 anchorScenePos);
+    });
+
+    connect(graphicsScene, &GraphicsScene::viewScrollingStarted, this, [this]() {
+        nodeRectsCollection.setAllNodeRectsTextEditorIgnoreWheelEvent(true);
+    });
+
+    connect(graphicsScene, &GraphicsScene::viewScrollingFinished, this, [this]() {
+        nodeRectsCollection.setAllNodeRectsTextEditorIgnoreWheelEvent(false);
     });
 
     //
@@ -1366,6 +1374,11 @@ void BoardView::NodeRectsCollection::updateAllNodeRectColors() {
                 boardView->cardLabelsAndAssociatedColors, boardView->defaultNodeRectColor);
         nodeRect->set({{NodeRect::InputVar::Color, color}});
     }
+}
+
+void BoardView::NodeRectsCollection::setAllNodeRectsTextEditorIgnoreWheelEvent(const bool b) {
+    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it)
+        it.value()->setTextEditorIgnoreWheelEvent(b);
 }
 
 bool BoardView::NodeRectsCollection::contains(const int cardId) const {
