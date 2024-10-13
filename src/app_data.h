@@ -18,7 +18,7 @@ class PersistedDataAccess;
 //!    - non-persisted
 //!  - derived data (computed from independent data)
 //!
-//! A method for update of independent data does the following synchornously:
+//! Each method for updating independent data does the following synchronously:
 //!  1. calls method of \c PersistedDataAccess for persisted independent data
 //!  2. computes all derived variables and emit "updated" signals for updated ones
 //!

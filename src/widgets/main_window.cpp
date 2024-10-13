@@ -127,17 +127,18 @@ void MainWindow::setUpWidgets() {
     // set up ui->frameCentralArea
     ui->frameCentralArea->setFrameShape(QFrame::NoFrame);
     {
-        auto *layout = new QVBoxLayout;
-        layout->setContentsMargins(0, 0, 0, 0);
-        ui->frameCentralArea->setLayout(layout);
+        auto *vBoxLayout = new QVBoxLayout;
+        vBoxLayout->setContentsMargins(0, 0, 0, 0);
+        ui->frameCentralArea->setLayout(vBoxLayout);
+        {
+            boardView = new BoardView;
+            vBoxLayout->addWidget(boardView);
+            boardView->setVisible(false);
 
-        boardView = new BoardView;
-        layout->addWidget(boardView);
-        boardView->setVisible(false);
-
-        noBoardOpenSign = new QLabel("No board is open");
-        layout->addWidget(noBoardOpenSign);
-        layout->setAlignment(noBoardOpenSign, Qt::AlignCenter);
+            noBoardOpenSign = new QLabel("No board is open");
+            vBoxLayout->addWidget(noBoardOpenSign);
+            vBoxLayout->setAlignment(noBoardOpenSign, Qt::AlignCenter);
+        }
     }
 
     // set up ui->frameRightSideBar

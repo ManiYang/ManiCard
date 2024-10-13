@@ -13,8 +13,7 @@
 //!         p,               if x is within the [values[p], values[p+1]) or
 //!                          (values[p], values[p+1]] (depending on \e intervalClosedLeft).
 template <class T>
-int binarySearchInterval(const QVector<T> &values, const T &x, bool intervalClosedLeft)
-{
+int binarySearchInterval(const QVector<T> &values, const T &x, bool intervalClosedLeft) {
     Q_ASSERT(!values.isEmpty());
 
     if (intervalClosedLeft) {
@@ -61,8 +60,7 @@ int binarySearchInterval(const QVector<T> &values, const T &x, bool intervalClos
 //! \return p so that, among the elements in values[], values[p] is the one closest to \e x
 //!
 template <class Container>
-int findIndexOfClosestValue(const Container &values, const double x, bool preferLeft)
-{
+int findIndexOfClosestValue(const Container &values, const double x, bool preferLeft) {
     Q_ASSERT(!values.isEmpty());
     if (values.size() == 1)
         return values.at(0);

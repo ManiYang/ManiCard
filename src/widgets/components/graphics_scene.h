@@ -6,8 +6,9 @@
 #include <QTimer>
 
 //!
-//! A Subclass of QGraphicsScene that handles mouse and keyboard events for drag-scrolling
-//! (scrolling by mouse dragging) the QGraphicsView.
+//! A subclass of QGraphicsScene that responds to mouse and keyboard events for
+//!   - drag-scrolling (scrolling by mouse dragging) the QGraphicsView,
+//!   - zooming in/out.
 //!
 class GraphicsScene : public QGraphicsScene
 {
@@ -62,7 +63,7 @@ private:
     QPointF getViewCenterInScene() const;
 
     //!
-    //! \return returns a divisor of 120 (times -1 if \e delta is negative), or 0 \e delta is 0
+    //! \return a divisor of 120 (times -1 if \e delta is negative), or 0 \e delta is 0
     //!
     static int discretizeWheelDelta(const int delta);
 };

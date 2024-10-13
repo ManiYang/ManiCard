@@ -110,6 +110,7 @@ void GraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     case State::RightDragScrolling:
         event->accept();
         return;
+
     case State::LeftDragScrollStandby:
         if (event->button() == Qt::LeftButton) {
             mousePressScreenPos = event->screenPos();

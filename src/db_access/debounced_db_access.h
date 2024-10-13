@@ -13,7 +13,10 @@ class UnsavedUpdateRecordsFile;
 //! to the same write operation (for example, update of \e text property of the same card)
 //! can be buffered so that the frequency of actual DB write is limited.
 //!
-//! Notes for implementing this class:
+//! When a DB write operation fails, an unsaved-update record is added and a warning message box
+//! is shown.
+//!
+//! Notes for implementing methods of this class:
 //!
 //! 1. Each write method is either debounced or not debounced. For a write method to be able to
 //!    be debounced, its parameters (update data) must be able to be accumulated.

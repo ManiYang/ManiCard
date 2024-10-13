@@ -6,7 +6,7 @@
 #include <QString>
 
 //!
-//! The returned directory is created.
+//! The returned directory is created if it does not exist.
 //! \return "" if failed
 //!
 inline QString getAppLocalDataDir(QString *errorMsg = nullptr) {

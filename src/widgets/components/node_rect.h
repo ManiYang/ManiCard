@@ -41,6 +41,7 @@ public:
     };
 
     // Call these "set" methods only after this item is initialized:
+
     void set(const QMap<InputVar, QVariant> &values);
     void setTitle(const QString &title);
     void setText(const QString &text);

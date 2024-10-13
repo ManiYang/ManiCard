@@ -135,7 +135,7 @@ public:
             QObject *parent = nullptr);
 
     //!
-    //! The sequence of queries is wrapped in an implicit transaction. (Use \e INeo4jTransaction
+    //! The sequence of queries is wrapped in an implicit transaction. (Use \e Neo4jTransaction
     //! for explicit transactions.)
     //! The request has no time-out and is not retried if there's network error.
     //!
