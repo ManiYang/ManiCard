@@ -278,6 +278,7 @@ void BoardView::setUpWidgets() {
 
     // set up `graphicsScene`, & `canvas`
     graphicsScene = new GraphicsScene(this);
+    graphicsScene->setItemIndexMethod(QGraphicsScene::NoIndex);
     graphicsScene->setBackgroundBrush(sceneBackgroundColor);
 
     canvas = new QGraphicsRectItem;

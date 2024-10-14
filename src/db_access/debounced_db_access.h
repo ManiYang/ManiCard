@@ -9,9 +9,9 @@ class ActionDebouncer;
 class UnsavedUpdateRecordsFile;
 
 //!
-//! Provides access to DB, with a debounce mechanism for write operations, where multiple calls
-//! to the same write operation (for example, update of \e text property of the same card)
-//! can be buffered so that the frequency of actual DB write is limited.
+//! Provides access to DB, with a debounce mechanism for write operations, where contiguous calls
+//! to certain write operation (for example, update of \e text property of the same card) can be
+//! buffered (and accumulated) so that the frequency of actual DB write is limited.
 //!
 //! When a DB write operation fails, an unsaved-update record is added and a warning message box
 //! is shown.
