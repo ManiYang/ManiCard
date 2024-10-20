@@ -69,6 +69,9 @@ private:
             // in the order of precedence (high to low)
     QColor defaultNodeRectColor;
 
+    double zoomScale {1.0};
+    double graphicsGeometryScaleFactor {1.0};
+
     //
     BoardViewToolBar *toolBar {nullptr};
     QGraphicsView *graphicsView {nullptr};
@@ -119,6 +122,8 @@ private:
     //!                        to view
     //!
     void doApplyZoomAction(const ZoomAction zoomAction, const QPointF &anchorScenePos);
+
+    void updateCanvasScale(const double scale, const QPointF &anchorScenePos);
 
     //
     class NodeRectsCollection

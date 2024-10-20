@@ -2,6 +2,7 @@
 #define APPDATA_H
 
 #include <QObject>
+#include <QWidget>
 #include "app_data_readonly.h"
 #include "app_event_source.h"
 #include "models/board.h"
@@ -131,6 +132,8 @@ public:
     int getHighlightedCardId() const override; // can return -1
 
     void setHighlightedCardId(const EventSource &eventSrc, const int cardId); // `cardId` can be -1
+
+    void updateFontSizeScaleFactor(const QWidget *window, const double factor);
 
     // ==== derived data ====
 

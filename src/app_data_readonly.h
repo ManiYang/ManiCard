@@ -1,6 +1,7 @@
 #ifndef APP_DATA_READONLY_H
 #define APP_DATA_READONLY_H
 
+#include <QWidget>
 #include "app_event_source.h"
 #include "models/board.h"
 #include "models/boards_list_properties.h"
@@ -70,6 +71,7 @@ signals:
             EventSource eventSrc,
             const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate);
     void highlightedCardIdUpdated(EventSource eventSrc);
+    void fontSizeScaleFactorChanged(const QWidget *window, const double factor);
 };
 
 #endif // APP_DATA_READONLY_H

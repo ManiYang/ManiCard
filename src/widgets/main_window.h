@@ -3,7 +3,10 @@
 
 #include <QLabel>
 #include <QMainWindow>
+#include <QPointer>
+#include <QScreen>
 #include <QToolButton>
+#include "utilities/periodic_checker.h"
 
 namespace Ui {
 class MainWindow;
@@ -25,6 +28,7 @@ protected:
     void showEvent(QShowEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
+    void moveEvent(QMoveEvent *event) override;
 
 private:
     Ui::MainWindow *ui;
@@ -52,6 +56,8 @@ private:
     enum ClosingState {NotClosing, Closing, CloseNow};
     ClosingState closingState {ClosingState::NotClosing};
 
+    const QScreen *currentScreen {nullptr}; // used only in checkIsScreenChanged()
+
     //
     void setUpWidgets();
     void setUpConnections();
@@ -76,6 +82,8 @@ private:
 
     void saveTopLeftPosAndZoomRatioOfCurrentBoard();
     void saveBoardsOrdering();
+
+    void checkIsScreenChanged();
 };
 
 #endif // MAIN_WINDOW_H

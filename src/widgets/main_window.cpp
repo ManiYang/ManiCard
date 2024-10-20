@@ -1,3 +1,4 @@
+#include <cmath>
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDebug>
@@ -12,6 +13,7 @@
 #include "ui_main_window.h"
 #include "utilities/action_debouncer.h"
 #include "utilities/async_routine.h"
+#include "utilities/fonts_util.h"
 #include "utilities/margins_util.h"
 #include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
@@ -55,7 +57,10 @@ void MainWindow::showEvent(QShowEvent *event) {
         isEverShown = true;
         onShownForFirstTime();
     }
+
     QMainWindow::showEvent(event);
+
+    checkIsScreenChanged();
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
@@ -87,6 +92,11 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         return;
     }
     Q_ASSERT(false); // case not implemented
+}
+
+void MainWindow::moveEvent(QMoveEvent *event) {
+    QMainWindow::moveEvent(event);
+    checkIsScreenChanged();
 }
 
 void MainWindow::setUpWidgets() {
@@ -836,4 +846,17 @@ void MainWindow::saveBoardsOrdering() {
 
     Services::instance()->getAppData()
             ->updateBoardsListProperties(EventSource(this), propertiesUpdate);
+}
+
+void MainWindow::checkIsScreenChanged() {
+    if (const QScreen *newScreen = screen(); newScreen != currentScreen) {
+        qInfo() << "screen changed";
+        currentScreen = newScreen;
+
+        const double factor = fontSizeScaleFactor(this);
+        qInfo() << "font size scale factor:" << factor;
+        qInfo() << "screen logical DPI:" << screen()->logicalDotsPerInch();
+
+        Services::instance()->getAppData()->updateFontSizeScaleFactor(this, factor);
+    }
 }

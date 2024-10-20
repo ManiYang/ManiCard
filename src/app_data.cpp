@@ -184,7 +184,12 @@ int AppData::getHighlightedCardId() const {
 }
 
 void AppData::setHighlightedCardId(const EventSource &eventSrc, const int cardId) {
-    // synchornously update all variables and emit "updated" signals
+    // synchornously update derived variables and emit "updated" signals
     highlightedCardId = cardId;
     emit highlightedCardIdUpdated(eventSrc);
+}
+
+void AppData::updateFontSizeScaleFactor(const QWidget *window, const double factor) {
+    // synchornously update derived variables and emit "updated" signals
+    emit fontSizeScaleFactorChanged(window, factor);
 }

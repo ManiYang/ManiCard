@@ -32,6 +32,7 @@ SOURCES += \
     utilities/app_instances_shared_memory.cpp \
     utilities/async_routine.cpp \
     utilities/directed_graph.cpp \
+    utilities/fonts_util.cpp \
     utilities/geometry_util.cpp \
     utilities/json_util.cpp \
     utilities/logging.cpp \
@@ -43,6 +44,7 @@ SOURCES += \
     widgets/board_view_toolbar.cpp \
     widgets/boards_list.cpp \
     widgets/card_properties_view.cpp \
+    widgets/components/board_box_item.cpp \
     widgets/components/custom_graphics_text_item.cpp \
     widgets/components/custom_list_widget.cpp \
     widgets/components/custom_text_edit.cpp \
@@ -90,6 +92,7 @@ HEADERS += \
     utilities/async_routine.h \
     utilities/binary_search.h \
     utilities/directed_graph.h \
+    utilities/fonts_util.h \
     utilities/functor.h \
     utilities/geometry_util.h \
     utilities/hash.h \
@@ -110,6 +113,7 @@ HEADERS += \
     widgets/board_view_toolbar.h \
     widgets/boards_list.h \
     widgets/card_properties_view.h \
+    widgets/components/board_box_item.h \
     widgets/components/custom_graphics_text_item.h \
     widgets/components/custom_list_widget.h \
     widgets/components/custom_text_edit.h \

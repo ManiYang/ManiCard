@@ -152,7 +152,8 @@ void BoardView::loadBoard(
         }
 
         //
-        canvas->setScale(routine->board.zoomRatio); // (1)
+        zoomScale = routine->board.zoomRatio;
+        canvas->setScale(zoomScale * graphicsGeometryScaleFactor); // (1)
         adjustSceneRect(); // (2)
         setViewTopLeftPos(routine->board.topLeftPos); // (3)
     }, this);
@@ -242,7 +243,7 @@ QPointF BoardView::getViewTopLeftPos() const {
 }
 
 double BoardView::getZoomRatio() const {
-    return canvas->scale();
+    return zoomScale;
 }
 
 bool BoardView::canClose() const {
@@ -359,6 +360,18 @@ void BoardView::setUpConnections() {
 
     connect(toolBar, &BoardViewToolBar::openCardColorsDialog, this, [this]() {
         onUserToSetCardColors();
+    });
+
+    //
+    connect(Services::instance()->getAppData(), &AppData::fontSizeScaleFactorChanged,
+            this, [this](const QWidget *window, const double factor) {
+        if (this->window() != window)
+            return;
+        if (std::fabs(factor - graphicsGeometryScaleFactor) < 1e-3)
+            return;
+
+        graphicsGeometryScaleFactor = factor;
+        updateCanvasScale(zoomScale * graphicsGeometryScaleFactor, getViewCenterInScene());
     });
 }
 
@@ -1111,25 +1124,28 @@ void BoardView::adjustSceneRect() {
 }
 
 void BoardView::doApplyZoomAction(const ZoomAction zoomAction, const QPointF &anchorScenePos) {
-    const QPointF anchorPosInCanvas = canvas->mapFromScene(anchorScenePos);
-
     if (zoomAction == ZoomAction::ResetZoom) {
-        canvas->setScale(1.0);
+        zoomScale = 1.0;
     }
     else {
         const QVector<double> scaleFactors {
             0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0
         }; // must be non-empty & strictly increasing
 
-        const double oldScale = canvas->scale();
+        const double oldScale = zoomScale;
         const int oldZoomLevel = findIndexOfClosestValue(scaleFactors, oldScale, true);
-
         const int zoomLevel = (zoomAction == ZoomAction::ZoomIn)
                 ? std::min(oldZoomLevel + 1, scaleFactors.count() - 1)
                 : std::max(oldZoomLevel - 1, 0);
-        const double scale = scaleFactors.at(zoomLevel);
-        canvas->setScale(scale);
+        zoomScale = scaleFactors.at(zoomLevel);
     }
+
+    updateCanvasScale(zoomScale * graphicsGeometryScaleFactor, anchorScenePos);
+}
+
+void BoardView::updateCanvasScale(const double scale, const QPointF &anchorScenePos) {
+    const QPointF anchorPosInCanvas = canvas->mapFromScene(anchorScenePos);
+    canvas->setScale(scale);
 
     // move the scene
     const QPointF driftedAnchorPosInScene = canvas->mapToScene(anchorPosInCanvas);
@@ -1142,7 +1158,6 @@ void BoardView::doApplyZoomAction(const ZoomAction zoomAction, const QPointF &an
 }
 
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) const {
-
     QPoint posInViewport = graphicsView->mapFromScene(scenePos);
     return graphicsView->viewport()->mapToGlobal(posInViewport);
 }
