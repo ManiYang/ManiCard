@@ -217,7 +217,6 @@ void BoardView::loadBoard(
     }, this);
 
     routine->start();
-
 }
 
 void BoardView::prepareToClose() {

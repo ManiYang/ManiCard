@@ -382,7 +382,6 @@ void NodeRect::adjustChildItems() {
     double captionHeight = 0;
     {
         constexpr int padding = 2;
-//        constexpr int fontPointSize = 10;
         constexpr int fontPixelSize = 13;
         const QString fontFamily = "Arial";
         const QColor textColor(Qt::white);
@@ -390,7 +389,6 @@ void NodeRect::adjustChildItems() {
         //
         QFont normalFont = fontOfView;
         normalFont.setFamily(fontFamily);
-//        normalFont.setPointSize(fontPointSize);
         normalFont.setPixelSize(fontPixelSize);
 
         QFont boldFont = normalFont;
@@ -443,13 +441,11 @@ void NodeRect::adjustChildItems() {
     double yTitleBottom = 0;
     {
         constexpr int padding = 3;
-//        constexpr int fontPointSize = 18;
         constexpr int fontPixelSize = 24;
         const QColor textColor(Qt::black);
 
         //
         QFont font = fontOfView;
-//        font.setPointSize(fontPointSize);
         font.setPixelSize(fontPixelSize);
         font.setBold(true);
 
@@ -472,7 +468,6 @@ void NodeRect::adjustChildItems() {
     // text
     {
         constexpr int leftPadding = 3;
-//        constexpr int fontPointSize = 12;
         constexpr int fontPixelSize = 16;
 
         //
@@ -492,7 +487,6 @@ void NodeRect::adjustChildItems() {
         textEdit->setContextMenuPolicy(Qt::NoContextMenu);
         textEdit->setStyleSheet(
                 "QTextEdit {"
-//                "  font-size: " + QString::number(fontPointSize) + "pt;"
                 "  font-size: " + QString::number(fontPixelSize) + "px;"
                 "}"
                 "QScrollBar:vertical {"
