@@ -48,6 +48,8 @@ protected:
     void setCaptionBarRightText(const QString &text);
     void setCaptionBarRightText(const QString &text, const bool bold);
 
+    QRectF getContentsRect() const;
+
     void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
     bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) override;
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
@@ -94,10 +96,15 @@ private:
     // tools
     static QColor getHighlightBoxColor(const QColor &color);
 
-    // private virtual methods
+    // ==== private virtual methods ====
+
+    //!
+    //! The returned \c QMenu can have no parent. Return \c nullptr if a context menu is not needed.
+    //!
     virtual QMenu *createCaptionBarContextMenu();
+
     virtual void setUpContents(QGraphicsItem *contentsContainer);
-    virtual void adjustContents(const QRectF &contentsRect);
+    virtual void adjustContents();
 };
 
 #endif // BOARDBOXITEM_H

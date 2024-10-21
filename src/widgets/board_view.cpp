@@ -20,7 +20,9 @@
 #include "widgets/board_view_toolbar.h"
 #include "widgets/components/edge_arrow.h"
 #include "widgets/components/graphics_scene.h"
-#include "widgets/components/node_rect.h"
+//#include "widgets/components/node_rect.h"
+#include "widgets/components/node_rect_1.h"
+#include "widgets/components/node_rect_2.h"
 #include "widgets/dialogs/dialog_board_card_colors.h"
 #include "widgets/dialogs/dialog_create_relationship.h"
 #include "widgets/dialogs/dialog_set_labels.h"
@@ -148,7 +150,8 @@ void BoardView::loadBoard(
                     cardId, cardData, nodeRectData.rect,
                     displayColor, nodeRectData.ownColor,
                     routine->userLabelsList);
-            nodeRect->set({{NodeRect::InputVar::IsEditable, true}});
+//            nodeRect->set({{NodeRect::InputVar::IsEditable, true}});
+            nodeRect->setEditable(true);
         }
 
         //
@@ -463,8 +466,8 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
                 cardId, routine->cardData, routine->nodeRectData.rect,
                 displayColor, routine->nodeRectData.ownColor,
                 routine->userLabelsList);
-//        nodeRect->setEditable(true);
-        nodeRect->set({{NodeRect::InputVar::IsEditable, true}});
+//        nodeRect->set({{NodeRect::InputVar::IsEditable, true}});
+        nodeRect->setEditable(true);
 
         adjustSceneRect();
     }, this);
@@ -599,8 +602,8 @@ void BoardView::onUserToCreateNewCard(const QPointF &scenePos) {
                 routine->newCardId, routine->card, routine->nodeRectData.rect,
                 displayColor, routine->nodeRectData.ownColor,
                 routine->userLabelsList);
-//        nodeRect->setEditable(true);
-        nodeRect->set({{NodeRect::InputVar::IsEditable, true}});
+//        nodeRect->set({{NodeRect::InputVar::IsEditable, true}});
+        nodeRect->setEditable(true);
 
         adjustSceneRect();
     }, this);
@@ -729,7 +732,8 @@ void BoardView::onUserToDuplicateCard(const QPointF &scenePos) {
                 routine->newCardId, routine->cardData, routine->nodeRectData.rect,
                 displayColor, routine->nodeRectData.ownColor,
                 routine->userLabelsList);
-        nodeRect->set({{NodeRect::InputVar::IsEditable, true}});
+//        nodeRect->set({{NodeRect::InputVar::IsEditable, true}});
+        nodeRect->setEditable(true);
 
         adjustSceneRect();
     }, this);
@@ -816,10 +820,12 @@ void BoardView::onUserToSetLabels(const int cardId) {
                 QSet<QString>(updatedLabels.cbegin(), updatedLabels.cend()),
                 cardLabelsAndAssociatedColors, defaultNodeRectColor);
 
-        nodeRect->set({
-            {NodeRect::InputVar::NodeLabels, updatedLabels},
-            {NodeRect::InputVar::Color, nodeRectColor}
-        });
+//        nodeRect->set({
+//            {NodeRect::InputVar::NodeLabels, updatedLabels},
+//            {NodeRect::InputVar::Color, nodeRectColor}
+//        });
+        nodeRect->setNodeLabels(updatedLabels);
+        nodeRect->setColor(nodeRectColor);
 
     }, this);
 
@@ -1232,11 +1238,14 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
             = sortByOrdering(cardData.getLabels(), userLabelsList, false);
     nodeRect->setTitle(cardData.title);
     nodeRect->setText(cardData.text);
-    nodeRect->set({
-        {NodeRect::InputVar::NodeLabels, QStringList(nodeLabelsVec.cbegin(), nodeLabelsVec.cend())},
-        {NodeRect::InputVar::Rect, rect},
-        {NodeRect::InputVar::Color, displayColor},
-    });
+//    nodeRect->set({
+//        {NodeRect::InputVar::NodeLabels, QStringList(nodeLabelsVec.cbegin(), nodeLabelsVec.cend())},
+//        {NodeRect::InputVar::Rect, rect},
+//        {NodeRect::InputVar::Color, displayColor},
+//    });
+    nodeRect->setNodeLabels(QStringList(nodeLabelsVec.cbegin(), nodeLabelsVec.cend()));
+    nodeRect->setRect(rect);
+    nodeRect->setColor(displayColor);
 
     // set up connections
     QPointer<NodeRect> nodeRectPtr(nodeRect);
@@ -1282,7 +1291,8 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         }
 
         for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it) {
-            it.value()->set({{NodeRect::InputVar::IsHighlighted, (it.key() == cardIdClicked)}});
+//            it.value()->set({{NodeRect::InputVar::IsHighlighted, (it.key() == cardIdClicked)}});
+            it.value()->setIsHighlighted(it.key() == cardIdClicked);
         }
 
         //
@@ -1370,8 +1380,9 @@ void BoardView::NodeRectsCollection::unhighlightAllCards(bool *highlightedCardId
 
     if (highlightedCardId != -1) {
         Q_ASSERT(cardIdToNodeRect.contains(highlightedCardId));
-        cardIdToNodeRect.value(highlightedCardId)
-                ->set({{NodeRect::InputVar::IsHighlighted, false}});
+//        cardIdToNodeRect.value(highlightedCardId)
+//                ->set({{NodeRect::InputVar::IsHighlighted, false}});
+        cardIdToNodeRect.value(highlightedCardId)->setIsHighlighted(false);
 
         highlightedCardId = -1;
         *highlightedCardIdChanged = true;
@@ -1387,7 +1398,8 @@ void BoardView::NodeRectsCollection::updateAllNodeRectColors() {
                 cardIdToNodeRectOwnColor.value(cardId, QColor()),
                 nodeRect->getNodeLabels(),
                 boardView->cardLabelsAndAssociatedColors, boardView->defaultNodeRectColor);
-        nodeRect->set({{NodeRect::InputVar::Color, color}});
+//        nodeRect->set({{NodeRect::InputVar::Color, color}});
+        nodeRect->setColor(color);
     }
 }
 

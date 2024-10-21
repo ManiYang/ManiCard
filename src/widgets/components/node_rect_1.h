@@ -36,30 +36,13 @@ public:
 
     void setNodeLabels(const QStringList &labels);
     void setNodeLabels(const QVector<QString> &labels);
-
     void setTitle(const QString &title);
     void setText(const QString &text);
-
     void setEditable(const bool editable);
-    void setHighlighted(const bool highlighted);
 
+    void setIsHighlighted(const bool highlighted);
 
-    // [temp]
-    enum class InputVar {
-        Rect=0, // QRectF
-        Color, // QColor
-        MarginWidth, // double
-        BorderWidth, // double
-        NodeLabels, // QStringList
-        IsEditable, // bool
-        IsHighlighted, // bool
-        _Count
-    };
-    void set(const QMap<InputVar, QVariant> &values);
-
-
-
-
+    void setTextEditorIgnoreWheelEvent(const bool b);
 
     //
     QRectF getRect() const;
@@ -127,6 +110,8 @@ private:
     //
     GraphicsItemMoveResize *moveResizeHelper;
     QMenu *contextMenu;
+
+    bool textEditIgnoreWheelEvent {false};
 
     //
     void installEventFilterOnChildItems();

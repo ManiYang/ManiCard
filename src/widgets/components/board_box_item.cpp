@@ -141,12 +141,18 @@ void BoardBoxItem::setCaptionBarRightText(const QString &text, const bool bold) 
     setCaptionBarRightTextItemPos(captionBarRect, captionBarPadding);
 }
 
+QRectF BoardBoxItem::getContentsRect() const {
+    return contentsRectItem->rect();
+}
+
 void BoardBoxItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
     event->accept();
 }
 
 bool BoardBoxItem::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
-    if (watched == captionBarItem) {
+    if (watched == captionBarItem
+            || watched == captionBarLeftTextItem
+            || watched == captionBarRightTextItem) {
         if (event->type() == QEvent::GraphicsSceneContextMenu) {
             auto *e = dynamic_cast<QGraphicsSceneContextMenuEvent *>(event);
             const auto pos = e->screenPos();
@@ -188,7 +194,10 @@ void BoardBoxItem::setUpConnections() {
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::setTargetItemPosition,
             this, [this](const QPointF &pos) {
+        prepareGeometryChange();
         borderOuterRect.moveTopLeft(this->mapFromScene(pos));
+        update();
+        adjustGraphicsItems();
 
         scene()->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
         // this is to deal with the QGraphicsView problem
@@ -210,9 +219,13 @@ void BoardBoxItem::setUpConnections() {
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::setTargetItemRect,
             this, [this](const QRectF &rect) {
+        prepareGeometryChange();
         borderOuterRect = QRectF(
                 mapFromScene(rect.topLeft()),
                 mapFromScene(rect.bottomRight()));
+        update();
+        adjustGraphicsItems();
+
         emit movedOrResized();
     });
 
@@ -231,6 +244,8 @@ void BoardBoxItem::setUpConnections() {
 
 void BoardBoxItem::installEventFilterOnChildItems() {
     captionBarItem->installSceneEventFilter(this);
+    captionBarLeftTextItem->installSceneEventFilter(this);
+    captionBarRightTextItem->installSceneEventFilter(this);
 }
 
 void BoardBoxItem::setUpGraphicsItems() {
@@ -297,7 +312,7 @@ void BoardBoxItem::adjustGraphicsItems() {
             borderInnerRect.marginsRemoved({0.0, captionBarRect.height(), 0.0, 0.0})); // <^>v
 
     // contents
-    adjustContents(contentsRectItem->rect());
+    adjustContents();
 }
 
 void BoardBoxItem::setCaptionBarRightTextItemPos(
@@ -330,6 +345,6 @@ void BoardBoxItem::setUpContents(QGraphicsItem */*contentsContainer*/) {
     // do nothing
 }
 
-void BoardBoxItem::adjustContents(const QRectF &/*contentsRect*/) {
+void BoardBoxItem::adjustContents() {
     // do nothing
 }

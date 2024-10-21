@@ -12,7 +12,7 @@
 #include <QTextBlockFormat>
 #include <QTextCursor>
 #include "models/node_labels.h"
-#include "node_rect.h"
+#include "node_rect_1.h"
 #include "utilities/margins_util.h"
 #include "widgets/components/custom_text_edit.h"
 #include "widgets/components/graphics_item_move_resize.h"
@@ -26,11 +26,12 @@ NodeRect1::NodeRect1(const int cardId_, QGraphicsItem *parent)
         , cardIdItem(new QGraphicsSimpleTextItem(this))
         , contentsRectItem(new QGraphicsRectItem(this))
         , titleItem(new CustomGraphicsTextItem(contentsRectItem))
-        , textEdit(new CustomTextEdit(true, nullptr))
+        , textEdit(new CustomTextEdit(nullptr))
         , textEditProxyWidget(new QGraphicsProxyWidget(contentsRectItem))
         , textEditFocusIndicator(new QGraphicsRectItem(this))
         , moveResizeHelper(new GraphicsItemMoveResize(this))
         , contextMenu(new QMenu) {
+    textEdit->enableSetEveryWheelEventAccepted(true);
     textEdit->setVisible(false);
     textEdit->setReadOnly(true);
     textEdit->setReplaceTabBySpaces(4);
@@ -118,28 +119,15 @@ void NodeRect1::setEditable(const bool editable) {
     textEdit->setReadOnly(!editable);
 }
 
-void NodeRect1::setHighlighted(const bool highlighted) {
+void NodeRect1::setIsHighlighted(const bool highlighted) {
     if (isHighlighted != highlighted) {
         isHighlighted = highlighted;
         update();
     }
 }
 
-void NodeRect1::set(const QMap<InputVar, QVariant> &values) {
-    if (const QVariant v = values.value(InputVar::Rect); v.isValid())
-        setRect(v.value<QRectF>());
-    if (const QVariant v = values.value(InputVar::Color); v.isValid())
-        setColor(v.value<QColor>());
-    if (const QVariant v = values.value(InputVar::MarginWidth); v.isValid())
-        setMarginWidth(v.value<double>());
-    if (const QVariant v = values.value(InputVar::BorderWidth); v.isValid())
-        setBorderWidth(v.value<double>());
-    if (const QVariant v = values.value(InputVar::NodeLabels); v.isValid())
-        setNodeLabels(v.value<QStringList>());
-    if (const QVariant v = values.value(InputVar::IsEditable); v.isValid())
-        setEditable(v.value<bool>());
-    if (const QVariant v = values.value(InputVar::IsHighlighted); v.isValid())
-        setHighlighted(v.value<bool>());
+void NodeRect1::setTextEditorIgnoreWheelEvent(const bool b) {
+    textEditIgnoreWheelEvent = b;
 }
 
 QRectF NodeRect1::getRect() const {
@@ -212,6 +200,15 @@ bool NodeRect1::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
             emit clicked();
         }
     }
+    else if (watched == textEditProxyWidget) {
+        if (event->type() == QEvent::GraphicsSceneWheel) {
+            if (textEditIgnoreWheelEvent)
+                return true;
+
+            if (!textEdit->isVerticalScrollBarVisible())
+                return true;
+        }
+    }
 
     return false;
 }
@@ -236,6 +233,7 @@ void NodeRect1::installEventFilterOnChildItems() {
     captionBarItem->installSceneEventFilter(this);
     nodeLabelItem->installSceneEventFilter(this);
     cardIdItem->installSceneEventFilter(this);
+    textEditProxyWidget->installSceneEventFilter(this);
 }
 
 void NodeRect1::setUpContextMenu() {
