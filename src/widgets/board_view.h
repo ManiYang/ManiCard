@@ -15,9 +15,7 @@ struct EdgeArrowData;
 class Card;
 class CardPropertiesUpdate;
 class GraphicsScene;
-class NodeRect1;
-class NodeRect2;
-using NodeRect = NodeRect2;
+class NodeRect;
 
 class BoardView : public QFrame
 {
