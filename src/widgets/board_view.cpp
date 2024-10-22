@@ -799,7 +799,8 @@ void BoardView::onUserToCreateNewDataQuery(const QPointF &scenePos) {
         ContinuationContext context(routine);
 
         routine->dataQuery.title = "New Data Query";
-        routine->dataQuery.query = "";
+        routine->dataQuery.queryCypher = "RETURN 0";
+        routine->dataQuery.queryParameters = QJsonObject();
 
         routine->dataViewBoxData.rect
                 = QRectF(canvas->mapFromScene(scenePos), defaultNewDataViewBoxSize);
@@ -812,7 +813,7 @@ void BoardView::onUserToCreateNewDataQuery(const QPointF &scenePos) {
         box->initialize();
         box->setRect(routine->dataViewBoxData.rect);
         box->setTitle(routine->dataQuery.title);
-        box->setQuery(routine->dataQuery.query);
+        box->setQuery(routine->dataQuery.queryCypher, routine->dataQuery.queryParameters);
         box->setColor(displayColor);
         box->setEditable(true);
 

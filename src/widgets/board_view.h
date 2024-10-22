@@ -56,8 +56,7 @@ signals:
 
 private:
     static inline const QSizeF defaultNewNodeRectSize {200, 120};
-//    static inline const QColor defaultNewNodeRectColor {170, 170, 170};
-    static inline const QSizeF defaultNewDataViewBoxSize {200, 120};
+    static inline const QSizeF defaultNewDataViewBoxSize {250, 180};
     static inline const QColor defaultNewDataViewBoxColor {170, 170, 170};
     static inline const QColor defaultEdgeArrowLineColor {100, 100, 100};
     constexpr static double defaultEdgeArrowLineWidth {2.0};

@@ -1,12 +1,15 @@
 #include <QGraphicsScene>
 #include <QGraphicsView>
+#include <QMessageBox>
 #include "data_view_box.h"
+#include "models/data_query.h"
 
 DataViewBox::DataViewBox(const int dataQueryId, QGraphicsItem *parent)
         : BoardBoxItem(parent)
         , dataQueryId(dataQueryId)
         , titleItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
-        , queryItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
+        , queryCypherItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
+        , queryCypherErrorMsgItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
         , textEdit(new CustomTextEdit(nullptr))
         , textEditProxyWidget(new QGraphicsProxyWidget) { // parent is set in setUpContents()
 }
@@ -16,14 +19,15 @@ void DataViewBox::setTitle(const QString &title) {
     adjustContents();
 }
 
-void DataViewBox::setQuery(const QString &query) {
-    queryItem->setPlainText(query);
+void DataViewBox::setQuery(const QString &cypher, const QJsonObject &parameters) {
+    queryCypherItem->setPlainText(cypher);
+    validateCypher();
     adjustContents();
 }
 
 void DataViewBox::setEditable(const bool editable) {
     titleItem->setEditable(editable);
-    queryItem->setEditable(editable);
+    queryCypherItem->setEditable(editable);
 }
 
 void DataViewBox::setTextEditorIgnoreWheelEvent(const bool b) {
@@ -49,12 +53,23 @@ bool DataViewBox::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
 }
 
 QMenu *DataViewBox::createCaptionBarContextMenu() {
-    return nullptr;
+    auto *contextMenu = new QMenu;
+    {
+        auto *action = contextMenu->addAction(QIcon(":/icons/close_box_black_24"), "Close");
+        connect(action, &QAction::triggered, this, [this]() {
+            const auto r = QMessageBox::question(getView(), " ", "Close the data query?");
+            if (r == QMessageBox::Yes)
+                emit closeByUser();
+        });
+    }
+
+    return contextMenu;
 }
 
 void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     titleItem->setParentItem(contentsContainer);
-    queryItem->setParentItem(contentsContainer);
+    queryCypherItem->setParentItem(contentsContainer);
+    queryCypherErrorMsgItem->setParentItem(contentsContainer);
     textEditProxyWidget->setParentItem(contentsContainer);
 
     //
@@ -99,14 +114,23 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
         emit clicked();
     });
 
-    // queryItem
-    connect(queryItem, &CustomGraphicsTextItem::textEdited, this, [this](bool heightChanged) {
-        emit queryUpdated(queryItem->toPlainText());
-        if (heightChanged)
+    // queryCypherItem
+    connect(queryCypherItem, &CustomGraphicsTextItem::textEdited, this, [this](bool heightChanged) {
+        // validate
+        const auto [validateOk, errorMsgChanged] = validateCypher();
+
+        //
+        if (validateOk) {
+            const QJsonObject parameters {}; // temp
+            emit queryUpdated(queryCypherItem->toPlainText(), parameters);
+        }
+
+        //
+        if (heightChanged || errorMsgChanged)
             adjustContents();
     });
 
-    connect(queryItem, &CustomGraphicsTextItem::clicked, this, [this]() {
+    connect(queryCypherItem, &CustomGraphicsTextItem::clicked, this, [this]() {
         emit clicked();
     });
 }
@@ -146,8 +170,8 @@ void DataViewBox::adjustContents() {
                   + padding * 2;
     }
 
-    // query
-    double yQueryBottom;
+    // queryCypher
+    double yQueryCypherBottom;
     {
         constexpr int padding = 3;
         constexpr int fontPixelSize = 16;
@@ -160,23 +184,53 @@ void DataViewBox::adjustContents() {
         const double minHeight = QFontMetrics(font).height();
 
         //
-        queryItem->setTextWidth(
+        queryCypherItem->setTextWidth(
                 std::max(contentsRect.width() - padding * 2, 0.0));
-        queryItem->setFont(font);
-        queryItem->setDefaultTextColor(textColor);
-        queryItem->setPos(contentsRect.left() + padding, yTitleBottom + padding);
+        queryCypherItem->setFont(font);
+        queryCypherItem->setDefaultTextColor(textColor);
+        queryCypherItem->setPos(contentsRect.left() + padding, yTitleBottom + padding);
 
-        yQueryBottom
+        yQueryCypherBottom
                 = yTitleBottom
-                  + std::max(queryItem->boundingRect().height(), minHeight)
+                  + std::max(queryCypherItem->boundingRect().height(), minHeight)
                   + padding * 2;
+    }
+
+    // queryCypherErrorMsg
+    double yQueryCypherErrorMsgBottom;
+    {
+        if (queryCypherErrorMsgItem->toPlainText().trimmed().isEmpty()) {
+            queryCypherErrorMsgItem->setVisible(false);
+            yQueryCypherErrorMsgBottom = yQueryCypherBottom;
+        }
+        else {
+            constexpr int padding = 3;
+            constexpr int fontPixelSize = 13;
+            const QColor textColor(Qt::red);
+
+            QFont font = fontOfView;
+            font.setPixelSize(fontPixelSize);
+
+            queryCypherErrorMsgItem->setTextWidth(
+                    std::max(contentsRect.width() - padding * 2, 0.0));
+            queryCypherErrorMsgItem->setFont(font);
+            queryCypherErrorMsgItem->setDefaultTextColor(textColor);
+            queryCypherErrorMsgItem->setPos(
+                    contentsRect.left() + padding, yQueryCypherBottom + padding);
+            queryCypherErrorMsgItem->setVisible(true);
+
+            yQueryCypherErrorMsgBottom
+                    = yQueryCypherBottom
+                      + queryCypherErrorMsgItem->boundingRect().height()
+                      + padding * 2;
+        }
     }
 
     // textEdit
     {
         constexpr int leftPadding = 3;
 
-        const double textEditHeight = contentsRect.bottom() - yQueryBottom;
+        const double textEditHeight = contentsRect.bottom() - yQueryCypherErrorMsgBottom;
         if (textEditHeight < 0.1) {
             textEditProxyWidget->setVisible(false);
         }
@@ -185,6 +239,17 @@ void DataViewBox::adjustContents() {
             textEditProxyWidget->setVisible(true);
         }
 
-        textEditProxyWidget->setPos(contentsRect.left() + leftPadding, yQueryBottom);
+        textEditProxyWidget->setPos(contentsRect.left() + leftPadding, yQueryCypherErrorMsgBottom);
     }
+}
+
+std::pair<bool, bool> DataViewBox::validateCypher() {
+    const QString cypher = queryCypherItem->toPlainText();
+    QString errorMsg;
+    const bool validateOk = DataQuery::validateCypher(cypher, &errorMsg);
+
+    const QString oldErrorMsg = queryCypherErrorMsgItem->toPlainText();
+    queryCypherErrorMsgItem->setPlainText(errorMsg);
+
+    return {validateOk, errorMsg != oldErrorMsg};
 }

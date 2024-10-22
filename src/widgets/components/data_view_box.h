@@ -14,7 +14,7 @@ public:
 
     // Call these "set" methods only after this item is initialized:
     void setTitle(const QString &title);
-    void setQuery(const QString &query);
+    void setQuery(const QString &cypher, const QJsonObject &parameters);
     void setEditable(const bool editable);
 
     void setTextEditorIgnoreWheelEvent(const bool b);
@@ -24,7 +24,8 @@ public:
 
 signals:
     void titleUpdated(const QString &updatedTitle);
-    void queryUpdated(const QString &updatedQuery);
+    void queryUpdated(const QString &cypher, const QJsonObject &parameters);
+    void closeByUser();
 
 protected:
     bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) override;
@@ -36,8 +37,14 @@ private:
     // content items
     // -- title
     CustomGraphicsTextItem *titleItem;
-    // -- query
-    CustomGraphicsTextItem *queryItem;
+
+    // -- queryCypher
+    CustomGraphicsTextItem *queryCypherItem;
+    CustomGraphicsTextItem *queryCypherErrorMsgItem;
+
+    // -- queryParameters
+
+
     // -- text (Use QTextEdit rather than QGraphicsTextItem. The latter does not have scrolling
     //    functionality.)
     CustomTextEdit *textEdit; // shows query result
@@ -47,6 +54,12 @@ private:
     QMenu *createCaptionBarContextMenu() override;
     void setUpContents(QGraphicsItem *contentsContainer) override;
     void adjustContents() override;
+
+    //!
+    //! Updates the text of `queryCypherErrorMsgItem`.
+    //! \return (is-validation-OK?, is-error-msg-changed?)
+    //!
+    std::pair<bool, bool> validateCypher();
 };
 
 #endif // DATAVIEWBOX_H
