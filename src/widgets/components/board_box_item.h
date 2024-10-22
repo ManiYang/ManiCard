@@ -3,6 +3,7 @@
 
 #include <QGraphicsObject>
 #include <QGraphicsRectItem>
+#include <QGraphicsView>
 #include <QMenu>
 #include <QRectF>
 
@@ -50,6 +51,9 @@ protected:
 
     QRectF getContentsRect() const;
 
+    QGraphicsView *getView() const; // can return nullptr
+
+    //
     void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
     bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) override;
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;

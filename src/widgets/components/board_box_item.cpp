@@ -145,6 +145,16 @@ QRectF BoardBoxItem::getContentsRect() const {
     return contentsRectItem->rect();
 }
 
+QGraphicsView *BoardBoxItem::getView() const {
+    if (scene() == nullptr)
+        return nullptr;
+
+    if (const auto views = scene()->views(); !views.isEmpty())
+        return views.at(0);
+    else
+        return nullptr;
+}
+
 void BoardBoxItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
     event->accept();
 }

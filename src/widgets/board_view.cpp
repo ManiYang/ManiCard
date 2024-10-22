@@ -6,6 +6,8 @@
 #include <QVBoxLayout>
 #include "app_data.h"
 #include "board_view.h"
+#include "models/data_query.h"
+#include "models/data_view_box_data.h"
 #include "persisted_data_access.h"
 #include "services.h"
 #include "utilities/async_routine.h"
@@ -18,6 +20,7 @@
 #include "utilities/periodic_checker.h"
 #include "utilities/strings_util.h"
 #include "widgets/board_view_toolbar.h"
+#include "widgets/components/data_view_box.h"
 #include "widgets/components/edge_arrow.h"
 #include "widgets/components/graphics_scene.h"
 #include "widgets/components/node_rect.h"
@@ -148,7 +151,6 @@ void BoardView::loadBoard(
                     cardId, cardData, nodeRectData.rect,
                     displayColor, nodeRectData.ownColor,
                     routine->userLabelsList);
-//            nodeRect->set({{NodeRect::InputVar::IsEditable, true}});
             nodeRect->setEditable(true);
         }
 
@@ -321,6 +323,14 @@ void BoardView::setUpContextMenu() {
             onUserToDuplicateCard(contextMenuData.requestScenePos);
         });
     }
+    contextMenu->addSeparator();
+    {
+        QAction *action = contextMenu->addAction(
+                QIcon(":/icons/add_box_black_24"), "Create New Data Query...");
+        connect(action, &QAction::triggered, this, [this]() {
+            onUserToCreateNewDataQuery(contextMenuData.requestScenePos);
+        });
+    }
 }
 
 void BoardView::setUpConnections() {
@@ -464,7 +474,6 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
                 cardId, routine->cardData, routine->nodeRectData.rect,
                 displayColor, routine->nodeRectData.ownColor,
                 routine->userLabelsList);
-//        nodeRect->set({{NodeRect::InputVar::IsEditable, true}});
         nodeRect->setEditable(true);
 
         adjustSceneRect();
@@ -600,7 +609,6 @@ void BoardView::onUserToCreateNewCard(const QPointF &scenePos) {
                 routine->newCardId, routine->card, routine->nodeRectData.rect,
                 displayColor, routine->nodeRectData.ownColor,
                 routine->userLabelsList);
-//        nodeRect->set({{NodeRect::InputVar::IsEditable, true}});
         nodeRect->setEditable(true);
 
         adjustSceneRect();
@@ -730,7 +738,6 @@ void BoardView::onUserToDuplicateCard(const QPointF &scenePos) {
                 routine->newCardId, routine->cardData, routine->nodeRectData.rect,
                 displayColor, routine->nodeRectData.ownColor,
                 routine->userLabelsList);
-//        nodeRect->set({{NodeRect::InputVar::IsEditable, true}});
         nodeRect->setEditable(true);
 
         adjustSceneRect();
@@ -744,6 +751,72 @@ void BoardView::onUserToDuplicateCard(const QPointF &scenePos) {
                 EventSource(this), routine->newCardId, routine->cardData);
         Services::instance()->getAppData()->createNodeRect(
                 EventSource(this), this->boardId, routine->newCardId, routine->nodeRectData);
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
+
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+            showWarningMessageBox(this, " ", routine->errorMsg);
+    }, this);
+
+    routine->start();
+}
+
+void BoardView::onUserToCreateNewDataQuery(const QPointF &scenePos) {
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        int newDataQueryId;
+        DataQuery dataQuery;
+        DataViewBoxData dataViewBoxData;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([routine]() {
+        // request new data-query ID (using requestNewCardId())
+        Services::instance()->getAppData()->requestNewCardId(
+                // callback:
+                [routine](std::optional<int> cardId) {
+                    ContinuationContext context(routine);
+                    if (cardId.has_value()) {
+                        routine->newDataQueryId = cardId.value();
+                    }
+                    else {
+                        context.setErrorFlag();
+                        routine->errorMsg = "Could not create new data query. See logs for details.";
+                    }
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([this, routine, scenePos]() {
+        // create new DataViewBox
+        ContinuationContext context(routine);
+
+        routine->dataQuery.title = "New Data Query";
+        routine->dataQuery.query = "";
+
+        routine->dataViewBoxData.rect
+                = QRectF(canvas->mapFromScene(scenePos), defaultNewDataViewBoxSize);
+        routine->dataViewBoxData.ownColor = QColor();
+
+        const QColor displayColor = routine->dataViewBoxData.ownColor.isValid()
+                ? routine->dataViewBoxData.ownColor : defaultNewDataViewBoxColor;
+
+        auto *box = new DataViewBox(routine->newDataQueryId, canvas);
+        box->initialize();
+        box->setRect(routine->dataViewBoxData.rect);
+        box->setTitle(routine->dataQuery.title);
+        box->setQuery(routine->dataQuery.query);
+        box->setColor(displayColor);
+        box->setEditable(true);
+
+        adjustSceneRect();
     }, this);
 
     routine->addStep([this, routine]() {
@@ -818,10 +891,6 @@ void BoardView::onUserToSetLabels(const int cardId) {
                 QSet<QString>(updatedLabels.cbegin(), updatedLabels.cend()),
                 cardLabelsAndAssociatedColors, defaultNodeRectColor);
 
-//        nodeRect->set({
-//            {NodeRect::InputVar::NodeLabels, updatedLabels},
-//            {NodeRect::InputVar::Color, nodeRectColor}
-//        });
         nodeRect->setNodeLabels(updatedLabels);
         nodeRect->setColor(nodeRectColor);
 
@@ -1236,11 +1305,6 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
             = sortByOrdering(cardData.getLabels(), userLabelsList, false);
     nodeRect->setTitle(cardData.title);
     nodeRect->setText(cardData.text);
-//    nodeRect->set({
-//        {NodeRect::InputVar::NodeLabels, QStringList(nodeLabelsVec.cbegin(), nodeLabelsVec.cend())},
-//        {NodeRect::InputVar::Rect, rect},
-//        {NodeRect::InputVar::Color, displayColor},
-//    });
     nodeRect->setNodeLabels(QStringList(nodeLabelsVec.cbegin(), nodeLabelsVec.cend()));
     nodeRect->setRect(rect);
     nodeRect->setColor(displayColor);
@@ -1289,7 +1353,6 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         }
 
         for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it) {
-//            it.value()->set({{NodeRect::InputVar::IsHighlighted, (it.key() == cardIdClicked)}});
             it.value()->setIsHighlighted(it.key() == cardIdClicked);
         }
 
@@ -1378,8 +1441,6 @@ void BoardView::NodeRectsCollection::unhighlightAllCards(bool *highlightedCardId
 
     if (highlightedCardId != -1) {
         Q_ASSERT(cardIdToNodeRect.contains(highlightedCardId));
-//        cardIdToNodeRect.value(highlightedCardId)
-//                ->set({{NodeRect::InputVar::IsHighlighted, false}});
         cardIdToNodeRect.value(highlightedCardId)->setIsHighlighted(false);
 
         highlightedCardId = -1;
@@ -1396,7 +1457,6 @@ void BoardView::NodeRectsCollection::updateAllNodeRectColors() {
                 cardIdToNodeRectOwnColor.value(cardId, QColor()),
                 nodeRect->getNodeLabels(),
                 boardView->cardLabelsAndAssociatedColors, boardView->defaultNodeRectColor);
-//        nodeRect->set({{NodeRect::InputVar::Color, color}});
         nodeRect->setColor(color);
     }
 }

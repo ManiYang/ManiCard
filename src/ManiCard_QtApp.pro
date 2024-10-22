@@ -23,6 +23,7 @@ SOURCES += \
     models/board.cpp \
     models/boards_list_properties.cpp \
     models/card.cpp \
+    models/data_query.cpp \
     models/node_rect_data.cpp \
     models/relationship.cpp \
     neo4j_http_api_client.cpp \
@@ -48,6 +49,7 @@ SOURCES += \
     widgets/components/custom_graphics_text_item.cpp \
     widgets/components/custom_list_widget.cpp \
     widgets/components/custom_text_edit.cpp \
+    widgets/components/data_view_box.cpp \
     widgets/components/edge_arrow.cpp \
     widgets/components/graphics_item_move_resize.cpp \
     widgets/components/graphics_scene.cpp \
@@ -80,6 +82,8 @@ HEADERS += \
     models/board.h \
     models/boards_list_properties.h \
     models/card.h \
+    models/data_query.h \
+    models/data_view_box_data.h \
     models/edge_arrow_data.h \
     models/node_labels.h \
     models/node_rect_data.h \
@@ -117,6 +121,7 @@ HEADERS += \
     widgets/components/custom_graphics_text_item.h \
     widgets/components/custom_list_widget.h \
     widgets/components/custom_text_edit.h \
+    widgets/components/data_view_box.h \
     widgets/components/edge_arrow.h \
     widgets/components/graphics_item_move_resize.h \
     widgets/components/graphics_scene.h \

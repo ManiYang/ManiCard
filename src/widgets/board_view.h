@@ -56,7 +56,9 @@ signals:
 
 private:
     static inline const QSizeF defaultNewNodeRectSize {200, 120};
-    static inline const QColor defaultNewNodeRectColor {170, 170, 170};
+//    static inline const QColor defaultNewNodeRectColor {170, 170, 170};
+    static inline const QSizeF defaultNewDataViewBoxSize {200, 120};
+    static inline const QColor defaultNewDataViewBoxColor {170, 170, 170};
     static inline const QColor defaultEdgeArrowLineColor {100, 100, 100};
     constexpr static double defaultEdgeArrowLineWidth {2.0};
 
@@ -95,6 +97,7 @@ private:
     void onUserToOpenExistingCard(const QPointF &scenePos);
     void onUserToCreateNewCard(const QPointF &scenePos);
     void onUserToDuplicateCard(const QPointF &scenePos);
+    void onUserToCreateNewDataQuery(const QPointF &scenePos);
     void onUserToSetLabels(const int cardId);
     void onUserToCreateRelationship(const int cardId);
     void onUserToCloseNodeRect(const int cardId);

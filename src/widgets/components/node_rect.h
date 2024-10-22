@@ -62,7 +62,6 @@ private:
     void adjustContents() override;
 
     // tools
-    QGraphicsView *getView() const; // can return nullptr
     static QString getNodeLabelsString(const QStringList &labels);
 };
 

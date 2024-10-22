@@ -116,11 +116,11 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     textEditProxyWidget->setParentItem(contentsContainer);
 
     //
+    textEdit->setVisible(false);
     textEditProxyWidget->setWidget(textEdit);
 
     //
     textEdit->enableSetEveryWheelEventAccepted(true);
-    textEdit->setVisible(false);
     textEdit->setReadOnly(true);
     textEdit->setReplaceTabBySpaces(4);
     textEdit->setFrameShape(QFrame::NoFrame);
@@ -240,16 +240,6 @@ void NodeRect::adjustContents() {
                    contentsRect.width(), textEditHeight + 2.0)
                 .marginsRemoved(uniformMarginsF(textEditFocusIndicatorLineWidth / 2.0))
                 );
-}
-
-QGraphicsView *NodeRect::getView() const {
-    if (scene() == nullptr)
-        return nullptr;
-
-    if (const auto views = scene()->views(); !views.isEmpty())
-        return views.at(0);
-    else
-        return nullptr;
 }
 
 QString NodeRect::getNodeLabelsString(const QStringList &labels) {
