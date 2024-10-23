@@ -2,6 +2,7 @@
 #define FONTS_UTIL_H
 
 #include <QRectF>
+#include <QSet>
 #include <QWidget>
 
 QRectF boundingRectOfString(
@@ -15,5 +16,7 @@ QRectF boundingRectOfString(
 //!         is shown
 //!
 double fontSizeScaleFactor(const QWidget *widget);
+
+QStringList getFontFamilies();
 
 #endif // FONTS_UTIL_H

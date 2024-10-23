@@ -799,7 +799,7 @@ void BoardView::onUserToCreateNewDataQuery(const QPointF &scenePos) {
         ContinuationContext context(routine);
 
         routine->dataQuery.title = "New Data Query";
-        routine->dataQuery.queryCypher = "RETURN 0";
+        routine->dataQuery.queryCypher = "RETURN 0 AS x;";
         routine->dataQuery.queryParameters = QJsonObject();
 
         routine->dataViewBoxData.rect

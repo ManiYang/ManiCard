@@ -63,6 +63,10 @@ QString CustomGraphicsTextItem::toPlainText() const {
     return graphicsTextItem->toPlainText();
 }
 
+QFont CustomGraphicsTextItem::font() const {
+    return graphicsTextItem->font();
+}
+
 QRectF CustomGraphicsTextItem::boundingRect() const {
     return graphicsTextItem->boundingRect();
 }

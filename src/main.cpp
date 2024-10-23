@@ -7,6 +7,7 @@
 #include "global_constants.h"
 #include "services.h"
 #include "utilities/app_instances_shared_memory.h"
+#include "utilities/fonts_util.h"
 #include "utilities/logging.h"
 #include "widgets/main_window.h"
 
@@ -25,13 +26,6 @@ int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setApplicationName("ManiCard");
     app.setQuitOnLastWindowClosed(true);
-
-    // font
-    {
-        QFont font = app.font("QMenu");
-        font.setPointSize(10);
-        app.setFont(font);
-    }
 
     // set up logging
     if constexpr (buildInReleaseMode) {
@@ -57,6 +51,28 @@ int main(int argc, char *argv[]) {
 
     //
     qInfo() << "======== program start ========";
+
+    // font
+    {
+        QFont font = app.font("QMenu");
+        font.setPointSize(10);
+        app.setFont(font);
+    }
+    {
+        const auto allFamilies = getFontFamilies();
+        const QStringList monospaceCandidates {
+            "JetBrains Mono", "Menlo", "Source Code Pro", "Lucida Console", "Courier New"};
+
+        QString monospaceFamily;
+        for (const QString &family: monospaceCandidates) {
+            if (allFamilies.contains(family)) {
+                monospaceFamily = family;
+                break;
+            }
+        }
+
+        app.setProperty("monospaceFontFamily", monospaceFamily);
+    }
 
     //
     QPointer<MainWindow> mainWindow;

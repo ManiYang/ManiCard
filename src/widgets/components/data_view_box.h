@@ -39,11 +39,14 @@ private:
     CustomGraphicsTextItem *titleItem;
 
     // -- queryCypher
+    QGraphicsSimpleTextItem *labelCypher;
     CustomGraphicsTextItem *queryCypherItem;
     CustomGraphicsTextItem *queryCypherErrorMsgItem;
 
     // -- queryParameters
-
+    QGraphicsSimpleTextItem *labelParameters;
+    CustomGraphicsTextItem *queryParametersItem;
+    CustomGraphicsTextItem *queryParamsErrorMsgItem;
 
     // -- text (Use QTextEdit rather than QGraphicsTextItem. The latter does not have scrolling
     //    functionality.)
@@ -59,7 +62,13 @@ private:
     //! Updates the text of `queryCypherErrorMsgItem`.
     //! \return (is-validation-OK?, is-error-msg-changed?)
     //!
-    std::pair<bool, bool> validateCypher();
+    std::pair<bool, bool> validateQueryCypher();
+
+    //!
+    //! Updates the text of `queryParamsErrorMsgItem`.
+    //! \return (is-validation-OK?, is-error-msg-changed?)
+    //!
+    std::pair<bool, bool> validateQueryParameters();
 };
 
 #endif // DATAVIEWBOX_H

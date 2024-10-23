@@ -1,17 +1,24 @@
+#include <QApplication>
+#include <QDebug>
 #include <QGraphicsScene>
 #include <QGraphicsView>
 #include <QMessageBox>
 #include "data_view_box.h"
 #include "models/data_query.h"
+#include "utilities/json_util.h"
 
 DataViewBox::DataViewBox(const int dataQueryId, QGraphicsItem *parent)
         : BoardBoxItem(parent)
         , dataQueryId(dataQueryId)
         , titleItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
-        , queryCypherItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
-        , queryCypherErrorMsgItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
+        , labelCypher(new QGraphicsSimpleTextItem) //
+        , queryCypherItem(new CustomGraphicsTextItem) //
+        , queryCypherErrorMsgItem(new CustomGraphicsTextItem) //
+        , labelParameters(new QGraphicsSimpleTextItem) //
+        , queryParametersItem(new CustomGraphicsTextItem) //
+        , queryParamsErrorMsgItem(new CustomGraphicsTextItem) //
         , textEdit(new CustomTextEdit(nullptr))
-        , textEditProxyWidget(new QGraphicsProxyWidget) { // parent is set in setUpContents()
+        , textEditProxyWidget(new QGraphicsProxyWidget) { //
 }
 
 void DataViewBox::setTitle(const QString &title) {
@@ -21,13 +28,17 @@ void DataViewBox::setTitle(const QString &title) {
 
 void DataViewBox::setQuery(const QString &cypher, const QJsonObject &parameters) {
     queryCypherItem->setPlainText(cypher);
-    validateCypher();
+    queryParametersItem->setPlainText(
+            parameters.isEmpty() ? "{}" : printJson(parameters, false));
+    validateQueryCypher();
+    validateQueryParameters();
     adjustContents();
 }
 
 void DataViewBox::setEditable(const bool editable) {
     titleItem->setEditable(editable);
     queryCypherItem->setEditable(editable);
+    queryParametersItem->setEditable(editable);
 }
 
 void DataViewBox::setTextEditorIgnoreWheelEvent(const bool b) {
@@ -68,15 +79,79 @@ QMenu *DataViewBox::createCaptionBarContextMenu() {
 
 void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     titleItem->setParentItem(contentsContainer);
+    labelCypher->setParentItem(contentsContainer);
     queryCypherItem->setParentItem(contentsContainer);
     queryCypherErrorMsgItem->setParentItem(contentsContainer);
+    labelParameters->setParentItem(contentsContainer);
+    queryParametersItem->setParentItem(contentsContainer);
+    queryParamsErrorMsgItem->setParentItem(contentsContainer);
     textEditProxyWidget->setParentItem(contentsContainer);
 
-    //
+    // get view's font
+    QFont fontOfView;
+    if (QGraphicsView *view = getView(); view != nullptr)
+        fontOfView = view->font();
+
+    // titleItem
+    {
+        QFont font = fontOfView;
+        font.setPixelSize(24);
+        font.setBold(true);
+
+        titleItem->setFont(font);
+        titleItem->setDefaultTextColor(Qt::black);
+    }
+
+    // labelCypher & labelParameters
+    {
+        QFont font = fontOfView;
+        font.setPixelSize(13);
+        font.setBold(true);
+
+        const QColor textColor(127, 127, 127);
+
+        labelCypher->setText("Cypher:");
+        labelCypher->setFont(font);
+        labelCypher->setBrush(textColor);
+
+        labelParameters->setText("Parameters:");
+        labelParameters->setFont(font);
+        labelParameters->setBrush(textColor);
+    }
+
+    // queryCypherItem & queryParametersItem
+    {
+        const QColor textColor(Qt::black);
+
+        QFont font = fontOfView;
+        font.setFamily(qApp->property("monospaceFontFamily").toString());
+        font.setPixelSize(16);
+
+        queryCypherItem->setFont(font);
+        queryCypherItem->setDefaultTextColor(textColor);
+
+        queryParametersItem->setFont(font);
+        queryParametersItem->setDefaultTextColor(textColor);
+    }
+
+    // queryCypherErrorMsg & queryParamsErrorMsg
+    {
+        const QColor textColor(Qt::red);
+
+        QFont font = fontOfView;
+        font.setPixelSize(13);
+
+        queryCypherErrorMsgItem->setFont(font);
+        queryCypherErrorMsgItem->setDefaultTextColor(textColor);
+
+        queryParamsErrorMsgItem->setFont(font);
+        queryParamsErrorMsgItem->setDefaultTextColor(textColor);
+    }
+
+    // textEditProxyWidget & textEdit
     textEdit->setVisible(false);
     textEditProxyWidget->setWidget(textEdit);
 
-    //
     textEdit->enableSetEveryWheelEventAccepted(true);
     textEdit->setReadOnly(true);
     textEdit->setFrameShape(QFrame::NoFrame);
@@ -117,11 +192,15 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     // queryCypherItem
     connect(queryCypherItem, &CustomGraphicsTextItem::textEdited, this, [this](bool heightChanged) {
         // validate
-        const auto [validateOk, errorMsgChanged] = validateCypher();
+        const auto [validateOk1, errorMsgChanged1] = validateQueryCypher();
+        const auto [validateOk2, errorMsgChanged2] = validateQueryParameters();
+
+        const bool validateOk = validateOk1 && validateOk2;
+        const bool errorMsgChanged = errorMsgChanged1 || errorMsgChanged2;
 
         //
         if (validateOk) {
-            const QJsonObject parameters {}; // temp
+            const QJsonObject parameters = parseAsJsonObject(queryParametersItem->toPlainText());
             emit queryUpdated(queryCypherItem->toPlainText(), parameters);
         }
 
@@ -131,6 +210,30 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     });
 
     connect(queryCypherItem, &CustomGraphicsTextItem::clicked, this, [this]() {
+        emit clicked();
+    });
+
+    // queryParametersItem
+    connect(queryParametersItem, &CustomGraphicsTextItem::textEdited, this, [this](bool heightChanged) {
+        // validate
+        const auto [validateOk1, errorMsgChanged1] = validateQueryCypher();
+        const auto [validateOk2, errorMsgChanged2] = validateQueryParameters();
+
+        const bool validateOk = validateOk1 && validateOk2;
+        const bool errorMsgChanged = errorMsgChanged1 || errorMsgChanged2;
+
+        //
+        if (validateOk) {
+            const QJsonObject parameters = parseAsJsonObject(queryParametersItem->toPlainText());
+            emit queryUpdated(queryCypherItem->toPlainText(), parameters);
+        }
+
+        //
+        if (heightChanged || errorMsgChanged)
+            adjustContents();
+    });
+
+    connect(queryParametersItem, &CustomGraphicsTextItem::clicked, this, [this]() {
         emit clicked();
     });
 }
@@ -144,85 +247,99 @@ void DataViewBox::adjustContents() {
         fontOfView = view->font();
 
     // title
-    double yTitleBottom;
+    double yBottom = contentsRect.top();
     {
         constexpr int padding = 3;
-        constexpr int fontPixelSize = 24;
-        const QColor textColor(Qt::black);
-
-        //
-        QFont font = fontOfView;
-        font.setPixelSize(fontPixelSize);
-        font.setBold(true);
-
-        const double minHeight = QFontMetrics(font).height();
+        const double minHeight = QFontMetrics(titleItem->font()).height();
 
         //
         titleItem->setTextWidth(
                 std::max(contentsRect.width() - padding * 2, 0.0));
-        titleItem->setFont(font);
-        titleItem->setDefaultTextColor(textColor);
         titleItem->setPos(contentsRect.topLeft() + QPointF(padding, padding));
 
-        yTitleBottom
-                = contentsRect.top()
-                  + std::max(titleItem->boundingRect().height(), minHeight)
-                  + padding * 2;
+        yBottom += std::max(titleItem->boundingRect().height(), minHeight)
+                   + padding * 2;
     }
 
-    // queryCypher
-    double yQueryCypherBottom;
+    // labelCypher
+    {
+        constexpr int xPadding = 3;
+        labelCypher->setPos(contentsRect.left() + xPadding, yBottom);
+
+        yBottom += labelCypher->boundingRect().height();
+    }
+
+    // queryCypherItem
     {
         constexpr int padding = 3;
-        constexpr int fontPixelSize = 16;
-        const QColor textColor(Qt::black);
+        const double minHeight = QFontMetrics(queryCypherItem->font()).height();
 
-        //
-        QFont font = fontOfView;
-        font.setPixelSize(fontPixelSize);
-
-        const double minHeight = QFontMetrics(font).height();
-
-        //
         queryCypherItem->setTextWidth(
                 std::max(contentsRect.width() - padding * 2, 0.0));
-        queryCypherItem->setFont(font);
-        queryCypherItem->setDefaultTextColor(textColor);
-        queryCypherItem->setPos(contentsRect.left() + padding, yTitleBottom + padding);
+        queryCypherItem->setPos(contentsRect.left() + padding, yBottom + padding);
 
-        yQueryCypherBottom
-                = yTitleBottom
-                  + std::max(queryCypherItem->boundingRect().height(), minHeight)
-                  + padding * 2;
+        yBottom += std::max(queryCypherItem->boundingRect().height(), minHeight)
+                   + padding * 2;
     }
 
     // queryCypherErrorMsg
-    double yQueryCypherErrorMsgBottom;
     {
         if (queryCypherErrorMsgItem->toPlainText().trimmed().isEmpty()) {
             queryCypherErrorMsgItem->setVisible(false);
-            yQueryCypherErrorMsgBottom = yQueryCypherBottom;
         }
         else {
-            constexpr int padding = 3;
-            constexpr int fontPixelSize = 13;
-            const QColor textColor(Qt::red);
-
-            QFont font = fontOfView;
-            font.setPixelSize(fontPixelSize);
+            constexpr int xPadding = 3;
+            constexpr int bottomPadding = 3;
 
             queryCypherErrorMsgItem->setTextWidth(
-                    std::max(contentsRect.width() - padding * 2, 0.0));
-            queryCypherErrorMsgItem->setFont(font);
-            queryCypherErrorMsgItem->setDefaultTextColor(textColor);
+                    std::max(contentsRect.width() - xPadding * 2, 0.0));
             queryCypherErrorMsgItem->setPos(
-                    contentsRect.left() + padding, yQueryCypherBottom + padding);
+                    contentsRect.left() + xPadding, yBottom);
             queryCypherErrorMsgItem->setVisible(true);
 
-            yQueryCypherErrorMsgBottom
-                    = yQueryCypherBottom
-                      + queryCypherErrorMsgItem->boundingRect().height()
-                      + padding * 2;
+            yBottom += queryCypherErrorMsgItem->boundingRect().height()
+                       + bottomPadding;
+        }
+    }
+
+    // labelParameters
+    {
+        constexpr int xPadding = 3;
+        labelParameters->setPos(contentsRect.left() + xPadding, yBottom);
+
+        yBottom += labelParameters->boundingRect().height();
+    }
+
+    // queryParametersItem
+    {
+        constexpr int padding = 3;
+
+        queryParametersItem->setTextWidth(
+                std::max(contentsRect.width() - padding * 2, 0.0));
+        queryParametersItem->setPos(
+                contentsRect.left() + padding, yBottom + padding);
+
+        yBottom += queryParametersItem->boundingRect().height()
+                   + padding * 2;
+    }
+
+    // queryParamsErrorMsg
+    {
+        if (queryParamsErrorMsgItem->toPlainText().trimmed().isEmpty()) {
+            queryParamsErrorMsgItem->setVisible(false);
+        }
+        else {
+            constexpr int xPadding = 3;
+            constexpr int bottomPadding = 3;
+
+            queryParamsErrorMsgItem->setTextWidth(
+                    std::max(contentsRect.width() - xPadding * 2, 0.0));
+            queryParamsErrorMsgItem->setPos(
+                    contentsRect.left() + xPadding, yBottom);
+            queryParamsErrorMsgItem->setVisible(true);
+
+            yBottom += queryParamsErrorMsgItem->boundingRect().height()
+                       + bottomPadding;
         }
     }
 
@@ -230,7 +347,7 @@ void DataViewBox::adjustContents() {
     {
         constexpr int leftPadding = 3;
 
-        const double textEditHeight = contentsRect.bottom() - yQueryCypherErrorMsgBottom;
+        const double textEditHeight = contentsRect.bottom() - yBottom;
         if (textEditHeight < 0.1) {
             textEditProxyWidget->setVisible(false);
         }
@@ -239,11 +356,11 @@ void DataViewBox::adjustContents() {
             textEditProxyWidget->setVisible(true);
         }
 
-        textEditProxyWidget->setPos(contentsRect.left() + leftPadding, yQueryCypherErrorMsgBottom);
+        textEditProxyWidget->setPos(contentsRect.left() + leftPadding, yBottom);
     }
 }
 
-std::pair<bool, bool> DataViewBox::validateCypher() {
+std::pair<bool, bool> DataViewBox::validateQueryCypher() {
     const QString cypher = queryCypherItem->toPlainText();
     QString errorMsg;
     const bool validateOk = DataQuery::validateCypher(cypher, &errorMsg);
@@ -252,4 +369,19 @@ std::pair<bool, bool> DataViewBox::validateCypher() {
     queryCypherErrorMsgItem->setPlainText(errorMsg);
 
     return {validateOk, errorMsg != oldErrorMsg};
+}
+
+std::pair<bool, bool> DataViewBox::validateQueryParameters() {
+    bool validateOk;
+    {
+        QString errorMsg;
+        parseAsJsonObject(queryParametersItem->toPlainText(), &errorMsg);
+        validateOk = errorMsg.isEmpty();
+    }
+
+    const QString oldErrorMsg = queryParamsErrorMsgItem->toPlainText();
+    const QString displayErrorMsg = validateOk ? "" : "must be a JSON object";
+    queryParamsErrorMsgItem->setPlainText(displayErrorMsg);
+
+    return {validateOk, displayErrorMsg != oldErrorMsg};
 }

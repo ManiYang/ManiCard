@@ -22,6 +22,7 @@ public:
     void setDefaultTextColor(const QColor &color);
 
     QString toPlainText() const;
+    QFont font() const;
 
     //
     QRectF boundingRect() const override;

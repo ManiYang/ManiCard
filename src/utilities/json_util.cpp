@@ -72,6 +72,9 @@ QJsonObject parseAsJsonObject(const QString &json, QString *errorMsg) {
             *errorMsg = "the JSON document is not an object";
         return {};
     }
+
+    if (errorMsg)
+        *errorMsg = "";
     return doc.object();
 }
 
