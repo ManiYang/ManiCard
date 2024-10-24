@@ -6,6 +6,7 @@
 #include "models/board.h"
 #include "models/boards_list_properties.h"
 #include "models/card.h"
+#include "models/data_query.h"
 #include "models/relationship.h"
 
 class AppDataReadonly : public QObject
@@ -61,6 +62,11 @@ public:
             QPointer<QObject> callbackContext) = 0;
 
     virtual std::optional<QSize> getMainWindowSize() = 0;
+
+    virtual void queryDataQueries(
+            const QSet<int> &dataQueryIds,
+            std::function<void (bool ok, const QHash<int, DataQuery> &dataQueries)> callback,
+            QPointer<QObject> callbackContext) = 0;
 
     virtual void performCustomCypherQuery(
             const QString &cypher, const QJsonObject &parameters,

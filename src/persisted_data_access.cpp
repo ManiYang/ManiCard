@@ -389,6 +389,66 @@ std::optional<QSize> PersistedDataAccess::getMainWindowSize() {
     return sizeOpt;
 }
 
+void PersistedDataAccess::queryDataQueries(
+        const QSet<int> &dataQueryIds,
+        std::function<void (bool, const QHash<int, DataQuery> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QHash<int, DataQuery> result;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    // 1. get the parts that are already cached
+    for (const int id: dataQueryIds) {
+        if (cache.dataQueries.contains(id))
+            routine->result.insert(id, cache.dataQueries.value(id));
+    }
+
+    // 2. query DB for the other parts
+    //   + if successful: update cache
+    //   + if failed: whole process fails
+    const QSet<int> idsToQuery = dataQueryIds - keySet(routine->result);
+
+    routine->addStep([this, idsToQuery, routine]() {
+        if (idsToQuery.isEmpty()) {
+            routine->nextStep();
+            return;
+        }
+
+        debouncedDbAccess->queryDataQueries(
+                idsToQuery,
+                // callback:
+                [this, routine](bool queryOk, const QHash<int, DataQuery> &dataQueriesFromDb) {
+                    ContinuationContext context(routine);
+
+                    if (queryOk) {
+                        mergeWith(routine->result, dataQueriesFromDb);
+                        mergeWith(cache.dataQueries, dataQueriesFromDb); // update cache
+                    }
+                    else {
+                        context.setErrorFlag();
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([routine, callback]() {
+        ContinuationContext context(routine);
+
+        if (!routine->errorFlag)
+            callback(true, routine->result);
+        else
+            callback(false, {});
+    }, callbackContext);
+
+    routine->start();
+}
+
 void PersistedDataAccess::performCustomCypherQuery(
         const QString &cypher, const QJsonObject &parameters,
         std::function<void (bool, const QVector<QJsonObject> &)> callback,

@@ -14,7 +14,7 @@ EdgeArrow::EdgeArrow(const RelationshipId &relId_, QGraphicsItem *parent)
 
     {
         QFont font;
-        font.setPixelSize(14);
+        font.setPixelSize(13);
         labelItem->setFont(font);
     }
 }

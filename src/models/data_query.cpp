@@ -3,6 +3,21 @@
 #include "data_query.h"
 #include "utilities/strings_util.h"
 
+DataQuery DataQuery::fromJson(const QJsonObject &obj) {
+    DataQuery dataQuery;
+
+    if (const auto v = obj.value("title"); !v.isUndefined())
+        dataQuery.title = v.toString();
+
+    if (const auto v = obj.value("queryCypher"); !v.isUndefined())
+        dataQuery.queryCypher = v.toString();
+
+    if (const auto v = obj.value("queryParameters"); !v.isUndefined())
+        dataQuery.queryParameters = v.toObject();
+
+    return dataQuery;
+}
+
 bool DataQuery::validateCypher(const QString queryCypher, QString *msg) {
     const QString cypher = queryCypher.toUpper();
 

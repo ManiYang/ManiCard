@@ -10,6 +10,7 @@ struct DataQuery
     QString queryCypher;
     QJsonObject queryParameters;
 
+    static DataQuery fromJson(const QJsonObject &obj);
     static bool validateCypher(const QString queryCypher, QString *msg = nullptr);
 };
 

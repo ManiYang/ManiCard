@@ -8,6 +8,7 @@
 #include "models/board.h"
 #include "models/boards_list_properties.h"
 #include "models/card.h"
+#include "models/data_query.h"
 
 class DebouncedDbAccess;
 class LocalSettingsFile;
@@ -83,6 +84,11 @@ public:
 
     std::optional<QSize> getMainWindowSize();
 
+    void queryDataQueries(
+            const QSet<int> &dataQueryIds,
+            std::function<void (bool ok, const QHash<int, DataQuery> &dataQueries)> callback,
+            QPointer<QObject> callbackContext);
+
     void performCustomCypherQuery(
             const QString &cypher, const QJsonObject &parameters,
             std::function<void (bool, const QVector<QJsonObject> &)> callback,
@@ -140,6 +146,7 @@ private:
         QHash<int, Board> boards;
         QHash<int, Card> cards;
         QHash<RelationshipId, RelationshipProperties> relationships;
+        QHash<int, DataQuery> dataQueries;
 
         std::optional<QStringList> userLabelsList;
         std::optional<QStringList> userRelTypesList;

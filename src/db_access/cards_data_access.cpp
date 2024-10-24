@@ -305,6 +305,70 @@ void CardsDataAccess::getUserLabelsAndRelationshipTypes(
     );
 }
 
+void CardsDataAccess::queryDataQueries(
+        const QSet<int> &dataQueryIds,
+        std::function<void (bool, const QHash<int, DataQuery> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    if (dataQueryIds.isEmpty()) {
+        invokeAction(callbackContext, [callback]() {
+            callback(true, {});
+        });
+        return;
+    }
+
+    //
+    const QJsonArray dataQueryIdsArray = toJsonArray(dataQueryIds);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(MATCH (q:DataQuery)
+                    WHERE q.id IN $dataQueryIds
+                    RETURN q AS dataQuery
+                )!",
+                QJsonObject {{"dataQueryIds", dataQueryIdsArray}}
+            },
+            // callback:
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false, {});
+                    return;
+                }
+
+                //
+                const auto queryResult = queryResponse.getResult().value();
+
+                QHash<int, DataQuery> result;
+                bool hasError = false;
+                for (int r = 0; r < queryResult.rowCount(); ++r) {
+                    const auto dataQueryOpt = queryResult.objectValueAt(r, "dataQuery");
+                    if (!dataQueryOpt.has_value()) {
+                        hasError = true;
+                        break;
+                    }
+                    const QJsonObject dataQueryObj = dataQueryOpt.value();
+
+                    const QJsonValue idValue = dataQueryObj.value("id");
+                    if (!idValue.isDouble()) {
+                        qWarning().noquote()
+                                << QString("data-query ID not found or has unexpected type");
+                        hasError = true;
+                        break;
+                    }
+
+                    result.insert(idValue.toInt(), DataQuery::fromJson(dataQueryObj));
+                }
+
+                if (hasError)
+                    callback(false, {});
+                else
+                    callback(true, result);
+            },
+            callbackContext
+    );
+}
+
 void CardsDataAccess::performCustomCypherQuery(
         const QString &cypher, const QJsonObject &parameters,
         std::function<void (bool ok, const QVector<QJsonObject> &rows)> callback,

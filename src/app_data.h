@@ -78,6 +78,11 @@ public:
 
     std::optional<QSize> getMainWindowSize() override;
 
+    void queryDataQueries(
+                const QSet<int> &dataQueryIds,
+                std::function<void (bool ok, const QHash<int, DataQuery> &dataQueries)> callback,
+                QPointer<QObject> callbackContext) override;
+
     void performCustomCypherQuery(
             const QString &cypher, const QJsonObject &parameters,
             std::function<void (bool ok, const QVector<QJsonObject> &result)> callback,
