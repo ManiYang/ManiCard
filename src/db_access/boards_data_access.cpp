@@ -92,11 +92,25 @@ void BoardsDataAccess::getBoardData(
             QueryStatement {
                 R"!(
                     MATCH (b:Board {id: $boardId})
-                    RETURN b AS board, null AS nodeRect, null AS cardId
+                    RETURN b AS board,
+                           null AS nodeRect, null AS cardId,
+                           null AS dataViewBox, null AS customDataQueryId
+
                     UNION
+
                     MATCH (b:Board {id: $boardId})
                     MATCH (b)-[:HAS]->(n:NodeRect)-[:SHOWS]->(c:Card)
-                    RETURN null AS board, n AS nodeRect, c.id AS cardId
+                    RETURN null AS board,
+                           n AS nodeRect, c.id AS cardId,
+                           null AS dataViewBox, null AS customDataQueryId
+
+                    UNION
+
+                    MATCH (b:Board {id: $boardId})
+                    MATCH (b)-[:HAS]->(box:DataViewBox)-[:SHOWS]->(q:CustomDataQuery)
+                    RETURN null AS board,
+                           null AS nodeRect, null AS cardId,
+                           box AS dataViewBox, q.id AS customDataQueryId
                 )!",
                 QJsonObject {{"boardId", boardId}}
             },
@@ -113,43 +127,71 @@ void BoardsDataAccess::getBoardData(
                     return;
                 }
 
+                //
                 Board board;
+                bool gotBoardProperties = false;
                 bool hasError = false;
 
-                // row 0
-                std::optional<QJsonObject> boardPropertiesObj
-                        = queryResult.objectValueAt(0, "board");
-                if (!boardPropertiesObj.has_value())
+                for (int r = 0; r < queryResult.rowCount(); ++r) {
+                    const auto boardValue = queryResult.valueAt(r, "board");
+                    const auto nodeRectValue = queryResult.valueAt(r, "nodeRect");
+                    const auto cardIdValue = queryResult.valueAt(r, "cardId");
+                    const auto dataViewBoxValue = queryResult.valueAt(r, "dataViewBox");
+                    const auto customDataQueryIdValue = queryResult.valueAt(r, "customDataQueryId");
+
+                    if (!boardValue.isNull()) {
+                        gotBoardProperties = true;
+
+                        if (!boardValue.isObject()) {
+                            hasError = true;
+                            break;
+                        }
+
+                        board.updateNodeProperties(boardValue.toObject());
+                    }
+                    else if (!nodeRectValue.isNull()) {
+                        if (!nodeRectValue.isObject() || !cardIdValue.isDouble()) {
+                            hasError = true;
+                            break;
+                        }
+
+                        const std::optional<NodeRectData> nodeRectData
+                                = NodeRectData::fromJson(nodeRectValue.toObject());
+                        if (!nodeRectData.has_value()) {
+                            hasError = true;
+                            break;
+                        }
+
+                        board.cardIdToNodeRectData.insert(cardIdValue.toInt(), nodeRectData.value());
+                    }
+                    else if (!dataViewBoxValue.isNull()) {
+                        if (!dataViewBoxValue.isObject() || !customDataQueryIdValue.isDouble()) {
+                            hasError = true;
+                            break;
+                        }
+
+                        const std::optional<DataViewBoxData> dataViewBoxData
+                                = DataViewBoxData::fromJson(dataViewBoxValue.toObject());
+                        if (!dataViewBoxData.has_value()) {
+                            hasError = true;
+                            break;
+                        }
+
+                        board.customDataQueryIdToDataViewBoxData.insert(
+                                customDataQueryIdValue.toInt(), dataViewBoxData.value());
+                    }
+                }
+
+                if (!gotBoardProperties) {
+                    qWarning().noquote() << "board properties not found";
                     hasError = true;
-                else
-                    board.updateNodeProperties(boardPropertiesObj.value());
-
-                // row >= 1
-                for (int r = 1; r < queryResult.rowCount(); ++r) {
-                    std::optional<QJsonObject>nodeRectObj
-                            = queryResult.objectValueAt(r, "nodeRect");
-                    std::optional<int> cardId = queryResult.intValueAt(r, "cardId");
-
-                    if (!nodeRectObj.has_value() || !cardId.has_value()) {
-                        hasError = true;
-                        continue;
-                    }
-
-                    //
-                    const std::optional<NodeRectData> nodeRectData
-                            = NodeRectData::fromJson(nodeRectObj.value());
-
-                    if (!nodeRectData.has_value()) {
-                        hasError = true;
-                        continue;
-                    }
-
-                    //
-                    board.cardIdToNodeRectData.insert(cardId.value(), nodeRectData.value());
                 }
 
                 //
-                callback(!hasError, board);
+                if (!hasError)
+                    callback(true, board);
+                else
+                    callback(false, std::nullopt);
             },
             callbackContext
     );

@@ -22,7 +22,7 @@ To run the app, you need
 
 + a self-managed Neo4j DB (Neo4j Aura is not supported, as it currently does not support HTTP API)
 + DB setup
-    + Create constraint requiring unique value of `id` property for nodes with label `Card`, `Board`, and `DataQuery`.
+    + Create constraint requiring unique value of `id` property for nodes with label `Card`, `Board`, and `CustomDataQuery`.
         ```cypher
         CREATE CONSTRAINT unique_card_id
         FOR (c:Card) REQUIRE c.id IS UNIQUE;
@@ -32,8 +32,8 @@ To run the app, you need
         FOR (b:Board) REQUIRE b.id IS UNIQUE;
         ```
         ```cypher
-        CREATE CONSTRAINT unique_data_query_id
-        FOR (q:DataQuery) REQUIRE q.id IS UNIQUE;
+        CREATE CONSTRAINT unique_custom_data_query_id
+        FOR (q:CustomDataQuery) REQUIRE q.id IS UNIQUE;
         ```
     + Create nodes for last-used IDs for cards and boards.
         ```cypher

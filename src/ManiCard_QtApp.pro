@@ -24,6 +24,7 @@ SOURCES += \
     models/boards_list_properties.cpp \
     models/card.cpp \
     models/custom_data_query.cpp \
+    models/data_view_box_data.cpp \
     models/node_rect_data.cpp \
     models/relationship.cpp \
     neo4j_http_api_client.cpp \

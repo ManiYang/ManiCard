@@ -5,13 +5,14 @@
 #include <QHash>
 #include <QJsonObject>
 #include <QString>
+#include "models/data_view_box_data.h"
 #include "models/node_rect_data.h"
 #include "relationship.h"
 
 struct BoardNodePropertiesUpdate;
 
 struct Board {
-    // properties of Board node
+    // properties of `Board` node
     QString name;
 
     QPointF topLeftPos {0, 0}; // view's top-left corner
@@ -24,6 +25,7 @@ struct Board {
 
     //
     QHash<int, NodeRectData> cardIdToNodeRectData;
+    QHash<int, DataViewBoxData> customDataQueryIdToDataViewBoxData;
 
     //
     QJsonObject getNodePropertiesJson() const;

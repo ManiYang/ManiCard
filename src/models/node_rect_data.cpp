@@ -1,3 +1,4 @@
+#include <QDebug>
 #include <QJsonArray>
 #include "node_rect_data.h"
 #include "utilities/json_util.h"
@@ -17,8 +18,10 @@ std::optional<NodeRectData> NodeRectData::fromJson(const QJsonObject &obj) {
     QVector<double> rectLeftTopWidthHeight;
     {
         const auto rectArray = obj.value("rect").toArray();
-        if (rectArray.count() != 4)
+        if (rectArray.count() != 4) {
+            qWarning().noquote() << "obj[\"rect\"] is not an array of size 4";
             return std::nullopt;
+        }
 
         rectLeftTopWidthHeight = toDoubleVector(rectArray, 0.0);
     }
