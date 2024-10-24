@@ -31,6 +31,7 @@ public: // types
     public:
         int rowCount() const;
         bool isEmpty() const;
+        QStringList getColumnNames() const;
 
         //!
         //! \return (value, meta) at (\e row, \e column).
@@ -72,6 +73,7 @@ public: // types
         };
 
         QHash<QString, int> columnNameToIndex;
+        QStringList columnNames;
         QVector<Row> rows;
     };
 
@@ -145,12 +147,12 @@ public:
             QPointer<QObject> callbackContext);
 
     //!
-    //! The query is wrapped in an implicit transaction. (Use \e INeo4jTransaction for explicit
+    //! The query is wrapped in an implicit transaction. (Use \e Neo4jTransaction for explicit
     //! transactions.)
     //! The request has no time-out and is not retried if there's network error.
     //!
     void queryDb(
-            const QueryStatement &queryStatements,
+            const QueryStatement &queryStatement,
             std::function<void (const QueryResponseSingleResult &response)> callback,
             QPointer<QObject> callbackContext);
 

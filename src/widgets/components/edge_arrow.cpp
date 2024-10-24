@@ -1,3 +1,4 @@
+#include <QFont>
 #include <QPen>
 #include "edge_arrow.h"
 
@@ -8,6 +9,14 @@ EdgeArrow::EdgeArrow(const RelationshipId &relId_, QGraphicsItem *parent)
         , labelItem(new QGraphicsSimpleTextItem(this))
         , arrowHeadItem(new QGraphicsPolygonItem(this)) {
     setFlag(QGraphicsItem::ItemHasNoContents);
+
+    arrowHeadItem->setPen(Qt::NoPen);
+
+    {
+        QFont font;
+        font.setPixelSize(14);
+        labelItem->setFont(font);
+    }
 }
 
 void EdgeArrow::setStartEndPoint(const QPointF &startPoint_, const QPointF &endPoint_) {
@@ -47,9 +56,8 @@ void EdgeArrow::adjustChildItems() {
     lineItem->setPen(QPen(QBrush(lineColor), lineWidth));
 
     // arrow head
-    const QPolygonF polygon = computeArrowHeadPolygon(line, 10.5);
+    const QPolygonF polygon = computeArrowHeadPolygon(line, 12);
     arrowHeadItem->setPolygon(polygon);
-    arrowHeadItem->setPen(Qt::NoPen);
     arrowHeadItem->setBrush(lineColor);
 
     // label

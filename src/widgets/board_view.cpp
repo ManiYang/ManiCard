@@ -799,7 +799,10 @@ void BoardView::onUserToCreateNewDataQuery(const QPointF &scenePos) {
         ContinuationContext context(routine);
 
         routine->dataQuery.title = "New Data Query";
-        routine->dataQuery.queryCypher = "RETURN 0 AS x;";
+        routine->dataQuery.queryCypher
+                = "MATCH (c:Card) \n"
+                  "WHERE c.id IN $cardIdsOfBoard \n"
+                  "RETURN c.id AS id, c.title AS title;";
         routine->dataQuery.queryParameters = QJsonObject();
 
         routine->dataViewBoxData.rect
@@ -816,6 +819,10 @@ void BoardView::onUserToCreateNewDataQuery(const QPointF &scenePos) {
         box->setQuery(routine->dataQuery.queryCypher, routine->dataQuery.queryParameters);
         box->setColor(displayColor);
         box->setEditable(true);
+
+        connect(box, &DataViewBox::getCardIdsOfBoard, this, [this](QSet<int> *cardIds) {
+            *cardIds = nodeRectsCollection.getAllCardIds();
+        }, Qt::DirectConnection);
 
         adjustSceneRect();
     }, this);

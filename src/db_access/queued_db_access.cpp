@@ -121,6 +121,27 @@ void QueuedDbAccess::getUserLabelsAndRelationshipTypes(
     addToQueue(func);
 }
 
+void QueuedDbAccess::performCustomCypherQuery(
+        const QString &cypher, const QJsonObject &parameters,
+        std::function<void (bool, const QVector<QJsonObject> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    true // is readonly?
+                    , const QVector<QJsonObject> & // result type (`Void` if no result argument)
+                    , decltype(cypher), decltype(parameters) // input types
+                >(
+            [this](auto... args) {
+                cardsDataAccess->performCustomCypherQuery(args...); // method
+            },
+            cypher, parameters, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
 void QueuedDbAccess::requestNewCardId(
         std::function<void (bool, int)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);

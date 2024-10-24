@@ -5,6 +5,7 @@
 #include <QString>
 
 class AppData;
+class AppDataReadonly;
 class BoardsDataAccess;
 class CardsDataAccess;
 class DebouncedDbAccess;
@@ -32,7 +33,7 @@ public:
 
     //
     AppData *getAppData() const;
-    AppData *getAppDataReadonly() const;
+    AppDataReadonly *getAppDataReadonly() const;
 
     //
     void finalize(

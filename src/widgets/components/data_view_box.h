@@ -27,6 +27,8 @@ signals:
     void queryUpdated(const QString &cypher, const QJsonObject &parameters);
     void closeByUser();
 
+    void getCardIdsOfBoard(QSet<int> *cardIds);
+
 protected:
     bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) override;
 
@@ -48,9 +50,11 @@ private:
     CustomGraphicsTextItem *queryParametersItem;
     CustomGraphicsTextItem *queryParamsErrorMsgItem;
 
-    // -- text (Use QTextEdit rather than QGraphicsTextItem. The latter does not have scrolling
-    //    functionality.)
+    // -- query result
+    QGraphicsSimpleTextItem *labelQueryResult;
     CustomTextEdit *textEdit; // shows query result
+            // (Use QTextEdit rather than QGraphicsTextItem. The latter does not have scrolling
+            // functionality.)
     QGraphicsProxyWidget *textEditProxyWidget;
 
     //
@@ -69,6 +73,8 @@ private:
     //! \return (is-validation-OK?, is-error-msg-changed?)
     //!
     std::pair<bool, bool> validateQueryParameters();
+
+    void runQuery();
 };
 
 #endif // DATAVIEWBOX_H

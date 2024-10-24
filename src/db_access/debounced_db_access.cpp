@@ -63,6 +63,14 @@ void DebouncedDbAccess::requestNewCardId(
     cardsDataAccess->requestNewCardId(callback, callbackContext);
 }
 
+void DebouncedDbAccess::performCustomCypherQuery(
+        const QString &cypher, const QJsonObject &parameters,
+        std::function<void (bool, const QVector<QJsonObject> &)> callback,
+        QPointer<QObject> callbackContext) {
+    closeDebounceSession();
+    cardsDataAccess->performCustomCypherQuery(cypher, parameters, callback, callbackContext);
+}
+
 void DebouncedDbAccess::createNewCardWithId(const int cardId, const Card &card) {
     closeDebounceSession();
 

@@ -83,6 +83,11 @@ public:
 
     std::optional<QSize> getMainWindowSize();
 
+    void performCustomCypherQuery(
+            const QString &cypher, const QJsonObject &parameters,
+            std::function<void (bool, const QVector<QJsonObject> &)> callback,
+            QPointer<QObject> callbackContext);
+
     // ==== write ====
 
     // A write operation fails if data cannot be saved to DB or file. In this case, a record of

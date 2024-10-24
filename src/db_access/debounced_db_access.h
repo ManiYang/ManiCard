@@ -90,6 +90,11 @@ public:
             std::function<void (bool ok, int cardId)> callback,
             QPointer<QObject> callbackContext);
 
+    void performCustomCypherQuery(
+            const QString &cypher, const QJsonObject &parameters,
+            std::function<void (bool, const QVector<QJsonObject> &)> callback,
+            QPointer<QObject> callbackContext);
+
     // ==== cards data: write operations ====
 
     // If a write operation fails, a record of unsaved update is added and a warning message box

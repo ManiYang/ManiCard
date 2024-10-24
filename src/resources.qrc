@@ -17,5 +17,6 @@
         <file alias="arrow_upward_24">resources/icons/arrow_upward_24.png</file>
         <file alias="arrow_downward_24">resources/icons/arrow_downward_24.png</file>
         <file alias="content_copy_24">resources/icons/content_copy_24.png</file>
+        <file alias="play_arrow_24">resources/icons/play_arrow_24.png</file>
     </qresource>
 </RCC>

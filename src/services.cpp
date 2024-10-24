@@ -97,7 +97,7 @@ AppData *Services::getAppData() const {
     return appData;
 }
 
-AppData *Services::getAppDataReadonly() const {
+AppDataReadonly *Services::getAppDataReadonly() const {
     Q_ASSERT(appData != nullptr);
     return appData;
 }
@@ -119,9 +119,6 @@ void Services::finalize(
                 invokeAction(callbackContext, [callback]() { callback(false); });
             })
             ->onTimeOut([=]() {
-//                QMessageBox::warning(
-//                        nullptr, " ",
-//                        "Time-out while awaiting DB-access operations to finish.");
                 invokeAction(callbackContext, [callback]() { callback(true); });
             })
             ->setAutoDelete()->start();

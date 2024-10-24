@@ -62,6 +62,11 @@ public:
 
     virtual std::optional<QSize> getMainWindowSize() = 0;
 
+    virtual void performCustomCypherQuery(
+            const QString &cypher, const QJsonObject &parameters,
+            std::function<void (bool ok, const QVector<QJsonObject> &result)> callback,
+            QPointer<QObject> callbackContext) = 0;
+
     // ==== non-persisted independent data ====
 
     virtual int getHighlightedCardId() const = 0; // can return -1

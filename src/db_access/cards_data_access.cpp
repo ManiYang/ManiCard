@@ -305,6 +305,114 @@ void CardsDataAccess::getUserLabelsAndRelationshipTypes(
     );
 }
 
+void CardsDataAccess::performCustomCypherQuery(
+        const QString &cypher, const QJsonObject &parameters,
+        std::function<void (bool ok, const QVector<QJsonObject> &rows)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        Neo4jTransaction *transaction {nullptr};
+        QVector<QJsonObject> resultRows;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // open transaction
+        routine->transaction = neo4jHttpApiClient->getTransaction();
+        routine->transaction->open(
+                // callback:
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok) {
+                        routine->errorMsg = "could not open transaction";
+                        context.setErrorFlag();
+                    }
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, cypher, parameters]() {
+        // perform query
+        routine->transaction->query(
+                QueryStatement {cypher, parameters},
+                // callback
+                [routine](bool ok, const QueryResponseSingleResult &queryResponse) {
+                    ContinuationContext context(routine);
+
+                    if (queryResponse.hasNetworkError) {
+                        routine->errorMsg = "network error";
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    if (!queryResponse.dbErrors.isEmpty()) {
+                        QStringList errorMessages;
+                        for (const auto &dbError: queryResponse.dbErrors)
+                            errorMessages << QString("(%1) %2").arg(dbError.code, dbError.message);
+                        routine->errorMsg = errorMessages.join("\n\n");
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    if (!ok || !queryResponse.getResult().has_value()) {
+                        if (ok)
+                            qWarning().noquote() << "result not found while no error";
+                        routine->errorMsg = "unknown error";
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    //
+                    const auto result = queryResponse.getResult().value();
+                    const QStringList columnNames = result.getColumnNames();
+
+                    QVector<QJsonObject> rows;
+                    for (int r = 0; r < result.rowCount(); ++r) {
+                        QJsonObject row;
+                        for (int c = 0; c < columnNames.count(); ++c)
+                            row.insert(columnNames.at(c), result.valueAt(r, c));
+                        rows << row;
+                    }
+                    routine->resultRows = rows;
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine]() {
+        // rollback transaction
+        routine->transaction->rollback(
+                // callback:
+                [routine](bool /*ok*/) {
+                    // (It's OK if the rollback failed, as the DB eventually closes the
+                    // transaction without committing it.)
+                    routine->nextStep();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([callback, routine]() {
+        // final step
+        ContinuationContext context(routine);
+
+        if (routine->errorFlag)
+            callback(false, { QJsonObject {{"errorMsg", routine->errorMsg}} });
+        else
+            callback(true, routine->resultRows);
+
+        routine->transaction->deleteLater();
+    }, callbackContext);
+
+    routine->start();
+}
+
 void CardsDataAccess::requestNewCardId(
         std::function<void (bool, int)> callback,
         QPointer<QObject> callbackContext) {

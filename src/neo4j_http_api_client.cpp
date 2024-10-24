@@ -175,12 +175,12 @@ void Neo4jHttpApiClient::queryDb(const QVector<QueryStatement> &queryStatements,
 }
 
 void Neo4jHttpApiClient::queryDb(
-        const QueryStatement &queryStatements,
+        const QueryStatement &queryStatement,
         std::function<void (const QueryResponseSingleResult &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
     queryDb(
-            QVector<QueryStatement> {queryStatements},
+            QVector<QueryStatement> {queryStatement},
             // callback:
             [callback](const QueryResponse &response) {
                 if (response.getResults().count() > 1) {
@@ -506,6 +506,10 @@ bool Neo4jHttpApiClient::QueryResult::isEmpty() const {
     return rows.isEmpty();
 }
 
+QStringList Neo4jHttpApiClient::QueryResult::getColumnNames() const {
+    return columnNames;
+}
+
 std::pair<QJsonValue, QJsonValue> Neo4jHttpApiClient::QueryResult::valueAndMetaAt(
         const int row, const int column) const {
     if (row < 0 || row >= rows.count())
@@ -640,8 +644,11 @@ Neo4jHttpApiClient::QueryResult Neo4jHttpApiClient::QueryResult::fromApiResponse
     QueryResult queryResult;
 
     const auto columnsArray = resultObject.value("columns").toArray();
-    for (int i = 0; i < columnsArray.count(); ++i)
-        queryResult.columnNameToIndex.insert(columnsArray.at(i).toString(), i);
+    for (int i = 0; i < columnsArray.count(); ++i) {
+        const auto columnName = columnsArray.at(i).toString();
+        queryResult.columnNameToIndex.insert(columnName, i);
+        queryResult.columnNames << columnName;
+    }
 
     const auto recordsArray = resultObject.value("data").toArray();
     queryResult.rows.reserve(recordsArray.count());

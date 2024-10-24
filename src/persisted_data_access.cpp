@@ -389,6 +389,15 @@ std::optional<QSize> PersistedDataAccess::getMainWindowSize() {
     return sizeOpt;
 }
 
+void PersistedDataAccess::performCustomCypherQuery(
+        const QString &cypher, const QJsonObject &parameters,
+        std::function<void (bool, const QVector<QJsonObject> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    debouncedDbAccess->performCustomCypherQuery(cypher, parameters, callback, callbackContext);
+}
+
 void PersistedDataAccess::createNewCardWithId(const int cardId, const Card &card) {
     // 1. update cache synchronously
     if (cache.cards.contains(cardId)) {

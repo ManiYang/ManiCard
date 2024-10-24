@@ -78,6 +78,11 @@ public:
 
     std::optional<QSize> getMainWindowSize() override;
 
+    void performCustomCypherQuery(
+            const QString &cypher, const QJsonObject &parameters,
+            std::function<void (bool ok, const QVector<QJsonObject> &result)> callback,
+            QPointer<QObject> callbackContext) override;
+
     // ---- persisted data: update ----
 
     // If persistence fails, a record of unsaved update is added and a message box is shown.

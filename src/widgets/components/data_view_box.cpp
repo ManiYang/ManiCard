@@ -3,8 +3,10 @@
 #include <QGraphicsScene>
 #include <QGraphicsView>
 #include <QMessageBox>
+#include "app_data_readonly.h"
 #include "data_view_box.h"
 #include "models/data_query.h"
+#include "services.h"
 #include "utilities/json_util.h"
 
 DataViewBox::DataViewBox(const int dataQueryId, QGraphicsItem *parent)
@@ -17,6 +19,7 @@ DataViewBox::DataViewBox(const int dataQueryId, QGraphicsItem *parent)
         , labelParameters(new QGraphicsSimpleTextItem) //
         , queryParametersItem(new CustomGraphicsTextItem) //
         , queryParamsErrorMsgItem(new CustomGraphicsTextItem) //
+        , labelQueryResult(new QGraphicsSimpleTextItem) //
         , textEdit(new CustomTextEdit(nullptr))
         , textEditProxyWidget(new QGraphicsProxyWidget) { //
 }
@@ -66,6 +69,13 @@ bool DataViewBox::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
 QMenu *DataViewBox::createCaptionBarContextMenu() {
     auto *contextMenu = new QMenu;
     {
+        auto *action = contextMenu->addAction(QIcon(":/icons/play_arrow_24"), "Run");
+        connect(action, &QAction::triggered, this, [this]() {
+            runQuery();
+        });
+    }
+    contextMenu->addSeparator();
+    {
         auto *action = contextMenu->addAction(QIcon(":/icons/close_box_black_24"), "Close");
         connect(action, &QAction::triggered, this, [this]() {
             const auto r = QMessageBox::question(getView(), " ", "Close the data query?");
@@ -85,6 +95,7 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     labelParameters->setParentItem(contentsContainer);
     queryParametersItem->setParentItem(contentsContainer);
     queryParamsErrorMsgItem->setParentItem(contentsContainer);
+    labelQueryResult->setParentItem(contentsContainer);
     textEditProxyWidget->setParentItem(contentsContainer);
 
     // get view's font
@@ -102,7 +113,7 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
         titleItem->setDefaultTextColor(Qt::black);
     }
 
-    // labelCypher & labelParameters
+    // labelCypher, labelParameters, & labelQueryResult
     {
         QFont font = fontOfView;
         font.setPixelSize(13);
@@ -117,6 +128,10 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
         labelParameters->setText("Parameters:");
         labelParameters->setFont(font);
         labelParameters->setBrush(textColor);
+
+        labelQueryResult->setText("Result:");
+        labelQueryResult->setFont(font);
+        labelQueryResult->setBrush(textColor);
     }
 
     // queryCypherItem & queryParametersItem
@@ -159,8 +174,10 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     textEdit->setContextMenuPolicy(Qt::NoContextMenu);
 
     constexpr int textEditFontPixelSize = 16;
+    const QString fontFamily = qApp->property("monospaceFontFamily").toString();
     textEdit->setStyleSheet(
             "QTextEdit {"
+            "  font-family: \"" + fontFamily + "\";"
             "  font-size: " + QString::number(textEditFontPixelSize) + "px;"
             "}"
             "QScrollBar:vertical {"
@@ -343,6 +360,14 @@ void DataViewBox::adjustContents() {
         }
     }
 
+    // labelQueryResult
+    {
+        constexpr int xPadding = 3;
+        labelQueryResult->setPos(contentsRect.left() + xPadding, yBottom);
+
+        yBottom += labelQueryResult->boundingRect().height();
+    }
+
     // textEdit
     {
         constexpr int leftPadding = 3;
@@ -384,4 +409,44 @@ std::pair<bool, bool> DataViewBox::validateQueryParameters() {
     queryParamsErrorMsgItem->setPlainText(displayErrorMsg);
 
     return {validateOk, displayErrorMsg != oldErrorMsg};
+}
+
+void DataViewBox::runQuery() {
+    const bool validateOk = validateQueryCypher().first && validateQueryParameters().first;
+    if (!validateOk)
+        return;
+
+    //
+    textEdit->setPlainText("performing query...");
+
+    // add parameter "cardIdsOfBoard"
+    constexpr char keyCardIdsOfBoard[] = "cardIdsOfBoard";
+
+    QJsonObject parameters = parseAsJsonObject(queryParametersItem->toPlainText());
+    if (!parameters.contains(keyCardIdsOfBoard)) {
+        QSet<int> cardIds;
+        emit getCardIdsOfBoard(&cardIds);
+
+        parameters.insert(keyCardIdsOfBoard, toJsonArray(cardIds));
+    }
+
+    //
+    Services::instance()->getAppDataReadonly()->performCustomCypherQuery(
+            queryCypherItem->toPlainText(),
+            parameters,
+            // callback
+            [this](bool ok, const QVector<QJsonObject> &rows) {
+                if (!ok) {
+                    const QString errorMsg = rows.at(0).value("errorMsg").toString();
+                    textEdit->setPlainText(QString("Query failed:\n%1").arg(errorMsg));
+                }
+                else {
+                    QStringList lines;
+                    for (const QJsonObject &row: rows)
+                        lines << printJson(row);
+                    textEdit->setPlainText(lines.join("\n\n"));
+                }
+            },
+            this
+    );
 }

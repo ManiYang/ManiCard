@@ -36,6 +36,11 @@ public:
             std::function<void (bool ok, const StringListPair &labelsAndRelTypes)> callback,
             QPointer<QObject> callbackContext) override;
 
+    void performCustomCypherQuery(
+            const QString &cypher, const QJsonObject &parameters,
+            std::function<void (bool ok, const QVector<QJsonObject> &rows)> callback,
+            QPointer<QObject> callbackContext) override;
+
     // ==== write ====
 
     void requestNewCardId(

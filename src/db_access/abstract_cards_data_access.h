@@ -56,6 +56,18 @@ public:
     virtual void getUserLabelsAndRelationshipTypes(
             std::function<void (bool ok, const StringListPair &labelsAndRelTypes)> callback,
             QPointer<QObject> callbackContext) = 0;
+
+    //!
+    //! \param cypher: any write operation does not take effect
+    //! \param parameters
+    //! \param callback: if \c ok is \c false, \c rows contains single JSON object
+    //!                  {"errorMsg": "..."}
+    //! \param callbackContext
+    //!
+    virtual void performCustomCypherQuery(
+            const QString &cypher, const QJsonObject &parameters,
+            std::function<void (bool ok, const QVector<QJsonObject> &rows)> callback,
+            QPointer<QObject> callbackContext) = 0;
 };
 
 class AbstractCardsDataAccess : public AbstractCardsDataAccessReadOnly

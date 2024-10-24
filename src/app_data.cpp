@@ -65,6 +65,13 @@ std::optional<QSize> AppData::getMainWindowSize() {
     return persistedDataAccess->getMainWindowSize();
 }
 
+void AppData::performCustomCypherQuery(
+        const QString &cypher, const QJsonObject &parameters,
+        std::function<void (bool, const QVector<QJsonObject> &)> callback,
+        QPointer<QObject> callbackContext) {
+    persistedDataAccess->performCustomCypherQuery(cypher, parameters, callback, callbackContext);
+}
+
 void AppData::createNewCardWithId(
         const EventSource &/*eventSrc*/, const int cardId, const Card &card) {
     // 1. persist
