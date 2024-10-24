@@ -323,10 +323,12 @@ void CardsDataAccess::queryCustomDataQueries(
 
     neo4jHttpApiClient->queryDb(
             QueryStatement {
-                R"!(MATCH (q:DataQuery)
+                QString(R"!(
+                    MATCH (q:#label-custom-data-query#)
                     WHERE q.id IN $dataQueryIds
                     RETURN q AS dataQuery
-                )!",
+                )!")
+                    .replace("#label-custom-data-query#", NodeLabel::customDataQuery),
                 QJsonObject {{"dataQueryIds", dataQueryIdsArray}}
             },
             // callback:

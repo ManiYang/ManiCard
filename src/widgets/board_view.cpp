@@ -55,7 +55,7 @@ void BoardView::loadBoard(
             return;
         }
 
-        closeAllCards(&highlightedCardIdChanged);
+        closeAll(&highlightedCardIdChanged);
         boardId = -1;
     }
 
@@ -72,6 +72,7 @@ void BoardView::loadBoard(
         Board board;
         QHash<int, Card> cardsData;
         QHash<RelationshipId, RelationshipProperties> relationshipsData;
+        QHash<int, CustomDataQuery> customDataQueriesData;
     };
     auto *routine = new AsyncRoutineWithVars;
     routine->setName("BoardView::loadBoard");
@@ -132,37 +133,7 @@ void BoardView::loadBoard(
     }, this);
 
     routine->addStep([this, routine]() {
-        // 3. open cards, creating NodeRect's
-        ContinuationContext context(routine);
-
-        for (auto it = routine->cardsData.constBegin();
-                it != routine->cardsData.constEnd(); ++it) {
-            const int &cardId = it.key();
-            const Card &cardData = it.value();
-
-            const NodeRectData nodeRectData = routine->board.cardIdToNodeRectData.value(cardId);
-
-            const QColor displayColor = computeNodeRectDisplayColor(
-                    nodeRectData.ownColor, cardData.getLabels(),
-                    routine->board.cardLabelsAndAssociatedColors,
-                    routine->board.defaultNodeRectColor);
-
-            NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
-                    cardId, cardData, nodeRectData.rect,
-                    displayColor, nodeRectData.ownColor,
-                    routine->userLabelsList);
-            nodeRect->setEditable(true);
-        }
-
-        //
-        zoomScale = routine->board.zoomRatio;
-        canvas->setScale(zoomScale * graphicsGeometryScaleFactor); // (1)
-        adjustSceneRect(); // (2)
-        setViewTopLeftPos(routine->board.topLeftPos); // (3)
-    }, this);
-
-    routine->addStep([this, routine]() {
-        // 4. get relationships
+        // 3. get relationships data
         using RelId = RelationshipId;
         using RelProperties = RelationshipProperties;
 
@@ -191,9 +162,51 @@ void BoardView::loadBoard(
     }, this);
 
     routine->addStep([this, routine]() {
-        // 5. create EdgeArrow's
+        // 4. get custom-data-queries data
+        const QSet<int> customDataQueryIds
+                = keySet(routine->board.customDataQueryIdToDataViewBoxData);
+
+        Services::instance()->getAppDataReadonly()->queryCustomDataQueries(
+                customDataQueryIds,
+                // callback
+                [routine](bool ok, const QHash<int, CustomDataQuery> &customDataQueries) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        context.setErrorFlag();
+                        return;
+                    }
+                    routine->customDataQueriesData = customDataQueries;
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // 5. creating NodeRect's, EdgeArrow's, DataViewBox's
         ContinuationContext context(routine);
 
+        // NodeRect's
+        for (auto it = routine->cardsData.constBegin();
+                it != routine->cardsData.constEnd(); ++it) {
+            const int &cardId = it.key();
+            const Card &cardData = it.value();
+
+            const NodeRectData nodeRectData = routine->board.cardIdToNodeRectData.value(cardId);
+
+            const QColor displayColor = computeNodeRectDisplayColor(
+                    nodeRectData.ownColor, cardData.getLabels(),
+                    routine->board.cardLabelsAndAssociatedColors,
+                    routine->board.defaultNodeRectColor);
+
+            NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
+                    cardId, cardData, nodeRectData.rect,
+                    displayColor, nodeRectData.ownColor,
+                    routine->userLabelsList);
+            nodeRect->setEditable(true);
+        }
+
+        // EdgeArrow's
         EdgeArrowData edgeArrowData;
         {
             edgeArrowData.lineColor = defaultEdgeArrowLineColor;
@@ -203,6 +216,30 @@ void BoardView::loadBoard(
         const auto relIds = keySet(routine->relationshipsData);
         for (const auto &relId: relIds)
             edgeArrowsCollection.createEdgeArrow(relId, edgeArrowData);
+
+        // DataViewBox's
+        for (auto it = routine->customDataQueriesData.constBegin();
+                it != routine->customDataQueriesData.constEnd(); ++it) {
+            const int &customDataQueryId = it.key();
+            const CustomDataQuery customDataQuery = it.value();
+
+            const DataViewBoxData dataViewBoxData
+                    = routine->board.customDataQueryIdToDataViewBoxData.value(customDataQueryId);
+
+            const QColor displayColor = computeDataViewBoxDisplayColor(
+                    dataViewBoxData.ownColor, QColor());
+
+            auto *box = dataViewBoxesCollection.createDataViewBox(
+                    customDataQueryId, customDataQuery, dataViewBoxData.rect,
+                    displayColor, dataViewBoxData.ownColor);
+            box->setEditable(true);
+        }
+
+        //
+        zoomScale = routine->board.zoomRatio;
+        canvas->setScale(zoomScale * graphicsGeometryScaleFactor); // (1)
+        adjustSceneRect(); // (2)
+        setViewTopLeftPos(routine->board.topLeftPos); // (3)
     }, this);
 
     routine->addStep([this, routine, callback, boardIdToLoad, highlightedCardIdChanged]() {
@@ -328,7 +365,7 @@ void BoardView::setUpContextMenu() {
         QAction *action = contextMenu->addAction(
                 QIcon(":/icons/add_box_black_24"), "Create New Data Query...");
         connect(action, &QAction::triggered, this, [this]() {
-            onUserToCreateNewDataQuery(contextMenuData.requestScenePos);
+            onUserToCreateNewCustomDataQuery(contextMenuData.requestScenePos);
         });
     }
 }
@@ -764,7 +801,7 @@ void BoardView::onUserToDuplicateCard(const QPointF &scenePos) {
     routine->start();
 }
 
-void BoardView::onUserToCreateNewDataQuery(const QPointF &scenePos) {
+void BoardView::onUserToCreateNewCustomDataQuery(const QPointF &scenePos) {
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
@@ -812,20 +849,16 @@ void BoardView::onUserToCreateNewDataQuery(const QPointF &scenePos) {
         const QColor displayColor = routine->dataViewBoxData.ownColor.isValid()
                 ? routine->dataViewBoxData.ownColor : defaultNewDataViewBoxColor;
 
-        auto *box = new DataViewBox(routine->newDataQueryId, canvas);
-        box->initialize();
-        box->setRect(routine->dataViewBoxData.rect);
-        box->setTitle(routine->dataQuery.title);
-        box->setQuery(routine->dataQuery.queryCypher, routine->dataQuery.queryParameters);
-        box->setColor(displayColor);
+        auto *box = dataViewBoxesCollection.createDataViewBox(
+                routine->newDataQueryId, routine->dataQuery, routine->dataViewBoxData.rect,
+                displayColor, routine->dataViewBoxData.ownColor);
         box->setEditable(true);
-
-        connect(box, &DataViewBox::getCardIdsOfBoard, this, [this](QSet<int> *cardIds) {
-            *cardIds = nodeRectsCollection.getAllCardIds();
-        }, Qt::DirectConnection);
 
         adjustSceneRect();
     }, this);
+
+
+    // call AppData.........
 
     routine->addStep([this, routine]() {
         // final step
@@ -1081,46 +1114,38 @@ void BoardView::onUserToCreateRelationship(const int cardId) {
 void BoardView::onUserToCloseNodeRect(const int cardId) {
     Q_ASSERT(nodeRectsCollection.contains(cardId));
 
-    class AsyncRoutineWithVars : public AsyncRoutine
+    std::optional<int> updatedHighlightedCardId;
     {
-    public:
-        std::optional<int> updatedHighlightedCardId;
-    };
-    auto *routine = new AsyncRoutineWithVars;
-
-    //
-    routine->addStep([this, routine, cardId]() {
         bool highlightedCardIdChanged;
         constexpr bool removeConnectedEdgeArrows = true;
         nodeRectsCollection.closeNodeRect(
                 cardId, removeConnectedEdgeArrows, &highlightedCardIdChanged);
 
         if (highlightedCardIdChanged)
-            routine->updatedHighlightedCardId = -1;
+            updatedHighlightedCardId = -1;
 
         adjustSceneRect();
+    }
 
-        routine->nextStep();
-    }, this);
+    // call AppData
+    if (updatedHighlightedCardId.has_value()) {
+        Services::instance()->getAppData()->setHighlightedCardId(
+                EventSource(this), updatedHighlightedCardId.value());
+    }
 
-    routine->addStep([this, routine]() {
-        // call AppData
-        if (routine->updatedHighlightedCardId.has_value()) {
-            Services::instance()->getAppData()->setHighlightedCardId(
-                    EventSource(this), routine->updatedHighlightedCardId.value());
-        }
-        routine->nextStep();
-    }, this);
+    Services::instance()->getAppData()->removeNodeRect(EventSource(this), boardId, cardId);
+}
 
-    routine->addStep([this, routine, cardId]() {
-        // can be merged with previous step...
-        // call AppData
-        Services::instance()->getAppData()
-                ->removeNodeRect(EventSource(this), boardId, cardId);
-        routine->nextStep();
-    }, this);
+void BoardView::onUserToCloseDataViewBox(const int customDataQueryId) {
+    Q_ASSERT(dataViewBoxesCollection.contains(customDataQueryId));
 
-    routine->start();
+    //
+    dataViewBoxesCollection.closeDataViewBox(customDataQueryId);
+    adjustSceneRect();
+
+    // call AppData ..........
+
+
 }
 
 void BoardView::onUserToSetCardColors() {
@@ -1161,7 +1186,7 @@ void BoardView::onBackgroundClicked() {
     }
 }
 
-void BoardView::closeAllCards(bool *highlightedCardIdChanged_) {
+void BoardView::closeAll(bool *highlightedCardIdChanged_) {
     *highlightedCardIdChanged_ = false;
 
     const QSet<int> cardIds = nodeRectsCollection.getAllCardIds();
@@ -1175,8 +1200,14 @@ void BoardView::closeAllCards(bool *highlightedCardIdChanged_) {
             *highlightedCardIdChanged_ = true;
     }
 
+    //
     const auto relIds = edgeArrowsCollection.getAllRelationshipIds();
     edgeArrowsCollection.removeEdgeArrows(relIds);
+
+    //
+    const QSet<int> customDataQueryIds = dataViewBoxesCollection.getAllCustomDataQueryIds();
+    for (const int &id: customDataQueryIds)
+        dataViewBoxesCollection.closeDataViewBox(id);
 }
 
 void BoardView::adjustSceneRect() {
@@ -1184,8 +1215,19 @@ void BoardView::adjustSceneRect() {
     if (scene == nullptr)
         return;
 
-    const QRectF contentsRectInCanvas
-            = nodeRectsCollection.getBoundingRectOfAllNodeRects(); // in canvas coordinates
+    QRectF contentsRectInCanvas; // in canvas coordinates
+    {
+        QRectF boundingRect1 = nodeRectsCollection.getBoundingRectOfAllNodeRects();
+        QRectF boundingRect2 = dataViewBoxesCollection.getBoundingRectOfAllDataViewBoxes();
+
+        if (!boundingRect1.isNull() && !boundingRect2.isNull())
+            contentsRectInCanvas = boundingRect1.united(boundingRect2);
+        else if (!boundingRect1.isNull())
+            contentsRectInCanvas = boundingRect1;
+        else if (!boundingRect2.isNull())
+            contentsRectInCanvas = boundingRect2;
+    }
+
     const QRectF contentsRectInScene = contentsRectInCanvas.isNull()
             ? QRectF(0, 0, 10, 10)
             : QRectF(
@@ -1264,7 +1306,7 @@ void BoardView::moveSceneRelativeToView(const QPointF &displacement) {
 QColor BoardView::computeNodeRectDisplayColor(
         const QColor &nodeRectOwnColor, const QSet<QString> &cardLabels,
         const QVector<Board::LabelAndColor> &cardLabelsAndAssociatedColors,
-        const QColor &boardDefaultColor) {
+        const QColor &boardDefaultColorForNodeRect) {
     // 1. NodeRect's own color
     if (nodeRectOwnColor.isValid())
         return nodeRectOwnColor;
@@ -1276,10 +1318,21 @@ QColor BoardView::computeNodeRectDisplayColor(
     }
 
     // 3. board's default
-    if (boardDefaultColor.isValid())
-        return boardDefaultColor;
+    if (boardDefaultColorForNodeRect.isValid())
+        return boardDefaultColorForNodeRect;
 
     //
+    return QColor(170, 170, 170);
+}
+
+QColor BoardView::computeDataViewBoxDisplayColor(
+        const QColor &dataViewBoxOwnColor, const QColor &boardDefaultColorForDataViewBox) {
+    if (dataViewBoxOwnColor.isValid())
+        return dataViewBoxOwnColor;
+
+    if (boardDefaultColorForDataViewBox.isValid())
+        return boardDefaultColorForDataViewBox;
+
     return QColor(170, 170, 170);
 }
 
@@ -1421,7 +1474,7 @@ void BoardView::NodeRectsCollection::closeNodeRect(
     NodeRect *nodeRect = cardIdToNodeRect.take(cardId);
     if (nodeRect == nullptr)
         return;
-    cardIdToNodeRect.remove(cardId);
+    cardIdToNodeRectOwnColor.remove(cardId);
 
     //
     boardView->graphicsScene->removeItem(nodeRect);
@@ -1635,4 +1688,83 @@ QLineF BoardView::EdgeArrowsCollection::computeEdgeArrowLine(
     const QPointF endPoint = intersect ?  intersectionPoint : endNodeRect.center();
 
     return {startPoint, endPoint};
+}
+
+DataViewBox *BoardView::DataViewBoxesCollection::createDataViewBox(
+        const int customDataQueryId, const CustomDataQuery &customDataQueryData,
+        const QRectF &rect, const QColor &displayColor, const QColor &dataViewBoxOwnColor) {
+    Q_ASSERT(!customDataQueryIdToDataViewBox.contains(customDataQueryId));
+
+    auto *box = new DataViewBox(customDataQueryId, boardView->canvas);
+    customDataQueryIdToDataViewBox.insert(customDataQueryId, box);
+    customDataQueryIdToDataViewBoxOwnColor.insert(customDataQueryId, dataViewBoxOwnColor);
+    box->setZValue(zValueForNodeRects);
+    box->initialize();
+
+    box->setTitle(customDataQueryData.title);
+    box->setQuery(customDataQueryData.queryCypher, customDataQueryData.queryParameters);
+    box->setRect(rect);
+    box->setColor(displayColor);
+
+    // set up connections
+    // todo .......
+
+    QPointer<DataViewBox> boxPtr(box);
+
+    QObject::connect(
+            box, &DataViewBox::getCardIdsOfBoard, boardView, [this](QSet<int> *cardIds) {
+        *cardIds = boardView->nodeRectsCollection.getAllCardIds();
+    }, Qt::DirectConnection);
+
+
+
+
+
+
+
+    QObject::connect(
+            box, &DataViewBox::closeByUser, boardView, [this, boxPtr]() {
+        if (!boxPtr)
+            return;
+        boardView->onUserToCloseDataViewBox(boxPtr->getCustomDataQueryId());
+    });
+
+    //
+    return box;
+}
+
+void BoardView::DataViewBoxesCollection::closeDataViewBox(const int customDataQueryId) {
+    DataViewBox *box = customDataQueryIdToDataViewBox.take(customDataQueryId);
+    if (box == nullptr)
+        return;
+    customDataQueryIdToDataViewBoxOwnColor.remove(customDataQueryId);
+
+    //
+    boardView->graphicsScene->removeItem(box);
+    box->deleteLater();
+
+    //
+    boardView->graphicsScene->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
+    // This is to deal with the QGraphicsView problem
+    // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
+}
+
+bool BoardView::DataViewBoxesCollection::contains(const int customDataQueryId) const {
+    return customDataQueryIdToDataViewBox.contains(customDataQueryId);
+}
+
+QSet<int> BoardView::DataViewBoxesCollection::getAllCustomDataQueryIds() const {
+    return keySet(customDataQueryIdToDataViewBox);
+}
+
+QRectF BoardView::DataViewBoxesCollection::getBoundingRectOfAllDataViewBoxes() const {
+    QRectF result;
+    for (auto it = customDataQueryIdToDataViewBox.constBegin();
+            it != customDataQueryIdToDataViewBox.constEnd(); ++it) {
+        if (result.isNull())
+            result = it.value()->boundingRect();
+        else
+            result = result.united(it.value()->boundingRect());
+    }
+    return result;
 }

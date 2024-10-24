@@ -5,11 +5,13 @@
 #include <QGraphicsView>
 #include <QMenu>
 #include "models/board.h"
+#include "models/custom_data_query.h"
 #include "models/edge_arrow_data.h"
 #include "models/node_rect_data.h"
 #include "models/relationship.h"
 
 class BoardViewToolBar;
+class DataViewBox;
 class EdgeArrow;
 struct EdgeArrowData;
 class Card;
@@ -56,7 +58,7 @@ signals:
 
 private:
     static inline const QSizeF defaultNewNodeRectSize {200, 120};
-    static inline const QSizeF defaultNewDataViewBoxSize {250, 180};
+    static inline const QSizeF defaultNewDataViewBoxSize {400, 400};
     static inline const QColor defaultNewDataViewBoxColor {170, 170, 170};
     static inline const QColor defaultEdgeArrowLineColor {100, 100, 100};
     constexpr static double defaultEdgeArrowLineWidth {2.0};
@@ -96,19 +98,20 @@ private:
     void onUserToOpenExistingCard(const QPointF &scenePos);
     void onUserToCreateNewCard(const QPointF &scenePos);
     void onUserToDuplicateCard(const QPointF &scenePos);
-    void onUserToCreateNewDataQuery(const QPointF &scenePos);
+    void onUserToCreateNewCustomDataQuery(const QPointF &scenePos);
     void onUserToSetLabels(const int cardId);
     void onUserToCreateRelationship(const int cardId);
     void onUserToCloseNodeRect(const int cardId);
+    void onUserToCloseDataViewBox(const int customDataQueryId);
     void onUserToSetCardColors();
     void onBackgroundClicked();
 
     //
 
     //!
-    //! Remove all NodeRect's and EdgeArrow's. Does not check canClose().
+    //! Remove all NodeRect's, EdgeArrow's, & DataViewBox's. Does not check canClose().
     //!
-    void closeAllCards(bool *highlightedCardIdChanged);
+    void closeAll(bool *highlightedCardIdChanged);
 
     //!
     //! Call this when
@@ -166,7 +169,7 @@ private:
         QRectF getBoundingRectOfAllNodeRects() const; // returns QRectF() if no NodeRect exists
 
     private:
-        BoardView *boardView;
+        BoardView *const boardView;
         QHash<int, NodeRect *> cardIdToNodeRect;
         QHash<int, QColor> cardIdToNodeRectOwnColor;
         int highlightedCardId {-1};
@@ -198,7 +201,7 @@ private:
         QSet<RelationshipId> getAllRelationshipIds() const;
 
     private:
-        BoardView *boardView;
+        BoardView *const boardView;
         QHash<RelationshipId, EdgeArrow *> relIdToEdgeArrow;
         QHash<QSet<int>, QSet<RelationshipId>> cardIdPairToParallelRels;
                 // "parallel relationships" := those connecting the same pair of cards
@@ -211,6 +214,33 @@ private:
     };
     EdgeArrowsCollection edgeArrowsCollection {this};
 
+    //
+    class DataViewBoxesCollection
+    {
+    public:
+        explicit DataViewBoxesCollection(BoardView *boardView_) : boardView(boardView_) {}
+
+        //!
+        //! The returned DataViewBox is already added to canvas.
+        //!
+        DataViewBox *createDataViewBox(
+                const int customDataQueryId, const CustomDataQuery &customDataQueryData,
+                const QRectF &rect, const QColor &displayColor, const QColor &dataViewBoxOwnColor);
+
+        void closeDataViewBox(const int customDataQueryId);
+
+        bool contains(const int customDataQueryId) const;
+        QSet<int> getAllCustomDataQueryIds() const;
+        QRectF getBoundingRectOfAllDataViewBoxes() const;
+                // returns QRectF() if no DataViewBox exists
+
+    private:
+        BoardView *const boardView;
+        QHash<int, DataViewBox *> customDataQueryIdToDataViewBox;
+        QHash<int, QColor> customDataQueryIdToDataViewBoxOwnColor;
+    };
+    DataViewBoxesCollection dataViewBoxesCollection {this};
+
     // tools
     QPoint getScreenPosFromScenePos(const QPointF &scenePos) const;
     QPointF getViewCenterInScene() const;
@@ -221,7 +251,9 @@ private:
             const QColor &nodeRectOwnColor,
             const QSet<QString> &cardLabels,
             const QVector<Board::LabelAndColor> &cardLabelsAndAssociatedColors,
-            const QColor &boardDefaultColor);
+            const QColor &boardDefaultColorForNodeRect);
+    static QColor computeDataViewBoxDisplayColor(
+            const QColor &dataViewBoxOwnColor, const QColor &boardDefaultColorForDataViewBox);
 
     QSet<RelationshipId> getEdgeArrowsConnectingNodeRect(const int cardId);
 };

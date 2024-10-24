@@ -3,6 +3,7 @@
 
 namespace NodeLabel {
 constexpr char card[] = "Card";
+constexpr char customDataQuery[] = "CustomDataQuery";
 }
 
 #endif // NODE_LABELS_H

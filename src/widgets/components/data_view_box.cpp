@@ -9,9 +9,9 @@
 #include "services.h"
 #include "utilities/json_util.h"
 
-DataViewBox::DataViewBox(const int dataQueryId, QGraphicsItem *parent)
+DataViewBox::DataViewBox(const int customDataQueryId, QGraphicsItem *parent)
         : BoardBoxItem(parent)
-        , dataQueryId(dataQueryId)
+        , customDataQueryId(customDataQueryId)
         , titleItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
         , labelCypher(new QGraphicsSimpleTextItem) //
         , queryCypherItem(new CustomGraphicsTextItem) //
@@ -48,8 +48,8 @@ void DataViewBox::setTextEditorIgnoreWheelEvent(const bool b) {
     textEditIgnoreWheelEvent = b;
 }
 
-int DataViewBox::getDataQueryId() const {
-    return dataQueryId;
+int DataViewBox::getCustomDataQueryId() const {
+    return customDataQueryId;
 }
 
 bool DataViewBox::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
@@ -186,7 +186,8 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     );
 
     //
-    const QString dataQueryIdStr = (dataQueryId >= 0) ? QString("Data Query %1").arg(dataQueryId) : "";
+    const QString dataQueryIdStr
+            = (customDataQueryId >= 0) ? QString("Data Query %1").arg(customDataQueryId) : "";
     setCaptionBarRightText(dataQueryIdStr);
 
     // ==== install event filter ====

@@ -10,7 +10,7 @@ class DataViewBox : public BoardBoxItem
 {
     Q_OBJECT
 public:
-    explicit DataViewBox(const int dataQueryId, QGraphicsItem *parent = nullptr);
+    explicit DataViewBox(const int customDataQueryId, QGraphicsItem *parent = nullptr);
 
     // Call these "set" methods only after this item is initialized:
     void setTitle(const QString &title);
@@ -20,7 +20,7 @@ public:
     void setTextEditorIgnoreWheelEvent(const bool b);
 
     //
-    int getDataQueryId() const;
+    int getCustomDataQueryId() const;
 
 signals:
     void titleUpdated(const QString &updatedTitle);
@@ -33,7 +33,7 @@ protected:
     bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) override;
 
 private:
-    const int dataQueryId;
+    const int customDataQueryId;
     bool textEditIgnoreWheelEvent {false};
 
     // content items
