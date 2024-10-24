@@ -305,9 +305,9 @@ void CardsDataAccess::getUserLabelsAndRelationshipTypes(
     );
 }
 
-void CardsDataAccess::queryDataQueries(
+void CardsDataAccess::queryCustomDataQueries(
         const QSet<int> &dataQueryIds,
-        std::function<void (bool, const QHash<int, DataQuery> &)> callback,
+        std::function<void (bool, const QHash<int, CustomDataQuery> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
@@ -339,7 +339,7 @@ void CardsDataAccess::queryDataQueries(
                 //
                 const auto queryResult = queryResponse.getResult().value();
 
-                QHash<int, DataQuery> result;
+                QHash<int, CustomDataQuery> result;
                 bool hasError = false;
                 for (int r = 0; r < queryResult.rowCount(); ++r) {
                     const auto dataQueryOpt = queryResult.objectValueAt(r, "dataQuery");
@@ -357,7 +357,7 @@ void CardsDataAccess::queryDataQueries(
                         break;
                     }
 
-                    result.insert(idValue.toInt(), DataQuery::fromJson(dataQueryObj));
+                    result.insert(idValue.toInt(), CustomDataQuery::fromJson(dataQueryObj));
                 }
 
                 if (hasError)

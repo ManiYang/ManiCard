@@ -4,7 +4,7 @@
 #include <QObject>
 #include <QPointer>
 #include "models/card.h"
-#include "models/data_query.h"
+#include "models/custom_data_query.h"
 #include "models/relationship.h"
 
 class AbstractCardsDataAccessReadOnly
@@ -58,9 +58,9 @@ public:
             std::function<void (bool ok, const StringListPair &labelsAndRelTypes)> callback,
             QPointer<QObject> callbackContext) = 0;
 
-    virtual void queryDataQueries(
+    virtual void queryCustomDataQueries(
             const QSet<int> &dataQueryIds,
-            std::function<void (bool ok, const QHash<int, DataQuery> &dataQueries)> callback,
+            std::function<void (bool ok, const QHash<int, CustomDataQuery> &dataQueries)> callback,
             QPointer<QObject> callbackContext) = 0;
 
     //!

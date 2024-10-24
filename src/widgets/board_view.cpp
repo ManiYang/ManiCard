@@ -6,7 +6,7 @@
 #include <QVBoxLayout>
 #include "app_data.h"
 #include "board_view.h"
-#include "models/data_query.h"
+#include "models/custom_data_query.h"
 #include "models/data_view_box_data.h"
 #include "persisted_data_access.h"
 #include "services.h"
@@ -769,7 +769,7 @@ void BoardView::onUserToCreateNewDataQuery(const QPointF &scenePos) {
     {
     public:
         int newDataQueryId;
-        DataQuery dataQuery;
+        CustomDataQuery dataQuery;
         DataViewBoxData dataViewBoxData;
         QString errorMsg;
     };

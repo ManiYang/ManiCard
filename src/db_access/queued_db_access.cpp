@@ -121,19 +121,19 @@ void QueuedDbAccess::getUserLabelsAndRelationshipTypes(
     addToQueue(func);
 }
 
-void QueuedDbAccess::queryDataQueries(
+void QueuedDbAccess::queryCustomDataQueries(
         const QSet<int> &dataQueryIds,
-        std::function<void (bool, const QHash<int, DataQuery> &)> callback,
+        std::function<void (bool, const QHash<int, CustomDataQuery> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
     auto func = createTask<
                     true // is readonly?
-                    , const QHash<int, DataQuery> &, // result type (`Void` if no result argument)
+                    , const QHash<int, CustomDataQuery> &, // result type (`Void` if no result argument)
                     decltype(dataQueryIds) // input types
                 >(
             [this](auto... args) {
-                cardsDataAccess->queryDataQueries(args...); // method
+                cardsDataAccess->queryCustomDataQueries(args...); // method
             },
             dataQueryIds, // input parameters
             callback, callbackContext

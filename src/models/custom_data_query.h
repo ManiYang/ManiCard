@@ -1,17 +1,17 @@
-#ifndef DATAQUERY_H
-#define DATAQUERY_H
+#ifndef CUSTOMDATAQUERY_H
+#define CUSTOMDATAQUERY_H
 
 #include <QJsonObject>
 #include <QString>
 
-struct DataQuery
+struct CustomDataQuery
 {
     QString title;
     QString queryCypher;
     QJsonObject queryParameters;
 
-    static DataQuery fromJson(const QJsonObject &obj);
+    static CustomDataQuery fromJson(const QJsonObject &obj);
     static bool validateCypher(const QString queryCypher, QString *msg = nullptr);
 };
 
-#endif // DATAQUERY_H
+#endif // CUSTOMDATAQUERY_H

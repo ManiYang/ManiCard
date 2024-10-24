@@ -1,10 +1,10 @@
 #include <QRegularExpression>
 #include <QSet>
-#include "data_query.h"
+#include "custom_data_query.h"
 #include "utilities/strings_util.h"
 
-DataQuery DataQuery::fromJson(const QJsonObject &obj) {
-    DataQuery dataQuery;
+CustomDataQuery CustomDataQuery::fromJson(const QJsonObject &obj) {
+    CustomDataQuery dataQuery;
 
     if (const auto v = obj.value("title"); !v.isUndefined())
         dataQuery.title = v.toString();
@@ -18,7 +18,7 @@ DataQuery DataQuery::fromJson(const QJsonObject &obj) {
     return dataQuery;
 }
 
-bool DataQuery::validateCypher(const QString queryCypher, QString *msg) {
+bool CustomDataQuery::validateCypher(const QString queryCypher, QString *msg) {
     const QString cypher = queryCypher.toUpper();
 
     static const QRegularExpression re("\\s+");

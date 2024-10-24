@@ -23,7 +23,7 @@ SOURCES += \
     models/board.cpp \
     models/boards_list_properties.cpp \
     models/card.cpp \
-    models/data_query.cpp \
+    models/custom_data_query.cpp \
     models/node_rect_data.cpp \
     models/relationship.cpp \
     neo4j_http_api_client.cpp \
@@ -82,7 +82,7 @@ HEADERS += \
     models/board.h \
     models/boards_list_properties.h \
     models/card.h \
-    models/data_query.h \
+    models/custom_data_query.h \
     models/data_view_box_data.h \
     models/edge_arrow_data.h \
     models/node_labels.h \

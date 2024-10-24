@@ -65,11 +65,11 @@ std::optional<QSize> AppData::getMainWindowSize() {
     return persistedDataAccess->getMainWindowSize();
 }
 
-void AppData::queryDataQueries(
+void AppData::queryCustomDataQueries(
         const QSet<int> &dataQueryIds,
-        std::function<void (bool, const QHash<int, DataQuery> &)> callback,
+        std::function<void (bool, const QHash<int, CustomDataQuery> &)> callback,
         QPointer<QObject> callbackContext) {
-    persistedDataAccess->queryDataQueries(dataQueryIds, callback, callbackContext);
+    persistedDataAccess->queryCustomDataQueries(dataQueryIds, callback, callbackContext);
 }
 
 void AppData::performCustomCypherQuery(

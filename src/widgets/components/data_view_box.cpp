@@ -5,7 +5,7 @@
 #include <QMessageBox>
 #include "app_data_readonly.h"
 #include "data_view_box.h"
-#include "models/data_query.h"
+#include "models/custom_data_query.h"
 #include "services.h"
 #include "utilities/json_util.h"
 
@@ -388,7 +388,7 @@ void DataViewBox::adjustContents() {
 std::pair<bool, bool> DataViewBox::validateQueryCypher() {
     const QString cypher = queryCypherItem->toPlainText();
     QString errorMsg;
-    const bool validateOk = DataQuery::validateCypher(cypher, &errorMsg);
+    const bool validateOk = CustomDataQuery::validateCypher(cypher, &errorMsg);
 
     const QString oldErrorMsg = queryCypherErrorMsgItem->toPlainText();
     queryCypherErrorMsgItem->setPlainText(errorMsg);

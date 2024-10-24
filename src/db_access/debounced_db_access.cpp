@@ -63,12 +63,12 @@ void DebouncedDbAccess::requestNewCardId(
     cardsDataAccess->requestNewCardId(callback, callbackContext);
 }
 
-void DebouncedDbAccess::queryDataQueries(
+void DebouncedDbAccess::queryCustomDataQueries(
         const QSet<int> &dataQueryIds,
-        std::function<void (bool, const QHash<int, DataQuery> &)> callback,
+        std::function<void (bool, const QHash<int, CustomDataQuery> &)> callback,
         QPointer<QObject> callbackContext) {
     closeDebounceSession();
-    cardsDataAccess->queryDataQueries(dataQueryIds, callback, callbackContext);
+    cardsDataAccess->queryCustomDataQueries(dataQueryIds, callback, callbackContext);
 }
 
 void DebouncedDbAccess::performCustomCypherQuery(

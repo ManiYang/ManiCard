@@ -389,16 +389,16 @@ std::optional<QSize> PersistedDataAccess::getMainWindowSize() {
     return sizeOpt;
 }
 
-void PersistedDataAccess::queryDataQueries(
+void PersistedDataAccess::queryCustomDataQueries(
         const QSet<int> &dataQueryIds,
-        std::function<void (bool, const QHash<int, DataQuery> &)> callback,
+        std::function<void (bool, const QHash<int, CustomDataQuery> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
-        QHash<int, DataQuery> result;
+        QHash<int, CustomDataQuery> result;
     };
     auto *routine = new AsyncRoutineWithVars;
 
@@ -419,10 +419,10 @@ void PersistedDataAccess::queryDataQueries(
             return;
         }
 
-        debouncedDbAccess->queryDataQueries(
+        debouncedDbAccess->queryCustomDataQueries(
                 idsToQuery,
                 // callback:
-                [this, routine](bool queryOk, const QHash<int, DataQuery> &dataQueriesFromDb) {
+                [this, routine](bool queryOk, const QHash<int, CustomDataQuery> &dataQueriesFromDb) {
                     ContinuationContext context(routine);
 
                     if (queryOk) {

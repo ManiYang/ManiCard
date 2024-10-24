@@ -90,9 +90,9 @@ public:
             std::function<void (bool ok, int cardId)> callback,
             QPointer<QObject> callbackContext);
 
-    void queryDataQueries(
+    void queryCustomDataQueries(
             const QSet<int> &dataQueryIds,
-            std::function<void (bool ok, const QHash<int, DataQuery> &dataQueries)> callback,
+            std::function<void (bool ok, const QHash<int, CustomDataQuery> &dataQueries)> callback,
             QPointer<QObject> callbackContext);
 
     void performCustomCypherQuery(
