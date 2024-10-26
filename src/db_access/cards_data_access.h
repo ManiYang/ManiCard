@@ -37,7 +37,7 @@ public:
             QPointer<QObject> callbackContext) override;
 
     void queryCustomDataQueries(
-            const QSet<int> &dataQueryIds,
+            const QSet<int> &customDataQueryIds,
             std::function<void (bool ok, const QHash<int, CustomDataQuery> &dataQueries)> callback,
             QPointer<QObject> callbackContext) override;
 
@@ -75,6 +75,14 @@ public:
     void updateUserCardLabels(
             const QStringList &updatedCardLabels, std::function<void (bool ok)> callback,
             QPointer<QObject> callbackContext) override;
+
+    void createNewCustomDataQueryWithId(
+            const int customDataQueryId, const CustomDataQuery &customDataQuery,
+            std::function<void (bool)> callback, QPointer<QObject> callbackContext) override;
+
+    void updateCustomDataQueryProperties(
+            const int customDataQueryId, const CustomDataQueryUpdate &update,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
 private:
     Neo4jHttpApiClient *neo4jHttpApiClient;

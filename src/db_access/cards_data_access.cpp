@@ -306,12 +306,12 @@ void CardsDataAccess::getUserLabelsAndRelationshipTypes(
 }
 
 void CardsDataAccess::queryCustomDataQueries(
-        const QSet<int> &dataQueryIds,
+        const QSet<int> &customDataQueryIds,
         std::function<void (bool, const QHash<int, CustomDataQuery> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
-    if (dataQueryIds.isEmpty()) {
+    if (customDataQueryIds.isEmpty()) {
         invokeAction(callbackContext, [callback]() {
             callback(true, {});
         });
@@ -319,7 +319,7 @@ void CardsDataAccess::queryCustomDataQueries(
     }
 
     //
-    const QJsonArray dataQueryIdsArray = toJsonArray(dataQueryIds);
+    const QJsonArray dataQueryIdsArray = toJsonArray(customDataQueryIds);
 
     neo4jHttpApiClient->queryDb(
             QueryStatement {
@@ -879,4 +879,105 @@ void CardsDataAccess::updateUserCardLabels(
             },
             callbackContext
     );
+}
+
+void CardsDataAccess::createNewCustomDataQueryWithId(
+        const int customDataQueryId, const CustomDataQuery &customDataQuery,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                QString(R"!(
+                    MERGE (q:CustomDataQuery {id: $id})
+                    ON CREATE
+                        SET q += $propertiesMap, q._is_created_ = true
+                    ON MATCH
+                        SET q._is_created_ = false
+                    WITH q, q._is_created_ AS isCreated
+                    REMOVE q._is_created_
+                    RETURN isCreated
+                )!"),
+                QJsonObject {
+                    {"id", customDataQueryId},
+                    {"propertiesMap", customDataQuery.toJson()}
+                }
+            },
+            // callback
+            [callback, customDataQueryId](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                std::optional<bool> isCreated = result.boolValueAt(0, "isCreated");
+                if (!isCreated.has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                if (isCreated.value()) {
+                    qInfo().noquote()
+                            << QString("created custom-data-query with ID %1").arg(customDataQueryId);
+                    callback(true);
+                }
+                else {
+                    qWarning().noquote()
+                            << QString("custom-data-query with ID %1 already exists")
+                               .arg(customDataQueryId);
+                    callback(false);
+                }
+            },
+            callbackContext
+    );
+}
+
+void CardsDataAccess::updateCustomDataQueryProperties(
+        const int customDataQueryId, const CustomDataQueryUpdate &update,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(MATCH (q:CustomDataQuery {id: $id})
+                    SET q += $propertiesMap
+                    RETURN q.id
+                )!",
+                QJsonObject {
+                    {"id", customDataQueryId},
+                    {"propertiesMap", update.toJson()}
+                }
+            },
+            // callback:
+            [callback, customDataQueryId](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                if (queryResponse.hasNetworkOrDbError()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto queryResult = queryResponse.getResult().value();
+                if (queryResult.isEmpty()) {
+                    qWarning().noquote()
+                            << QString("custom-data-query %1 not found "
+                                       "while updating custom-data-query properties")
+                               .arg(customDataQueryId);
+                    callback(false);
+                    return;
+                }
+
+                qInfo().noquote()
+                        << QString("updated properties of custom-data-query %1")
+                           .arg(customDataQueryId);
+                callback(true);
+            },
+            callbackContext
+    );
+
+
 }

@@ -805,8 +805,8 @@ void BoardView::onUserToCreateNewCustomDataQuery(const QPointF &scenePos) {
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
-        int newDataQueryId;
-        CustomDataQuery dataQuery;
+        int newCustomDataQueryId;
+        CustomDataQuery customDataQuery;
         DataViewBoxData dataViewBoxData;
         QString errorMsg;
     };
@@ -820,7 +820,7 @@ void BoardView::onUserToCreateNewCustomDataQuery(const QPointF &scenePos) {
                 [routine](std::optional<int> cardId) {
                     ContinuationContext context(routine);
                     if (cardId.has_value()) {
-                        routine->newDataQueryId = cardId.value();
+                        routine->newCustomDataQueryId = cardId.value();
                     }
                     else {
                         context.setErrorFlag();
@@ -835,12 +835,12 @@ void BoardView::onUserToCreateNewCustomDataQuery(const QPointF &scenePos) {
         // create new DataViewBox
         ContinuationContext context(routine);
 
-        routine->dataQuery.title = "New Data Query";
-        routine->dataQuery.queryCypher
+        routine->customDataQuery.title = "New Data Query";
+        routine->customDataQuery.queryCypher
                 = "MATCH (c:Card) \n"
                   "WHERE c.id IN $cardIdsOfBoard \n"
                   "RETURN c.id AS id, c.title AS title;";
-        routine->dataQuery.queryParameters = QJsonObject();
+        routine->customDataQuery.queryParameters = QJsonObject();
 
         routine->dataViewBoxData.rect
                 = QRectF(canvas->mapFromScene(scenePos), defaultNewDataViewBoxSize);
@@ -850,15 +850,24 @@ void BoardView::onUserToCreateNewCustomDataQuery(const QPointF &scenePos) {
                 ? routine->dataViewBoxData.ownColor : defaultNewDataViewBoxColor;
 
         auto *box = dataViewBoxesCollection.createDataViewBox(
-                routine->newDataQueryId, routine->dataQuery, routine->dataViewBoxData.rect,
+                routine->newCustomDataQueryId, routine->customDataQuery,
+                routine->dataViewBoxData.rect,
                 displayColor, routine->dataViewBoxData.ownColor);
         box->setEditable(true);
 
         adjustSceneRect();
     }, this);
 
+    routine->addStep([this, routine]() {
+        // call AppData
+        ContinuationContext context(routine);
 
-    // call AppData.........
+        Services::instance()->getAppData()->createNewCustomDataQueryWithId(
+                EventSource(this), routine->newCustomDataQueryId, routine->customDataQuery);
+
+//        Services::instance()->getAppData()->createNodeRect(
+//                EventSource(this), this->boardId, routine->newCardId, routine->nodeRectData);
+    }, this);
 
     routine->addStep([this, routine]() {
         // final step
@@ -1711,13 +1720,43 @@ DataViewBox *BoardView::DataViewBoxesCollection::createDataViewBox(
 
     QPointer<DataViewBox> boxPtr(box);
 
+
+
     QObject::connect(
             box, &DataViewBox::getCardIdsOfBoard, boardView, [this](QSet<int> *cardIds) {
         *cardIds = boardView->nodeRectsCollection.getAllCardIds();
     }, Qt::DirectConnection);
 
+    QObject::connect(
+            box, &DataViewBox::titleUpdated,
+            boardView, [this, boxPtr](const QString &updatedTitle) {
+        if (!boxPtr)
+            return;
 
+        // call AppData
+        CustomDataQueryUpdate update;
+        {
+            update.title = updatedTitle;
+        }
+        Services::instance()->getAppData()->updateCustomDataQueryProperties(
+                EventSource(boardView), boxPtr->getCustomDataQueryId(), update);
+    });
 
+    QObject::connect(
+            box, &DataViewBox::queryUpdated,
+            boardView, [this, boxPtr](const QString &cypher, const QJsonObject &parameters) {
+        if (!boxPtr)
+            return;
+
+        // call AppData
+        CustomDataQueryUpdate update;
+        {
+            update.queryCypher = cypher;
+            update.queryParameters = parameters;
+        }
+        Services::instance()->getAppData()->updateCustomDataQueryProperties(
+                EventSource(boardView), boxPtr->getCustomDataQueryId(), update);
+    });
 
 
 

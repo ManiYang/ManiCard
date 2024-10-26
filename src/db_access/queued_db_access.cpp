@@ -302,6 +302,46 @@ void QueuedDbAccess::updateUserCardLabels(
     addToQueue(func);
 }
 
+void QueuedDbAccess::createNewCustomDataQueryWithId(
+        const int customDataQueryId, const CustomDataQuery &customDataQuery,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(customDataQueryId), decltype(customDataQuery) // input types
+                >(
+            [this](auto... args) {
+                cardsDataAccess->createNewCustomDataQueryWithId(args...); // method
+            },
+            customDataQueryId, customDataQuery, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
+void QueuedDbAccess::updateCustomDataQueryProperties(
+        const int customDataQueryId, const CustomDataQueryUpdate &update,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(customDataQueryId), decltype(update) // input types
+                >(
+            [this](auto... args) {
+                cardsDataAccess->updateCustomDataQueryProperties(args...); // method
+            },
+            customDataQueryId, update, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
 void QueuedDbAccess::getBoardIdsAndNames(
         std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
         QPointer<QObject> callbackContext) {

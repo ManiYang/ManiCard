@@ -97,6 +97,14 @@ public:
             const QStringList &updatedCardLabels, std::function<void (bool ok)> callback,
             QPointer<QObject> callbackContext) override;
 
+    void createNewCustomDataQueryWithId(
+            const int customDataQueryId, const CustomDataQuery &customDataQuery,
+            std::function<void (bool)> callback, QPointer<QObject> callbackContext) override;
+
+    void updateCustomDataQueryProperties(
+            const int customDataQueryId, const CustomDataQueryUpdate &update,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
     // ==== AbstractBoardsDataAccess interface ====
 
     // read operations
@@ -186,7 +194,7 @@ private:
     };
 
     //!
-    //! Type \e Result can be \c Void, meaning the callback function has only the bool argument.
+    //! Type \e Result can be \c Void, meaning the callback function has only the \c bool argument.
     //! Type \e Result, if is not \c Void, must have default constructor.
     //!
     template <bool isReadOnly, typename Result, typename... InputArgs>

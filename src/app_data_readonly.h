@@ -64,7 +64,7 @@ public:
     virtual std::optional<QSize> getMainWindowSize() = 0;
 
     virtual void queryCustomDataQueries(
-            const QSet<int> &dataQueryIds,
+            const QSet<int> &customDataQueryIds,
             std::function<void (bool ok, const QHash<int, CustomDataQuery> &dataQueries)> callback,
             QPointer<QObject> callbackContext) = 0;
 
@@ -81,6 +81,9 @@ signals:
     void cardPropertiesUpdated(
             EventSource eventSrc,
             const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate);
+    void customDataQueryUpdated(
+            EventSource eventSrc,
+            const int customDataQueryId, const CustomDataQueryUpdate &update);
     void highlightedCardIdUpdated(EventSource eventSrc);
     void fontSizeScaleFactorChanged(const QWidget *window, const double factor);
 };

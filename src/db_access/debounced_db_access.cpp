@@ -259,6 +259,97 @@ void DebouncedDbAccess::updateUserCardLabels(const QStringList &updatedCardLabel
     );
 }
 
+void DebouncedDbAccess::createNewCustomDataQueryWithId(
+        const int customDataQueryId, const CustomDataQuery &customDataQuery) {
+    closeDebounceSession();
+
+    cardsDataAccess->createNewCustomDataQueryWithId(
+            customDataQueryId, customDataQuery,
+            // callback
+            [this, customDataQueryId, customDataQuery](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "createNewCustomDataQueryWithId";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"customDataQueryId", customDataQueryId},
+                        {"customDataQueryProperties", customDataQuery.toJson()}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("created custom data query");
+                }
+            },
+            this
+    );
+}
+
+void DebouncedDbAccess::updateCustomDataQueryProperties(
+        const int customDataQueryId, const CustomDataQueryUpdate &update) {
+    const DebounceKey debounceKey {
+        DebounceDataCategory::CustomDataQueryProperties,
+        QJsonObject {{"customDataQueryId", customDataQueryId}}
+    };
+
+    if (currentDebounceSession.has_value()) {
+        if (currentDebounceSession.value().key() != debounceKey)
+            closeDebounceSession();
+    }
+
+    //
+    if (!currentDebounceSession.has_value()) {
+        // 1. prepare write-DB function
+        auto functionWriteDb = [this, customDataQueryId]() {
+            // copy cumulated update data, and clear it
+            const CustomDataQueryUpdate cumulatedUpdate = cumulatedUpdateData.customDataQueryUpdate;
+            cumulatedUpdateData.customDataQueryUpdate = CustomDataQueryUpdate();
+
+            //
+            cardsDataAccess->updateCustomDataQueryProperties(
+                    customDataQueryId,
+                    cumulatedUpdate,
+                    // callback
+                    [this, customDataQueryId, cumulatedUpdate](bool ok) {
+                        if (!ok) {
+                            const QString time
+                                    = QDateTime::currentDateTime().toString(Qt::ISODate);
+                            const QString updateTitle = "updateCustomDataQueryProperties";
+                            const QString updateDetails = printJson(QJsonObject {
+                                {"customDataQueryId", customDataQueryId},
+                                {"propertiesUpdate", cumulatedUpdate.toJson()}
+                            }, false);
+                            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                            showMsgOnDbWriteFailed("custom-data-query properties update");
+                        }
+                    },
+                    this
+            );
+        };
+
+        // 2. set update data
+        cumulatedUpdateData.customDataQueryUpdate = update;
+
+        // 3. create debounce session
+        constexpr int separationMsec = 2500;
+        currentDebounceSession.emplace(debounceKey, separationMsec, functionWriteDb);
+        qInfo().noquote()
+                << QString("entered debounce session %1")
+                   .arg(currentDebounceSession.value().printKey());
+
+        //
+        currentDebounceSession.value().tryAct();
+    }
+    else { // (already in the debounce session)
+        Q_ASSERT(currentDebounceSession.value().key() == debounceKey);
+
+        // 1. cumulate the update data
+        cumulatedUpdateData.customDataQueryUpdate.mergeWith(update);
+
+        // 2.
+        currentDebounceSession.value().tryAct();
+    }
+}
+
 void DebouncedDbAccess::getBoardIdsAndNames(
         std::function<void (bool, const QHash<int, QString> &)> callback,
         QPointer<QObject> callbackContext) {
@@ -455,6 +546,7 @@ void DebouncedDbAccess::removeNodeRect(const int boardId, const int cardId) {
 QString DebouncedDbAccess::debounceDataCategoryName(const DebounceDataCategory category) {
     switch (category) {
     case DebounceDataCategory::CardProperties: return "CardProperties";
+    case DebounceDataCategory::CustomDataQueryProperties: return "CustomDataQueryProperties";
     }
     return "";
 }

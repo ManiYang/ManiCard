@@ -390,7 +390,7 @@ std::optional<QSize> PersistedDataAccess::getMainWindowSize() {
 }
 
 void PersistedDataAccess::queryCustomDataQueries(
-        const QSet<int> &dataQueryIds,
+        const QSet<int> &customDataQueryIds,
         std::function<void (bool, const QHash<int, CustomDataQuery> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
@@ -403,15 +403,15 @@ void PersistedDataAccess::queryCustomDataQueries(
     auto *routine = new AsyncRoutineWithVars;
 
     // 1. get the parts that are already cached
-    for (const int id: dataQueryIds) {
-        if (cache.dataQueries.contains(id))
-            routine->result.insert(id, cache.dataQueries.value(id));
+    for (const int id: customDataQueryIds) {
+        if (cache.customDataQueries.contains(id))
+            routine->result.insert(id, cache.customDataQueries.value(id));
     }
 
     // 2. query DB for the other parts
     //   + if successful: update cache
     //   + if failed: whole process fails
-    const QSet<int> idsToQuery = dataQueryIds - keySet(routine->result);
+    const QSet<int> idsToQuery = customDataQueryIds - keySet(routine->result);
 
     routine->addStep([this, idsToQuery, routine]() {
         if (idsToQuery.isEmpty()) {
@@ -427,7 +427,7 @@ void PersistedDataAccess::queryCustomDataQueries(
 
                     if (queryOk) {
                         mergeWith(routine->result, dataQueriesFromDb);
-                        mergeWith(cache.dataQueries, dataQueriesFromDb); // update cache
+                        mergeWith(cache.customDataQueries, dataQueriesFromDb); // update cache
                     }
                     else {
                         context.setErrorFlag();
@@ -489,6 +489,31 @@ void PersistedDataAccess::updateCardLabels(
 
     // 2. write DB
     debouncedDbAccess->updateCardLabels(cardId, updatedLabels);
+}
+
+void PersistedDataAccess::createNewCustomDataQueryWithId(
+        const int customDataQueryId, const CustomDataQuery &customDataQuery) {
+    // 1. update cache synchronously
+    if (cache.customDataQueries.contains(customDataQueryId)) {
+        qWarning().noquote()
+                << QString("custom-data-query with ID %1 already exists in cache")
+                   .arg(customDataQueryId);
+        return;
+    }
+    cache.customDataQueries.insert(customDataQueryId, customDataQuery);
+
+    // 2. write DB
+    debouncedDbAccess->createNewCustomDataQueryWithId(customDataQueryId, customDataQuery);
+}
+
+void PersistedDataAccess::updateCustomDataQueryProperties(
+        const int customDataQueryId, const CustomDataQueryUpdate &update) {
+    // 1. update cache synchronously
+    if (cache.customDataQueries.contains(customDataQueryId))
+        cache.customDataQueries[customDataQueryId].update(update);
+
+    // 2. write DB
+    debouncedDbAccess->updateCustomDataQueryProperties(customDataQueryId, update);
 }
 
 void PersistedDataAccess::createRelationship(const RelationshipId &id) {

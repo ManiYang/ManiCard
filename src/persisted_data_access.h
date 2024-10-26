@@ -85,7 +85,7 @@ public:
     std::optional<QSize> getMainWindowSize();
 
     void queryCustomDataQueries(
-            const QSet<int> &dataQueryIds,
+            const QSet<int> &customDataQueryIds,
             std::function<void (bool ok, const QHash<int, CustomDataQuery> &dataQueries)> callback,
             QPointer<QObject> callbackContext);
 
@@ -105,6 +105,12 @@ public:
             const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate);
 
     void updateCardLabels(const int cardId, const QSet<QString> &updatedLabels);
+
+    void createNewCustomDataQueryWithId(
+            const int customDataQueryId, const CustomDataQuery &customDataQuery);
+
+    void updateCustomDataQueryProperties(
+            const int customDataQueryId, const CustomDataQueryUpdate &update);
 
     //!
     //! The start/end cards must already exist (which is not checked here). Otherwise the cache
@@ -146,7 +152,7 @@ private:
         QHash<int, Board> boards;
         QHash<int, Card> cards;
         QHash<RelationshipId, RelationshipProperties> relationships;
-        QHash<int, CustomDataQuery> dataQueries;
+        QHash<int, CustomDataQuery> customDataQueries;
 
         std::optional<QStringList> userLabelsList;
         std::optional<QStringList> userRelTypesList;

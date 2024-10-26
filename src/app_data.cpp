@@ -66,10 +66,10 @@ std::optional<QSize> AppData::getMainWindowSize() {
 }
 
 void AppData::queryCustomDataQueries(
-        const QSet<int> &dataQueryIds,
+        const QSet<int> &customDataQueryIds,
         std::function<void (bool, const QHash<int, CustomDataQuery> &)> callback,
         QPointer<QObject> callbackContext) {
-    persistedDataAccess->queryCustomDataQueries(dataQueryIds, callback, callbackContext);
+    persistedDataAccess->queryCustomDataQueries(customDataQueryIds, callback, callbackContext);
 }
 
 void AppData::performCustomCypherQuery(
@@ -103,6 +103,25 @@ void AppData::updateCardLabels(
     persistedDataAccess->updateCardLabels(cardId, updatedLabels);
 
     // 2. update all variables and emit "updated" signals
+}
+
+void AppData::createNewCustomDataQueryWithId(
+        const EventSource &/*eventSrc*/,
+        const int customDataQueryId, const CustomDataQuery &customDataQuery) {
+    // 1. persist
+    persistedDataAccess->createNewCustomDataQueryWithId(customDataQueryId, customDataQuery);
+
+    // 2. update all variables and emit "updated" signals
+}
+
+void AppData::updateCustomDataQueryProperties(
+        const EventSource &eventSrc,
+        const int customDataQueryId, const CustomDataQueryUpdate &update) {
+    // 1. persist
+    persistedDataAccess->updateCustomDataQueryProperties(customDataQueryId, update);
+
+    // 2. update all variables and emit "updated" signals
+    emit customDataQueryUpdated(eventSrc, customDataQueryId, update);
 }
 
 void AppData::createRelationship(const EventSource &/*eventSrc*/, const RelationshipId &id) {

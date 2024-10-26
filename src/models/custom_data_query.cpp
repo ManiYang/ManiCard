@@ -1,7 +1,27 @@
 #include <QRegularExpression>
 #include <QSet>
 #include "custom_data_query.h"
+#include "utilities/json_util.h"
 #include "utilities/strings_util.h"
+
+void CustomDataQuery::update(const CustomDataQueryUpdate &update) {
+#define UPDATE_ITEM(item) \
+    if (update.item.has_value()) this->item = update.item.value();
+
+    UPDATE_ITEM(title);
+    UPDATE_ITEM(queryCypher);
+    UPDATE_ITEM(queryParameters);
+
+#undef UPDATE_ITEM
+}
+
+QJsonObject CustomDataQuery::toJson() const {
+    return QJsonObject {
+        {"title", title},
+        {"queryCypher", queryCypher},
+        {"queryParameters", printJson(queryParameters)}
+    };
+}
 
 CustomDataQuery CustomDataQuery::fromJson(const QJsonObject &obj) {
     CustomDataQuery dataQuery;
@@ -12,8 +32,10 @@ CustomDataQuery CustomDataQuery::fromJson(const QJsonObject &obj) {
     if (const auto v = obj.value("queryCypher"); !v.isUndefined())
         dataQuery.queryCypher = v.toString();
 
-    if (const auto v = obj.value("queryParameters"); !v.isUndefined())
-        dataQuery.queryParameters = v.toObject();
+    if (const auto v = obj.value("queryParameters"); !v.isUndefined()) {
+        const QString queryParametersStr = v.toString();
+        dataQuery.queryParameters = parseAsJsonObject(queryParametersStr);
+    }
 
     return dataQuery;
 }
@@ -47,4 +69,27 @@ bool CustomDataQuery::validateCypher(const QString queryCypher, QString *msg) {
 
     //
     return true;
+}
+
+void CustomDataQueryUpdate::mergeWith(const CustomDataQueryUpdate &other) {
+#define UPDATE_ITEM(item) \
+    if (other.item.has_value()) item = other.item;
+
+    UPDATE_ITEM(title);
+    UPDATE_ITEM(queryCypher);
+    UPDATE_ITEM(queryParameters);
+#undef UPDATE_ITEM
+}
+
+QJsonObject CustomDataQueryUpdate::toJson() const {
+    QJsonObject obj;
+
+    if (title.has_value())
+        obj.insert("title", title.value());
+    if (queryCypher.has_value())
+        obj.insert("queryCypher", queryCypher.value());
+    if (queryParameters.has_value())
+        obj.insert("queryParameters", printJson(queryParameters.value()));
+
+    return obj;
 }

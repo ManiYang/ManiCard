@@ -82,7 +82,10 @@ public:
     struct ContinuationContext
     {
         ContinuationContext(AsyncRoutineWithErrorFlag *routine_);
+        ContinuationContext(const ContinuationContext &) = delete;
         ~ContinuationContext();
+        ContinuationContext &operator = (const ContinuationContext &) = delete;
+
         void setErrorFlag(); // sets routine->errorFlag to true
     private:
         AsyncRoutineWithErrorFlag *routine;

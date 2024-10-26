@@ -108,8 +108,7 @@ public:
     void createNewCardWithId(const int cardId, const Card &card);
 
     void updateCardProperties(
-            const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate);
-            // debounced
+            const int cardId, const CardPropertiesUpdate &cardPropertiesUpdate); // debounced
 
     void updateCardLabels(const int cardId, const QSet<QString> &updatedLabels);
 
@@ -118,6 +117,12 @@ public:
     void updateUserRelationshipTypes(const QStringList &updatedRelTypes);
 
     void updateUserCardLabels(const QStringList &updatedCardLabels);
+
+    void createNewCustomDataQueryWithId(
+            const int customDataQueryId, const CustomDataQuery &customDataQuery);
+
+    void updateCustomDataQueryProperties(
+            const int customDataQueryId, const CustomDataQueryUpdate &update); // debounced
 
     // ==== boards data: read operations ====
 
@@ -167,7 +172,7 @@ private:
 
     //
     enum class DebounceDataCategory {
-        CardProperties
+        CardProperties, CustomDataQueryProperties
     };
     static QString debounceDataCategoryName(const DebounceDataCategory category);
 
@@ -205,6 +210,7 @@ private:
     struct CumulatedUpdateData
     {
         CardPropertiesUpdate cardPropertiesUpdate {};
+        CustomDataQueryUpdate customDataQueryUpdate {};
     };
     CumulatedUpdateData cumulatedUpdateData;
 

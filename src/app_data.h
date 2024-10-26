@@ -79,7 +79,7 @@ public:
     std::optional<QSize> getMainWindowSize() override;
 
     void queryCustomDataQueries(
-                const QSet<int> &dataQueryIds,
+                const QSet<int> &customDataQueryIds,
                 std::function<void (bool ok, const QHash<int, CustomDataQuery> &dataQueries)> callback,
                 QPointer<QObject> callbackContext) override;
 
@@ -100,6 +100,14 @@ public:
 
     void updateCardLabels(
             const EventSource &eventSrc, const int cardId, const QSet<QString> &updatedLabels);
+
+    void createNewCustomDataQueryWithId(
+            const EventSource &eventSrc,
+            const int customDataQueryId, const CustomDataQuery &customDataQuery);
+
+    void updateCustomDataQueryProperties(
+            const EventSource &eventSrc,
+            const int customDataQueryId, const CustomDataQueryUpdate &update);
 
     //!
     //! The start/end cards must already exist (which is not checked here).

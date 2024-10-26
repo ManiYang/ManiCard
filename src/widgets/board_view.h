@@ -116,7 +116,7 @@ private:
     //!
     //! Call this when
     //!   - graphicsView is resized,
-    //!   - NodeRect is added/moved/resized/removed,
+    //!   - NodeRect or DataViewBox is added/moved/resized/removed,
     //!   - canvas's scale is set.
     //!
     void adjustSceneRect();

@@ -59,7 +59,7 @@ public:
             QPointer<QObject> callbackContext) = 0;
 
     virtual void queryCustomDataQueries(
-            const QSet<int> &dataQueryIds,
+            const QSet<int> &customDataQueryIds,
             std::function<void (bool ok, const QHash<int, CustomDataQuery> &dataQueries)> callback,
             QPointer<QObject> callbackContext) = 0;
 
@@ -118,6 +118,8 @@ public:
             const RelationshipId &id, std::function<void (bool ok, bool created)> callback,
             QPointer<QObject> callbackContext) = 0;
 
+    // ==== user-defined lists of relationship types and card labels ====
+
     //!
     //! This operation is atomic.
     //!
@@ -131,6 +133,23 @@ public:
     virtual void updateUserCardLabels(
             const QStringList &updatedCardLabels, std::function<void (bool ok)> callback,
             QPointer<QObject> callbackContext) = 0;
+
+    // ==== custom data queries ====
+
+    //!
+    //! Custom data query with ID \e customDataQueryId must not already exist.
+    //! This operation is atomic.
+    //!
+    virtual void createNewCustomDataQueryWithId(
+            const int customDataQueryId, const CustomDataQuery &customDataQuery,
+            std::function<void (bool)> callback, QPointer<QObject> callbackContext) = 0;
+
+    //!
+    //! The custom-data-query must exist. This operation is atomic.
+    //!
+    virtual void updateCustomDataQueryProperties(
+            const int customDataQueryId, const CustomDataQueryUpdate &update,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 };
 
 #endif // ABSTRACT_CARDS_DATA_ACCESS_H
