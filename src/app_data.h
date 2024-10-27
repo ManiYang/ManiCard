@@ -143,6 +143,17 @@ public:
 
     void removeNodeRect(const EventSource &eventSrc, const int boardId, const int cardId);
 
+    void createDataViewBox(
+            const EventSource &eventSrc,
+            const int boardId, const int customDataQueryId, const DataViewBoxData &dataViewBoxData);
+
+    void updateDataViewBoxProperties(
+            const EventSource &eventSrc,
+            const int boardId, const int customDataQueryId, const DataViewBoxDataUpdate &update);
+
+    void removeDataViewBox(
+            const EventSource &eventSrc, const int boardId, const int customDataQueryId);
+
     void updateMainWindowSize(const EventSource &eventSrc, const QSize &size);
 
     // ==== non-persisted independent data ====

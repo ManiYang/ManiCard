@@ -139,6 +139,14 @@ public:
 
     void removeNodeRect(const int boardId, const int cardId);
 
+    void createDataViewBox(
+            const int boardId, const int customDataQueryId, const DataViewBoxData &dataViewBoxData);
+
+    void updateDataViewBoxProperties(
+            const int boardId, const int customDataQueryId, const DataViewBoxDataUpdate &update);
+
+    void removeDataViewBox(const int boardId, const int customDataQueryId);
+
     bool saveMainWindowSize(const QSize &size);
 
 private:

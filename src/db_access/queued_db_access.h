@@ -156,6 +156,19 @@ public:
             const int boardId, const int cardId,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
+    void createDataViewBox(
+                const int boardId, const int customDataQueryId,
+                const DataViewBoxData &dataViewBoxData,
+                std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+    void updateDataViewBoxProperties(
+            const int boardId, const int customDataQueryId, const DataViewBoxDataUpdate &update,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+    void removeDataViewBox(
+            const int boardId, const int customDataQueryId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
 private:
     std::shared_ptr<AbstractBoardsDataAccess> boardsDataAccess;
     std::shared_ptr<AbstractCardsDataAccess> cardsDataAccess;

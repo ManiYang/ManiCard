@@ -23,7 +23,7 @@ QString removeSlashAtEnd(const QString &s) {
 }
 
 //!
-//! \param authFilePath: a text file with username in 1st line and password in 2nd line
+//! \param authFilePath: a text file containing username and password
 //!
 QByteArray getBasicAuthData(const QString &authFilePath) {
     QByteArray user;

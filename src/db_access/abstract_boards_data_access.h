@@ -6,6 +6,8 @@
 #include <QPointer>
 #include "models/board.h"
 #include "models/boards_list_properties.h"
+#include "models/node_rect_data.h"
+#include "models/data_view_box_data.h"
 
 class AbstractBoardsDataAccessReadOnly
 {
@@ -101,6 +103,31 @@ public:
             const int boardId, const int cardId,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 
+    // ==== DataViewBox ====
+
+    //!
+    //! The board and custum data query must already exist, and the DataViewBox must not already
+    //! exist.
+    //! The operation is atomic.
+    //!
+    virtual void createDataViewBox(
+            const int boardId, const int customDataQueryId,
+            const DataViewBoxData &dataViewBoxData,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    //!
+    //! The DataViewBox must exist. This operation is atomic.
+    //!
+    virtual void updateDataViewBoxProperties(
+            const int boardId, const int customDataQueryId, const DataViewBoxDataUpdate &update,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    //!
+    //! This operation is atomic and idempotent.
+    //!
+    virtual void removeDataViewBox(
+            const int boardId, const int customDataQueryId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 };
 
 #endif // ABSTRACT_BOARDS_DATA_ACCESS_H

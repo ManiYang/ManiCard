@@ -521,15 +521,15 @@ void BoardsDataAccess::createNodeRect(
                     return;
                 }
 
-                bool hasError = false;
                 if (!isCreated.value()) {
                     qWarning().noquote()
                             << QString("NodeRect for board %1 & card %2 already exists")
                                .arg(boardId).arg(cardId);
                     callback(false);
+                    return;
                 }
 
-                callback(!hasError);
+                callback(true);
             },
             callbackContext
     );
@@ -551,6 +551,142 @@ void BoardsDataAccess::removeNodeRect(
                 QJsonObject {
                     {"boardId", boardId},
                     {"cardId", cardId}
+                }
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+                callback(true);
+            },
+            callbackContext
+    );
+}
+
+void BoardsDataAccess::createDataViewBox(
+        const int boardId, const int customDataQueryId, const DataViewBoxData &dataViewBoxData,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (b:Board {id: $boardId})
+                    MATCH (q:CustomDataQuery {id: $customDataQueryId})
+                    MERGE (b)-[:HAS]->(box:DataViewBox)-[:SHOWS]->(q)
+                    ON CREATE
+                        SET box += $propertiesMap, box._is_created_ = true
+                    ON MATCH
+                        SET box._is_created_ = false
+                    WITH box, box._is_created_ AS isCreated
+                    REMOVE box._is_created_
+                    RETURN isCreated
+                )!",
+                QJsonObject {
+                    {"boardId", boardId},
+                    {"customDataQueryId", customDataQueryId},
+                    {"propertiesMap", dataViewBoxData.toJson()}
+                }
+            },
+            // callback
+            [callback, boardId, customDataQueryId](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                if (result.isEmpty()) {
+                    qWarning().noquote()
+                            << QString("Board %1 or custom-data-query %2 does not exist")
+                               .arg(boardId).arg(customDataQueryId);
+                    callback(false);
+                    return;
+                }
+
+                std::optional<bool> isCreated = result.boolValueAt(0, "isCreated");
+                if (!isCreated.has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                if (!isCreated.value()) {
+                    qWarning().noquote()
+                            << QString("DataViewBox for board %1 & custom-data-query %2 "
+                                       "already exists")
+                               .arg(boardId).arg(customDataQueryId);
+                    callback(false);
+                    return;
+                }
+
+                callback(true);
+            },
+            callbackContext
+    );
+}
+
+void BoardsDataAccess::updateDataViewBoxProperties(
+        const int boardId, const int customDataQueryId, const DataViewBoxDataUpdate &update,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (b:Board {id: $boardId})
+                            -[:HAS]->(box:DataViewBox)
+                            -[:SHOWS]->(q:CustomDataQuery {id: $customDataQueryId})
+                    SET box += $propertiesMap
+                    RETURN box
+                )!",
+                QJsonObject {
+                    {"boardId", boardId},
+                    {"customDataQueryId", customDataQueryId},
+                    {"propertiesMap", update.toJson()}
+                }
+            },
+            // callback
+            [callback, boardId, customDataQueryId](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                if (result.isEmpty()) {
+                    qWarning().noquote()
+                            << QString("DataViewBox for board %1 & custo-data-query %2 "
+                                       "is not found")
+                               .arg(boardId).arg(customDataQueryId);
+                    callback(false);
+                    return;
+                }
+
+                qInfo().noquote() << "updated DataViewBox properties";
+                callback(true);
+            },
+            callbackContext
+    );
+}
+
+void BoardsDataAccess::removeDataViewBox(
+        const int boardId, const int customDataQueryId,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (:Board {id: $boardId})
+                          -[:HAS]->(box:DataViewBox)
+                          -[:SHOWS]->(:CustomDataQuery {id: $customDataQueryId})
+                    DETACH DELETE box
+                )!",
+                QJsonObject {
+                    {"boardId", boardId},
+                    {"customDataQueryId", customDataQueryId}
                 }
             },
             // callback

@@ -562,6 +562,68 @@ void QueuedDbAccess::removeNodeRect(
     addToQueue(func);
 }
 
+void QueuedDbAccess::createDataViewBox(
+        const int boardId, const int customDataQueryId, const DataViewBoxData &dataViewBoxData,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(boardId)
+                    , decltype(customDataQueryId), decltype(dataViewBoxData) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->createDataViewBox(args...); // method
+            },
+            boardId, customDataQueryId, dataViewBoxData, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
+void QueuedDbAccess::updateDataViewBoxProperties(
+        const int boardId, const int customDataQueryId, const DataViewBoxDataUpdate &update,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(boardId)
+                    , decltype(customDataQueryId), decltype(update) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->updateDataViewBoxProperties(args...); // method
+            },
+            boardId, customDataQueryId, update, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
+void QueuedDbAccess::removeDataViewBox(
+        const int boardId, const int customDataQueryId,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(boardId), decltype(customDataQueryId) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->removeDataViewBox(args...); // method
+            },
+            boardId, customDataQueryId, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
 void QueuedDbAccess::addToQueue(std::function<void (const bool)> func) {
     const bool failDirectly = errorFlag;
     queue << Task {func, failDirectly};

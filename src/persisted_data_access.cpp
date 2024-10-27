@@ -669,6 +669,49 @@ void PersistedDataAccess::removeNodeRect(const int boardId, const int cardId) {
     debouncedDbAccess->removeNodeRect(boardId, cardId);
 }
 
+void PersistedDataAccess::createDataViewBox(
+        const int boardId, const int customDataQueryId, const DataViewBoxData &dataViewBoxData) {
+    // 1. update cache synchronously
+    if (cache.boards.contains(boardId)) {
+        Board &board = cache.boards[boardId];
+        if (board.customDataQueryIdToDataViewBoxData.contains(customDataQueryId)) {
+            qWarning().noquote()
+                    << QString("DataViewBox for board %1 & custom-data-query %2 "
+                               "already exists in cache")
+                       .arg(boardId).arg(customDataQueryId);
+            return;
+        }
+
+        board.customDataQueryIdToDataViewBoxData.insert(customDataQueryId, dataViewBoxData);
+    }
+
+    // 2. write DB
+    debouncedDbAccess->createDataViewBox(boardId, customDataQueryId, dataViewBoxData);
+}
+
+void PersistedDataAccess::updateDataViewBoxProperties(
+        const int boardId, const int customDataQueryId, const DataViewBoxDataUpdate &update) {
+    // 1. update cache synchronously
+    if (cache.boards.contains(boardId)) {
+        Board &board = cache.boards[boardId];
+        if (board.customDataQueryIdToDataViewBoxData.contains(customDataQueryId)) {
+            board.customDataQueryIdToDataViewBoxData[customDataQueryId].update(update);
+        }
+    }
+
+    // 2. write DB
+    debouncedDbAccess->updateDataViewBoxProperties(boardId, customDataQueryId, update);
+}
+
+void PersistedDataAccess::removeDataViewBox(const int boardId, const int customDataQueryId) {
+    // 1. update cache synchronously
+    if (cache.boards.contains(boardId))
+        cache.boards[boardId].customDataQueryIdToDataViewBoxData.remove(customDataQueryId);
+
+    // 2. write DB
+    debouncedDbAccess->removeDataViewBox(boardId, customDataQueryId);
+}
+
 bool PersistedDataAccess::saveMainWindowSize(const QSize &size) {
     const bool ok = localSettingsFile->writeMainWindowSize(size);
     if (!ok) {

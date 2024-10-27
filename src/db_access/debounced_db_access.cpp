@@ -543,6 +543,79 @@ void DebouncedDbAccess::removeNodeRect(const int boardId, const int cardId) {
     );
 }
 
+void DebouncedDbAccess::createDataViewBox(
+        const int boardId, const int customDataQueryId, const DataViewBoxData &dataViewBoxData) {
+    closeDebounceSession();
+
+    boardsDataAccess->createDataViewBox(
+            boardId, customDataQueryId, dataViewBoxData,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "createDataViewBox";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"boardId", boardId},
+                        {"customDataQueryId", customDataQueryId},
+                        {"dataViewBoxData", dataViewBoxData.toJson()}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("created DataViewBox");
+                }
+            },
+            this
+    );
+}
+
+void DebouncedDbAccess::updateDataViewBoxProperties(
+        const int boardId, const int customDataQueryId, const DataViewBoxDataUpdate &update) {
+    closeDebounceSession();
+
+    boardsDataAccess->updateDataViewBoxProperties(
+            boardId, customDataQueryId, update,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "updateDataViewBoxProperties";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"boardId", boardId},
+                        {"customDataQueryId", customDataQueryId},
+                        {"update", update.toJson()}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("DataViewBox properties update");
+                }
+            },
+            this
+    );
+}
+
+void DebouncedDbAccess::removeDataViewBox(const int boardId, const int customDataQueryId) {
+    closeDebounceSession();
+
+    boardsDataAccess->removeDataViewBox(
+            boardId, customDataQueryId,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "removeDataViewBox";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"boardId", boardId},
+                        {"customDataQueryId", customDataQueryId}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("removal of DataViewBox");
+                }
+            },
+            this
+    );
+}
+
 QString DebouncedDbAccess::debounceDataCategoryName(const DebounceDataCategory category) {
     switch (category) {
     case DebounceDataCategory::CardProperties: return "CardProperties";

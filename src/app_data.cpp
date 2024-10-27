@@ -205,6 +205,32 @@ void AppData::removeNodeRect(
     // 2. update all variables and emit "updated" signals
 }
 
+void AppData::createDataViewBox(
+        const EventSource &/*eventSrc*/, const int boardId, const int customDataQueryId,
+        const DataViewBoxData &dataViewBoxData) {
+    // 1. persist
+    persistedDataAccess->createDataViewBox(boardId, customDataQueryId, dataViewBoxData);
+
+    // 2. update all variables and emit "updated" signals
+}
+
+void AppData::updateDataViewBoxProperties(
+        const EventSource &/*eventSrc*/,
+        const int boardId, const int customDataQueryId, const DataViewBoxDataUpdate &update) {
+    // 1. persist
+    persistedDataAccess->updateDataViewBoxProperties(boardId, customDataQueryId, update);
+
+    // 2. update all variables and emit "updated" signals
+}
+
+void AppData::removeDataViewBox(
+        const EventSource &/*eventSrc*/, const int boardId, const int customDataQueryId) {
+    // 1. persist
+    persistedDataAccess->removeDataViewBox(boardId, customDataQueryId);
+
+    // 2. update all variables and emit "updated" signals
+}
+
 void AppData::updateMainWindowSize(const EventSource &/*eventSrc*/, const QSize &size) {
     // 1. persist
     persistedDataAccess->saveMainWindowSize(size);

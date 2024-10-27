@@ -865,8 +865,9 @@ void BoardView::onUserToCreateNewCustomDataQuery(const QPointF &scenePos) {
         Services::instance()->getAppData()->createNewCustomDataQueryWithId(
                 EventSource(this), routine->newCustomDataQueryId, routine->customDataQuery);
 
-//        Services::instance()->getAppData()->createNodeRect(
-//                EventSource(this), this->boardId, routine->newCardId, routine->nodeRectData);
+        Services::instance()->getAppData()->createDataViewBox(
+                EventSource(this), this->boardId, routine->newCustomDataQueryId,
+                routine->dataViewBoxData);
     }, this);
 
     routine->addStep([this, routine]() {
@@ -1152,9 +1153,9 @@ void BoardView::onUserToCloseDataViewBox(const int customDataQueryId) {
     dataViewBoxesCollection.closeDataViewBox(customDataQueryId);
     adjustSceneRect();
 
-    // call AppData ..........
-
-
+    // call AppData
+    Services::instance()->getAppData()
+            ->removeDataViewBox(EventSource(this), boardId, customDataQueryId);
 }
 
 void BoardView::onUserToSetCardColors() {
@@ -1716,11 +1717,7 @@ DataViewBox *BoardView::DataViewBoxesCollection::createDataViewBox(
     box->setColor(displayColor);
 
     // set up connections
-    // todo .......
-
     QPointer<DataViewBox> boxPtr(box);
-
-
 
     QObject::connect(
             box, &DataViewBox::getCardIdsOfBoard, boardView, [this](QSet<int> *cardIds) {
@@ -1758,11 +1755,23 @@ DataViewBox *BoardView::DataViewBoxesCollection::createDataViewBox(
                 EventSource(boardView), boxPtr->getCustomDataQueryId(), update);
     });
 
+    QObject::connect(box, &DataViewBox::finishedMovingOrResizing, boardView, [this, boxPtr]() {
+        if (!boxPtr)
+            return;
 
+        //
+        boardView->adjustSceneRect();
 
+        // call AppData
+        DataViewBoxDataUpdate update;
+        update.rect = boxPtr->getRect();
 
-    QObject::connect(
-            box, &DataViewBox::closeByUser, boardView, [this, boxPtr]() {
+        Services::instance()->getAppData()->updateDataViewBoxProperties(
+                EventSource(boardView),
+                boardView->boardId, boxPtr->getCustomDataQueryId(), update);
+    });
+
+    QObject::connect(box, &DataViewBox::closeByUser, boardView, [this, boxPtr]() {
         if (!boxPtr)
             return;
         boardView->onUserToCloseDataViewBox(boxPtr->getCustomDataQueryId());
