@@ -11,7 +11,7 @@ Currently still in very early phase of development.
 
 ## Screenshots
 
-![App Screenshot](https://firebasestorage.googleapis.com/v0/b/personal-shared-files.appspot.com/o/public%2FManiCard_ExampleBoard_2.png?alt=media)
+![App Screenshot](https://firebasestorage.googleapis.com/v0/b/personal-shared-files.appspot.com/o/public%2FManiCard_ExampleBoard2.png?alt=media)
 
 
 ## Build & Run the App
