@@ -1,5 +1,7 @@
 # Brief Description of Selected Classes
 
+![Class Diagram](class_diagram.png)
+
 ### `Neo4jHttpApiClient` and `Neo4jTransaction`
 
 Accesses Neo4j DB by invoking the DB's HTTP API.
