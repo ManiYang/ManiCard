@@ -35,7 +35,6 @@ Accesses data stored in DB and local files. Also manages caches of some of the d
 - Accesses persisted data.
 - Emits signals about data updates. 
 - It can help propagate updates of common states among UI widgets.
-- In the future this class can be modified to support an undo/redo mechanism.
 
 ### `Services`
 
