@@ -216,6 +216,51 @@ void PersistedDataAccess::requestNewCardId(
     );
 }
 
+void PersistedDataAccess::getWorkspaces(
+        std::function<void (bool, const QHash<int, Workspace> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    // 1. get the parts that are already cached
+    if (cache.allWorkspaces.has_value()) {
+        invokeAction(callbackContext, [callback, this]() {
+            callback(true, cache.allWorkspaces.value());
+        });
+        return;
+    }
+
+    // 2. query DB
+    debouncedDbAccess->getWorkspaces(
+            // callback
+            [this, callback, callbackContext](bool ok, const QHash<int, Workspace> &workspaces) {
+                QHash<int, Workspace> result;
+                if (ok) {
+                    cache.allWorkspaces = workspaces; // update cache
+                    result = workspaces;
+                }
+
+                invokeAction(callbackContext, [callback, ok, result]() {
+                    callback(ok, result);
+                });
+            },
+            this
+    );
+}
+
+void PersistedDataAccess::getWorkspacesListProperties(
+        std::function<void (bool, WorkspacesListProperties)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    debouncedDbAccess->getWorkspacesListProperties(
+            // callback
+            [callback](bool ok, WorkspacesListProperties properties) {
+                callback(ok, properties);
+            },
+            callbackContext
+    );
+}
+
 void PersistedDataAccess::getBoardIdsAndNames(
         std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
         QPointer<QObject> callbackContext) {

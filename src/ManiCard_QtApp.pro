@@ -27,6 +27,8 @@ SOURCES += \
     models/data_view_box_data.cpp \
     models/node_rect_data.cpp \
     models/relationship.cpp \
+    models/workspace.cpp \
+    models/workspaces_list_properties.cpp \
     neo4j_http_api_client.cpp \
     persisted_data_access.cpp \
     services.cpp \
@@ -89,6 +91,8 @@ HEADERS += \
     models/node_labels.h \
     models/node_rect_data.h \
     models/relationship.h \
+    models/workspace.h \
+    models/workspaces_list_properties.h \
     neo4j_http_api_client.h \
     persisted_data_access.h \
     services.h \

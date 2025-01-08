@@ -319,6 +319,8 @@ void MainWindow::onStartUp() {
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
+        WorkspacesListProperties workspacesListProperties;
+        QHash<int, Workspace> workspaces;
         BoardsListProperties boardsListProperties;
         QHash<int, QString> boardsIdToName;
         QString errorMsg;
@@ -326,6 +328,44 @@ void MainWindow::onStartUp() {
     auto *routine = new AsyncRoutineWithVars;
 
     //
+    routine->addStep([this, routine]() {
+        // get workspaces-list properties
+        Services::instance()->getAppDataReadonly()->getWorkspacesListProperties(
+                [routine](bool ok, WorkspacesListProperties properties) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        routine->errorMsg
+                                = "Could not get workspaces list properties. See logs for details.";
+                        context.setErrorFlag();
+                    }
+                    else {
+                        routine->workspacesListProperties = properties;
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // get workspaces
+        Services::instance()->getAppDataReadonly()->getWorkspaces(
+                [routine](bool ok, const QHash<int, Workspace> &workspaces) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        routine->errorMsg
+                                = "Could not get data of workspaces. See logs for details.";
+                        context.setErrorFlag();
+                    }
+                    else {
+                        routine->workspaces = workspaces;
+                    }
+                },
+                this
+        );
+    }, this);
+
     routine->addStep([this, routine]() {
         // get boards-list properties
         Services::instance()->getAppDataReadonly()->getBoardsListProperties(

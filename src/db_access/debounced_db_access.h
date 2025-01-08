@@ -126,6 +126,16 @@ public:
 
     // ==== boards data: read operations ====
 
+    using WorkspaceIdAndData = std::pair<int, Workspace>;
+
+    void getWorkspaces(
+            std::function<void (bool ok, const QHash<int, Workspace> &workspaces)> callback,
+            QPointer<QObject> callbackContext);
+
+    void getWorkspacesListProperties(
+            std::function<void (bool ok, WorkspacesListProperties properties)> callback,
+            QPointer<QObject> callbackContext);
+
     void getBoardIdsAndNames(
             std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
             QPointer<QObject> callbackContext);

@@ -4,15 +4,26 @@
 #include <functional>
 #include <optional>
 #include <QPointer>
+#include <QVector>
 #include "models/board.h"
 #include "models/boards_list_properties.h"
-#include "models/node_rect_data.h"
 #include "models/data_view_box_data.h"
+#include "models/node_rect_data.h"
+#include "models/workspace.h"
+#include "models/workspaces_list_properties.h"
 
 class AbstractBoardsDataAccessReadOnly
 {
 public:
     explicit AbstractBoardsDataAccessReadOnly();
+
+    virtual void getWorkspaces(
+            std::function<void (bool ok, const QHash<int, Workspace> &workspaces)> callback,
+            QPointer<QObject> callbackContext) = 0;
+
+    virtual void getWorkspacesListProperties(
+            std::function<void (bool ok, WorkspacesListProperties properties)> callback,
+            QPointer<QObject> callbackContext) = 0;
 
     virtual void getBoardIdsAndNames(
             std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,

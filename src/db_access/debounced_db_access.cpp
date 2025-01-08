@@ -350,6 +350,20 @@ void DebouncedDbAccess::updateCustomDataQueryProperties(
     }
 }
 
+void DebouncedDbAccess::getWorkspaces(
+        std::function<void (bool, const QHash<int, Workspace> &)> callback,
+        QPointer<QObject> callbackContext) {
+    closeDebounceSession();
+    boardsDataAccess->getWorkspaces(callback, callbackContext);
+}
+
+void DebouncedDbAccess::getWorkspacesListProperties(
+        std::function<void (bool, WorkspacesListProperties)> callback,
+        QPointer<QObject> callbackContext) {
+    closeDebounceSession();
+    boardsDataAccess->getWorkspacesListProperties(callback, callbackContext);
+}
+
 void DebouncedDbAccess::getBoardIdsAndNames(
         std::function<void (bool, const QHash<int, QString> &)> callback,
         QPointer<QObject> callbackContext) {

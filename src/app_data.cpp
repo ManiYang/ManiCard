@@ -38,6 +38,18 @@ void AppData::requestNewCardId(
     persistedDataAccess->requestNewCardId(callback, callbackContext);
 }
 
+void AppData::getWorkspaces(
+        std::function<void (bool, const QHash<int, Workspace> &)> callback,
+        QPointer<QObject> callbackContext) {
+    persistedDataAccess->getWorkspaces(callback, callbackContext);
+}
+
+void AppData::getWorkspacesListProperties(
+        std::function<void (bool, WorkspacesListProperties)> callback,
+        QPointer<QObject> callbackContext) {
+    persistedDataAccess->getWorkspacesListProperties(callback, callbackContext);
+}
+
 void AppData::getBoardIdsAndNames(
         std::function<void (bool, const QHash<int, QString> &)> callback,
         QPointer<QObject> callbackContext) {

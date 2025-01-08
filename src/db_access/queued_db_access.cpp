@@ -342,6 +342,46 @@ void QueuedDbAccess::updateCustomDataQueryProperties(
     addToQueue(func);
 }
 
+void QueuedDbAccess::getWorkspaces(
+        std::function<void (bool, const QHash<int, Workspace> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    true // is readonly?
+                    , const QHash<int, Workspace> & // result type (`Void` if no result argument)
+                    // no input // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->getWorkspaces(args...); // method
+            },
+            // no input // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
+void QueuedDbAccess::getWorkspacesListProperties(
+        std::function<void (bool, WorkspacesListProperties)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    true // is readonly?
+                    , WorkspacesListProperties // result type (`Void` if no result argument)
+                    // no input // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->getWorkspacesListProperties(args...); // method
+            },
+            // no input // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
 void QueuedDbAccess::getBoardIdsAndNames(
         std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
         QPointer<QObject> callbackContext) {

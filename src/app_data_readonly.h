@@ -8,6 +8,8 @@
 #include "models/card.h"
 #include "models/custom_data_query.h"
 #include "models/relationship.h"
+#include "models/workspace.h"
+#include "models/workspaces_list_properties.h"
 
 class AppDataReadonly : public QObject
 {
@@ -42,6 +44,14 @@ public:
 
     virtual void requestNewCardId(
             std::function<void (std::optional<int> cardId)> callback,
+            QPointer<QObject> callbackContext) = 0;
+
+    virtual void getWorkspaces(
+            std::function<void (bool ok, const QHash<int, Workspace> &workspaces)> callback,
+            QPointer<QObject> callbackContext) = 0;
+
+    virtual void getWorkspacesListProperties(
+            std::function<void (bool ok, WorkspacesListProperties properties)> callback,
             QPointer<QObject> callbackContext) = 0;
 
     virtual void getBoardIdsAndNames(

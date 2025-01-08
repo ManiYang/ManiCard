@@ -2,6 +2,8 @@
 #include "neo4j_http_api_client.h"
 #include "utilities/async_routine.h"
 #include "utilities/json_util.h"
+#include "utilities/maps_util.h"
+#include "utilities/lists_vectors_util.h"
 
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 using QueryStatement = Neo4jHttpApiClient::QueryStatement;
@@ -10,6 +12,90 @@ using QueryResponseSingleResult = Neo4jHttpApiClient::QueryResponseSingleResult;
 BoardsDataAccess::BoardsDataAccess(Neo4jHttpApiClient *neo4jHttpApiClient_)
         : AbstractBoardsDataAccess()
         , neo4jHttpApiClient(neo4jHttpApiClient_) {
+}
+
+void BoardsDataAccess::getWorkspaces(
+        std::function<void (bool, const QHash<int, Workspace> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (w:Workspace)
+                    RETURN w;
+                )!",
+                QJsonObject {}
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false, {});
+                    return;
+                }
+
+                //
+                const auto result = queryResponse.getResult().value();
+                QHash<int, Workspace> idToWorkspace;
+                for (int r = 0; r < result.rowCount(); ++r) {
+                    const std::optional<QJsonObject> objectOpt = result.objectValueAt(r, "w");
+                    if (!objectOpt.has_value())
+                        continue;
+
+                    const int id = objectOpt.value().value("id").toInt(-1);
+                    if (id == -1)
+                        continue;
+
+                    Workspace workspace;
+                    workspace.updateNodeProperties(objectOpt.value());
+
+                    idToWorkspace.insert(id, workspace);
+                }
+
+                callback(true, idToWorkspace);
+            },
+            callbackContext
+    );
+}
+
+void BoardsDataAccess::getWorkspacesListProperties(
+        std::function<void (bool, WorkspacesListProperties)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (wl:WorkspacesList)
+                    RETURN wl;
+                )!",
+                QJsonObject {}
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false, {});
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                if (result.rowCount() == 0) {
+                    callback(false, {});
+                    return;
+                }
+
+                const auto objectOpt = result.objectValueAt(0, "wl");
+                if (!objectOpt.has_value()) {
+                    callback(false, {});
+                    return;
+                }
+
+                WorkspacesListProperties properties;
+                properties.update(objectOpt.value());
+                callback(true, properties);
+            },
+            callbackContext
+    );
 }
 
 void BoardsDataAccess::getBoardIdsAndNames(

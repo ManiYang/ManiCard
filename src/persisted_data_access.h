@@ -9,6 +9,8 @@
 #include "models/boards_list_properties.h"
 #include "models/card.h"
 #include "models/custom_data_query.h"
+#include "models/workspace.h"
+#include "models/workspaces_list_properties.h"
 
 class DebouncedDbAccess;
 class LocalSettingsFile;
@@ -63,6 +65,14 @@ public:
 
     void requestNewCardId(
             std::function<void (std::optional<int> cardId)> callback,
+            QPointer<QObject> callbackContext);
+
+    void getWorkspaces(
+            std::function<void (bool ok, const QHash<int, Workspace> &workspaces)> callback,
+            QPointer<QObject> callbackContext);
+
+    void getWorkspacesListProperties(
+            std::function<void (bool ok, WorkspacesListProperties properties)> callback,
             QPointer<QObject> callbackContext);
 
     void getBoardIdsAndNames(
@@ -157,6 +167,7 @@ private:
     // data cache
     struct Cache
     {
+        std::optional<QHash<int, Workspace>> allWorkspaces;
         QHash<int, Board> boards;
         QHash<int, Card> cards;
         QHash<RelationshipId, RelationshipProperties> relationships;
