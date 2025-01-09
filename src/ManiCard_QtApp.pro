@@ -67,6 +67,7 @@ SOURCES += \
     widgets/main_window.cpp \
     widgets/right_sidebar.cpp \
     widgets/right_sidebar_toolbar.cpp \
+    widgets/workspace_frame.cpp \
     widgets/workspaces_list.cpp
 
 HEADERS += \
@@ -142,6 +143,7 @@ HEADERS += \
     widgets/main_window.h \
     widgets/right_sidebar.h \
     widgets/right_sidebar_toolbar.h \
+    widgets/workspace_frame.h \
     widgets/workspaces_list.h
 
 FORMS += \

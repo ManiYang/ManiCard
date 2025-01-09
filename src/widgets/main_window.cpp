@@ -22,6 +22,7 @@
 #include "widgets/dialogs/dialog_user_card_labels.h"
 #include "widgets/dialogs/dialog_user_relationship_types.h"
 #include "widgets/right_sidebar.h"
+#include "widgets/workspace_frame.h"
 #include "widgets/workspaces_list.h"
 
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
@@ -79,7 +80,8 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 
 //        boardsList->setEnabled(false);
         workspacesList->setEnabled(false);
-        boardView->setEnabled(false);
+//        boardView->setEnabled(false);
+        workspaceFrame->setEnabled(false);
 
         onUserCloseWindow();
 
@@ -145,13 +147,16 @@ void MainWindow::setUpWidgets() {
         vBoxLayout->setContentsMargins(0, 0, 0, 0);
         ui->frameCentralArea->setLayout(vBoxLayout);
         {
-            boardView = new BoardView;
-            vBoxLayout->addWidget(boardView);
-            boardView->setVisible(false);
+//            boardView = new BoardView;
+//            vBoxLayout->addWidget(boardView);
+//            boardView->setVisible(false);
+            workspaceFrame = new WorkspaceFrame;
+            vBoxLayout->addWidget(workspaceFrame);
+            workspaceFrame->setVisible(false);
 
-            noBoardOpenSign = new QLabel("No board is open");
-            vBoxLayout->addWidget(noBoardOpenSign);
-            vBoxLayout->setAlignment(noBoardOpenSign, Qt::AlignCenter);
+            noWorkspaceOpenSign = new QLabel("No workspace is open");
+            vBoxLayout->addWidget(noWorkspaceOpenSign);
+            vBoxLayout->setAlignment(noWorkspaceOpenSign, Qt::AlignCenter);
         }
     }
 
@@ -176,7 +181,7 @@ void MainWindow::setUpWidgets() {
             "QToolButton:hover {"
             "  background: #e0e0e0;"
             "}");
-    noBoardOpenSign->setStyleSheet(
+    noWorkspaceOpenSign->setStyleSheet(
             "QLabel {"
             "  color: #808080;"
             "  font-size: 14pt;"
@@ -232,7 +237,7 @@ void MainWindow::setUpConnections() {
     // workspacesList
     connect(workspacesList, &WorkspacesList::workspaceSelected,
             this, [this](int newWorkspaceId, int /*previousWorkspaceId*/) {
-//        onWorkspaceSelectedByUser(newWorkspaceId);
+        onWorkspaceSelectedByUser(newWorkspaceId);
     });
 
     connect(workspacesList, &WorkspacesList::userRenamedWorkspace,
@@ -266,14 +271,20 @@ void MainWindow::setUpConnections() {
     });
 
     // boardView
-    connect(boardView, &BoardView::openRightSideBar, this, [this]() {
+//    connect(boardView, &BoardView::openRightSideBar, this, [this]() {
+//        ui->frameRightSideBar->setVisible(true);
+//    });
+
+    // boardView
+    connect(workspaceFrame, &WorkspaceFrame::openRightSidebar, this, [this]() {
         ui->frameRightSideBar->setVisible(true);
     });
 
     // rightSidebar
     connect(rightSidebar, &RightSidebar::closeRightSidebar, this, [this]() {
         ui->frameRightSideBar->setVisible(false);
-        boardView->showButtonRightSidebar();
+//        boardView->showButtonRightSidebar();
+        workspaceFrame->showButtonRightSidebar();
     });
 }
 
@@ -293,21 +304,24 @@ void MainWindow::setUpMainMenu() {
         auto *submenu = mainMenu->addMenu("View");
         {
             auto *action = submenu->addAction("Zoom In", this, [this]() {
-                boardView->applyZoomAction(BoardView::ZoomAction::ZoomIn);
+//                boardView->applyZoomAction(BoardView::ZoomAction::ZoomIn);
+                // todo ...
             });
             action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Plus));
             this->addAction(action); // without this, the shortcut won't work
         }
         {
             auto *action = submenu->addAction("Zoom Out", this, [this]() {
-                boardView->applyZoomAction(BoardView::ZoomAction::ZoomOut);
+//                boardView->applyZoomAction(BoardView::ZoomAction::ZoomOut);
+                // todo ...
             });
             action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Minus));
             this->addAction(action); // without this, the shortcut won't work
         }
         {
             auto *action = submenu->addAction("Reset Zoom", this, [this]() {
-                boardView->applyZoomAction(BoardView::ZoomAction::ResetZoom);
+//                boardView->applyZoomAction(BoardView::ZoomAction::ResetZoom);
+                // todo ...
             });
             action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_0));
             this->addAction(action); // without this, the shortcut won't work
@@ -354,7 +368,8 @@ void MainWindow::onStartUp() {
 
 //    boardsList->setEnabled(false);
     workspacesList->setEnabled(false);
-    boardView->setEnabled(false);
+//    boardView->setEnabled(false);
+    workspaceFrame->setEnabled(false);
 
     //
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
@@ -362,8 +377,8 @@ void MainWindow::onStartUp() {
     public:
         WorkspacesListProperties workspacesListProperties;
         QHash<int, Workspace> workspaces;
-        BoardsListProperties boardsListProperties;
-        QHash<int, QString> boardsIdToName;
+//        BoardsListProperties boardsListProperties;
+//        QHash<int, QString> boardsIdToName;
         QString errorMsg;
     };
     auto *routine = new AsyncRoutineWithVars;
@@ -407,43 +422,43 @@ void MainWindow::onStartUp() {
         );
     }, this);
 
-    routine->addStep([this, routine]() {
-        // get boards-list properties
-        Services::instance()->getAppDataReadonly()->getBoardsListProperties(
-                [routine](bool ok, BoardsListProperties properties) {
-                    ContinuationContext context(routine);
+//    routine->addStep([this, routine]() {
+//        // get boards-list properties
+//        Services::instance()->getAppDataReadonly()->getBoardsListProperties(
+//                [routine](bool ok, BoardsListProperties properties) {
+//                    ContinuationContext context(routine);
 
-                    if (!ok) {
-                        routine->errorMsg
-                                = "Could not get boards list properties. See logs for details.";
-                        context.setErrorFlag();
-                    }
-                    else {
-                        routine->boardsListProperties = properties;
-                    }
-                },
-                this
-        );
-    }, this);
+//                    if (!ok) {
+//                        routine->errorMsg
+//                                = "Could not get boards list properties. See logs for details.";
+//                        context.setErrorFlag();
+//                    }
+//                    else {
+//                        routine->boardsListProperties = properties;
+//                    }
+//                },
+//                this
+//        );
+//    }, this);
 
-    routine->addStep([this, routine]() {
-        // get all board IDs
-        Services::instance()->getAppDataReadonly()->getBoardIdsAndNames(
-                [routine](bool ok, const QHash<int, QString> &idToName) {
-                    ContinuationContext context(routine);
+//    routine->addStep([this, routine]() {
+//        // get all board IDs
+//        Services::instance()->getAppDataReadonly()->getBoardIdsAndNames(
+//                [routine](bool ok, const QHash<int, QString> &idToName) {
+//                    ContinuationContext context(routine);
 
-                    if (!ok) {
-                        routine->errorMsg
-                                = "Could not get the list of boards. See logs for details.";
-                        context.setErrorFlag();
-                    }
-                    else {
-                        routine->boardsIdToName = idToName;
-                    }
-                },
-                this
-        );
-    }, this);
+//                    if (!ok) {
+//                        routine->errorMsg
+//                                = "Could not get the list of boards. See logs for details.";
+//                        context.setErrorFlag();
+//                    }
+//                    else {
+//                        routine->boardsIdToName = idToName;
+//                    }
+//                },
+//                this
+//        );
+//    }, this);
 
     routine->addStep([this, routine]() {
         // populate `boardsList`
@@ -459,43 +474,45 @@ void MainWindow::onStartUp() {
                 workspacesIdToName, routine->workspacesListProperties.workspacesOrdering);
 
         // load last-opened board
-        const int lastOpenedBoardId = routine->boardsListProperties.lastOpenedBoard; // can be -1
-        if (routine->boardsIdToName.contains(lastOpenedBoardId)) {
-            boardView->setVisible(true); // (this must be before calling boardView->loadBoard())
-            noBoardOpenSign->setVisible(false);
+//        const int lastOpenedBoardId = routine->boardsListProperties.lastOpenedBoard; // can be -1
+//        if (routine->boardsIdToName.contains(lastOpenedBoardId)) {
+//            boardView->setVisible(true); // (this must be before calling boardView->loadBoard())
+//            noBoardOpenSign->setVisible(false);
 
-            boardView->loadBoard(
-                    lastOpenedBoardId,
-                    // callback
-                    [this, routine, lastOpenedBoardId](bool loadOk, bool highlightedCardIdChanged) {
-                        ContinuationContext context(routine);
+//            boardView->loadBoard(
+//                    lastOpenedBoardId,
+//                    // callback
+//                    [this, routine, lastOpenedBoardId](bool loadOk, bool highlightedCardIdChanged) {
+//                        ContinuationContext context(routine);
 
-                        if (loadOk) {
+//                        if (loadOk) {
 //                            boardsList->setSelectedBoardId(lastOpenedBoardId);
-                        }
-                        else {
-                            routine->errorMsg
-                                    = QString("Could not load board %1").arg(lastOpenedBoardId);
-                            context.setErrorFlag();
-                        }
+//                        }
+//                        else {
+//                            routine->errorMsg
+//                                    = QString("Could not load board %1").arg(lastOpenedBoardId);
+//                            context.setErrorFlag();
+//                        }
 
-                        if (highlightedCardIdChanged) {
-                            // call AppData
-                            constexpr int highlightedCardId = -1;
-                            Services::instance()->getAppData()
-                                    ->setHighlightedCardId(EventSource(this), highlightedCardId);
-                        }
-                    }
-            );
-        }
-        else {
-            if (lastOpenedBoardId != -1) {
-                qWarning().noquote()
-                        << QString("last-opened board (ID=%1) does not exist")
-                           .arg(lastOpenedBoardId);
-            }
-            routine->nextStep();
-        }
+//                        if (highlightedCardIdChanged) {
+//                            // call AppData
+//                            constexpr int highlightedCardId = -1;
+//                            Services::instance()->getAppData()
+//                                    ->setHighlightedCardId(EventSource(this), highlightedCardId);
+//                        }
+//                    }
+//            );
+//        }
+//        else {
+//            if (lastOpenedBoardId != -1) {
+//                qWarning().noquote()
+//                        << QString("last-opened board (ID=%1) does not exist")
+//                           .arg(lastOpenedBoardId);
+//            }
+//            routine->nextStep();
+//        }
+        routine->nextStep();
+
     }, this);
 
     routine->addStep([this, routine]() {
@@ -504,7 +521,8 @@ void MainWindow::onStartUp() {
 
 //        boardsList->setEnabled(true);
         workspacesList->setEnabled(true);
-        boardView->setEnabled(true);
+//        boardView->setEnabled(true);
+        workspaceFrame->setEnabled(true);
 
         if (routine->errorFlag)
             showWarningMessageBox(this, " ", routine->errorMsg);
@@ -513,59 +531,100 @@ void MainWindow::onStartUp() {
     routine->start();
 }
 
-void MainWindow::onBoardSelectedByUser(const int boardId) {
+void MainWindow::onWorkspaceSelectedByUser(const int workspaceId) {
     auto *routine = new AsyncRoutine;
-    routine->setName("MainWindow::onBoardSelectedByUser");
 
     routine->addStep([this, routine]() {
-        // save current board's topLeftPos
-        saveTopLeftPosAndZoomRatioOfCurrentBoard();
-        routine->nextStep();
-    }, this);
+        workspaceFrame->prepareToClose();
 
-    routine->addStep([this, routine]() {
-        boardView->prepareToClose();
-
-        // wait until boardView->canClose() returns true
+        // wait until workspaceFrame->canClose() returns true
         (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
             ->setPredicate([this]() {
-                return boardView->canClose();
+                return workspaceFrame->canClose();
             })
             ->onPredicateReturnsTrue([routine]() {
                 routine->nextStep();
             })
             ->onTimeOut([routine]() {
-                qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
+                qWarning().noquote() << "time-out while awaiting WorkspaceFrame::canClose()";
                 routine->nextStep();
             })
             ->setAutoDelete()->start();
     }, this);
 
-    routine->addStep([this, routine, boardId]() {
-        // load `boardId`
-        noBoardOpenSign->setVisible(false);
-        boardView->setVisible(true);
+    routine->addStep([this, routine, workspaceId]() {
+        // load `workspaceId`
+        noWorkspaceOpenSign->setVisible(false);
+        workspaceFrame->setVisible(true);
 
-        boardView->loadBoard(
-                boardId,
-                [=](bool loadOk, bool highlightedCardIdChanged) {
+        workspaceFrame->loadWorkspace(
+                workspaceId,
+                // callback:
+                [this, routine, workspaceId](bool loadOk) {
                     if (!loadOk) {
                         QMessageBox::warning(
-                                this, " ", QString("Could not load board %1").arg(boardId));
+                                this, " ", QString("Could not load workspace %1").arg(workspaceId));
                     }
-
-                    if (highlightedCardIdChanged) {
-                        // call AppData
-                        constexpr int highlightedCardId = -1;
-                        Services::instance()->getAppData()
-                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
-                    }
-
                     routine->nextStep();
                 });
     }, this);
 
     routine->start();
+}
+
+void MainWindow::onBoardSelectedByUser(const int boardId) {
+//    auto *routine = new AsyncRoutine;
+//    routine->setName("MainWindow::onBoardSelectedByUser");
+
+//    routine->addStep([this, routine]() {
+//        // save current board's topLeftPos
+//        saveTopLeftPosAndZoomRatioOfCurrentBoard();
+//        routine->nextStep();
+//    }, this);
+
+//    routine->addStep([this, routine]() {
+//        boardView->prepareToClose();
+
+//        // wait until boardView->canClose() returns true
+//        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
+//            ->setPredicate([this]() {
+//                return boardView->canClose();
+//            })
+//            ->onPredicateReturnsTrue([routine]() {
+//                routine->nextStep();
+//            })
+//            ->onTimeOut([routine]() {
+//                qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
+//                routine->nextStep();
+//            })
+//            ->setAutoDelete()->start();
+//    }, this);
+
+//    routine->addStep([this, routine, boardId]() {
+//        // load `boardId`
+//        noBoardOpenSign->setVisible(false);
+//        boardView->setVisible(true);
+
+//        boardView->loadBoard(
+//                boardId,
+//                [=](bool loadOk, bool highlightedCardIdChanged) {
+//                    if (!loadOk) {
+//                        QMessageBox::warning(
+//                                this, " ", QString("Could not load board %1").arg(boardId));
+//                    }
+
+//                    if (highlightedCardIdChanged) {
+//                        // call AppData
+//                        constexpr int highlightedCardId = -1;
+//                        Services::instance()->getAppData()
+//                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
+//                    }
+
+//                    routine->nextStep();
+//                });
+//    }, this);
+
+    //    routine->start();
 }
 
 void MainWindow::onUserToCreateNewBoard() {
@@ -905,7 +964,8 @@ void MainWindow::onUserCloseWindow() {
         if (routine->errorFlag) {
 //            boardsList->setEnabled(true);
             workspacesList->setEnabled(true);
-            boardView->setEnabled(true);
+//            boardView->setEnabled(true);
+            workspaceFrame->setEnabled(true);
             closingState = ClosingState::NotClosing;
         }
         else {
@@ -918,17 +978,17 @@ void MainWindow::onUserCloseWindow() {
 }
 
 void MainWindow::saveTopLeftPosAndZoomRatioOfCurrentBoard() {
-    const int currentBoardId = boardView->getBoardId();
-    if (currentBoardId == -1)
-        return;
+//    const int currentBoardId = boardView->getBoardId();
+//    if (currentBoardId == -1)
+//        return;
 
-    BoardNodePropertiesUpdate propertiesUpdate;
-    {
-        propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
-        propertiesUpdate.zoomRatio = boardView->getZoomRatio();
-    }
-    Services::instance()->getAppData()->updateBoardNodeProperties(
-            EventSource(this), currentBoardId, propertiesUpdate);
+//    BoardNodePropertiesUpdate propertiesUpdate;
+//    {
+//        propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
+//        propertiesUpdate.zoomRatio = boardView->getZoomRatio();
+//    }
+//    Services::instance()->getAppData()->updateBoardNodeProperties(
+//            EventSource(this), currentBoardId, propertiesUpdate);
 }
 
 void MainWindow::saveBoardsOrdering() {

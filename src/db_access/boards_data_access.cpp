@@ -23,7 +23,8 @@ void BoardsDataAccess::getWorkspaces(
             QueryStatement {
                 R"!(
                     MATCH (w:Workspace)
-                    RETURN w;
+                    OPTIONAL MATCH (w)-[:HAS]->(b:Board)
+                    RETURN w, collect(b.id) AS boardIds
                 )!",
                 QJsonObject {}
             },
@@ -39,7 +40,8 @@ void BoardsDataAccess::getWorkspaces(
                 QHash<int, Workspace> idToWorkspace;
                 for (int r = 0; r < result.rowCount(); ++r) {
                     const std::optional<QJsonObject> objectOpt = result.objectValueAt(r, "w");
-                    if (!objectOpt.has_value())
+                    const std::optional<QJsonArray> boardIdsOpt = result.arrayValueAt(r, "boardIds");
+                    if (!objectOpt.has_value() || !boardIdsOpt.has_value())
                         continue;
 
                     const int id = objectOpt.value().value("id").toInt(-1);
@@ -47,8 +49,14 @@ void BoardsDataAccess::getWorkspaces(
                         continue;
 
                     Workspace workspace;
-                    workspace.updateNodeProperties(objectOpt.value());
+                    {
+                        workspace.updateNodeProperties(objectOpt.value());
 
+                        // populate `workspace.boardIds`
+                        const QJsonArray boardIds = boardIdsOpt.value();
+                        for (const QJsonValue &v: boardIds)
+                            workspace.boardIds.insert(v.toInt(-1));
+                    }
                     idToWorkspace.insert(id, workspace);
                 }
 

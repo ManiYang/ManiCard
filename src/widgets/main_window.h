@@ -16,6 +16,7 @@ class ActionDebouncer;
 class BoardsList;
 class BoardView;
 class RightSidebar;
+class WorkspaceFrame;
 class WorkspacesList;
 
 class MainWindow : public QMainWindow
@@ -37,9 +38,10 @@ private:
     // component widgets
 //    BoardsList *boardsList {nullptr};
     WorkspacesList *workspacesList {nullptr};
-    BoardView *boardView {nullptr};
+//    BoardView *boardView {nullptr};
+    WorkspaceFrame *workspaceFrame {nullptr};
 
-    QLabel *noBoardOpenSign {nullptr};
+    QLabel *noWorkspaceOpenSign {nullptr};
     QToolButton *buttonOpenMainMenu {nullptr};
 
     RightSidebar *rightSidebar {nullptr};
@@ -71,6 +73,7 @@ private:
     void onStartUp();
 
     void onBoardSelectedByUser(const int boardId);
+    void onWorkspaceSelectedByUser(const int workspaceId);
     void onUserToCreateNewBoard();
     void onUserToRemoveBoard(const int boardId);
 
