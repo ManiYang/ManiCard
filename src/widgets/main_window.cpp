@@ -22,6 +22,7 @@
 #include "widgets/dialogs/dialog_user_card_labels.h"
 #include "widgets/dialogs/dialog_user_relationship_types.h"
 #include "widgets/right_sidebar.h"
+#include "widgets/workspaces_list.h"
 
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 
@@ -76,7 +77,8 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         event->ignore();
         closingState = ClosingState::Closing;
 
-        boardsList->setEnabled(false);
+//        boardsList->setEnabled(false);
+        workspacesList->setEnabled(false);
         boardView->setEnabled(false);
 
         onUserCloseWindow();
@@ -130,8 +132,10 @@ void MainWindow::setUpWidgets() {
         }
 
         // boards list
-        boardsList = new BoardsList;
-        leftSideBarLayout->addWidget(boardsList);
+//        boardsList = new BoardsList;
+        workspacesList = new WorkspacesList;
+//        leftSideBarLayout->addWidget(boardsList);
+        leftSideBarLayout->addWidget(workspacesList);
     }
 
     // set up ui->frameCentralArea
@@ -193,36 +197,72 @@ void MainWindow::setUpConnections() {
     });
 
     // boardsList
-    connect(boardsList, &BoardsList::boardSelected,
-            this, [this](int newBoardId, int /*previousBoardId*/) {
-        onBoardSelectedByUser(newBoardId);
+//    connect(boardsList, &BoardsList::boardSelected,
+//            this, [this](int newBoardId, int /*previousBoardId*/) {
+//        onBoardSelectedByUser(newBoardId);
+//    });
+
+//    connect(boardsList, &BoardsList::userRenamedBoard,
+//            this, [this](int boardId, QString name) {
+//        BoardNodePropertiesUpdate update;
+//        update.name = name;
+
+//        Services::instance()->getAppData()->updateBoardNodeProperties(
+//                EventSource(this), boardId, update);
+//    });
+
+//    connect(boardsList, &BoardsList::userToCreateNewBoard, this, [this]() {
+//        onUserToCreateNewBoard();
+//    });
+
+//    connect(boardsList, &BoardsList::userToRemoveBoard, this, [this](int boardId) {
+//        const auto r = QMessageBox::question(
+//                this, " ",
+//                QString("Delete the board \"%1\"?").arg(boardsList->boardName(boardId)));
+//        if (r != QMessageBox::Yes)
+//            return;
+
+//        onUserToRemoveBoard(boardId);
+//    });
+
+//    connect(boardsList, &BoardsList::boardsOrderChanged, this, [this](QVector<int> /*boardIds*/) {
+//        saveBoardsOrdering();
+//    });
+
+    // workspacesList
+    connect(workspacesList, &WorkspacesList::workspaceSelected,
+            this, [this](int newWorkspaceId, int /*previousWorkspaceId*/) {
+//        onWorkspaceSelectedByUser(newWorkspaceId);
     });
 
-    connect(boardsList, &BoardsList::userRenamedBoard,
-            this, [this](int boardId, QString name) {
-        BoardNodePropertiesUpdate update;
-        update.name = name;
+    connect(workspacesList, &WorkspacesList::userRenamedWorkspace,
+            this, [this](int workspaceId, QString name) {
+//        WorkspaceNodePropertiesUpdate update;
+//        update.name = name;
 
-        Services::instance()->getAppData()->updateBoardNodeProperties(
-                EventSource(this), boardId, update);
+//        Services::instance()->getAppData()->updateWorkspaceNodeProperties(
+//                EventSource(this), workspaceId, update);
     });
 
-    connect(boardsList, &BoardsList::userToCreateNewBoard, this, [this]() {
-        onUserToCreateNewBoard();
+    connect(workspacesList, &WorkspacesList::userToCreateNewWorkspace, this, [this]() {
+//        onUserToCreateNewWorkspace();
     });
 
-    connect(boardsList, &BoardsList::userToRemoveBoard, this, [this](int boardId) {
+    connect(workspacesList, &WorkspacesList::userToRemoveWorkspace, this, [this](int boardId) {
         const auto r = QMessageBox::question(
                 this, " ",
-                QString("Delete the board \"%1\"?").arg(boardsList->boardName(boardId)));
+                QString("Delete the workspace \"%1\"?"
+                        " All boards in the workspaces will be deleted.")
+                    .arg(workspacesList->workspaceName(boardId)));
         if (r != QMessageBox::Yes)
             return;
 
-        onUserToRemoveBoard(boardId);
+//        onUserToRemoveWorkspace(boardId);
     });
 
-    connect(boardsList, &BoardsList::boardsOrderChanged, this, [this](QVector<int> /*boardIds*/) {
-        saveBoardsOrdering();
+    connect(workspacesList, &WorkspacesList::workspacesOrderChanged,
+            this, [this](QVector<int> /*boardIds*/) {
+//        saveWorkspacesOrdering();
     });
 
     // boardView
@@ -312,7 +352,8 @@ void MainWindow::onStartUp() {
             resize(sizeOpt.value());
     }
 
-    boardsList->setEnabled(false);
+//    boardsList->setEnabled(false);
+    workspacesList->setEnabled(false);
     boardView->setEnabled(false);
 
     //
@@ -406,8 +447,16 @@ void MainWindow::onStartUp() {
 
     routine->addStep([this, routine]() {
         // populate `boardsList`
-        boardsList->resetBoards(
-                routine->boardsIdToName, routine->boardsListProperties.boardsOrdering);
+//        boardsList->resetBoards(
+//                routine->boardsIdToName, routine->boardsListProperties.boardsOrdering);
+
+        // populate `workspacesList`
+        QHash<int, QString> workspacesIdToName;
+        for (auto it = routine->workspaces.constBegin(); it != routine->workspaces.constEnd(); ++it)
+            workspacesIdToName.insert(it.key(), it.value().name);
+
+        workspacesList->resetWorkspaces(
+                workspacesIdToName, routine->workspacesListProperties.workspacesOrdering);
 
         // load last-opened board
         const int lastOpenedBoardId = routine->boardsListProperties.lastOpenedBoard; // can be -1
@@ -422,7 +471,7 @@ void MainWindow::onStartUp() {
                         ContinuationContext context(routine);
 
                         if (loadOk) {
-                            boardsList->setSelectedBoardId(lastOpenedBoardId);
+//                            boardsList->setSelectedBoardId(lastOpenedBoardId);
                         }
                         else {
                             routine->errorMsg
@@ -453,7 +502,8 @@ void MainWindow::onStartUp() {
         // (final step)
         ContinuationContext context(routine);
 
-        boardsList->setEnabled(true);
+//        boardsList->setEnabled(true);
+        workspacesList->setEnabled(true);
         boardView->setEnabled(true);
 
         if (routine->errorFlag)
@@ -519,152 +569,152 @@ void MainWindow::onBoardSelectedByUser(const int boardId) {
 }
 
 void MainWindow::onUserToCreateNewBoard() {
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        int newBoardId {-1};
-        Board boardData;
-        QString errorMsg;
-    };
-    auto *routine = new AsyncRoutineWithVars;
+//    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+//    {
+//    public:
+//        int newBoardId {-1};
+//        Board boardData;
+//        QString errorMsg;
+//    };
+//    auto *routine = new AsyncRoutineWithVars;
 
-    //
-    routine->addStep([this, routine]() {
-        // 1. get new board ID
-        Services::instance()->getAppDataReadonly()->requestNewBoardId(
-                //callback
-                [routine](std::optional<int> boardId) {
-                    ContinuationContext context(routine);
+//    //
+//    routine->addStep([this, routine]() {
+//        // 1. get new board ID
+//        Services::instance()->getAppDataReadonly()->requestNewBoardId(
+//                //callback
+//                [routine](std::optional<int> boardId) {
+//                    ContinuationContext context(routine);
 
-                    if (!boardId.has_value()) {
-                        context.setErrorFlag();
-                        routine->errorMsg = "Could not get new board ID. See logs for details.";
-                    }
-                    else {
-                        routine->newBoardId = boardId.value();
-                    }
-                },
-                this
-        );
-    }, this);
+//                    if (!boardId.has_value()) {
+//                        context.setErrorFlag();
+//                        routine->errorMsg = "Could not get new board ID. See logs for details.";
+//                    }
+//                    else {
+//                        routine->newBoardId = boardId.value();
+//                    }
+//                },
+//                this
+//        );
+//    }, this);
 
-    routine->addStep([this, routine]() {
-        // 2. add to `boardsList`
-        ContinuationContext context(routine);
+//    routine->addStep([this, routine]() {
+//        // 2. add to `boardsList`
+//        ContinuationContext context(routine);
 
-        routine->boardData.name = "new board";
-        routine->boardData.topLeftPos = QPointF(0, 0);
+//        routine->boardData.name = "new board";
+//        routine->boardData.topLeftPos = QPointF(0, 0);
 
-        boardsList->addBoard(routine->newBoardId, routine->boardData.name);
-        boardsList->startEditBoardName(routine->newBoardId);
-    }, this);
+//        boardsList->addBoard(routine->newBoardId, routine->boardData.name);
+//        boardsList->startEditBoardName(routine->newBoardId);
+//    }, this);
 
-    routine->addStep([this, routine]() {
-        // 3. call AppData
-        ContinuationContext context(routine);
+//    routine->addStep([this, routine]() {
+//        // 3. call AppData
+//        ContinuationContext context(routine);
 
-        saveBoardsOrdering();
-        Services::instance()->getAppData()->createNewBoardWithId(
-                EventSource(this), routine->newBoardId, routine->boardData);
-    }, this);
+//        saveBoardsOrdering();
+//        Services::instance()->getAppData()->createNewBoardWithId(
+//                EventSource(this), routine->newBoardId, routine->boardData);
+//    }, this);
 
-    routine->addStep([this, routine]() {
-        // final step
-        ContinuationContext context(routine);
+//    routine->addStep([this, routine]() {
+//        // final step
+//        ContinuationContext context(routine);
 
-        if (routine->errorFlag && !routine->errorMsg.isEmpty())
-            showWarningMessageBox(this, " ", routine->errorMsg);
-    }, this);
+//        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+//            showWarningMessageBox(this, " ", routine->errorMsg);
+//    }, this);
 
-    //
-    routine->start();
+//    //
+//    routine->start();
 }
 
 void MainWindow::onUserToRemoveBoard(const int boardId) {
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        QString errorMsg;
-    };
-    auto *routine = new AsyncRoutineWithVars;
+//    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+//    {
+//    public:
+//        QString errorMsg;
+//    };
+//    auto *routine = new AsyncRoutineWithVars;
 
-    //
-    routine->addStep([this, routine, boardId]() {
-        if (boardView->getBoardId() == boardId) {
-            boardView->prepareToClose();
+//    //
+//    routine->addStep([this, routine, boardId]() {
+//        if (boardView->getBoardId() == boardId) {
+//            boardView->prepareToClose();
 
-            // wait until boardView->canClose() returns true
-            (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
-                ->setPredicate([this]() {
-                    return boardView->canClose();
-                })
-                ->onPredicateReturnsTrue([routine]() {
-                    routine->nextStep();
-                })
-                ->onTimeOut([routine]() {
-                    qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
-                    routine->nextStep();
-                })
-                ->setAutoDelete()->start();
-        }
-        else {
-            routine->nextStep();
-        }
-    }, this);
+//            // wait until boardView->canClose() returns true
+//            (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
+//                ->setPredicate([this]() {
+//                    return boardView->canClose();
+//                })
+//                ->onPredicateReturnsTrue([routine]() {
+//                    routine->nextStep();
+//                })
+//                ->onTimeOut([routine]() {
+//                    qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
+//                    routine->nextStep();
+//                })
+//                ->setAutoDelete()->start();
+//        }
+//        else {
+//            routine->nextStep();
+//        }
+//    }, this);
 
-    routine->addStep([this, routine, boardId]() {
-        if (boardView->getBoardId() == boardId) {
-            // close current board
-            boardView->loadBoard(
-                    -1,
-                    // callback
-                    [this, routine](bool loadOk, bool highlightedCardIdChanged) {
-                        ContinuationContext context(routine);
+//    routine->addStep([this, routine, boardId]() {
+//        if (boardView->getBoardId() == boardId) {
+//            // close current board
+//            boardView->loadBoard(
+//                    -1,
+//                    // callback
+//                    [this, routine](bool loadOk, bool highlightedCardIdChanged) {
+//                        ContinuationContext context(routine);
 
-                        if (!loadOk) {
-                            context.setErrorFlag();
-                            routine->errorMsg = "could not close current board";
-                            return;
-                        }
+//                        if (!loadOk) {
+//                            context.setErrorFlag();
+//                            routine->errorMsg = "could not close current board";
+//                            return;
+//                        }
 
-                        if (highlightedCardIdChanged) {
-                            // call AppData
-                            constexpr int highlightedCardId = -1;
-                            Services::instance()->getAppData()
-                                    ->setHighlightedCardId(EventSource(this), highlightedCardId);
-                        }
+//                        if (highlightedCardIdChanged) {
+//                            // call AppData
+//                            constexpr int highlightedCardId = -1;
+//                            Services::instance()->getAppData()
+//                                    ->setHighlightedCardId(EventSource(this), highlightedCardId);
+//                        }
 
-                        boardView->setVisible(false);
-                        noBoardOpenSign->setVisible(true);
-                    }
-            );
-        }
-        else {
-            routine->nextStep();
-        }
-    }, this);
+//                        boardView->setVisible(false);
+//                        noBoardOpenSign->setVisible(true);
+//                    }
+//            );
+//        }
+//        else {
+//            routine->nextStep();
+//        }
+//    }, this);
 
-    routine->addStep([this, routine, boardId]() {
-        // remove board from `boardsList`
-        ContinuationContext context(routine);
-        boardsList->removeBoard(boardId);
-    }, this);
+//    routine->addStep([this, routine, boardId]() {
+//        // remove board from `boardsList`
+//        ContinuationContext context(routine);
+//        boardsList->removeBoard(boardId);
+//    }, this);
 
-    routine->addStep([this, routine, boardId]() {
-        ContinuationContext context(routine);
+//    routine->addStep([this, routine, boardId]() {
+//        ContinuationContext context(routine);
 
-        saveBoardsOrdering();
-        Services::instance()->getAppData()->removeBoard(EventSource(this), boardId);
-    }, this);
+//        saveBoardsOrdering();
+//        Services::instance()->getAppData()->removeBoard(EventSource(this), boardId);
+//    }, this);
 
-    routine->addStep([this, routine]() {
-        // final step
-        ContinuationContext context(routine);
-        if (routine->errorFlag && !routine->errorMsg.isEmpty())
-            showWarningMessageBox(this, " ", routine->errorMsg);
-    }, this);
+//    routine->addStep([this, routine]() {
+//        // final step
+//        ContinuationContext context(routine);
+//        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+//            showWarningMessageBox(this, " ", routine->errorMsg);
+//    }, this);
 
-    routine->start();
+//    routine->start();
 }
 
 void MainWindow::onUserToSetCardLabelsList() {
@@ -804,11 +854,11 @@ void MainWindow::onUserCloseWindow() {
         // save last-opened board ID
         ContinuationContext context(routine);
 
-        BoardsListPropertiesUpdate propertiesUpdate;
-        propertiesUpdate.lastOpenedBoard = boardsList->selectedBoardId();
+//        BoardsListPropertiesUpdate propertiesUpdate;
+//        propertiesUpdate.lastOpenedBoard = boardsList->selectedBoardId();
 
-        Services::instance()->getAppData()
-                ->updateBoardsListProperties(EventSource(this), propertiesUpdate);
+//        Services::instance()->getAppData()
+//                ->updateBoardsListProperties(EventSource(this), propertiesUpdate);
     }, this);
 
     routine->addStep([this, routine]() {
@@ -853,7 +903,8 @@ void MainWindow::onUserCloseWindow() {
         ContinuationContext context(routine);
 
         if (routine->errorFlag) {
-            boardsList->setEnabled(true);
+//            boardsList->setEnabled(true);
+            workspacesList->setEnabled(true);
             boardView->setEnabled(true);
             closingState = ClosingState::NotClosing;
         }
@@ -881,11 +932,11 @@ void MainWindow::saveTopLeftPosAndZoomRatioOfCurrentBoard() {
 }
 
 void MainWindow::saveBoardsOrdering() {
-    BoardsListPropertiesUpdate propertiesUpdate;
-    propertiesUpdate.boardsOrdering = boardsList->getBoardsOrder();
+//    BoardsListPropertiesUpdate propertiesUpdate;
+//    propertiesUpdate.boardsOrdering = boardsList->getBoardsOrder();
 
-    Services::instance()->getAppData()
-            ->updateBoardsListProperties(EventSource(this), propertiesUpdate);
+//    Services::instance()->getAppData()
+//            ->updateBoardsListProperties(EventSource(this), propertiesUpdate);
 }
 
 void MainWindow::checkIsScreenChanged() {

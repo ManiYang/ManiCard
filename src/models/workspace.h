@@ -10,6 +10,7 @@ struct Workspace {
     // properties of `Workspace` node
     QString name;
     QVector<int> boardsOrdering;
+    int lastOpenedBoardId {-1};
 
     //
     QSet<int> boardIds;

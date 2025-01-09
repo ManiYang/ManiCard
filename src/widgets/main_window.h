@@ -16,6 +16,7 @@ class ActionDebouncer;
 class BoardsList;
 class BoardView;
 class RightSidebar;
+class WorkspacesList;
 
 class MainWindow : public QMainWindow
 {
@@ -34,7 +35,8 @@ private:
     Ui::MainWindow *ui;
 
     // component widgets
-    BoardsList *boardsList {nullptr};
+//    BoardsList *boardsList {nullptr};
+    WorkspacesList *workspacesList {nullptr};
     BoardView *boardView {nullptr};
 
     QLabel *noBoardOpenSign {nullptr};

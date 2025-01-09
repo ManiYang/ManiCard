@@ -13,6 +13,14 @@
  *   "mainWindow": {
  *     "size": [1000, 800]
  *   },
+ *   "workspaces": {
+ *     "0": {
+ *       "lastOpenedBoardId": 12
+ *     },
+ *     "1": {
+ *       "lastOpenedBoardId": 34
+ *     }
+ *   },
  *   "boards": {
  *     "lastOpenedBoardId": 0,
  *     "0": {
@@ -28,6 +36,7 @@
 constexpr char fileName[] = "user_settings.json";
 
 constexpr char sectionMainWindow[] = "mainWindow";
+constexpr char sectionWorkspaces[] = "workspaces";
 constexpr char sectionBoards[] = "boards";
 
 constexpr char keySize[] = "size";
@@ -37,6 +46,24 @@ constexpr char keyTopLeftPos[] = "topLeftPos";
 LocalSettingsFile::LocalSettingsFile(const QString &appLocalDataDir)
         : filePath(QDir(appLocalDataDir).filePath(fileName)) {
     Q_ASSERT(!appLocalDataDir.isEmpty());
+}
+
+std::pair<bool, std::optional<int> > LocalSettingsFile::readLastOpenedBoardIdOfWorkspace(
+        const int workspaceId) {
+    const QJsonObject obj = read();
+    const QJsonValue v
+            = JsonReader(obj)[sectionWorkspaces][QString::number(workspaceId)][keyLastOpenedBoardId].get();
+    if (v.isUndefined())
+        return {true, std::optional<int>()};
+
+    if (!jsonValueIsInt(v)) {
+        qWarning().noquote()
+                << QString("value of %1 for workspace %2 is not an integer")
+                   .arg(keyLastOpenedBoardId).arg(workspaceId);
+        return {false, std::optional<int>()};
+    }
+
+    return {true, v.toInt()};
 }
 
 std::pair<bool, std::optional<int> > LocalSettingsFile::readLastOpenedBoardId() {
@@ -86,6 +113,23 @@ std::pair<bool, std::optional<QSize> > LocalSettingsFile::readMainWindowSize() {
     }
 
     return {true, QSize(v[0].toInt(), v[1].toInt())};
+}
+
+bool LocalSettingsFile::writeLastOpenedBoardIdOfWorkspace(
+        const int workspaceId, const int lastOpenedBoardId) {
+    QJsonObject obj = read();
+
+    // set obj[sectionWorkspaces][Str(workspaceId)][keyLastOpenedBoardId] = lastOpenedBoardId
+    QJsonObject workspacesObj = obj[sectionWorkspaces].toObject();
+    QJsonObject workspaceObj = workspacesObj[QString::number(workspaceId)].toObject();
+    workspaceObj[keyLastOpenedBoardId] = lastOpenedBoardId;
+
+    workspacesObj[QString::number(workspaceId)] = workspaceObj;
+    obj[sectionWorkspaces] = workspacesObj;
+
+    //
+    const bool ok = write(obj);
+    return ok;
 }
 
 bool LocalSettingsFile::writeLastOpenedBoardId(const int lastOpenedBoardId) {

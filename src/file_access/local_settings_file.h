@@ -16,12 +16,14 @@ public:
 
     // It's not an error if the value is not found. Return (ok?, result).
 
+    std::pair<bool, std::optional<int>> readLastOpenedBoardIdOfWorkspace(const int workspaceId);
     std::pair<bool, std::optional<int>> readLastOpenedBoardId();
     std::pair<bool, std::optional<QPointF>> readTopLeftPosOfBoard(const int boardId);
     std::pair<bool, std::optional<QSize>> readMainWindowSize();
 
     // ==== write operations ====
 
+    bool writeLastOpenedBoardIdOfWorkspace(const int workspaceId, const int lastOpenedBoardId);
     bool writeLastOpenedBoardId(const int lastOpenedBoardId);
     bool writeTopLeftPosOfBoard(const int boardId, const QPointF &topLeftPos);
     bool removeBoard(const int boardId);

@@ -66,7 +66,8 @@ SOURCES += \
     widgets/dialogs/dialog_user_relationship_types.cpp \
     widgets/main_window.cpp \
     widgets/right_sidebar.cpp \
-    widgets/right_sidebar_toolbar.cpp
+    widgets/right_sidebar_toolbar.cpp \
+    widgets/workspaces_list.cpp
 
 HEADERS += \
     app_data.h \
@@ -140,7 +141,8 @@ HEADERS += \
     widgets/dialogs/dialog_user_relationship_types.h \
     widgets/main_window.h \
     widgets/right_sidebar.h \
-    widgets/right_sidebar_toolbar.h
+    widgets/right_sidebar_toolbar.h \
+    widgets/workspaces_list.h
 
 FORMS += \
     widgets/dialogs/dialog_board_card_colors.ui \

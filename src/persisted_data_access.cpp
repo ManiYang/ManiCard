@@ -229,22 +229,64 @@ void PersistedDataAccess::getWorkspaces(
         return;
     }
 
-    // 2. query DB
-    debouncedDbAccess->getWorkspaces(
-            // callback
-            [this, callback, callbackContext](bool ok, const QHash<int, Workspace> &workspaces) {
-                QHash<int, Workspace> result;
-                if (ok) {
-                    cache.allWorkspaces = workspaces; // update cache
-                    result = workspaces;
-                }
+    // 2. read DB & files
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QHash<int, Workspace> workspacesData;
+    };
+    auto *routine = new AsyncRoutineWithVars;
 
-                invokeAction(callbackContext, [callback, ok, result]() {
-                    callback(ok, result);
-                });
-            },
-            this
-    );
+    routine->addStep([this, routine]() {
+        // query DB
+        debouncedDbAccess->getWorkspaces(
+                // callback
+                [routine](bool ok, const QHash<int, Workspace> &workspaces) {
+                    ContinuationContext context(routine);
+                    if (ok)
+                        routine->workspacesData = workspaces;
+                    else
+                        context.setErrorFlag();
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // read local settings file
+        ContinuationContext context(routine);
+
+        const auto workspaceIds = keySet(routine->workspacesData);
+        for (const int workspaceId: workspaceIds) {
+            const auto [ok, boardIdOpt] = localSettingsFile->readLastOpenedBoardIdOfWorkspace(workspaceId);
+            if (!ok) {
+                context.setErrorFlag();
+                break;
+            }
+            if (boardIdOpt.has_value())
+                routine->workspacesData[workspaceId].lastOpenedBoardId = boardIdOpt.value();
+        }
+    }, this);
+
+    routine->addStep([this, routine, callback, callbackContext]() {
+        // final step
+        ContinuationContext context(routine);
+        if (routine->errorFlag) {
+            callback(false, {});
+        }
+        else {
+            // update cache
+            cache.allWorkspaces = routine->workspacesData;
+
+            //
+            const QHash<int, Workspace> workspacesData = routine->workspacesData;
+            invokeAction(callbackContext, [callback, workspacesData]() {
+                callback(true, workspacesData);
+            });
+        }
+    }, this);
+
+    routine->start();
 }
 
 void PersistedDataAccess::getWorkspacesListProperties(
