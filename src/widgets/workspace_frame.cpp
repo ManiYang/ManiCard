@@ -167,10 +167,13 @@ void WorkspaceFrame::loadWorkspace(const int workspaceIdToLoad, std::function<vo
     routine->addStep([this, routine]() {
         // 7. open board
         if (routine->boardIdToOpen == -1) {
+            noBoardSign->setVisible(true);
+            boardView->setVisible(false);
             routine->nextStep();
             return;
         }
 
+        noBoardSign->setVisible(false);
         boardView->loadBoard(
                 routine->boardIdToOpen,
                 // callback:
@@ -264,6 +267,17 @@ void WorkspaceFrame::setUpWidgets() {
         //
         boardView = new BoardView;
         layout->addWidget(boardView);
+        boardView->setVisible(false);
+
+        //
+        noBoardSign = new QLabel("No board in this workspace");
+        layout->addWidget(noBoardSign, 0, Qt::AlignCenter);
+        noBoardSign->setStyleSheet(
+                "QLabel {"
+                "  color: #808080;"
+                "  font-size: 14pt;"
+                "  font-weight: bold;"
+                "}");
     }
 }
 
@@ -278,7 +292,7 @@ void WorkspaceFrame::onUserToAddBoard() {
 
 }
 
-//======
+//========
 
 WorkspaceToolBar::WorkspaceToolBar(QWidget *parent)
         : SimpleToolBar(parent) {

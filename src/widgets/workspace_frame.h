@@ -40,7 +40,9 @@ private:
     WorkspaceToolBar *workspaceToolBar {nullptr};
     QTabBar *boardsTabBar {nullptr};
     BoardView *boardView {nullptr};
+    QLabel *noBoardSign {nullptr};
 
+    //
     void setUpWidgets();
     void setUpConnections();
 
@@ -48,7 +50,7 @@ private:
     void onUserToAddBoard();
 };
 
-//======
+//========
 
 class WorkspaceToolBar : public SimpleToolBar
 {

@@ -10,7 +10,7 @@
 #include "models/node_rect_data.h"
 #include "models/relationship.h"
 
-class BoardViewToolBar;
+//class BoardViewToolBar;
 class DataViewBox;
 class EdgeArrow;
 struct EdgeArrowData;
@@ -39,7 +39,7 @@ public:
 
     void prepareToClose();
 
-    void showButtonRightSidebar();
+//    void showButtonRightSidebar();
     enum class ZoomAction { ZoomIn, ZoomOut, ResetZoom };
     void applyZoomAction(const ZoomAction zoomAction);
 
@@ -54,7 +54,7 @@ public:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 signals:
-    void openRightSideBar();
+//    void openRightSideBar();
 
 private:
     static inline const QSizeF defaultNewNodeRectSize {200, 120};
@@ -76,7 +76,7 @@ private:
     double graphicsGeometryScaleFactor {1.0};
 
     //
-    BoardViewToolBar *toolBar {nullptr};
+//    BoardViewToolBar *toolBar {nullptr};
     QGraphicsView *graphicsView {nullptr};
     GraphicsScene *graphicsScene {nullptr};
     QGraphicsRectItem *canvas {nullptr}; // draw everything on this
@@ -103,7 +103,7 @@ private:
     void onUserToCreateRelationship(const int cardId);
     void onUserToCloseNodeRect(const int cardId);
     void onUserToCloseDataViewBox(const int customDataQueryId);
-    void onUserToSetCardColors();
+    void onUserToSetCardColors(); // not used....
     void onBackgroundClicked();
 
     //

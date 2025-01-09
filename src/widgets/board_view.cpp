@@ -263,9 +263,9 @@ void BoardView::prepareToClose() {
     // do nothing
 }
 
-void BoardView::showButtonRightSidebar() {
-    toolBar->showButtonOpenRightSidebar();
-}
+//void BoardView::showButtonRightSidebar() {
+//    toolBar->showButtonOpenRightSidebar();
+//}
 
 void BoardView::applyZoomAction(const ZoomAction zoomAction) {
     const auto anchorScenePos = getViewCenterInScene();
@@ -309,8 +309,8 @@ void BoardView::setUpWidgets() {
     layout->setSpacing(0);
     this->setLayout(layout);
     {
-        toolBar = new BoardViewToolBar(this);
-        layout->addWidget(toolBar);
+//        toolBar = new BoardViewToolBar(this);
+//        layout->addWidget(toolBar);
 
         graphicsView = new QGraphicsView;
         layout->addWidget(graphicsView);
@@ -401,13 +401,13 @@ void BoardView::setUpConnections() {
     });
 
     //
-    connect(toolBar, &BoardViewToolBar::openRightSidebar, this, [this]() {
-        emit openRightSideBar();
-    });
+//    connect(toolBar, &BoardViewToolBar::openRightSidebar, this, [this]() {
+//        emit openRightSideBar();
+//    });
 
-    connect(toolBar, &BoardViewToolBar::openCardColorsDialog, this, [this]() {
-        onUserToSetCardColors();
-    });
+//    connect(toolBar, &BoardViewToolBar::openCardColorsDialog, this, [this]() {
+//        onUserToSetCardColors();
+//    });
 
     //
     connect(Services::instance()->getAppData(), &AppData::fontSizeScaleFactorChanged,
