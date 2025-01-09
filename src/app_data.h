@@ -133,7 +133,7 @@ public:
             const EventSource &eventSrc, const BoardsListPropertiesUpdate &propertiesUpdate);
 
     void createNewBoardWithId(
-            const EventSource &eventSrc, const int boardId, const Board &board);
+            const EventSource &eventSrc, const int boardId, const Board &board, const int workspaceId);
 
     void updateBoardNodeProperties(
             const EventSource &eventSrc,

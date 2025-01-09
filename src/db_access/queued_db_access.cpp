@@ -483,19 +483,19 @@ void QueuedDbAccess::requestNewBoardId(
 }
 
 void QueuedDbAccess::createNewBoardWithId(
-        const int boardId, const Board &board, std::function<void (bool)> callback,
+        const int boardId, const Board &board, const int workspaceId, std::function<void (bool)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
     auto func = createTask<
                     false // is readonly?
                     , Void // result type (`Void` if no result argument)
-                    , decltype(boardId), decltype(board) // input types
+                    , decltype(boardId), decltype(board), decltype(workspaceId) // input types
                 >(
             [this](auto... args) {
                 boardsDataAccess->createNewBoardWithId(args...); // method
             },
-            boardId, board, // input parameters
+            boardId, board, workspaceId, // input parameters
             callback, callbackContext
     );
 

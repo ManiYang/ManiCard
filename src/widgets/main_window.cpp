@@ -560,10 +560,16 @@ void MainWindow::onWorkspaceSelectedByUser(const int workspaceId) {
         workspaceFrame->loadWorkspace(
                 workspaceId,
                 // callback:
-                [this, routine, workspaceId](bool loadOk) {
+                [this, routine, workspaceId](bool loadOk, bool highlightedCardIdChanged) {
                     if (!loadOk) {
                         QMessageBox::warning(
                                 this, " ", QString("Could not load workspace %1").arg(workspaceId));
+                    }
+                    if (highlightedCardIdChanged) {
+                        // call AppData
+                        constexpr int highlightedCardId = -1;
+                        Services::instance()->getAppData()
+                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
                     }
                     routine->nextStep();
                 });

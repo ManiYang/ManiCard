@@ -658,7 +658,8 @@ void PersistedDataAccess::updateBoardsListProperties(
     }
 }
 
-void PersistedDataAccess::createNewBoardWithId(const int boardId, const Board &board) {
+void PersistedDataAccess::createNewBoardWithId(
+        const int boardId, const Board &board, const int workspaceId) {
     Q_ASSERT(board.cardIdToNodeRectData.isEmpty()); // new board should have no NodeRect
 
     if (cache.boards.contains(boardId)) {
@@ -669,8 +670,13 @@ void PersistedDataAccess::createNewBoardWithId(const int boardId, const Board &b
     // 1. update cache synchronously
     cache.boards.insert(boardId, board);
 
+    if (cache.allWorkspaces.has_value()) {
+        if (cache.allWorkspaces.value().contains(workspaceId))
+            cache.allWorkspaces.value()[workspaceId].boardIds << boardId;
+    }
+
     // 2. write DB
-    debouncedDbAccess->createNewBoardWithId(boardId, board);
+    debouncedDbAccess->createNewBoardWithId(boardId, board, workspaceId);
 }
 
 void PersistedDataAccess::updateBoardNodeProperties(

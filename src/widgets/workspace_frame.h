@@ -21,7 +21,9 @@ public:
     //! \param workspaceId: if is -1, will only close the workspace
     //! \param callback
     //!
-    void loadWorkspace(const int workspaceId, std::function<void (bool loadOk)> callback);
+    void loadWorkspace(
+            const int workspaceId,
+            std::function<void (bool ok, bool highlightedCardIdChanged)> callback);
 
     void showButtonRightSidebar();
 
@@ -41,13 +43,16 @@ private:
     QTabBar *boardsTabBar {nullptr};
     BoardView *boardView {nullptr};
     QLabel *noBoardSign {nullptr};
+    QMenu *boardTabContextMenu {nullptr};
 
     //
     void setUpWidgets();
     void setUpConnections();
+    void setUpBoardTabContextMenu();
 
     //
     void onUserToAddBoard();
+    void onUserToRenameBoard(const int boardId, const QString &originalName);
 };
 
 //========

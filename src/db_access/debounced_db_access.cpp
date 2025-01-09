@@ -414,11 +414,12 @@ void DebouncedDbAccess::updateBoardsListProperties(
     );
 }
 
-void DebouncedDbAccess::createNewBoardWithId(const int boardId, const Board &board) {
+void DebouncedDbAccess::createNewBoardWithId(
+        const int boardId, const Board &board, const int workspaceId) {
     closeDebounceSession();
 
     boardsDataAccess->createNewBoardWithId(
-            boardId, board,
+            boardId, board, workspaceId,
             // callback
             [=](bool ok) {
                 if (!ok) {

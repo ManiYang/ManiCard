@@ -44,7 +44,7 @@ public:
             QPointer<QObject> callbackContext) override;
 
     void createNewBoardWithId(
-            const int boardId, const Board &board,
+            const int boardId, const Board &board, const int workspaceId,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
     void updateBoardNodeProperties(

@@ -135,7 +135,13 @@ public:
 
     void updateBoardsListProperties(const BoardsListPropertiesUpdate &propertiesUpdate);
 
-    void createNewBoardWithId(const int boardId, const Board &board);
+    //!
+    //! \param boardId
+    //! \param board
+    //! \param workspaceId: If it exists, the relationship (:Workspace)-[:HAS]->(:Board) will be
+    //!                     created. It is not an error if \e workspaceId does not exist.
+    //!
+    void createNewBoardWithId(const int boardId, const Board &board, const int workspaceId);
 
     void updateBoardNodeProperties(
             const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate);

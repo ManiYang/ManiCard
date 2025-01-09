@@ -168,9 +168,9 @@ void AppData::updateBoardsListProperties(
 }
 
 void AppData::createNewBoardWithId(
-        const EventSource &/*eventSrc*/, const int boardId, const Board &board) {
+        const EventSource &/*eventSrc*/, const int boardId, const Board &board, const int workspaceId) {
     // 1. persist
-    persistedDataAccess->createNewBoardWithId(boardId, board);
+    persistedDataAccess->createNewBoardWithId(boardId, board, workspaceId);
 
     // 2. update all variables and emit "updated" signals
 }

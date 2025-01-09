@@ -2,11 +2,13 @@
 #include <QHBoxLayout>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include "app_data.h"
 #include "app_data_readonly.h"
 #include "services.h"
 #include "utilities/async_routine.h"
 #include "utilities/lists_vectors_util.h"
 #include "utilities/maps_util.h"
+#include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
 #include "widgets/board_view.h"
 #include "workspace_frame.h"
@@ -21,11 +23,13 @@ WorkspaceFrame::WorkspaceFrame(QWidget *parent)
         : QFrame(parent) {
     setUpWidgets();
     setUpConnections();
+    setUpBoardTabContextMenu();
 }
 
-void WorkspaceFrame::loadWorkspace(const int workspaceIdToLoad, std::function<void (bool)> callback) {
+void WorkspaceFrame::loadWorkspace(
+        const int workspaceIdToLoad, std::function<void (bool, bool)> callback) {
     if (workspaceId == workspaceIdToLoad) {
-        callback(true);
+        callback(true, false);
         return;
     }
 
@@ -37,7 +41,6 @@ void WorkspaceFrame::loadWorkspace(const int workspaceIdToLoad, std::function<vo
         Workspace workspaceData;
         QHash<int, QString> boardIdToName;
         int boardIdToOpen {-1};
-
     };
     auto *routine = new AsyncRoutineWithVars;
 
@@ -200,8 +203,7 @@ void WorkspaceFrame::loadWorkspace(const int workspaceIdToLoad, std::function<vo
             workspaceToolBar->setWorkspaceName(routine->workspaceData.name);
         }
 
-//        callback(!routine->errorFlag, highlightedCardIdChanged);
-        callback(!routine->errorFlag);
+        callback(!routine->errorFlag, routine->highlightedCardIdChanged);
     }, this);
 
     routine->start();
@@ -241,6 +243,8 @@ void WorkspaceFrame::setUpWidgets() {
             boardsTabBar = new QTabBar;
             hLayout->addWidget(boardsTabBar, 0, Qt::AlignBottom);
             boardsTabBar->setExpanding(false);
+            boardsTabBar->setMovable(true);
+            boardsTabBar->setContextMenuPolicy(Qt::CustomContextMenu);
 
             //
             auto *buttonAddBoard = new QToolButton;
@@ -285,10 +289,144 @@ void WorkspaceFrame::setUpConnections() {
     connect(workspaceToolBar, &WorkspaceToolBar::openRightSidebar, this, [this]() {
         emit openRightSidebar();
     });
+
+    // `boardsTabBar`
+    connect(boardsTabBar, &QTabBar::customContextMenuRequested, this, [this](const QPoint &pos) {
+        if (boardsTabBar->currentIndex() == -1)
+            return;
+        if (boardsTabBar->tabAt(pos) != boardsTabBar->currentIndex())
+            return;
+        boardTabContextMenu->popup(boardsTabBar->mapToGlobal(pos));
+    });
+}
+
+void WorkspaceFrame::setUpBoardTabContextMenu() {
+    boardTabContextMenu = new QMenu(this);
+    {
+        auto *action = boardTabContextMenu->addAction(
+                QIcon(":/icons/edit_square_black_24"), "Rename");
+        connect(action, &QAction::triggered, this, [this]() {
+            if (boardsTabBar->currentIndex() == -1)
+                return;
+            const int boardId
+                    = boardsTabBar->tabData(boardsTabBar->currentIndex())
+                      .toJsonObject().value(keyBoardId).toInt(-1);
+            if (boardId == -1)
+                return;
+            const QString boardName = boardsTabBar->tabText(boardsTabBar->currentIndex());
+            onUserToRenameBoard(boardId, boardName);
+        });
+    }
 }
 
 void WorkspaceFrame::onUserToAddBoard() {
-    // todo ...
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        int newBoardId {-1};
+        Board newBoardData;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // request new Board ID
+        Services::instance()->getAppData()->requestNewBoardId(
+                [routine](std::optional<int> newId) {
+                    ContinuationContext context(routine);
+                    if (!newId.has_value()) {
+                        context.setErrorFlag();
+                        routine->errorMsg = "Failed to request new board ID";
+                    }
+                    else {
+                        routine->newBoardId = newId.value();
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // create new Board
+        ContinuationContext context(routine);
+
+        Q_ASSERT(routine->newBoardId != -1);
+        Q_ASSERT(workspaceId != -1);
+
+        routine->newBoardData.name = "New Board";
+        Services::instance()->getAppData()->createNewBoardWithId(
+                EventSource(this), routine->newBoardId, routine->newBoardData, workspaceId);
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // prepare to close `boardView`
+        boardView->setVisible(true);
+        noBoardSign->setVisible(false);
+        boardView->prepareToClose();
+
+        // wait until boardView->canClose() returns true
+        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
+            ->setPredicate([this]() {
+                return boardView->canClose();
+            })
+            ->onPredicateReturnsTrue([routine]() {
+                routine->nextStep();
+            })
+            ->onTimeOut([routine]() {
+                qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
+                routine->nextStep();
+            })
+            ->setAutoDelete()->start();
+
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // load board
+        boardView->loadBoard(
+                routine->newBoardId,
+                // callback
+                [this, routine](bool ok, bool highlightedCardIdChanged) {
+                    ContinuationContext context(routine);
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg = QString("Could not load board %1").arg(routine->newBoardId);
+                    }
+
+                    if (highlightedCardIdChanged) {
+                        constexpr int highlightedCardId = -1;
+                        Services::instance()->getAppData()
+                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
+                    }
+                }
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // add to `boardsTabBar`
+        ContinuationContext context(routine);
+
+        const int tabIndex = boardsTabBar->addTab(routine->newBoardData.name);
+        boardsTabBar->setTabData(tabIndex, QJsonObject {{keyBoardId, routine->newBoardId}});
+        boardsTabBar->setCurrentIndex(tabIndex);
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
+
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+            showWarningMessageBox(this, " ", routine->errorMsg);
+    }, this);
+
+    routine->start();
+}
+
+void WorkspaceFrame::onUserToRenameBoard(const int boardId, const QString &originalName) {
+    qDebug() << QString("rename board %1 (%2)").arg(boardId).arg(originalName);
+
+
+
 
 }
 

@@ -160,7 +160,7 @@ public:
 
     void updateBoardsListProperties(const BoardsListPropertiesUpdate &propertiesUpdate);
 
-    void createNewBoardWithId(const int boardId, const Board &board);
+    void createNewBoardWithId(const int boardId, const Board &board, const int workspaceId);
 
     void updateBoardNodeProperties(
             const int boardId, const BoardNodePropertiesUpdate &propertiesUpdate);

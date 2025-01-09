@@ -68,11 +68,13 @@ public:
     //! Board with ID \e boardId must not already exist. This operation is atomic.
     //! \param boardId:
     //! \param board: should have no NodeRect
+    //! \param workspaceId: If it exists, the relationship (:Workspace)-[:HAS]->(:Board) will be
+    //!                     created. It is not an error if \e workspaceId does not exist.
     //! \param callback
     //! \param callbackContext
     //!
     virtual void createNewBoardWithId(
-            const int boardId, const Board &board,
+            const int boardId, const Board &board, const int workspaceId,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 
     //!

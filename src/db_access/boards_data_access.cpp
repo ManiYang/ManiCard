@@ -356,7 +356,7 @@ void BoardsDataAccess::requestNewBoardId(
 }
 
 void BoardsDataAccess::createNewBoardWithId(
-        const int boardId, const Board &board, std::function<void (bool)> callback,
+        const int boardId, const Board &board, const int workspaceId, std::function<void (bool)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
     Q_ASSERT(board.cardIdToNodeRectData.isEmpty()); // new board should have no NodeRect
@@ -366,10 +366,19 @@ void BoardsDataAccess::createNewBoardWithId(
                 R"!(
                     CREATE (b:Board {id: $boardId})
                     SET b += $propertiesMap
-                    RETURN b.id AS id
+                    WITH b
+                    OPTIONAL MATCH (ws:Workspace {id: $workspaceId})
+                    CALL apoc.do.when(
+                        ws IS NOT NULL,
+                        'CREATE (ws)-[:HAS]->(b) RETURN true AS relCreated',
+                        'RETURN false AS relCreated',
+                        {b: b, ws: ws}
+                    ) YIELD value
+                    RETURN b.id AS id, value.relCreated AS relCreated
                 )!",
                 QJsonObject {
                     {"boardId", boardId},
+                    {"workspaceId", workspaceId},
                     {"propertiesMap", board.getNodePropertiesJson()}
                 }
             },
@@ -462,11 +471,11 @@ void BoardsDataAccess::removeBoard(
     }, routine);
 
     routine->addStep([routine, boardId]() {
-        // 2. remove NodeRect nodes
+        // 2. remove NodeRect & DataViewBox nodes
         routine->transaction->query(
                 QueryStatement {
                     R"!(
-                        MATCH (:Board {id: $boardId})-[:HAS]->(n:NodeRect)
+                        MATCH (:Board {id: $boardId})-[:HAS]->(n:NodeRect|DataViewBox)
                         DETACH DELETE n
                     )!",
                     QJsonObject {{"boardId", boardId}}
