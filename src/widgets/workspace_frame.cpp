@@ -210,15 +210,23 @@ void WorkspaceFrame::showButtonRightSidebar() {
 }
 
 void WorkspaceFrame::prepareToClose() {
-    // todo ...
-
-
+    boardView->prepareToClose();
 }
 
 bool WorkspaceFrame::canClose() const {
-    return true; // [temp]
+    return boardView->canClose();
+}
 
+int WorkspaceFrame::getCurrentBoardId() {
+    return boardView->getBoardId();
+}
 
+QPointF WorkspaceFrame::getBoardViewTopLeftPos() const {
+    return boardView->getViewTopLeftPos();
+}
+
+double WorkspaceFrame::getBoardViewZoomRatio() const {
+    return boardView->getZoomRatio();
 }
 
 void WorkspaceFrame::setUpWidgets() {
@@ -367,6 +375,8 @@ void WorkspaceFrame::onUserToAddBoard() {
 
     routine->addStep([this, routine]() {
         // prepare to close `boardView`
+        saveTopLeftPosAndZoomRatioOfCurrentBoard();
+
         boardView->setVisible(true);
         noBoardSign->setVisible(false);
         boardView->prepareToClose();
@@ -463,6 +473,8 @@ void WorkspaceFrame::onUserSelectedBoard(const int boardId) {
     //
     routine->addStep([this, routine]() {
         // prepare to close `boardView`
+        saveTopLeftPosAndZoomRatioOfCurrentBoard();
+
         boardView->setVisible(true);
         noBoardSign->setVisible(false);
         boardView->prepareToClose();
@@ -546,6 +558,8 @@ void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
 
     routine->addStep([this, routine]() {
         // prepare to close `boardView`
+        saveTopLeftPosAndZoomRatioOfCurrentBoard();
+
         boardView->setVisible(true);
         noBoardSign->setVisible(false);
         boardView->prepareToClose();
@@ -603,6 +617,20 @@ void WorkspaceFrame::onUserReorderedBoards(const QVector<int> &boardIdsOrdering)
 
     Services::instance()->getAppData()->updateWorkspaceNodeProperties(
                 EventSource(this), workspaceId, update);
+}
+
+void WorkspaceFrame::saveTopLeftPosAndZoomRatioOfCurrentBoard() {
+    const int boardId = boardView->getBoardId();
+    if (boardId == -1)
+        return;
+
+    BoardNodePropertiesUpdate propertiesUpdate;
+    {
+        propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
+        propertiesUpdate.zoomRatio = boardView->getZoomRatio();
+    }
+    Services::instance()->getAppData()->updateBoardNodeProperties(
+            EventSource(this), boardId, propertiesUpdate);
 }
 
 //========

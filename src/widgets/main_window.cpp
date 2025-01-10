@@ -535,6 +535,7 @@ void MainWindow::onWorkspaceSelectedByUser(const int workspaceId) {
     auto *routine = new AsyncRoutine;
 
     routine->addStep([this, routine]() {
+        saveTopLeftPosAndZoomRatioOfCurrentBoard();
         workspaceFrame->prepareToClose();
 
         // wait until workspaceFrame->canClose() returns true
@@ -984,17 +985,17 @@ void MainWindow::onUserCloseWindow() {
 }
 
 void MainWindow::saveTopLeftPosAndZoomRatioOfCurrentBoard() {
-//    const int currentBoardId = boardView->getBoardId();
-//    if (currentBoardId == -1)
-//        return;
+    const int currentBoardId = workspaceFrame->getCurrentBoardId();
+    if (currentBoardId == -1)
+        return;
 
-//    BoardNodePropertiesUpdate propertiesUpdate;
-//    {
-//        propertiesUpdate.topLeftPos = boardView->getViewTopLeftPos();
-//        propertiesUpdate.zoomRatio = boardView->getZoomRatio();
-//    }
-//    Services::instance()->getAppData()->updateBoardNodeProperties(
-//            EventSource(this), currentBoardId, propertiesUpdate);
+    BoardNodePropertiesUpdate propertiesUpdate;
+    {
+        propertiesUpdate.topLeftPos = workspaceFrame->getBoardViewTopLeftPos();
+        propertiesUpdate.zoomRatio = workspaceFrame->getBoardViewZoomRatio();
+    }
+    Services::instance()->getAppData()->updateBoardNodeProperties(
+            EventSource(this), currentBoardId, propertiesUpdate);
 }
 
 void MainWindow::saveBoardsOrdering() {

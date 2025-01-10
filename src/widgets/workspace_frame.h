@@ -26,11 +26,18 @@ public:
             std::function<void (bool ok, bool highlightedCardIdChanged)> callback);
 
     void showButtonRightSidebar();
-
     void prepareToClose();
 
     //
     bool canClose() const;
+
+    //!
+    //! \return -1 if no board is open
+    //!
+    int getCurrentBoardId();
+
+    QPointF getBoardViewTopLeftPos() const; // in canvas coordinates
+    double getBoardViewZoomRatio() const;
 
 signals:
     void openRightSidebar();
@@ -57,6 +64,11 @@ private:
     void onUserSelectedBoard(const int boardId);
     void onUserToRemoveBoard(const int boardIdToRemove);
     void onUserReorderedBoards(const QVector<int> &boardIdsOrdering);
+
+    //!
+    //! save the data for the board currently shown in `boardView`
+    //!
+    void saveTopLeftPosAndZoomRatioOfCurrentBoard();
 };
 
 //========
