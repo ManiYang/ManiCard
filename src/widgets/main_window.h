@@ -72,7 +72,6 @@ private:
     void onShownForFirstTime();
     void onStartUp();
 
-    void onBoardSelectedByUser(const int boardId);
     void onWorkspaceSelectedByUser(const int workspaceId);
     void onUserToCreateNewWorkspace();
     void onUserRenamedWorkspace(const int workspaceId, const QString &newName);
@@ -87,7 +86,11 @@ private:
     ActionDebouncer *saveWindowSizeDebounced;
 
     void saveTopLeftPosAndZoomRatioOfCurrentBoard();
-    void saveBoardsOrdering(); // not used
+
+    //!
+    //! save the opened board in `workspaceFrame`
+    //!
+    void saveLastOpenedBoardOfCurrentWorkspace();
 
     //!
     //! save the ordering of workspaces in `workspacesList`

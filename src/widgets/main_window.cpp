@@ -524,6 +524,7 @@ void MainWindow::onWorkspaceSelectedByUser(const int workspaceId) {
 
     routine->addStep([this, routine]() {
         saveTopLeftPosAndZoomRatioOfCurrentBoard();
+        saveLastOpenedBoardOfCurrentWorkspace();
         workspaceFrame->prepareToClose();
 
         // wait until workspaceFrame->canClose() returns true
@@ -565,61 +566,6 @@ void MainWindow::onWorkspaceSelectedByUser(const int workspaceId) {
     }, this);
 
     routine->start();
-}
-
-void MainWindow::onBoardSelectedByUser(const int boardId) {
-//    auto *routine = new AsyncRoutine;
-//    routine->setName("MainWindow::onBoardSelectedByUser");
-
-//    routine->addStep([this, routine]() {
-//        // save current board's topLeftPos
-//        saveTopLeftPosAndZoomRatioOfCurrentBoard();
-//        routine->nextStep();
-//    }, this);
-
-//    routine->addStep([this, routine]() {
-//        boardView->prepareToClose();
-
-//        // wait until boardView->canClose() returns true
-//        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
-//            ->setPredicate([this]() {
-//                return boardView->canClose();
-//            })
-//            ->onPredicateReturnsTrue([routine]() {
-//                routine->nextStep();
-//            })
-//            ->onTimeOut([routine]() {
-//                qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
-//                routine->nextStep();
-//            })
-//            ->setAutoDelete()->start();
-//    }, this);
-
-//    routine->addStep([this, routine, boardId]() {
-//        // load `boardId`
-//        noBoardOpenSign->setVisible(false);
-//        boardView->setVisible(true);
-
-//        boardView->loadBoard(
-//                boardId,
-//                [=](bool loadOk, bool highlightedCardIdChanged) {
-//                    if (!loadOk) {
-//                        QMessageBox::warning(
-//                                this, " ", QString("Could not load board %1").arg(boardId));
-//                    }
-
-//                    if (highlightedCardIdChanged) {
-//                        // call AppData
-//                        constexpr int highlightedCardId = -1;
-//                        Services::instance()->getAppData()
-//                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
-//                    }
-
-//                    routine->nextStep();
-//                });
-//    }, this);
-
-    //    routine->start();
 }
 
 void MainWindow::onUserToCreateNewWorkspace() {
@@ -770,6 +716,7 @@ void MainWindow::onUserToRemoveWorkspace(const int workspaceIdToRemove) {
             return;
         }
 
+        saveLastOpenedBoardOfCurrentWorkspace();
         workspaceFrame->setVisible(true);
         noWorkspaceOpenSign->setVisible(false);
         workspaceFrame->prepareToClose();
@@ -979,10 +926,11 @@ void MainWindow::onUserCloseWindow() {
     }, this);
 
     routine->addStep([this, routine]() {
-        // save current board's topLeftPos
+        // save
         ContinuationContext context(routine);
 
         saveTopLeftPosAndZoomRatioOfCurrentBoard();
+        saveLastOpenedBoardOfCurrentWorkspace();
     }, this);
 
     routine->addStep([this, routine]() {
@@ -1046,19 +994,27 @@ void MainWindow::saveTopLeftPosAndZoomRatioOfCurrentBoard() {
         propertiesUpdate.zoomRatio = workspaceFrame->getBoardViewZoomRatio();
     }
     Services::instance()->getAppData()->updateBoardNodeProperties(
-            EventSource(this), currentBoardId, propertiesUpdate);
+                EventSource(this), currentBoardId, propertiesUpdate);
 }
 
-void MainWindow::saveBoardsOrdering() {
-//    BoardsListPropertiesUpdate propertiesUpdate;
-//    propertiesUpdate.boardsOrdering = boardsList->getBoardsOrder();
+void MainWindow::saveLastOpenedBoardOfCurrentWorkspace() {
+    const int workspaceId = workspaceFrame->getWorkspaceId();
+    if (workspaceId == -1)
+        return;
 
-//    Services::instance()->getAppData()
-    //            ->updateBoardsListProperties(EventSource(this), propertiesUpdate);
+    WorkspaceNodePropertiesUpdate update;
+    {
+        update.lastOpenedBoardId = workspaceFrame->getCurrentBoardId();
+    }
+    Services::instance()->getAppData()->updateWorkspaceNodeProperties(
+            EventSource(this), workspaceId, update);
 }
 
 void MainWindow::saveWorkspacesOrdering() {
-    // todo ....
+    const QVector<int> workspaceIds = workspacesList->getWorkspaceIds();
+
+
+
 
 
 }
