@@ -88,7 +88,8 @@ void BoardsDataAccess::getWorkspacesListProperties(
 
                 const auto result = queryResponse.getResult().value();
                 if (result.rowCount() == 0) {
-                    callback(false, {});
+                    // reply with default
+                    callback(true, WorkspacesListProperties {});
                     return;
                 }
 
@@ -477,6 +478,35 @@ void BoardsDataAccess::removeWorkspace(
     routine->start();
 
 
+}
+
+void BoardsDataAccess::updateWorkspacesListProperties(
+        const WorkspacesListPropertiesUpdate &propertiesUpdate,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MERGE (wl:WorkspacesList)
+                    SET wl += $propertiesMap
+                    RETURN wl
+                )!",
+                QJsonObject {{"propertiesMap", propertiesUpdate.toJson()}}
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                const bool ok = !result.isEmpty();
+                callback(ok);
+            },
+            callbackContext
+    );
 }
 
 void BoardsDataAccess::updateBoardsListProperties(

@@ -820,7 +820,7 @@ void CardsDataAccess::updateUserRelationshipTypes(
                     RETURN u
                 )!",
                 QJsonObject {
-                        {"relTypesList", toJsonArray(updatedRelTypes)},
+                    {"relTypesList", toJsonArray(updatedRelTypes)},
                 }
             },
             // callback

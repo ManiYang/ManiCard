@@ -143,6 +143,9 @@ public:
     void removeWorkspace(
             const EventSource &eventSrc, const int workspaceId, const QSet<int> &boardIds);
 
+    void updateWorkspacesListProperties(
+            const EventSource &eventSrc, const WorkspacesListPropertiesUpdate &propertiesUpdate);
+
     void updateBoardsListProperties(
             const EventSource &eventSrc, const BoardsListPropertiesUpdate &propertiesUpdate);
 

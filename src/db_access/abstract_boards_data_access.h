@@ -77,6 +77,13 @@ public:
             const int workspaceId,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 
+    //!
+    //! This operation is atomic.
+    //!
+    virtual void updateWorkspacesListProperties(
+            const WorkspacesListPropertiesUpdate &propertiesUpdate,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
     // ==== boards list ====
 
     //!

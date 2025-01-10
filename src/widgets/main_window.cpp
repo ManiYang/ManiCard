@@ -254,8 +254,8 @@ void MainWindow::setUpConnections() {
     });
 
     connect(workspacesList, &WorkspacesList::workspacesOrderChanged,
-            this, [this](QVector<int> /*boardIds*/) {
-//        saveWorkspacesOrdering();
+            this, [this](QVector<int> /*workspaceIds*/) {
+        saveWorkspacesOrdering();
     });
 
     // boardView
@@ -1013,10 +1013,11 @@ void MainWindow::saveLastOpenedBoardOfCurrentWorkspace() {
 void MainWindow::saveWorkspacesOrdering() {
     const QVector<int> workspaceIds = workspacesList->getWorkspaceIds();
 
-
-
-
-
+    WorkspacesListPropertiesUpdate update;
+    {
+        update.workspacesOrdering = workspaceIds;
+    }
+    Services::instance()->getAppData()->updateWorkspacesListProperties(EventSource(this), update);
 }
 
 void MainWindow::checkIsScreenChanged() {

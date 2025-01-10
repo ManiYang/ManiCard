@@ -18,13 +18,15 @@ public:
 
     std::pair<bool, std::optional<int>> readLastOpenedBoardIdOfWorkspace(const int workspaceId);
     std::pair<bool, std::optional<int>> readLastOpenedBoardId(); // not used...
+    std::pair<bool, std::optional<int>> readLastOpenedWorkspaceId();
     std::pair<bool, std::optional<QPointF>> readTopLeftPosOfBoard(const int boardId);
     std::pair<bool, std::optional<QSize>> readMainWindowSize();
 
     // ==== write operations ====
 
     bool writeLastOpenedBoardIdOfWorkspace(const int workspaceId, const int lastOpenedBoardId);
-    bool writeLastOpenedBoardId(const int lastOpenedBoardId);
+    bool writeLastOpenedBoardId(const int lastOpenedBoardId); // not used ...
+    bool writeLastOpenedWorkspaceId(const int lastOpenedWorkspaceId);
     bool writeTopLeftPosOfBoard(const int boardId, const QPointF &topLeftPos);
     bool removeBoard(const int boardId);
     bool writeMainWindowSize(const QSize &size);

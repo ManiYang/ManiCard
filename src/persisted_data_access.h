@@ -144,6 +144,8 @@ public:
     //!
     void removeWorkspace(const int workspaceId, const QSet<int> &boardIds);
 
+    void updateWorkspacesListProperties(const WorkspacesListPropertiesUpdate &propertiesUpdate);
+
     void updateBoardsListProperties(const BoardsListPropertiesUpdate &propertiesUpdate);
 
     //!

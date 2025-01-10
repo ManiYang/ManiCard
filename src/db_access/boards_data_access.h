@@ -47,6 +47,10 @@ public:
             const int workspaceId,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
+    void updateWorkspacesListProperties(
+            const WorkspacesListPropertiesUpdate &propertiesUpdate,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
     void updateBoardsListProperties(
             const BoardsListPropertiesUpdate &propertiesUpdate,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;

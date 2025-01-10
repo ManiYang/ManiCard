@@ -14,6 +14,7 @@
  *     "size": [1000, 800]
  *   },
  *   "workspaces": {
+ *     "lastOpenedWorkspaceId": 10,
  *     "0": {
  *       "lastOpenedBoardId": 12
  *     },
@@ -41,6 +42,7 @@ constexpr char sectionBoards[] = "boards";
 
 constexpr char keySize[] = "size";
 constexpr char keyLastOpenedBoardId[] = "lastOpenedBoardId";
+constexpr char keyLastOpenedWorkspaceId[] = "lastOpenedWorkspaceId";
 constexpr char keyTopLeftPos[] = "topLeftPos";
 
 LocalSettingsFile::LocalSettingsFile(const QString &appLocalDataDir)
@@ -75,6 +77,21 @@ std::pair<bool, std::optional<int> > LocalSettingsFile::readLastOpenedBoardId() 
     if (!jsonValueIsInt(v)) {
         qWarning().noquote()
                 << QString("value of %1 is not an integer").arg(keyLastOpenedBoardId);
+        return {false, std::optional<int>()};
+    }
+
+    return {true, v.toInt()};
+}
+
+std::pair<bool, std::optional<int> > LocalSettingsFile::readLastOpenedWorkspaceId() {
+    const QJsonObject obj = read();
+    const QJsonValue v = JsonReader(obj)[sectionWorkspaces][keyLastOpenedWorkspaceId].get();
+    if (v.isUndefined())
+        return {true, std::optional<int>()};
+
+    if (!jsonValueIsInt(v)) {
+        qWarning().noquote()
+                << QString("value of %1 is not an integer").arg(keyLastOpenedWorkspaceId);
         return {false, std::optional<int>()};
     }
 
@@ -144,6 +161,21 @@ bool LocalSettingsFile::writeLastOpenedBoardId(const int lastOpenedBoardId) {
     //
     const bool ok = write(obj);
     return ok;
+}
+
+bool LocalSettingsFile::writeLastOpenedWorkspaceId(const int lastOpenedWorkspaceId) {
+    QJsonObject obj = read();
+
+    // set obj[sectionWorkspaces][keyLastOpenedWorkspaceId] = lastOpenedWorkspaceId
+    QJsonObject workspacesObj = obj[sectionWorkspaces].toObject();
+    workspacesObj[keyLastOpenedWorkspaceId] = lastOpenedWorkspaceId;
+
+    obj[sectionWorkspaces] = workspacesObj;
+
+    //
+    const bool ok = write(obj);
+    return ok;
+
 }
 
 bool LocalSettingsFile::writeTopLeftPosOfBoard(const int boardId, const QPointF &topLeftPos) {

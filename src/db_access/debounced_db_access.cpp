@@ -460,6 +460,29 @@ void DebouncedDbAccess::removeWorkspace(const int workspaceId) {
     );
 }
 
+void DebouncedDbAccess::updateWorkspacesListProperties(
+        const WorkspacesListPropertiesUpdate &propertiesUpdate) {
+    closeDebounceSession();
+
+    boardsDataAccess->updateWorkspacesListProperties(
+            propertiesUpdate,
+            // callback
+            [this, propertiesUpdate](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "updateWorkspacesListProperties";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"propertiesUpdate", propertiesUpdate.toJson()}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("workspaces-list properties");
+                }
+            },
+            this
+    );
+}
+
 void DebouncedDbAccess::updateBoardsListProperties(
         const BoardsListPropertiesUpdate &propertiesUpdate) {
     closeDebounceSession();

@@ -502,6 +502,26 @@ void QueuedDbAccess::removeWorkspace(
     addToQueue(func);
 }
 
+void QueuedDbAccess::updateWorkspacesListProperties(
+        const WorkspacesListPropertiesUpdate &propertiesUpdate,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(propertiesUpdate) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->updateWorkspacesListProperties(args...); // method
+            },
+            propertiesUpdate, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
 void QueuedDbAccess::updateBoardsListProperties(
         const BoardsListPropertiesUpdate &propertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {

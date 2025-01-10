@@ -184,6 +184,14 @@ void AppData::removeWorkspace(
     // 2. update all variables and emit "updated" signals
 }
 
+void AppData::updateWorkspacesListProperties(
+        const EventSource &/*eventSrc*/, const WorkspacesListPropertiesUpdate &propertiesUpdate) {
+    // 1. persist
+    persistedDataAccess->updateWorkspacesListProperties(propertiesUpdate);
+
+    // 2. update all variables and emit "updated" signals
+}
+
 void AppData::updateBoardsListProperties(
         const EventSource &/*eventSrc*/, const BoardsListPropertiesUpdate &propertiesUpdate) {
     // 1. persist

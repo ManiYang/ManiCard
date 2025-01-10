@@ -294,13 +294,53 @@ void PersistedDataAccess::getWorkspacesListProperties(
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
-    debouncedDbAccess->getWorkspacesListProperties(
-            // callback
-            [callback](bool ok, WorkspacesListProperties properties) {
-                callback(ok, properties);
-            },
-            callbackContext
-    );
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        WorkspacesListProperties properties;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // get workspaces ordering from DB
+        debouncedDbAccess->getWorkspacesListProperties(
+                // callback
+                [routine](bool ok, WorkspacesListProperties properties) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                    else
+                        routine->properties = properties;
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // get last-opened workspace from local settings file
+        ContinuationContext context(routine);
+
+        const auto [ok, workspaceIdOpt] = localSettingsFile->readLastOpenedWorkspaceId();
+        if (!ok) {
+            context.setErrorFlag();
+        }
+        else {
+            if (workspaceIdOpt.has_value())
+                routine->properties.lastOpenedWorkspace = workspaceIdOpt.value();
+        }
+    }, this);
+
+    routine->addStep([routine, callback]() {
+        // (final step)
+        ContinuationContext context(routine);
+        if (routine->errorFlag)
+            callback(false, {});
+        else
+            callback(true, routine->properties);
+    }, callbackContext);
+
+    routine->start();
 }
 
 void PersistedDataAccess::getBoardIdsAndNames(
@@ -696,6 +736,33 @@ void PersistedDataAccess::removeWorkspace(const int workspaceId, const QSet<int>
 
     // 2. write DB
     debouncedDbAccess->removeWorkspace(workspaceId);
+}
+
+void PersistedDataAccess::updateWorkspacesListProperties(
+        const WorkspacesListPropertiesUpdate &propertiesUpdate) {
+    // write DB for property `workspacesOrdering`
+    WorkspacesListPropertiesUpdate propertiesUpdateForDb;
+    propertiesUpdateForDb.workspacesOrdering = propertiesUpdate.workspacesOrdering;
+
+    if (!propertiesUpdateForDb.toJson().isEmpty())
+        debouncedDbAccess->updateWorkspacesListProperties(propertiesUpdateForDb);
+
+    // write settings file for `lastOpenedWorkspace`
+    if (propertiesUpdate.lastOpenedWorkspace.has_value()) {
+        const bool ok = localSettingsFile->writeLastOpenedWorkspaceId(
+                propertiesUpdate.lastOpenedWorkspace.value());
+
+        if (!ok) {
+            const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+            const QString updateTitle = "updateWorkspacesListProperties";
+            const QString updateDetails = printJson(QJsonObject {
+                {"lastOpenedWorkspace", propertiesUpdate.lastOpenedWorkspace.value()}
+            }, false);
+            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+            showMsgOnFailedToSaveToFile("last-opened workspace");
+        }
+    }
 }
 
 void PersistedDataAccess::updateBoardsListProperties(
