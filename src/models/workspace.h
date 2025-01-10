@@ -6,6 +6,8 @@
 #include <QString>
 #include <QVector>
 
+struct WorkspaceNodePropertiesUpdate;
+
 struct Workspace {
     // properties of `Workspace` node
     QString name;
@@ -17,12 +19,16 @@ struct Workspace {
 
     //
     void updateNodeProperties(const QJsonObject &obj);
+    void updateNodeProperties(const WorkspaceNodePropertiesUpdate &update);
 };
 
 
-//struct WorkspaceNodePropertiesUpdate {
-//    std::optional<QString> name;
-//    std::optional<QVector<int>> boardsOrdering;
-//};
+struct WorkspaceNodePropertiesUpdate {
+    std::optional<QString> name;
+    std::optional<QVector<int>> boardsOrdering;
+    std::optional<int> lastOpenedBoardId;
+
+    QJsonObject toJson() const;
+};
 
 #endif // WORKSPACE_H

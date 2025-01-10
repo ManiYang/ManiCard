@@ -21,10 +21,25 @@ CustomTabBar::CustomTabBar(QWidget *parent)
 
     //
     connect(tabBar, &QTabBar::currentChanged, this, [this](int index) {
-        if (handleSignalsAsUserOperation)  {
+        // The signal can be due to (1) user clicked on a tab, (2) user moved a tab, etc.
+        if (handleSignalsAsUserOperation) {
             const int itemId = getItemId(index);
-            if (itemId != -1)
-                emit tabSelectedByUser(itemId);
+            if (itemId != currentItemId) { // not due to a tab being moved
+                currentItemId = itemId;
+                if (itemId != -1)
+                    emit tabSelectedByUser(itemId);
+            }
+        }
+    });
+
+    connect(tabBar, &QTabBar::tabMoved, this, [this](int /*from*/, int /*to*/) {
+        if (handleSignalsAsUserOperation)  {
+            QVector<int> itemIds;
+            itemIds.reserve(tabBar->count());
+            for (int i = 0; i < tabBar->count(); ++i)
+                itemIds << getItemId(i);
+
+            emit tabsReorderedByUser(itemIds);
         }
     });
 
@@ -43,6 +58,7 @@ void CustomTabBar::addTab(const int itemId, const QString &name) {
     const int tabIndex = tabBar->addTab(name);
     tabBar->setTabData(tabIndex, QVariant(itemId));
     tabBar->setCurrentIndex(tabIndex);
+    currentItemId = itemId;
 
     handleSignalsAsUserOperation = true;
 }
@@ -51,8 +67,10 @@ void CustomTabBar::setCurrentItemId(const int itemId) {
     handleSignalsAsUserOperation = false;
 
     const int index = getTabIndexByItemId(itemId);
-    if (index != -1)
+    if (index != -1) {
         tabBar->setCurrentIndex(index);
+        currentItemId = itemId;
+    }
 
     handleSignalsAsUserOperation = true;
 }
@@ -71,8 +89,10 @@ void CustomTabBar::removeItem(const int itemId) {
     handleSignalsAsUserOperation = false;
 
     const int index = getTabIndexByItemId(itemId);
-    if (index != -1)
+    if (index != -1) {
         tabBar->removeTab(index);
+        currentItemId = getItemId(tabBar->currentIndex());
+    }
 
     handleSignalsAsUserOperation = true;
 }
@@ -82,6 +102,7 @@ void CustomTabBar::removeAllTabs() {
 
     while (tabBar->count() > 0)
         tabBar->removeTab(0);
+    currentItemId = -1;
 
     handleSignalsAsUserOperation = true;
 }

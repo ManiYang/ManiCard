@@ -54,8 +54,11 @@ signals:
     //!
     void contextMenuRequested(int itemIdUnderMouseCursor, QPoint globalPos);
 
+    void tabsReorderedByUser(const QVector<int> &itemIdsOrdering);
+
 private:
     QTabBar *tabBar;
+    int currentItemId {-1};
     bool handleSignalsAsUserOperation {true};
 
     // tools

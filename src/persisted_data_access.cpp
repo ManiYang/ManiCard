@@ -630,6 +630,39 @@ void PersistedDataAccess::updateUserCardLabels(const QStringList &updatedCardLab
     debouncedDbAccess->updateUserCardLabels(updatedCardLabels);
 }
 
+void PersistedDataAccess::updateWorkspaceNodeProperties(
+        const int workspaceId, const WorkspaceNodePropertiesUpdate &update) {
+    // 1. update cache synchronously
+    if (cache.allWorkspaces.has_value()) {
+        cache.allWorkspaces.value()[workspaceId].updateNodeProperties(update);
+    }
+
+    // 2. write DB (for properties other than `lastOpenedBoardId`)
+    WorkspaceNodePropertiesUpdate updateForDb = update;
+    updateForDb.lastOpenedBoardId = std::nullopt;
+
+    if (!updateForDb.toJson().isEmpty())
+        debouncedDbAccess->updateWorkspaceNodeProperties(workspaceId, updateForDb);
+
+    // 3. write settings file (for property `lastOpenedBoardId`)
+    if (update.lastOpenedBoardId.has_value()) {
+        const bool ok = localSettingsFile->writeLastOpenedBoardIdOfWorkspace(
+                workspaceId, update.lastOpenedBoardId.value());
+        if (!ok) {
+            const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+            const QString updateTitle = "updateWorkspaceNodeProperties";
+
+            const QString updateDetails = printJson(QJsonObject {
+                {"workspaceId", workspaceId},
+                {"lastOpenedBoardId", update.lastOpenedBoardId.value()}
+            }, false);
+            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+            showMsgOnFailedToSaveToFile("last-opened board of workspace");
+        }
+    }
+}
+
 void PersistedDataAccess::updateBoardsListProperties(
         const BoardsListPropertiesUpdate &propertiesUpdate) {
     BoardsListPropertiesUpdate propertiesUpdateForDb = propertiesUpdate;

@@ -158,6 +158,9 @@ public:
     // If a write operation fails, a record of unsaved update is added and a warning message box
     // is shown.
 
+    void updateWorkspaceNodeProperties(
+            const int workspaceId, const WorkspaceNodePropertiesUpdate &update);
+
     void updateBoardsListProperties(const BoardsListPropertiesUpdate &propertiesUpdate);
 
     void createNewBoardWithId(const int boardId, const Board &board, const int workspaceId);

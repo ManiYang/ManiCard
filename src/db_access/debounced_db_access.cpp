@@ -391,6 +391,30 @@ void DebouncedDbAccess::requestNewBoardId(
     boardsDataAccess->requestNewBoardId(callback, callbackContext);
 }
 
+void DebouncedDbAccess::updateWorkspaceNodeProperties(
+        const int workspaceId, const WorkspaceNodePropertiesUpdate &update) {
+    closeDebounceSession();
+
+    boardsDataAccess->updateWorkspaceNodeProperties(
+            workspaceId, update,
+            // callback
+            [this, workspaceId, update](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "updateWorkspaceNodeProperties";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"workspaceId", workspaceId},
+                        {"update", update.toJson()}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("workspace properties");
+                }
+            },
+            this
+    );
+}
+
 void DebouncedDbAccess::updateBoardsListProperties(
         const BoardsListPropertiesUpdate &propertiesUpdate) {
     closeDebounceSession();

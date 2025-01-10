@@ -129,6 +129,10 @@ public:
     void updateUserCardLabels(
             const EventSource &eventSrc, const QStringList &updatedCardLabels);
 
+    void updateWorkspaceNodeProperties(
+            const EventSource &eventSrc,
+            const int workspaceId, const WorkspaceNodePropertiesUpdate &update);
+
     void updateBoardsListProperties(
             const EventSource &eventSrc, const BoardsListPropertiesUpdate &propertiesUpdate);
 

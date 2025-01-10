@@ -49,6 +49,15 @@ class AbstractBoardsDataAccess : public AbstractBoardsDataAccessReadOnly
 public:
     explicit AbstractBoardsDataAccess();
 
+    // ==== workspace ====
+
+    //!
+    //! The workspace must exist. This operation is atomic.
+    //!
+    virtual void updateWorkspaceNodeProperties(
+            const int workspaceId, const WorkspaceNodePropertiesUpdate &update,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
     // ==== boards list ====
 
     //!

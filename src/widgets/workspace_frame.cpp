@@ -300,6 +300,11 @@ void WorkspaceFrame::setUpConnections() {
     connect(boardsTabBar, &CustomTabBar::tabSelectedByUser, this, [this](const int boardId) {
         onUserSelectedBoard(boardId);
     });
+
+    connect(boardsTabBar, &CustomTabBar::tabsReorderedByUser,
+            this, [this](const QVector<int> &boardIdsOrdering) {
+        onUserReorderedBoards(boardIdsOrdering);
+    });
 }
 
 void WorkspaceFrame::setUpBoardTabContextMenu() {
@@ -590,6 +595,14 @@ void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
     }, this);
 
     routine->start();
+}
+
+void WorkspaceFrame::onUserReorderedBoards(const QVector<int> &boardIdsOrdering) {
+    WorkspaceNodePropertiesUpdate update;
+    update.boardsOrdering = boardIdsOrdering;
+
+    Services::instance()->getAppData()->updateWorkspaceNodeProperties(
+                EventSource(this), workspaceId, update);
 }
 
 //========

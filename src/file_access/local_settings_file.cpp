@@ -22,7 +22,7 @@
  *     }
  *   },
  *   "boards": {
- *     "lastOpenedBoardId": 0,
+ *     "lastOpenedBoardId": 0,  // not used......
  *     "0": {
  *       "topLeftPos": [100, -50]
  *     },

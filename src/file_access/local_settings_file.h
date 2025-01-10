@@ -17,7 +17,7 @@ public:
     // It's not an error if the value is not found. Return (ok?, result).
 
     std::pair<bool, std::optional<int>> readLastOpenedBoardIdOfWorkspace(const int workspaceId);
-    std::pair<bool, std::optional<int>> readLastOpenedBoardId();
+    std::pair<bool, std::optional<int>> readLastOpenedBoardId(); // not used...
     std::pair<bool, std::optional<QPointF>> readTopLeftPosOfBoard(const int boardId);
     std::pair<bool, std::optional<QSize>> readMainWindowSize();
 

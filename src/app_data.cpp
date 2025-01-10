@@ -159,6 +159,15 @@ void AppData::updateUserCardLabels(
     // 2. update all variables and emit "updated" signals
 }
 
+void AppData::updateWorkspaceNodeProperties(
+        const EventSource &/*eventSrc*/,
+        const int workspaceId, const WorkspaceNodePropertiesUpdate &update) {
+    // 1. persist
+    persistedDataAccess->updateWorkspaceNodeProperties(workspaceId, update);
+
+    // 2. update all variables and emit "updated" signals
+}
+
 void AppData::updateBoardsListProperties(
         const EventSource &/*eventSrc*/, const BoardsListPropertiesUpdate &propertiesUpdate) {
     // 1. persist

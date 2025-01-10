@@ -291,6 +291,44 @@ void BoardsDataAccess::getBoardData(
     );
 }
 
+void BoardsDataAccess::updateWorkspaceNodeProperties(
+        const int workspaceId, const WorkspaceNodePropertiesUpdate &update,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (ws:Workspace {id: $workspaceId})
+                    SET ws += $propertiesMap
+                    RETURN ws.id
+                )!",
+                QJsonObject {
+                    {"workspaceId", workspaceId},
+                    {"propertiesMap", update.toJson()}
+                }
+            },
+            // callback
+            [callback, workspaceId](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto queryResult = queryResponse.getResult().value();
+                if (queryResult.isEmpty()) {
+                    qWarning().noquote() << QString("workspace %1 not found").arg(workspaceId);
+                    callback(false);
+                    return;
+                }
+
+                qInfo().noquote() << QString("updated properties of workspace %1").arg(workspaceId);
+                callback(true);
+            },
+            callbackContext
+    );
+}
+
 void BoardsDataAccess::updateBoardsListProperties(
         const BoardsListPropertiesUpdate &propertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {

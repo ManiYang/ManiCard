@@ -133,6 +133,9 @@ public:
 
     void updateUserCardLabels(const QStringList &updatedCardLabels);
 
+    void updateWorkspaceNodeProperties(
+            const int workspaceId, const WorkspaceNodePropertiesUpdate &update);
+
     void updateBoardsListProperties(const BoardsListPropertiesUpdate &propertiesUpdate);
 
     //!
