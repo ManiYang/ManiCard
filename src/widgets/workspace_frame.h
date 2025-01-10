@@ -4,6 +4,7 @@
 #include <QFrame>
 #include <QLabel>
 #include <QToolButton>
+#include "widgets/common_types.h"
 #include "widgets/components/simple_toolbar.h"
 
 class BoardView;
@@ -28,8 +29,8 @@ public:
             std::function<void (bool ok, bool highlightedCardIdChanged)> callback);
 
     void changeWorkspaceName(const QString newName);
-
     void showButtonRightSidebar();
+    void applyZoomAction(const ZoomAction zoomAction);
 
     void prepareToClose();
 

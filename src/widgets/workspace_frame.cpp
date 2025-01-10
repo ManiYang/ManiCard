@@ -212,6 +212,11 @@ void WorkspaceFrame::showButtonRightSidebar() {
     workspaceToolBar->showButtonOpenRightSidebar();
 }
 
+void WorkspaceFrame::applyZoomAction(const ZoomAction zoomAction) {
+    if (boardView->isVisible())
+        boardView->applyZoomAction(zoomAction);
+}
+
 void WorkspaceFrame::prepareToClose() {
     boardView->prepareToClose();
 }

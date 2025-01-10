@@ -121,6 +121,7 @@ HEADERS += \
     widgets/board_view.h \
     widgets/board_view_toolbar.h \
     widgets/card_properties_view.h \
+    widgets/common_types.h \
     widgets/components/board_box_item.h \
     widgets/components/custom_graphics_text_item.h \
     widgets/components/custom_list_widget.h \

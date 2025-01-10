@@ -263,10 +263,6 @@ void BoardView::prepareToClose() {
     // do nothing
 }
 
-//void BoardView::showButtonRightSidebar() {
-//    toolBar->showButtonOpenRightSidebar();
-//}
-
 void BoardView::applyZoomAction(const ZoomAction zoomAction) {
     const auto anchorScenePos = getViewCenterInScene();
     doApplyZoomAction(zoomAction, anchorScenePos);

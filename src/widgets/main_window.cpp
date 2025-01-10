@@ -245,24 +245,24 @@ void MainWindow::setUpMainMenu() {
         auto *submenu = mainMenu->addMenu("View");
         {
             auto *action = submenu->addAction("Zoom In", this, [this]() {
-//                boardView->applyZoomAction(BoardView::ZoomAction::ZoomIn);
-                // todo ...
+                if (workspaceFrame->isVisible())
+                    workspaceFrame->applyZoomAction(ZoomAction::ZoomIn);
             });
             action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Plus));
             this->addAction(action); // without this, the shortcut won't work
         }
         {
             auto *action = submenu->addAction("Zoom Out", this, [this]() {
-//                boardView->applyZoomAction(BoardView::ZoomAction::ZoomOut);
-                // todo ...
+                if (workspaceFrame->isVisible())
+                    workspaceFrame->applyZoomAction(ZoomAction::ZoomOut);
             });
             action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Minus));
             this->addAction(action); // without this, the shortcut won't work
         }
         {
             auto *action = submenu->addAction("Reset Zoom", this, [this]() {
-//                boardView->applyZoomAction(BoardView::ZoomAction::ResetZoom);
-                // todo ...
+                if (workspaceFrame->isVisible())
+                    workspaceFrame->applyZoomAction(ZoomAction::ResetZoom);
             });
             action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_0));
             this->addAction(action); // without this, the shortcut won't work
