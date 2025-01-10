@@ -449,6 +449,7 @@ void MainWindow::onStartUp() {
 //    }, this);
 
     routine->addStep([this, routine]() {
+        ContinuationContext context(routine);
         // populate `boardsList`
 //        boardsList->resetBoards(
 //                routine->boardsIdToName, routine->boardsListProperties.boardsOrdering);
@@ -460,47 +461,49 @@ void MainWindow::onStartUp() {
 
         workspacesList->resetWorkspaces(
                 workspacesIdToName, routine->workspacesListProperties.workspacesOrdering);
+    }, this);
 
-        // load last-opened board
-//        const int lastOpenedBoardId = routine->boardsListProperties.lastOpenedBoard; // can be -1
-//        if (routine->boardsIdToName.contains(lastOpenedBoardId)) {
-//            boardView->setVisible(true); // (this must be before calling boardView->loadBoard())
-//            noBoardOpenSign->setVisible(false);
+    routine->addStep([this, routine]() {
+        // load last-opened workspace
+        const int lastOpenedWorkspaceId
+                = routine->workspacesListProperties.lastOpenedWorkspace; // can be -1
 
-//            boardView->loadBoard(
-//                    lastOpenedBoardId,
-//                    // callback
-//                    [this, routine, lastOpenedBoardId](bool loadOk, bool highlightedCardIdChanged) {
-//                        ContinuationContext context(routine);
+        if (routine->workspaces.contains(lastOpenedWorkspaceId)) {
+            workspaceFrame->setVisible(true);
+            noWorkspaceOpenSign->setVisible(false);
 
-//                        if (loadOk) {
-//                            boardsList->setSelectedBoardId(lastOpenedBoardId);
-//                        }
-//                        else {
-//                            routine->errorMsg
-//                                    = QString("Could not load board %1").arg(lastOpenedBoardId);
-//                            context.setErrorFlag();
-//                        }
+            workspaceFrame->loadWorkspace(
+                    lastOpenedWorkspaceId,
+                    // callback
+                    [this, routine, lastOpenedWorkspaceId](bool loadOk, bool highlightedCardIdChanged) {
+                        ContinuationContext context(routine);
 
-//                        if (highlightedCardIdChanged) {
-//                            // call AppData
-//                            constexpr int highlightedCardId = -1;
-//                            Services::instance()->getAppData()
-//                                    ->setHighlightedCardId(EventSource(this), highlightedCardId);
-//                        }
-//                    }
-//            );
-//        }
-//        else {
-//            if (lastOpenedBoardId != -1) {
-//                qWarning().noquote()
-//                        << QString("last-opened board (ID=%1) does not exist")
-//                           .arg(lastOpenedBoardId);
-//            }
-//            routine->nextStep();
-//        }
-        routine->nextStep();
+                        if (loadOk) {
+                            workspacesList->setSelectedWorkspaceId(lastOpenedWorkspaceId);
+                        }
+                        else {
+                            routine->errorMsg
+                                    = QString("Could not load workspace %1").arg(lastOpenedWorkspaceId);
+                            context.setErrorFlag();
+                        }
 
+                        if (highlightedCardIdChanged) {
+                            // call AppData
+                            constexpr int highlightedCardId = -1;
+                            Services::instance()->getAppData()
+                                    ->setHighlightedCardId(EventSource(this), highlightedCardId);
+                        }
+                    }
+            );
+        }
+        else {
+            if (lastOpenedWorkspaceId != -1) {
+                qWarning().noquote()
+                        << QString("last-opened workspace (ID=%1) does not exist")
+                           .arg(lastOpenedWorkspaceId);
+            }
+            routine->nextStep();
+        }
     }, this);
 
     routine->addStep([this, routine]() {
@@ -931,6 +934,7 @@ void MainWindow::onUserCloseWindow() {
 
         saveTopLeftPosAndZoomRatioOfCurrentBoard();
         saveLastOpenedBoardOfCurrentWorkspace();
+        saveLastOpenedWorkspace();
     }, this);
 
     routine->addStep([this, routine]() {
@@ -1016,6 +1020,14 @@ void MainWindow::saveWorkspacesOrdering() {
     WorkspacesListPropertiesUpdate update;
     {
         update.workspacesOrdering = workspaceIds;
+    }
+    Services::instance()->getAppData()->updateWorkspacesListProperties(EventSource(this), update);
+}
+
+void MainWindow::saveLastOpenedWorkspace() {
+    WorkspacesListPropertiesUpdate update;
+    {
+        update.lastOpenedWorkspace = workspaceFrame->getWorkspaceId();
     }
     Services::instance()->getAppData()->updateWorkspacesListProperties(EventSource(this), update);
 }

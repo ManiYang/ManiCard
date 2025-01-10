@@ -97,6 +97,8 @@ private:
     //!
     void saveWorkspacesOrdering();
 
+    void saveLastOpenedWorkspace();
+
     void checkIsScreenChanged();
 };
 
