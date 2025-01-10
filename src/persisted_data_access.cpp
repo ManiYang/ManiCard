@@ -779,8 +779,9 @@ void PersistedDataAccess::removeBoard(const int boardId) {
         }
     }
 
-    // 2. write DB
+    // 2. write DB & files
     debouncedDbAccess->removeBoard(boardId);
+    localSettingsFile->removeBoard(boardId);
 }
 
 void PersistedDataAccess::updateNodeRectProperties(
