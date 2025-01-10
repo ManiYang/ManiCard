@@ -442,6 +442,27 @@ void QueuedDbAccess::getBoardData(
     addToQueue(func);
 }
 
+void QueuedDbAccess::createNewWorkspaceWithId(
+        const int workspaceId, const Workspace &workspace,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    Q_ASSERT(workspace.boardIds.isEmpty()); // new workspace should have no board
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(workspaceId), decltype(workspace) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->createNewWorkspaceWithId(args...); // method
+            },
+            workspaceId, workspace, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
 void QueuedDbAccess::updateWorkspaceNodeProperties(
         const int workspaceId, const WorkspaceNodePropertiesUpdate &update,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
@@ -503,9 +524,10 @@ void QueuedDbAccess::requestNewBoardId(
 }
 
 void QueuedDbAccess::createNewBoardWithId(
-        const int boardId, const Board &board, const int workspaceId, std::function<void (bool)> callback,
-        QPointer<QObject> callbackContext) {
+        const int boardId, const Board &board, const int workspaceId,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
+    Q_ASSERT(board.cardIdToNodeRectData.isEmpty()); // new board should have no NodeRect
 
     auto func = createTask<
                     false // is readonly?

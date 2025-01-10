@@ -45,6 +45,11 @@ public:
     //!
     int getItemIdByTabIndex(const int tabIndex) const;
 
+    //!
+    //! \return item IDs in the tab order
+    //!
+    QVector<int> getAllItemIds() const;
+
 signals:
     void tabSelectedByUser(const int itemId);
 

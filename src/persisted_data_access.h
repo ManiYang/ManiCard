@@ -133,6 +133,8 @@ public:
 
     void updateUserCardLabels(const QStringList &updatedCardLabels);
 
+    void createNewWorkspaceWithId(const int workspaceId, const Workspace &workspace);
+
     void updateWorkspaceNodeProperties(
             const int workspaceId, const WorkspaceNodePropertiesUpdate &update);
 

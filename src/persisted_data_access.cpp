@@ -630,6 +630,17 @@ void PersistedDataAccess::updateUserCardLabels(const QStringList &updatedCardLab
     debouncedDbAccess->updateUserCardLabels(updatedCardLabels);
 }
 
+void PersistedDataAccess::createNewWorkspaceWithId(const int workspaceId, const Workspace &workspace) {
+    Q_ASSERT(workspace.boardIds.isEmpty()); // new workspace should have no board
+
+    // 1. update cache synchronously
+    if (cache.allWorkspaces.has_value())
+        cache.allWorkspaces.value().insert(workspaceId, workspace);
+
+    // 2. write DB
+    debouncedDbAccess->createNewWorkspaceWithId(workspaceId, workspace);
+}
+
 void PersistedDataAccess::updateWorkspaceNodeProperties(
         const int workspaceId, const WorkspaceNodePropertiesUpdate &update) {
     // 1. update cache synchronously

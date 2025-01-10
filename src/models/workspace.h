@@ -18,6 +18,8 @@ struct Workspace {
     QSet<int> boardIds;
 
     //
+    QJsonObject getNodePropertiesJson() const;
+
     void updateNodeProperties(const QJsonObject &obj);
     void updateNodeProperties(const WorkspaceNodePropertiesUpdate &update);
 };

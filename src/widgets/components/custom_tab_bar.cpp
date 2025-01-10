@@ -132,6 +132,14 @@ int CustomTabBar::getItemIdByTabIndex(const int tabIndex) const {
     return getItemId(tabIndex);
 }
 
+QVector<int> CustomTabBar::getAllItemIds() const {
+    QVector<int> itemIds;
+    itemIds.reserve(tabBar->count());
+    for (int i = 0; i < tabBar->count(); ++i)
+        itemIds << getItemId(i);
+    return itemIds;
+}
+
 int CustomTabBar::getItemId(const int tabIndex) const {
     if (tabIndex < 0 || tabIndex >= tabBar->count())
         return -1;

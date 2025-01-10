@@ -25,11 +25,16 @@ public:
             const int workspaceId,
             std::function<void (bool ok, bool highlightedCardIdChanged)> callback);
 
+    void changeWorkspaceName(const QString newName);
+
     void showButtonRightSidebar();
+
     void prepareToClose();
 
     //
     bool canClose() const;
+
+    int getWorkspaceId() const;
 
     //!
     //! \return -1 if no board is open
@@ -37,6 +42,7 @@ public:
     int getCurrentBoardId();
 
     QPointF getBoardViewTopLeftPos() const; // in canvas coordinates
+
     double getBoardViewZoomRatio() const;
 
 signals:
@@ -44,7 +50,6 @@ signals:
 
 private:
     int workspaceId {-1};
-    QString workspaceName;
 
     WorkspaceToolBar *workspaceToolBar {nullptr};
     CustomTabBar *boardsTabBar {nullptr};
@@ -63,12 +68,16 @@ private:
     void onUserToRenameBoard(const int boardId);
     void onUserSelectedBoard(const int boardId);
     void onUserToRemoveBoard(const int boardIdToRemove);
-    void onUserReorderedBoards(const QVector<int> &boardIdsOrdering);
 
     //!
     //! save the data for the board currently shown in `boardView`
     //!
     void saveTopLeftPosAndZoomRatioOfCurrentBoard();
+
+    //!
+    //! save the ordering of boards in `boardsTabBar`
+    //!
+    void saveBoardsOrdering();
 };
 
 //========

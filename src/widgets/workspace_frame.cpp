@@ -195,7 +195,6 @@ void WorkspaceFrame::loadWorkspace(
 
         if (!routine->errorFlag) {
             workspaceId = workspaceIdToLoad;
-            workspaceName = routine->workspaceData.name;
             workspaceToolBar->setWorkspaceName(routine->workspaceData.name);
         }
 
@@ -203,6 +202,10 @@ void WorkspaceFrame::loadWorkspace(
     }, this);
 
     routine->start();
+}
+
+void WorkspaceFrame::changeWorkspaceName(const QString newName) {
+    workspaceToolBar->setWorkspaceName(newName);
 }
 
 void WorkspaceFrame::showButtonRightSidebar() {
@@ -215,6 +218,10 @@ void WorkspaceFrame::prepareToClose() {
 
 bool WorkspaceFrame::canClose() const {
     return boardView->canClose();
+}
+
+int WorkspaceFrame::getWorkspaceId() const {
+    return workspaceId;
 }
 
 int WorkspaceFrame::getCurrentBoardId() {
@@ -310,8 +317,8 @@ void WorkspaceFrame::setUpConnections() {
     });
 
     connect(boardsTabBar, &CustomTabBar::tabsReorderedByUser,
-            this, [this](const QVector<int> &boardIdsOrdering) {
-        onUserReorderedBoards(boardIdsOrdering);
+            this, [this](const QVector<int> &/*boardIdsOrdering*/) {
+        saveBoardsOrdering();
     });
 }
 
@@ -421,6 +428,7 @@ void WorkspaceFrame::onUserToAddBoard() {
         // add to `boardsTabBar`
         ContinuationContext context(routine);
         boardsTabBar->addTab(routine->newBoardId, routine->newBoardData.name);
+        saveBoardsOrdering();
     }, this);
 
     routine->addStep([this, routine]() {
@@ -540,6 +548,7 @@ void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
 
     // remove the board
     boardsTabBar->removeItem(boardIdToRemove);
+    saveBoardsOrdering();
     Services::instance()->getAppData()->removeBoard(EventSource(this), boardIdToRemove);
 
     // select another board (if any)
@@ -547,7 +556,8 @@ void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
             ? boardsTabBar->getItemIdByTabIndex(0)
             : -1;
 
-    boardsTabBar->setCurrentItemId(boardIdToLoad);
+    if (boardIdToLoad != -1)
+        boardsTabBar->setCurrentItemId(boardIdToLoad);
 
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
@@ -599,6 +609,15 @@ void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
     }, this);
 
     routine->addStep([this, routine]() {
+        // show no-board sign if workspace has no board
+        ContinuationContext context(routine);
+        if (boardsTabBar->count() == 0) {
+            boardView->setVisible(false);
+            noBoardSign->setVisible(true);
+        }
+    }, this);
+
+    routine->addStep([this, routine]() {
         // final step
         ContinuationContext context(routine);
 
@@ -607,14 +626,6 @@ void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
     }, this);
 
     routine->start();
-}
-
-void WorkspaceFrame::onUserReorderedBoards(const QVector<int> &boardIdsOrdering) {
-    WorkspaceNodePropertiesUpdate update;
-    update.boardsOrdering = boardIdsOrdering;
-
-    Services::instance()->getAppData()->updateWorkspaceNodeProperties(
-                EventSource(this), workspaceId, update);
 }
 
 void WorkspaceFrame::saveTopLeftPosAndZoomRatioOfCurrentBoard() {
@@ -628,7 +639,15 @@ void WorkspaceFrame::saveTopLeftPosAndZoomRatioOfCurrentBoard() {
         propertiesUpdate.zoomRatio = boardView->getZoomRatio();
     }
     Services::instance()->getAppData()->updateBoardNodeProperties(
-            EventSource(this), boardId, propertiesUpdate);
+                EventSource(this), boardId, propertiesUpdate);
+}
+
+void WorkspaceFrame::saveBoardsOrdering() {
+    WorkspaceNodePropertiesUpdate update;
+    update.boardsOrdering = boardsTabBar->getAllItemIds();
+
+    Services::instance()->getAppData()->updateWorkspaceNodeProperties(
+                EventSource(this), workspaceId, update);
 }
 
 //========

@@ -291,6 +291,43 @@ void BoardsDataAccess::getBoardData(
     );
 }
 
+void BoardsDataAccess::createNewWorkspaceWithId(
+        const int workspaceId, const Workspace &workspace,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+    Q_ASSERT(workspace.boardIds.isEmpty()); // new workspace should have no board
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    CREATE (ws:Workspace {id: $workspaceId})
+                    SET ws += $propertiesMap
+                    RETURN ws.id AS id
+                )!",
+                QJsonObject {
+                    {"workspaceId", workspaceId},
+                    {"propertiesMap", workspace.getNodePropertiesJson()}
+                }
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                if (result.isEmpty()) {
+                    callback(false);
+                    return;
+                }
+
+                callback(true);
+            },
+            callbackContext
+    );
+}
+
 void BoardsDataAccess::updateWorkspaceNodeProperties(
         const int workspaceId, const WorkspaceNodePropertiesUpdate &update,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {

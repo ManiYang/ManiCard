@@ -74,7 +74,8 @@ private:
 
     void onBoardSelectedByUser(const int boardId);
     void onWorkspaceSelectedByUser(const int workspaceId);
-    void onUserToCreateNewBoard();
+    void onUserToCreateNewWorkspace();
+    void onUserRenamedWorkspace(const int workspaceId, const QString &newName);
     void onUserToRemoveBoard(const int boardId);
 
     void onUserToSetCardLabelsList();
@@ -86,7 +87,8 @@ private:
     ActionDebouncer *saveWindowSizeDebounced;
 
     void saveTopLeftPosAndZoomRatioOfCurrentBoard();
-    void saveBoardsOrdering();
+    void saveBoardsOrdering(); // not used
+    void saveWorkspacesOrdering();
 
     void checkIsScreenChanged();
 };

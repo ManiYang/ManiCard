@@ -1,6 +1,14 @@
 #include "utilities/json_util.h"
 #include "workspace.h"
 
+QJsonObject Workspace::getNodePropertiesJson() const {
+    return QJsonObject {
+        {"name", name},
+        {"boardsOrdering", toJsonArray(boardsOrdering)},
+        {"lastOpenedBoardId", lastOpenedBoardId}
+    };
+}
+
 void Workspace::updateNodeProperties(const QJsonObject &obj) {
     if (const QJsonValue v = obj.value("name"); !v.isUndefined())
         name = v.toString();

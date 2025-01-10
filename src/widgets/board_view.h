@@ -67,7 +67,7 @@ private:
     constexpr static double zValueForEdgeArrows {15.0};
 
     int boardId {-1}; // -1: no board loaded
-    QString boardName;
+    QString boardName; // TODO: `boardName` can be updated after loadBoard() is called
     QVector<Board::LabelAndColor> cardLabelsAndAssociatedColors;
             // in the order of precedence (high to low)
     QColor defaultNodeRectColor;

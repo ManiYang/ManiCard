@@ -242,15 +242,11 @@ void MainWindow::setUpConnections() {
 
     connect(workspacesList, &WorkspacesList::userRenamedWorkspace,
             this, [this](int workspaceId, QString name) {
-//        WorkspaceNodePropertiesUpdate update;
-//        update.name = name;
-
-//        Services::instance()->getAppData()->updateWorkspaceNodeProperties(
-//                EventSource(this), workspaceId, update);
+        onUserRenamedWorkspace(workspaceId, name);
     });
 
     connect(workspacesList, &WorkspacesList::userToCreateNewWorkspace, this, [this]() {
-//        onUserToCreateNewWorkspace();
+        onUserToCreateNewWorkspace();
     });
 
     connect(workspacesList, &WorkspacesList::userToRemoveWorkspace, this, [this](int boardId) {
@@ -634,66 +630,77 @@ void MainWindow::onBoardSelectedByUser(const int boardId) {
     //    routine->start();
 }
 
-void MainWindow::onUserToCreateNewBoard() {
-//    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-//    {
-//    public:
-//        int newBoardId {-1};
-//        Board boardData;
-//        QString errorMsg;
-//    };
-//    auto *routine = new AsyncRoutineWithVars;
+void MainWindow::onUserToCreateNewWorkspace() {
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        int newWorkspaceId {-1};
+        Workspace workspaceData;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
 
-//    //
-//    routine->addStep([this, routine]() {
-//        // 1. get new board ID
-//        Services::instance()->getAppDataReadonly()->requestNewBoardId(
-//                //callback
-//                [routine](std::optional<int> boardId) {
-//                    ContinuationContext context(routine);
+    //
+    routine->addStep([this, routine]() {
+        // 1. get new workspace ID (use board ID)
+        Services::instance()->getAppDataReadonly()->requestNewBoardId(
+                //callback
+                [routine](std::optional<int> newId) {
+                    ContinuationContext context(routine);
 
-//                    if (!boardId.has_value()) {
-//                        context.setErrorFlag();
-//                        routine->errorMsg = "Could not get new board ID. See logs for details.";
-//                    }
-//                    else {
-//                        routine->newBoardId = boardId.value();
-//                    }
-//                },
-//                this
-//        );
-//    }, this);
+                    if (!newId.has_value()) {
+                        context.setErrorFlag();
+                        routine->errorMsg = "Could not get new workspace ID. See logs for details.";
+                    }
+                    else {
+                        routine->newWorkspaceId = newId.value();
+                    }
+                },
+                this
+        );
+    }, this);
 
-//    routine->addStep([this, routine]() {
-//        // 2. add to `boardsList`
-//        ContinuationContext context(routine);
+    routine->addStep([this, routine]() {
+        // 2. add to `workspacesList`
+        ContinuationContext context(routine);
 
-//        routine->boardData.name = "new board";
-//        routine->boardData.topLeftPos = QPointF(0, 0);
+        routine->workspaceData.name = "new workspace";
 
-//        boardsList->addBoard(routine->newBoardId, routine->boardData.name);
-//        boardsList->startEditBoardName(routine->newBoardId);
-//    }, this);
+        workspacesList->addWorkspace(routine->newWorkspaceId, routine->workspaceData.name);
+        workspacesList->startEditWorkspaceName(routine->newWorkspaceId);
 
-//    routine->addStep([this, routine]() {
-//        // 3. call AppData
-//        ContinuationContext context(routine);
+        saveWorkspacesOrdering();
+    }, this);
 
-//        saveBoardsOrdering();
-//        Services::instance()->getAppData()->createNewBoardWithId(
-//                EventSource(this), routine->newBoardId, routine->boardData);
-//    }, this);
+    routine->addStep([this, routine]() {
+        // 3. call AppData
+        ContinuationContext context(routine);
 
-//    routine->addStep([this, routine]() {
-//        // final step
-//        ContinuationContext context(routine);
+        Services::instance()->getAppData()->createNewWorkspaceWithId(
+                EventSource(this), routine->newWorkspaceId, routine->workspaceData);
+    }, this);
 
-//        if (routine->errorFlag && !routine->errorMsg.isEmpty())
-//            showWarningMessageBox(this, " ", routine->errorMsg);
-//    }, this);
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
 
-//    //
-//    routine->start();
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+            showWarningMessageBox(this, " ", routine->errorMsg);
+    }, this);
+
+    //
+    routine->start();
+}
+
+void MainWindow::onUserRenamedWorkspace(const int workspaceId, const QString &newName) {
+    WorkspaceNodePropertiesUpdate update;
+    update.name = newName;
+
+    Services::instance()->getAppData()->updateWorkspaceNodeProperties(
+            EventSource(this), workspaceId, update);
+
+    if (workspaceFrame->getWorkspaceId() == workspaceId)
+        workspaceFrame->changeWorkspaceName(newName);
 }
 
 void MainWindow::onUserToRemoveBoard(const int boardId) {
@@ -1003,7 +1010,13 @@ void MainWindow::saveBoardsOrdering() {
 //    propertiesUpdate.boardsOrdering = boardsList->getBoardsOrder();
 
 //    Services::instance()->getAppData()
-//            ->updateBoardsListProperties(EventSource(this), propertiesUpdate);
+    //            ->updateBoardsListProperties(EventSource(this), propertiesUpdate);
+}
+
+void MainWindow::saveWorkspacesOrdering() {
+    // todo ....
+
+
 }
 
 void MainWindow::checkIsScreenChanged() {

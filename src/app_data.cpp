@@ -159,6 +159,14 @@ void AppData::updateUserCardLabels(
     // 2. update all variables and emit "updated" signals
 }
 
+void AppData::createNewWorkspaceWithId(
+        const EventSource &/*eventSrc*/, const int workspaceId, const Workspace &workspace) {
+    // 1. persist
+    persistedDataAccess->createNewWorkspaceWithId(workspaceId, workspace);
+
+    // 2. update all variables and emit "updated" signals
+}
+
 void AppData::updateWorkspaceNodeProperties(
         const EventSource &/*eventSrc*/,
         const int workspaceId, const WorkspaceNodePropertiesUpdate &update) {

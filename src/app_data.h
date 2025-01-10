@@ -129,6 +129,9 @@ public:
     void updateUserCardLabels(
             const EventSource &eventSrc, const QStringList &updatedCardLabels);
 
+    void createNewWorkspaceWithId(
+            const EventSource &eventSrc, const int workspaceId, const Workspace &workspace);
+
     void updateWorkspaceNodeProperties(
             const EventSource &eventSrc,
             const int workspaceId, const WorkspaceNodePropertiesUpdate &update);

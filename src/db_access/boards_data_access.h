@@ -35,6 +35,10 @@ public:
 
     // ==== write operations ====
 
+    void createNewWorkspaceWithId(
+            const int workspaceId, const Workspace &workspace,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
     void updateWorkspaceNodeProperties(
             const int workspaceId, const WorkspaceNodePropertiesUpdate &update,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;

@@ -52,6 +52,17 @@ public:
     // ==== workspace ====
 
     //!
+    //! Workspace with ID \e workspaceId must not already exist. This operation is atomic.
+    //! \param workspaceId
+    //! \param workspace: must have no boards
+    //! \param callback
+    //! \param callbackContext
+    //!
+    virtual void createNewWorkspaceWithId(
+            const int workspaceId, const Workspace &workspace,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    //!
     //! The workspace must exist. This operation is atomic.
     //!
     virtual void updateWorkspaceNodeProperties(
@@ -76,7 +87,7 @@ public:
     //!
     //! Board with ID \e boardId must not already exist. This operation is atomic.
     //! \param boardId:
-    //! \param board: should have no NodeRect
+    //! \param board: must have no NodeRect
     //! \param workspaceId: If it exists, the relationship (:Workspace)-[:HAS]->(:Board) will be
     //!                     created. It is not an error if \e workspaceId does not exist.
     //! \param callback
