@@ -22,7 +22,13 @@ public:
 
     void renameItem(const int itemId, const QString &newName);
 
+    void removeItem(const int itemId);
+
     void removeAllTabs();
+
+    //
+
+    int count() const;
 
     //!
     //! \return (-1, "") if not found
@@ -33,6 +39,11 @@ public:
     //! \return "" if not found
     //!
     QString getItemNameById(const int itemId) const;
+
+    //!
+    //! \return -1 if not found
+    //!
+    int getItemIdByTabIndex(const int tabIndex) const;
 
 signals:
     void tabSelectedByUser(const int itemId);

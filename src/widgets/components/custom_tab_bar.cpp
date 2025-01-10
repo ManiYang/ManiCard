@@ -67,6 +67,16 @@ void CustomTabBar::renameItem(const int itemId, const QString &newName) {
     handleSignalsAsUserOperation = true;
 }
 
+void CustomTabBar::removeItem(const int itemId) {
+    handleSignalsAsUserOperation = false;
+
+    const int index = getTabIndexByItemId(itemId);
+    if (index != -1)
+        tabBar->removeTab(index);
+
+    handleSignalsAsUserOperation = true;
+}
+
 void CustomTabBar::removeAllTabs() {
     handleSignalsAsUserOperation = false;
 
@@ -74,6 +84,10 @@ void CustomTabBar::removeAllTabs() {
         tabBar->removeTab(0);
 
     handleSignalsAsUserOperation = true;
+}
+
+int CustomTabBar::count() const {
+    return tabBar->count();
 }
 
 std::pair<int, QString> CustomTabBar::getCurrentItemIdAndName() const {
@@ -91,6 +105,10 @@ QString CustomTabBar::getItemNameById(const int itemId) const {
     if (index == -1)
         return "";
     return tabBar->tabText(index);
+}
+
+int CustomTabBar::getItemIdByTabIndex(const int tabIndex) const {
+    return getItemId(tabIndex);
 }
 
 int CustomTabBar::getItemId(const int tabIndex) const {

@@ -55,6 +55,7 @@ private:
     void onUserToAddBoard();
     void onUserToRenameBoard(const int boardId);
     void onUserSelectedBoard(const int boardId);
+    void onUserToRemoveBoard(const int boardIdToRemove);
 };
 
 //========

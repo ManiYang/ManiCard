@@ -311,6 +311,13 @@ void WorkspaceFrame::setUpBoardTabContextMenu() {
             onUserToRenameBoard(boardTabContextMenuTargetBoardId);
         });
     }
+    {
+        auto *action = boardTabContextMenu->addAction(
+                QIcon(":/icons/delete_black_24"), "Remove");
+        connect(action, &QAction::triggered, this, [this]() {
+            onUserToRemoveBoard(boardTabContextMenuTargetBoardId);
+        });
+    }
 }
 
 void WorkspaceFrame::onUserToAddBoard() {
@@ -480,6 +487,89 @@ void WorkspaceFrame::onUserSelectedBoard(const int boardId) {
                     if (!ok) {
                         context.setErrorFlag();
                         routine->errorMsg = QString("Could not load board %1").arg(boardId);
+                    }
+
+                    if (highlightedCardIdChanged) {
+                        constexpr int highlightedCardId = -1;
+                        Services::instance()->getAppData()
+                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
+                    }
+                }
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
+
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+            showWarningMessageBox(this, " ", routine->errorMsg);
+    }, this);
+
+    routine->start();
+}
+
+void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
+    if (boardIdToRemove == -1)
+        return;
+
+    // show confirmation message box
+    const QString boardName = boardsTabBar->getItemNameById(boardIdToRemove);
+    const auto r = QMessageBox::question(
+            this, "Please confirm", QString("Remove the board \"%1\"?").arg(boardName));
+
+    if (r != QMessageBox::Yes)
+        return;
+
+    // remove the board
+    boardsTabBar->removeItem(boardIdToRemove);
+    Services::instance()->getAppData()->removeBoard(EventSource(this), boardIdToRemove);
+
+    // select another board (if any)
+    const int boardIdToLoad = (boardsTabBar->count() != 0)
+            ? boardsTabBar->getItemIdByTabIndex(0)
+            : -1;
+
+    boardsTabBar->setCurrentItemId(boardIdToLoad);
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    routine->addStep([this, routine]() {
+        // prepare to close `boardView`
+        boardView->setVisible(true);
+        noBoardSign->setVisible(false);
+        boardView->prepareToClose();
+
+        // wait until boardView->canClose() returns true
+        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
+            ->setPredicate([this]() {
+                return boardView->canClose();
+            })
+            ->onPredicateReturnsTrue([routine]() {
+                routine->nextStep();
+            })
+            ->onTimeOut([routine]() {
+                qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
+                routine->nextStep();
+            })
+            ->setAutoDelete()->start();
+    }, this);
+
+    routine->addStep([this, routine, boardIdToLoad]() {
+        // load board
+        boardView->loadBoard(
+                boardIdToLoad,
+                // callback
+                [this, routine, boardIdToLoad](bool ok, bool highlightedCardIdChanged) {
+                    ContinuationContext context(routine);
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg = QString("Could not load board %1").arg(boardIdToLoad);
                     }
 
                     if (highlightedCardIdChanged) {
