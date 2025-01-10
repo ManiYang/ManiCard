@@ -3,11 +3,11 @@
 
 #include <QFrame>
 #include <QLabel>
-#include <QTabBar>
 #include <QToolButton>
 #include "widgets/components/simple_toolbar.h"
 
 class BoardView;
+class CustomTabBar;
 class WorkspaceToolBar;
 
 class WorkspaceFrame : public QFrame
@@ -40,10 +40,11 @@ private:
     QString workspaceName;
 
     WorkspaceToolBar *workspaceToolBar {nullptr};
-    QTabBar *boardsTabBar {nullptr};
+    CustomTabBar *boardsTabBar {nullptr};
     BoardView *boardView {nullptr};
     QLabel *noBoardSign {nullptr};
     QMenu *boardTabContextMenu {nullptr};
+    int boardTabContextMenuTargetBoardId {-1};
 
     //
     void setUpWidgets();
@@ -52,7 +53,7 @@ private:
 
     //
     void onUserToAddBoard();
-    void onUserToRenameBoard(const int boardId, const QString &originalName);
+    void onUserToRenameBoard(const int boardId);
 };
 
 //========

@@ -11,13 +11,10 @@
 #include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
 #include "widgets/board_view.h"
+#include "widgets/components/custom_tab_bar.h"
 #include "workspace_frame.h"
 
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
-
-namespace {
-constexpr char keyBoardId[] = "boardId";
-}
 
 WorkspaceFrame::WorkspaceFrame(QWidget *parent)
         : QFrame(parent) {
@@ -79,8 +76,7 @@ void WorkspaceFrame::loadWorkspace(
     routine->addStep([this, routine]() {
         // 3. clear `boardsTabBar`
         ContinuationContext context(routine);
-        while (boardsTabBar->count() != 0)
-            boardsTabBar->removeTab(0);
+        boardsTabBar->removeAllTabs();
     }, this);
 
     routine->addStep([this, routine, workspaceIdToLoad]() {
@@ -151,9 +147,7 @@ void WorkspaceFrame::loadWorkspace(
                 keySet(routine->boardIdToName), routine->workspaceData.boardsOrdering, false);
         for (const int boardId: sortedBoardIds) {
             const QString boardName = routine->boardIdToName.value(boardId);
-
-            const int tabIndex = boardsTabBar->addTab(boardName);
-            boardsTabBar->setTabData(tabIndex, QJsonObject {{keyBoardId, boardId}});
+            boardsTabBar->addTab(boardId, boardName);
         }
 
         //
@@ -164,6 +158,7 @@ void WorkspaceFrame::loadWorkspace(
             routine->boardIdToOpen = sortedBoardIds.contains(routine->workspaceData.lastOpenedBoardId)
                     ? routine->workspaceData.lastOpenedBoardId
                     : sortedBoardIds.at(0);
+            boardsTabBar->setCurrentItemId(routine->boardIdToOpen);
         }
     }, this);
 
@@ -240,11 +235,8 @@ void WorkspaceFrame::setUpWidgets() {
         hLayout->setContentsMargins(0, 0, 0, 0);
         hLayout->setSpacing(0);
         {
-            boardsTabBar = new QTabBar;
+            boardsTabBar = new CustomTabBar;
             hLayout->addWidget(boardsTabBar, 0, Qt::AlignBottom);
-            boardsTabBar->setExpanding(false);
-            boardsTabBar->setMovable(true);
-            boardsTabBar->setContextMenuPolicy(Qt::CustomContextMenu);
 
             //
             auto *buttonAddBoard = new QToolButton;
@@ -291,12 +283,24 @@ void WorkspaceFrame::setUpConnections() {
     });
 
     // `boardsTabBar`
-    connect(boardsTabBar, &QTabBar::customContextMenuRequested, this, [this](const QPoint &pos) {
-        if (boardsTabBar->currentIndex() == -1)
-            return;
-        if (boardsTabBar->tabAt(pos) != boardsTabBar->currentIndex())
-            return;
-        boardTabContextMenu->popup(boardsTabBar->mapToGlobal(pos));
+    connect(boardsTabBar, &CustomTabBar::contextMenuRequested,
+            this, [this](int itemIdUnderMouseCursor, QPoint globalPos) {
+        const int currentBoardId = boardsTabBar->getCurrentItemIdAndName().first;
+        const bool isOnCurrentTab = (currentBoardId != -1)
+                ? (itemIdUnderMouseCursor == currentBoardId)
+                : false;
+
+        if (isOnCurrentTab) {
+            boardTabContextMenuTargetBoardId = currentBoardId;
+            boardTabContextMenu->popup(globalPos);
+        }
+    });
+
+    connect(boardsTabBar, &CustomTabBar::tabSelectedByUser, this, [this](const int boardId) {
+        qDebug() << "tab bar current index changed by user";
+
+
+
     });
 }
 
@@ -306,15 +310,7 @@ void WorkspaceFrame::setUpBoardTabContextMenu() {
         auto *action = boardTabContextMenu->addAction(
                 QIcon(":/icons/edit_square_black_24"), "Rename");
         connect(action, &QAction::triggered, this, [this]() {
-            if (boardsTabBar->currentIndex() == -1)
-                return;
-            const int boardId
-                    = boardsTabBar->tabData(boardsTabBar->currentIndex())
-                      .toJsonObject().value(keyBoardId).toInt(-1);
-            if (boardId == -1)
-                return;
-            const QString boardName = boardsTabBar->tabText(boardsTabBar->currentIndex());
-            onUserToRenameBoard(boardId, boardName);
+            onUserToRenameBoard(boardTabContextMenuTargetBoardId);
         });
     }
 }
@@ -405,10 +401,7 @@ void WorkspaceFrame::onUserToAddBoard() {
     routine->addStep([this, routine]() {
         // add to `boardsTabBar`
         ContinuationContext context(routine);
-
-        const int tabIndex = boardsTabBar->addTab(routine->newBoardData.name);
-        boardsTabBar->setTabData(tabIndex, QJsonObject {{keyBoardId, routine->newBoardId}});
-        boardsTabBar->setCurrentIndex(tabIndex);
+        boardsTabBar->addTab(routine->newBoardId, routine->newBoardData.name);
     }, this);
 
     routine->addStep([this, routine]() {
@@ -422,7 +415,8 @@ void WorkspaceFrame::onUserToAddBoard() {
     routine->start();
 }
 
-void WorkspaceFrame::onUserToRenameBoard(const int boardId, const QString &originalName) {
+void WorkspaceFrame::onUserToRenameBoard(const int boardId) {
+    const QString originalName = boardsTabBar->getItemNameById(boardId);
     qDebug() << QString("rename board %1 (%2)").arg(boardId).arg(originalName);
 
 

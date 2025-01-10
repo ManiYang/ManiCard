@@ -4,6 +4,10 @@
 #include "async_routine.h"
 #include "global_constants.h"
 
+namespace {
+constexpr bool logVerboseDebugMsg = false;
+}
+
 AsyncRoutine::AsyncRoutine(const QString &name)
         : QObject(nullptr)
         , name(name) {
@@ -34,7 +38,7 @@ void AsyncRoutine::start() {
     Q_ASSERT(!isStarted);
     isStarted = true;
 
-    if constexpr (!buildInReleaseMode) {
+    if constexpr (!buildInReleaseMode && logVerboseDebugMsg) {
         if (!name.isEmpty())
             qDebug().noquote() << QString("routine %1 started").arg(name);
         else
@@ -108,11 +112,12 @@ void AsyncRoutine::finish() {
 
         --startedInstances;
         if constexpr (!buildInReleaseMode) {
-            if (!name.isEmpty())
-                qDebug().noquote() << QString("routine %1 finished").arg(name);
-            else
-                qDebug().noquote() << "routine" << this << "finished";
-
+            if constexpr (logVerboseDebugMsg){
+                if (!name.isEmpty())
+                    qDebug().noquote() << QString("routine %1 finished").arg(name);
+                else
+                    qDebug().noquote() << "routine" << this << "finished";
+            }
             qDebug().noquote()
                     << QString("there are %1 unfinished routines").arg(startedInstances);
         }
