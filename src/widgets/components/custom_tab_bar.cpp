@@ -57,6 +57,16 @@ void CustomTabBar::setCurrentItemId(const int itemId) {
     handleSignalsAsUserOperation = true;
 }
 
+void CustomTabBar::renameItem(const int itemId, const QString &newName) {
+    handleSignalsAsUserOperation = false;
+
+    const int index = getTabIndexByItemId(itemId);
+    if (index != -1)
+        tabBar->setTabText(index, newName);
+
+    handleSignalsAsUserOperation = true;
+}
+
 void CustomTabBar::removeAllTabs() {
     handleSignalsAsUserOperation = false;
 

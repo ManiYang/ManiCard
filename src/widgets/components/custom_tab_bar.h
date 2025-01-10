@@ -20,6 +20,8 @@ public:
 
     void setCurrentItemId(const int itemId);
 
+    void renameItem(const int itemId, const QString &newName);
+
     void removeAllTabs();
 
     //!

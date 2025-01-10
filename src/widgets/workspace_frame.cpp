@@ -1,5 +1,6 @@
 #include <QDebug>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include "app_data.h"
@@ -412,12 +413,31 @@ void WorkspaceFrame::onUserToAddBoard() {
 }
 
 void WorkspaceFrame::onUserToRenameBoard(const int boardId) {
-    const QString originalName = boardsTabBar->getItemNameById(boardId);
-    qDebug() << QString("rename board %1 (%2)").arg(boardId).arg(originalName);
+    if (boardId == -1)
+        return;
 
+    // get new name from user
+    QString newName;
+    {
+        const QString originalName = boardsTabBar->getItemNameById(boardId);
 
+        bool ok;
+        const QString newNameByUser = QInputDialog::getText(
+                this, "Rename Board", "Enter new name:", QLineEdit::Normal, originalName, &ok);
+        if (!ok)
+            return;
+        newName = !newNameByUser.isEmpty() ? newNameByUser : "untitled";
+    }
 
+    //
+    boardsTabBar->renameItem(boardId, newName);
 
+    //
+    BoardNodePropertiesUpdate update;
+    {
+        update.name = newName;
+    }
+    Services::instance()->getAppData()->updateBoardNodeProperties(EventSource(this), boardId, update);
 }
 
 void WorkspaceFrame::onUserSelectedBoard(const int boardId) {
