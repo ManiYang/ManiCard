@@ -56,12 +56,6 @@ void AppData::getBoardIdsAndNames(
     persistedDataAccess->getBoardIdsAndNames(callback, callbackContext);
 }
 
-void AppData::getBoardsListProperties(
-        std::function<void (bool, BoardsListProperties)> callback,
-        QPointer<QObject> callbackContext) {
-    persistedDataAccess->getBoardsListProperties(callback, callbackContext);
-}
-
 void AppData::getBoardData(
         const int boardId, std::function<void (bool, std::optional<Board>)> callback,
         QPointer<QObject> callbackContext) {
@@ -188,14 +182,6 @@ void AppData::updateWorkspacesListProperties(
         const EventSource &/*eventSrc*/, const WorkspacesListPropertiesUpdate &propertiesUpdate) {
     // 1. persist
     persistedDataAccess->updateWorkspacesListProperties(propertiesUpdate);
-
-    // 2. update all variables and emit "updated" signals
-}
-
-void AppData::updateBoardsListProperties(
-        const EventSource &/*eventSrc*/, const BoardsListPropertiesUpdate &propertiesUpdate) {
-    // 1. persist
-    persistedDataAccess->updateBoardsListProperties(propertiesUpdate);
 
     // 2. update all variables and emit "updated" signals
 }

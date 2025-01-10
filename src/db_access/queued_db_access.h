@@ -121,10 +121,6 @@ public:
             std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
             QPointer<QObject> callbackContext) override;
 
-    void getBoardsListProperties(
-            std::function<void (bool ok, BoardsListProperties properties)> callback,
-            QPointer<QObject> callbackContext) override;
-
     void getBoardData(
                 const int boardId,
                 std::function<void (bool ok, std::optional<Board> board)> callback,
@@ -146,10 +142,6 @@ public:
 
     void updateWorkspacesListProperties(
             const WorkspacesListPropertiesUpdate &propertiesUpdate,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
-
-    void updateBoardsListProperties(
-            const BoardsListPropertiesUpdate &propertiesUpdate,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
     void requestNewBoardId(

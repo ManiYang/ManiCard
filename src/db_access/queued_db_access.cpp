@@ -402,26 +402,6 @@ void QueuedDbAccess::getBoardIdsAndNames(
     addToQueue(func);
 }
 
-void QueuedDbAccess::getBoardsListProperties(
-        std::function<void (bool, BoardsListProperties properties)> callback,
-        QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    auto func = createTask<
-                    true // is readonly?
-                    , BoardsListProperties // result type (`Void` if no result argument)
-                    // no input // input types
-                >(
-            [this](auto... args) {
-                boardsDataAccess->getBoardsListProperties(args...); // method
-            },
-            // no input // input parameters
-            callback, callbackContext
-    );
-
-    addToQueue(func);
-}
-
 void QueuedDbAccess::getBoardData(
         const int boardId, std::function<void (bool, std::optional<Board>)> callback,
         QPointer<QObject> callbackContext) {
@@ -514,26 +494,6 @@ void QueuedDbAccess::updateWorkspacesListProperties(
                 >(
             [this](auto... args) {
                 boardsDataAccess->updateWorkspacesListProperties(args...); // method
-            },
-            propertiesUpdate, // input parameters
-            callback, callbackContext
-    );
-
-    addToQueue(func);
-}
-
-void QueuedDbAccess::updateBoardsListProperties(
-        const BoardsListPropertiesUpdate &propertiesUpdate,
-        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    auto func = createTask<
-                    false // is readonly?
-                    , Void // result type (`Void` if no result argument)
-                    , decltype(propertiesUpdate) // input types
-                >(
-            [this](auto... args) {
-                boardsDataAccess->updateBoardsListProperties(args...); // method
             },
             propertiesUpdate, // input parameters
             callback, callbackContext

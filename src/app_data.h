@@ -6,7 +6,6 @@
 #include "app_data_readonly.h"
 #include "app_event_source.h"
 #include "models/board.h"
-#include "models/boards_list_properties.h"
 #include "models/card.h"
 #include "models/relationship.h"
 
@@ -69,10 +68,6 @@ public:
 
     void getBoardIdsAndNames(
             std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
-            QPointer<QObject> callbackContext) override;
-
-    void getBoardsListProperties(
-            std::function<void (bool ok, BoardsListProperties properties)> callback,
             QPointer<QObject> callbackContext) override;
 
     void getBoardData(
@@ -145,9 +140,6 @@ public:
 
     void updateWorkspacesListProperties(
             const EventSource &eventSrc, const WorkspacesListPropertiesUpdate &propertiesUpdate);
-
-    void updateBoardsListProperties(
-            const EventSource &eventSrc, const BoardsListPropertiesUpdate &propertiesUpdate);
 
     void createNewBoardWithId(
             const EventSource &eventSrc, const int boardId, const Board &board, const int workspaceId);

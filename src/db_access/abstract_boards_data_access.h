@@ -6,7 +6,6 @@
 #include <QPointer>
 #include <QVector>
 #include "models/board.h"
-#include "models/boards_list_properties.h"
 #include "models/data_view_box_data.h"
 #include "models/node_rect_data.h"
 #include "models/workspace.h"
@@ -27,10 +26,6 @@ public:
 
     virtual void getBoardIdsAndNames(
             std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
-            QPointer<QObject> callbackContext) = 0;
-
-    virtual void getBoardsListProperties(
-            std::function<void (bool ok, BoardsListProperties properties)> callback,
             QPointer<QObject> callbackContext) = 0;
 
     //!
@@ -82,15 +77,6 @@ public:
     //!
     virtual void updateWorkspacesListProperties(
             const WorkspacesListPropertiesUpdate &propertiesUpdate,
-            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
-
-    // ==== boards list ====
-
-    //!
-    //! This operation is atomic.
-    //!
-    virtual void updateBoardsListProperties(
-            const BoardsListPropertiesUpdate &propertiesUpdate,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 
     // ==== board ====

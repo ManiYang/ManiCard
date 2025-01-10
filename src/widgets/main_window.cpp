@@ -18,7 +18,6 @@
 #include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
 #include "widgets/board_view.h"
-#include "widgets/boards_list.h"
 #include "widgets/dialogs/dialog_user_card_labels.h"
 #include "widgets/dialogs/dialog_user_relationship_types.h"
 #include "widgets/right_sidebar.h"
@@ -78,9 +77,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         event->ignore();
         closingState = ClosingState::Closing;
 
-//        boardsList->setEnabled(false);
         workspacesList->setEnabled(false);
-//        boardView->setEnabled(false);
         workspaceFrame->setEnabled(false);
 
         onUserCloseWindow();
@@ -133,10 +130,8 @@ void MainWindow::setUpWidgets() {
             hLayout->addStretch();
         }
 
-        // boards list
-//        boardsList = new BoardsList;
+        // workspaces list widget
         workspacesList = new WorkspacesList;
-//        leftSideBarLayout->addWidget(boardsList);
         leftSideBarLayout->addWidget(workspacesList);
     }
 
@@ -147,9 +142,6 @@ void MainWindow::setUpWidgets() {
         vBoxLayout->setContentsMargins(0, 0, 0, 0);
         ui->frameCentralArea->setLayout(vBoxLayout);
         {
-//            boardView = new BoardView;
-//            vBoxLayout->addWidget(boardView);
-//            boardView->setVisible(false);
             workspaceFrame = new WorkspaceFrame;
             vBoxLayout->addWidget(workspaceFrame);
             workspaceFrame->setVisible(false);
@@ -201,39 +193,6 @@ void MainWindow::setUpConnections() {
         buttonOpenMainMenu->update(); // without this, the button's appearence stay in hover state
     });
 
-    // boardsList
-//    connect(boardsList, &BoardsList::boardSelected,
-//            this, [this](int newBoardId, int /*previousBoardId*/) {
-//        onBoardSelectedByUser(newBoardId);
-//    });
-
-//    connect(boardsList, &BoardsList::userRenamedBoard,
-//            this, [this](int boardId, QString name) {
-//        BoardNodePropertiesUpdate update;
-//        update.name = name;
-
-//        Services::instance()->getAppData()->updateBoardNodeProperties(
-//                EventSource(this), boardId, update);
-//    });
-
-//    connect(boardsList, &BoardsList::userToCreateNewBoard, this, [this]() {
-//        onUserToCreateNewBoard();
-//    });
-
-//    connect(boardsList, &BoardsList::userToRemoveBoard, this, [this](int boardId) {
-//        const auto r = QMessageBox::question(
-//                this, " ",
-//                QString("Delete the board \"%1\"?").arg(boardsList->boardName(boardId)));
-//        if (r != QMessageBox::Yes)
-//            return;
-
-//        onUserToRemoveBoard(boardId);
-//    });
-
-//    connect(boardsList, &BoardsList::boardsOrderChanged, this, [this](QVector<int> /*boardIds*/) {
-//        saveBoardsOrdering();
-//    });
-
     // workspacesList
     connect(workspacesList, &WorkspacesList::workspaceSelected,
             this, [this](int newWorkspaceId, int /*previousWorkspaceId*/) {
@@ -258,12 +217,7 @@ void MainWindow::setUpConnections() {
         saveWorkspacesOrdering();
     });
 
-    // boardView
-//    connect(boardView, &BoardView::openRightSideBar, this, [this]() {
-//        ui->frameRightSideBar->setVisible(true);
-//    });
-
-    // boardView
+    // `workspaceFrame`
     connect(workspaceFrame, &WorkspaceFrame::openRightSidebar, this, [this]() {
         ui->frameRightSideBar->setVisible(true);
     });
@@ -271,7 +225,6 @@ void MainWindow::setUpConnections() {
     // rightSidebar
     connect(rightSidebar, &RightSidebar::closeRightSidebar, this, [this]() {
         ui->frameRightSideBar->setVisible(false);
-//        boardView->showButtonRightSidebar();
         workspaceFrame->showButtonRightSidebar();
     });
 }
@@ -354,9 +307,7 @@ void MainWindow::onStartUp() {
             resize(sizeOpt.value());
     }
 
-//    boardsList->setEnabled(false);
     workspacesList->setEnabled(false);
-//    boardView->setEnabled(false);
     workspaceFrame->setEnabled(false);
 
     //
@@ -365,8 +316,6 @@ void MainWindow::onStartUp() {
     public:
         WorkspacesListProperties workspacesListProperties;
         QHash<int, Workspace> workspaces;
-//        BoardsListProperties boardsListProperties;
-//        QHash<int, QString> boardsIdToName;
         QString errorMsg;
     };
     auto *routine = new AsyncRoutineWithVars;
@@ -410,51 +359,10 @@ void MainWindow::onStartUp() {
         );
     }, this);
 
-//    routine->addStep([this, routine]() {
-//        // get boards-list properties
-//        Services::instance()->getAppDataReadonly()->getBoardsListProperties(
-//                [routine](bool ok, BoardsListProperties properties) {
-//                    ContinuationContext context(routine);
-
-//                    if (!ok) {
-//                        routine->errorMsg
-//                                = "Could not get boards list properties. See logs for details.";
-//                        context.setErrorFlag();
-//                    }
-//                    else {
-//                        routine->boardsListProperties = properties;
-//                    }
-//                },
-//                this
-//        );
-//    }, this);
-
-//    routine->addStep([this, routine]() {
-//        // get all board IDs
-//        Services::instance()->getAppDataReadonly()->getBoardIdsAndNames(
-//                [routine](bool ok, const QHash<int, QString> &idToName) {
-//                    ContinuationContext context(routine);
-
-//                    if (!ok) {
-//                        routine->errorMsg
-//                                = "Could not get the list of boards. See logs for details.";
-//                        context.setErrorFlag();
-//                    }
-//                    else {
-//                        routine->boardsIdToName = idToName;
-//                    }
-//                },
-//                this
-//        );
-//    }, this);
-
     routine->addStep([this, routine]() {
-        ContinuationContext context(routine);
-        // populate `boardsList`
-//        boardsList->resetBoards(
-//                routine->boardsIdToName, routine->boardsListProperties.boardsOrdering);
-
         // populate `workspacesList`
+        ContinuationContext context(routine);
+
         QHash<int, QString> workspacesIdToName;
         for (auto it = routine->workspaces.constBegin(); it != routine->workspaces.constEnd(); ++it)
             workspacesIdToName.insert(it.key(), it.value().name);
@@ -510,9 +418,7 @@ void MainWindow::onStartUp() {
         // (final step)
         ContinuationContext context(routine);
 
-//        boardsList->setEnabled(true);
         workspacesList->setEnabled(true);
-//        boardView->setEnabled(true);
         workspaceFrame->setEnabled(true);
 
         if (routine->errorFlag)
@@ -918,17 +824,6 @@ void MainWindow::onUserCloseWindow() {
     auto *routine = new AsyncRoutineWithErrorFlag;
 
     routine->addStep([this, routine]() {
-        // save last-opened board ID
-        ContinuationContext context(routine);
-
-//        BoardsListPropertiesUpdate propertiesUpdate;
-//        propertiesUpdate.lastOpenedBoard = boardsList->selectedBoardId();
-
-//        Services::instance()->getAppData()
-//                ->updateBoardsListProperties(EventSource(this), propertiesUpdate);
-    }, this);
-
-    routine->addStep([this, routine]() {
         // save
         ContinuationContext context(routine);
 
@@ -972,9 +867,7 @@ void MainWindow::onUserCloseWindow() {
         ContinuationContext context(routine);
 
         if (routine->errorFlag) {
-//            boardsList->setEnabled(true);
             workspacesList->setEnabled(true);
-//            boardView->setEnabled(true);
             workspaceFrame->setEnabled(true);
             closingState = ClosingState::NotClosing;
         }

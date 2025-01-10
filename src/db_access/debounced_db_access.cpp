@@ -371,13 +371,6 @@ void DebouncedDbAccess::getBoardIdsAndNames(
     boardsDataAccess->getBoardIdsAndNames(callback, callbackContext);
 }
 
-void DebouncedDbAccess::getBoardsListProperties(
-        std::function<void (bool, BoardsListProperties)> callback,
-        QPointer<QObject> callbackContext) {
-    closeDebounceSession();
-    boardsDataAccess->getBoardsListProperties(callback, callbackContext);
-}
-
 void DebouncedDbAccess::getBoardData(
         const int boardId, std::function<void (bool, std::optional<Board>)> callback,
         QPointer<QObject> callbackContext) {
@@ -477,29 +470,6 @@ void DebouncedDbAccess::updateWorkspacesListProperties(
                     unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
 
                     showMsgOnDbWriteFailed("workspaces-list properties");
-                }
-            },
-            this
-    );
-}
-
-void DebouncedDbAccess::updateBoardsListProperties(
-        const BoardsListPropertiesUpdate &propertiesUpdate) {
-    closeDebounceSession();
-
-    boardsDataAccess->updateBoardsListProperties(
-            propertiesUpdate,
-            // callback
-            [this, propertiesUpdate](bool ok) {
-                if (!ok) {
-                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-                    const QString updateTitle = "updateBoardsListProperties";
-                    const QString updateDetails = printJson(QJsonObject {
-                        {"propertiesUpdate", propertiesUpdate.toJson()}
-                    }, false);
-                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-
-                    showMsgOnDbWriteFailed("boards-list properties");
                 }
             },
             this

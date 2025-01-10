@@ -23,7 +23,6 @@
  *     }
  *   },
  *   "boards": {
- *     "lastOpenedBoardId": 0,  // not used......
  *     "0": {
  *       "topLeftPos": [100, -50]
  *     },
@@ -62,21 +61,6 @@ std::pair<bool, std::optional<int> > LocalSettingsFile::readLastOpenedBoardIdOfW
         qWarning().noquote()
                 << QString("value of %1 for workspace %2 is not an integer")
                    .arg(keyLastOpenedBoardId).arg(workspaceId);
-        return {false, std::optional<int>()};
-    }
-
-    return {true, v.toInt()};
-}
-
-std::pair<bool, std::optional<int> > LocalSettingsFile::readLastOpenedBoardId() {
-    const QJsonObject obj = read();
-    const QJsonValue v = JsonReader(obj)[sectionBoards][keyLastOpenedBoardId].get();
-    if (v.isUndefined())
-        return {true, std::optional<int>()};
-
-    if (!jsonValueIsInt(v)) {
-        qWarning().noquote()
-                << QString("value of %1 is not an integer").arg(keyLastOpenedBoardId);
         return {false, std::optional<int>()};
     }
 
@@ -143,20 +127,6 @@ bool LocalSettingsFile::writeLastOpenedBoardIdOfWorkspace(
 
     workspacesObj[QString::number(workspaceId)] = workspaceObj;
     obj[sectionWorkspaces] = workspacesObj;
-
-    //
-    const bool ok = write(obj);
-    return ok;
-}
-
-bool LocalSettingsFile::writeLastOpenedBoardId(const int lastOpenedBoardId) {
-    QJsonObject obj = read();
-
-    // set obj[sectionBoards][keyLastOpenedBoardId] = lastOpenedBoardId
-    QJsonObject boardsObj = obj[sectionBoards].toObject();
-    boardsObj[keyLastOpenedBoardId] = lastOpenedBoardId;
-
-    obj[sectionBoards] = boardsObj;
 
     //
     const bool ok = write(obj);

@@ -6,7 +6,6 @@
 #include <QReadWriteLock>
 #include "app_event_source.h"
 #include "models/board.h"
-#include "models/boards_list_properties.h"
 #include "models/card.h"
 #include "models/custom_data_query.h"
 #include "models/workspace.h"
@@ -79,10 +78,6 @@ public:
             std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
             QPointer<QObject> callbackContext);
 
-    void getBoardsListProperties(
-            std::function<void (bool ok, BoardsListProperties properties)> callback,
-            QPointer<QObject> callbackContext);
-
     void getBoardData(
             const int boardId,
             std::function<void (bool ok, std::optional<Board> board)> callback,
@@ -145,8 +140,6 @@ public:
     void removeWorkspace(const int workspaceId, const QSet<int> &boardIds);
 
     void updateWorkspacesListProperties(const WorkspacesListPropertiesUpdate &propertiesUpdate);
-
-    void updateBoardsListProperties(const BoardsListPropertiesUpdate &propertiesUpdate);
 
     //!
     //! \param boardId

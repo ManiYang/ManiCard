@@ -4,7 +4,6 @@
 #include <QWidget>
 #include "app_event_source.h"
 #include "models/board.h"
-#include "models/boards_list_properties.h"
 #include "models/card.h"
 #include "models/custom_data_query.h"
 #include "models/relationship.h"
@@ -56,10 +55,6 @@ public:
 
     virtual void getBoardIdsAndNames(
             std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
-            QPointer<QObject> callbackContext) = 0;
-
-    virtual void getBoardsListProperties(
-            std::function<void (bool ok, BoardsListProperties properties)> callback,
             QPointer<QObject> callbackContext) = 0;
 
     virtual void getBoardData(

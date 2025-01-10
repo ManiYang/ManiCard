@@ -142,42 +142,6 @@ void BoardsDataAccess::getBoardIdsAndNames(
     );
 }
 
-void BoardsDataAccess::getBoardsListProperties(
-        std::function<void (bool ok, BoardsListProperties properties)> callback,
-        QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    neo4jHttpApiClient->queryDb(
-            QueryStatement {
-                R"!(
-                    MATCH (n:BoardsList)
-                    RETURN n;
-                )!",
-                QJsonObject {}
-            },
-            // callback
-            [callback](const QueryResponseSingleResult &queryResponse) {
-                if (!queryResponse.getResult().has_value()) {
-                    callback(false, BoardsListProperties {});
-                    return;
-                }
-
-                const auto result = queryResponse.getResult().value();
-                std::optional<QJsonObject> propertiesObj = result.objectValueAt(0, "n");
-                if (!propertiesObj.has_value()) {
-                    // node not found, reply with default
-                    callback(true, BoardsListProperties {});
-                }
-                else {
-                    BoardsListProperties properties;
-                    properties.update(propertiesObj.value());
-                    callback(true, properties);
-                }
-            },
-            callbackContext
-    );
-}
-
 void BoardsDataAccess::getBoardData(
         const int boardId, std::function<void (bool, std::optional<Board>)> callback,
         QPointer<QObject> callbackContext) {
@@ -491,35 +455,6 @@ void BoardsDataAccess::updateWorkspacesListProperties(
                     MERGE (wl:WorkspacesList)
                     SET wl += $propertiesMap
                     RETURN wl
-                )!",
-                QJsonObject {{"propertiesMap", propertiesUpdate.toJson()}}
-            },
-            // callback
-            [callback](const QueryResponseSingleResult &queryResponse) {
-                if (!queryResponse.getResult().has_value()) {
-                    callback(false);
-                    return;
-                }
-
-                const auto result = queryResponse.getResult().value();
-                const bool ok = !result.isEmpty();
-                callback(ok);
-            },
-            callbackContext
-    );
-}
-
-void BoardsDataAccess::updateBoardsListProperties(
-        const BoardsListPropertiesUpdate &propertiesUpdate,
-        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    neo4jHttpApiClient->queryDb(
-            QueryStatement {
-                R"!(
-                    MATCH (n:BoardsList)
-                    SET n += $propertiesMap
-                    RETURN n
                 )!",
                 QJsonObject {{"propertiesMap", propertiesUpdate.toJson()}}
             },

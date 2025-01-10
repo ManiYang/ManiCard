@@ -140,10 +140,6 @@ public:
             std::function<void (bool ok, const QHash<int, QString> &idToName)> callback,
             QPointer<QObject> callbackContext);
 
-    void getBoardsListProperties(
-            std::function<void (bool ok, BoardsListProperties properties)> callback,
-            QPointer<QObject> callbackContext);
-
     void getBoardData(
             const int boardId,
             std::function<void (bool ok, std::optional<Board> board)> callback,
@@ -166,8 +162,6 @@ public:
     void removeWorkspace(const int workspaceId);
 
     void updateWorkspacesListProperties(const WorkspacesListPropertiesUpdate &propertiesUpdate);
-
-    void updateBoardsListProperties(const BoardsListPropertiesUpdate &propertiesUpdate);
 
     void createNewBoardWithId(const int boardId, const Board &board, const int workspaceId);
 

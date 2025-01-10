@@ -357,60 +357,6 @@ void PersistedDataAccess::getBoardIdsAndNames(
     );
 }
 
-void PersistedDataAccess::getBoardsListProperties(
-        std::function<void (bool, BoardsListProperties properties)> callback,
-        QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        BoardsListProperties properties;
-    };
-    auto *routine = new AsyncRoutineWithVars;
-
-    //
-    routine->addStep([this, routine]() {
-        // get boards ordering from DB
-        debouncedDbAccess->getBoardsListProperties(
-                // callback
-                [routine](bool ok, BoardsListProperties properties) {
-                    ContinuationContext context(routine);
-                    if (!ok)
-                        context.setErrorFlag();
-                    else
-                        routine->properties = properties;
-                },
-                this
-        );
-    }, this);
-
-    routine->addStep([this, routine]() {
-        // get last-opened board from local settings file
-        ContinuationContext context(routine);
-
-        const auto [ok, boardIdOpt] = localSettingsFile->readLastOpenedBoardId();
-        if (!ok) {
-            context.setErrorFlag();
-        }
-        else {
-            if (boardIdOpt.has_value())
-                routine->properties.lastOpenedBoard = boardIdOpt.value();
-        }
-    }, this);
-
-    routine->addStep([routine, callback]() {
-        // (final step)
-        ContinuationContext context(routine);
-        if (routine->errorFlag)
-            callback(false, {});
-        else
-            callback(true, routine->properties);
-    }, callbackContext);
-
-    routine->start();
-}
-
 void PersistedDataAccess::getBoardData(
         const int boardId, std::function<void (bool, std::optional<Board>)> callback,
         QPointer<QObject> callbackContext) {
@@ -761,34 +707,6 @@ void PersistedDataAccess::updateWorkspacesListProperties(
             unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
 
             showMsgOnFailedToSaveToFile("last-opened workspace");
-        }
-    }
-}
-
-void PersistedDataAccess::updateBoardsListProperties(
-        const BoardsListPropertiesUpdate &propertiesUpdate) {
-    BoardsListPropertiesUpdate propertiesUpdateForDb = propertiesUpdate;
-    propertiesUpdateForDb.boardsOrdering = propertiesUpdate.boardsOrdering;
-
-    // write DB for `boardsOrdering`
-    if (!propertiesUpdateForDb.toJson().isEmpty()) {
-        debouncedDbAccess->updateBoardsListProperties(propertiesUpdateForDb);
-    }
-
-    // write settings file for `lastOpenedBoard`
-    if (propertiesUpdate.lastOpenedBoard.has_value()) {
-        const bool ok = localSettingsFile->writeLastOpenedBoardId(
-                propertiesUpdate.lastOpenedBoard.value());
-
-        if (!ok) {
-            const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-            const QString updateTitle = "updateBoardsListProperties";
-            const QString updateDetails = printJson(QJsonObject {
-                {"lastOpenedBoard", propertiesUpdate.lastOpenedBoard.value()}
-            }, false);
-            unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
-
-            showMsgOnFailedToSaveToFile("last-opened board");
         }
     }
 }

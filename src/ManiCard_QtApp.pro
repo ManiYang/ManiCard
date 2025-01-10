@@ -21,7 +21,6 @@ SOURCES += \
     file_access/unsaved_update_records_file.cpp \
     main.cpp \
     models/board.cpp \
-    models/boards_list_properties.cpp \
     models/card.cpp \
     models/custom_data_query.cpp \
     models/data_view_box_data.cpp \
@@ -46,7 +45,6 @@ SOURCES += \
     utilities/strings_util.cpp \
     widgets/board_view.cpp \
     widgets/board_view_toolbar.cpp \
-    widgets/boards_list.cpp \
     widgets/card_properties_view.cpp \
     widgets/components/board_box_item.cpp \
     widgets/components/custom_graphics_text_item.cpp \
@@ -86,7 +84,6 @@ HEADERS += \
     file_access/unsaved_update_records_file.h \
     global_constants.h \
     models/board.h \
-    models/boards_list_properties.h \
     models/card.h \
     models/custom_data_query.h \
     models/data_view_box_data.h \
@@ -123,7 +120,6 @@ HEADERS += \
     utilities/variables_update_propagator.h \
     widgets/board_view.h \
     widgets/board_view_toolbar.h \
-    widgets/boards_list.h \
     widgets/card_properties_view.h \
     widgets/components/board_box_item.h \
     widgets/components/custom_graphics_text_item.h \
