@@ -76,7 +76,7 @@ private:
     void onWorkspaceSelectedByUser(const int workspaceId);
     void onUserToCreateNewWorkspace();
     void onUserRenamedWorkspace(const int workspaceId, const QString &newName);
-    void onUserToRemoveBoard(const int boardId);
+    void onUserToRemoveWorkspace(const int workspaceId);
 
     void onUserToSetCardLabelsList();
     void onUserToSetRelationshipTypesList();
@@ -88,6 +88,10 @@ private:
 
     void saveTopLeftPosAndZoomRatioOfCurrentBoard();
     void saveBoardsOrdering(); // not used
+
+    //!
+    //! save the ordering of workspaces in `workspacesList`
+    //!
     void saveWorkspacesOrdering();
 
     void checkIsScreenChanged();

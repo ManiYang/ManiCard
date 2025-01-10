@@ -46,6 +46,7 @@ public:
 
     //
 
+    int count() const;
     QVector<int> getItems() const;
 
     //!

@@ -80,6 +80,10 @@ void CustomListWidget::onItemContextMenuClosed() {
     listWidget->setCurrentRow(-1);
 }
 
+int CustomListWidget::count() const {
+    return listWidget->count();
+}
+
 QVector<int> CustomListWidget::getItems() const {
     return allItemIds();
 }

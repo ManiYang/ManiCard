@@ -216,10 +216,6 @@ void WorkspaceFrame::prepareToClose() {
     boardView->prepareToClose();
 }
 
-bool WorkspaceFrame::canClose() const {
-    return boardView->canClose();
-}
-
 int WorkspaceFrame::getWorkspaceId() const {
     return workspaceId;
 }
@@ -228,12 +224,21 @@ int WorkspaceFrame::getCurrentBoardId() {
     return boardView->getBoardId();
 }
 
+QSet<int> WorkspaceFrame::getAllBoardIds() const {
+    const QVector<int> ids = boardsTabBar->getAllItemIds();
+    return QSet<int>(ids.constBegin(), ids.constEnd());
+}
+
 QPointF WorkspaceFrame::getBoardViewTopLeftPos() const {
     return boardView->getViewTopLeftPos();
 }
 
 double WorkspaceFrame::getBoardViewZoomRatio() const {
     return boardView->getZoomRatio();
+}
+
+bool WorkspaceFrame::canClose() const {
+    return boardView->canClose();
 }
 
 void WorkspaceFrame::setUpWidgets() {
@@ -333,7 +338,7 @@ void WorkspaceFrame::setUpBoardTabContextMenu() {
     }
     {
         auto *action = boardTabContextMenu->addAction(
-                QIcon(":/icons/delete_black_24"), "Remove");
+                QIcon(":/icons/delete_black_24"), "Delete");
         connect(action, &QAction::triggered, this, [this]() {
             onUserToRemoveBoard(boardTabContextMenuTargetBoardId);
         });
@@ -620,7 +625,6 @@ void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
     routine->addStep([this, routine]() {
         // final step
         ContinuationContext context(routine);
-
         if (routine->errorFlag && !routine->errorMsg.isEmpty())
             showWarningMessageBox(this, " ", routine->errorMsg);
     }, this);

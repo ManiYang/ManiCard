@@ -17,7 +17,9 @@ public:
     explicit WorkspaceFrame(QWidget *parent = nullptr);
 
     //!
-    //! \brief loadWorkspace
+    //! Before calling this method:
+    //!   + \c this must be visible
+    //!   + \c canClose() must returns true
     //! \param workspaceId: if is -1, will only close the workspace
     //! \param callback
     //!
@@ -32,7 +34,6 @@ public:
     void prepareToClose();
 
     //
-    bool canClose() const;
 
     int getWorkspaceId() const;
 
@@ -41,9 +42,12 @@ public:
     //!
     int getCurrentBoardId();
 
-    QPointF getBoardViewTopLeftPos() const; // in canvas coordinates
+    QSet<int> getAllBoardIds() const;
 
+    QPointF getBoardViewTopLeftPos() const; // in canvas coordinates
     double getBoardViewZoomRatio() const;
+
+    bool canClose() const;
 
 signals:
     void openRightSidebar();

@@ -163,6 +163,8 @@ public:
     void updateWorkspaceNodeProperties(
             const int workspaceId, const WorkspaceNodePropertiesUpdate &update);
 
+    void removeWorkspace(const int workspaceId);
+
     void updateBoardsListProperties(const BoardsListPropertiesUpdate &propertiesUpdate);
 
     void createNewBoardWithId(const int boardId, const Board &board, const int workspaceId);

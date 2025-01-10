@@ -138,6 +138,12 @@ public:
     void updateWorkspaceNodeProperties(
             const int workspaceId, const WorkspaceNodePropertiesUpdate &update);
 
+    //!
+    //! \param workspaceId
+    //! \param boardIds: boards of the workspace \e workspaceId
+    //!
+    void removeWorkspace(const int workspaceId, const QSet<int> &boardIds);
+
     void updateBoardsListProperties(const BoardsListPropertiesUpdate &propertiesUpdate);
 
     //!

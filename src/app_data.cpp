@@ -176,6 +176,14 @@ void AppData::updateWorkspaceNodeProperties(
     // 2. update all variables and emit "updated" signals
 }
 
+void AppData::removeWorkspace(
+        const EventSource &/*eventSrc*/, const int workspaceId, const QSet<int> &boardIds) {
+    // 1. persist
+    persistedDataAccess->removeWorkspace(workspaceId, boardIds);
+
+    // 2. update all variables and emit "updated" signals
+}
+
 void AppData::updateBoardsListProperties(
         const EventSource &/*eventSrc*/, const BoardsListPropertiesUpdate &propertiesUpdate) {
     // 1. persist

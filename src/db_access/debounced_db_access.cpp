@@ -438,6 +438,28 @@ void DebouncedDbAccess::updateWorkspaceNodeProperties(
     );
 }
 
+void DebouncedDbAccess::removeWorkspace(const int workspaceId) {
+    closeDebounceSession();
+
+    boardsDataAccess->removeWorkspace(
+            workspaceId,
+            // callback
+            [this, workspaceId](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "removeWorkspace";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"workspaceId", workspaceId}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("removal of workspace");
+                }
+            },
+            this
+    );
+}
+
 void DebouncedDbAccess::updateBoardsListProperties(
         const BoardsListPropertiesUpdate &propertiesUpdate) {
     closeDebounceSession();

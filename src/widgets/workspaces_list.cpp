@@ -47,7 +47,11 @@ void WorkspacesList::removeWorkspace(const int workspaceId) {
     listWidget->removeItem(workspaceId);
 }
 
-QVector<int> WorkspacesList::getWorkspacesOrder() const {
+int WorkspacesList::count() const {
+    return listWidget->count();
+}
+
+QVector<int> WorkspacesList::getWorkspaceIds() const {
     return listWidget->getItems();
 }
 

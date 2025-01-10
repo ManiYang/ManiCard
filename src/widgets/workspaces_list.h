@@ -32,7 +32,8 @@ public:
 
     //
 
-    QVector<int> getWorkspacesOrder() const;
+    int count() const;
+    QVector<int> getWorkspaceIds() const;
 
     //!
     //! \return "" if not found

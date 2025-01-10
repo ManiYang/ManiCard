@@ -249,16 +249,8 @@ void MainWindow::setUpConnections() {
         onUserToCreateNewWorkspace();
     });
 
-    connect(workspacesList, &WorkspacesList::userToRemoveWorkspace, this, [this](int boardId) {
-        const auto r = QMessageBox::question(
-                this, " ",
-                QString("Delete the workspace \"%1\"?"
-                        " All boards in the workspaces will be deleted.")
-                    .arg(workspacesList->workspaceName(boardId)));
-        if (r != QMessageBox::Yes)
-            return;
-
-//        onUserToRemoveWorkspace(boardId);
+    connect(workspacesList, &WorkspacesList::userToRemoveWorkspace, this, [this](int workspaceId) {
+        onUserToRemoveWorkspace(workspaceId);
     });
 
     connect(workspacesList, &WorkspacesList::workspacesOrderChanged,
@@ -703,91 +695,143 @@ void MainWindow::onUserRenamedWorkspace(const int workspaceId, const QString &ne
         workspaceFrame->changeWorkspaceName(newName);
 }
 
-void MainWindow::onUserToRemoveBoard(const int boardId) {
-//    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-//    {
-//    public:
-//        QString errorMsg;
-//    };
-//    auto *routine = new AsyncRoutineWithVars;
+void MainWindow::onUserToRemoveWorkspace(const int workspaceIdToRemove) {
+    if (workspaceIdToRemove == -1)
+        return;
 
-//    //
-//    routine->addStep([this, routine, boardId]() {
-//        if (boardView->getBoardId() == boardId) {
-//            boardView->prepareToClose();
+    // show confirmation message box
+    const auto r = QMessageBox::question(
+            this, "Please Confirm",
+            QString("Remove the workspace \"%1\"?"
+                    " All boards in the workspaces will be removed.")
+                .arg(workspacesList->workspaceName(workspaceIdToRemove)));
+    if (r != QMessageBox::Yes)
+        return;
 
-//            // wait until boardView->canClose() returns true
-//            (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
-//                ->setPredicate([this]() {
-//                    return boardView->canClose();
-//                })
-//                ->onPredicateReturnsTrue([routine]() {
-//                    routine->nextStep();
-//                })
-//                ->onTimeOut([routine]() {
-//                    qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
-//                    routine->nextStep();
-//                })
-//                ->setAutoDelete()->start();
-//        }
-//        else {
-//            routine->nextStep();
-//        }
-//    }, this);
+    //
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QSet<int> originalBoardIdsOfWorkspace;
+        bool toCloseWorkspace {false};
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
 
-//    routine->addStep([this, routine, boardId]() {
-//        if (boardView->getBoardId() == boardId) {
-//            // close current board
-//            boardView->loadBoard(
-//                    -1,
-//                    // callback
-//                    [this, routine](bool loadOk, bool highlightedCardIdChanged) {
-//                        ContinuationContext context(routine);
+    routine->addStep([this, routine, workspaceIdToRemove]() {
+        // get the boards of `workspaceIdToRemove`
+        Services::instance()->getAppDataReadonly()->getWorkspaces(
+                [routine, workspaceIdToRemove](bool ok, const QHash<int, Workspace> &workspacesData) {
+                    ContinuationContext context(routine);
 
-//                        if (!loadOk) {
-//                            context.setErrorFlag();
-//                            routine->errorMsg = "could not close current board";
-//                            return;
-//                        }
+                    if (!ok) {
+                        context.setErrorFlag();
+                        return;
+                    }
 
-//                        if (highlightedCardIdChanged) {
-//                            // call AppData
-//                            constexpr int highlightedCardId = -1;
-//                            Services::instance()->getAppData()
-//                                    ->setHighlightedCardId(EventSource(this), highlightedCardId);
-//                        }
+                    if (!workspacesData.contains(workspaceIdToRemove)) {
+                        qWarning().noquote()
+                                << QString("could not get data of workspace %1")
+                                   .arg(workspaceIdToRemove);
+                        context.setErrorFlag();
+                        return;
+                    }
 
-//                        boardView->setVisible(false);
-//                        noBoardOpenSign->setVisible(true);
-//                    }
-//            );
-//        }
-//        else {
-//            routine->nextStep();
-//        }
-//    }, this);
+                    routine->originalBoardIdsOfWorkspace
+                            = workspacesData.value(workspaceIdToRemove).boardIds;
+                },
+                this
+        );
+    }, this);
 
-//    routine->addStep([this, routine, boardId]() {
-//        // remove board from `boardsList`
-//        ContinuationContext context(routine);
-//        boardsList->removeBoard(boardId);
-//    }, this);
+    routine->addStep([this, routine, workspaceIdToRemove]() {
+        // remove the workspace
+        ContinuationContext context(routine);
 
-//    routine->addStep([this, routine, boardId]() {
-//        ContinuationContext context(routine);
+        workspacesList->removeWorkspace(workspaceIdToRemove);
+        saveWorkspacesOrdering();
+        Services::instance()->getAppData()->removeWorkspace(
+                    EventSource(this), workspaceIdToRemove, routine->originalBoardIdsOfWorkspace);
+    }, this);
 
-//        saveBoardsOrdering();
-//        Services::instance()->getAppData()->removeBoard(EventSource(this), boardId);
-//    }, this);
+    routine->addStep([this, routine, workspaceIdToRemove]() {
+        // determine whether to close workspace
+        ContinuationContext context(routine);
 
-//    routine->addStep([this, routine]() {
-//        // final step
-//        ContinuationContext context(routine);
-//        if (routine->errorFlag && !routine->errorMsg.isEmpty())
-//            showWarningMessageBox(this, " ", routine->errorMsg);
-//    }, this);
+        routine->toCloseWorkspace = (workspaceFrame->getWorkspaceId() == workspaceIdToRemove);
+        if (routine->toCloseWorkspace)
+            workspacesList->setSelectedWorkspaceId(-1);
+    }, this);
 
-//    routine->start();
+    routine->addStep([this, routine]() {
+        // prepare to close `workspaceFrame`
+        if (!routine->toCloseWorkspace) {
+            routine->nextStep();
+            return;
+        }
+
+        workspaceFrame->setVisible(true);
+        noWorkspaceOpenSign->setVisible(false);
+        workspaceFrame->prepareToClose();
+
+        // wait until workspaceFrame->canClose() returns true
+        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
+            ->setPredicate([this]() {
+                return workspaceFrame->canClose();
+            })
+            ->onPredicateReturnsTrue([routine]() {
+                routine->nextStep();
+            })
+            ->onTimeOut([routine]() {
+                qWarning().noquote() << "time-out while awaiting WorkspaceFrame::canClose()";
+                routine->nextStep();
+            })
+            ->setAutoDelete()->start();
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // close workspace
+        if (!routine->toCloseWorkspace) {
+            routine->nextStep();
+            return;
+        }
+
+        workspaceFrame->loadWorkspace(
+                -1,
+                // callback
+                [this, routine](bool ok, bool highlightedCardIdChanged) {
+                    ContinuationContext context(routine);
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg = QString("Could not close workspace");
+                    }
+
+                    if (highlightedCardIdChanged) {
+                        constexpr int highlightedCardId = -1;
+                        Services::instance()->getAppData()
+                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
+                    }
+                }
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // show no-workspace sign if no workspace is open
+        ContinuationContext context(routine);
+        if (workspacesList->selectedWorkspaceId() == -1) {
+            workspaceFrame->setVisible(false);
+            noWorkspaceOpenSign->setVisible(true);
+        }
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+            showWarningMessageBox(this, " ", routine->errorMsg);
+    }, this);
+
+    routine->start();
 }
 
 void MainWindow::onUserToSetCardLabelsList() {

@@ -366,6 +366,119 @@ void BoardsDataAccess::updateWorkspaceNodeProperties(
     );
 }
 
+void BoardsDataAccess::removeWorkspace(
+        const int workspaceId, std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        Neo4jTransaction *transaction {nullptr};
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // 1. open transaction
+        routine->transaction = neo4jHttpApiClient->getTransaction();
+        routine->transaction->open(
+                // callback
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, workspaceId]() {
+        // 2. remove NodeRect & DataViewBox
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (:Workspace {id: $workspaceId})-[:HAS]->(:Board)
+                            -[:HAS]->(n:NodeRect|DataViewBox)
+                        DETACH DELETE n
+                    )!",
+                    QJsonObject {{"workspaceId", workspaceId}}
+                },
+                // callback
+                [routine](bool ok, const QueryResponseSingleResult &/*queryResponse*/) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, workspaceId]() {
+        // 3. remove Board
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (:Workspace {id: $workspaceId})-[:HAS]->(b:Board)
+                        DETACH DELETE b
+                    )!",
+                    QJsonObject {{"workspaceId", workspaceId}}
+                },
+                // callback
+                [routine](bool ok, const QueryResponseSingleResult &/*queryResponse*/) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, workspaceId]() {
+        // 4. remove workspace
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (ws:Workspace {id: $workspaceId})
+                        DETACH DELETE ws
+                    )!",
+                    QJsonObject {{"workspaceId", workspaceId}}
+                },
+                // callback
+                [routine](bool ok, const QueryResponseSingleResult &/*queryResponse*/) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine]() {
+        // 5. commit transaction
+        routine->transaction->commit(
+                // callback
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, callback]() {
+        // 6. final step
+        ContinuationContext context(routine);
+        routine->transaction->deleteLater();
+        callback(!routine->errorFlag);
+    }, callbackContext);
+
+    //
+    routine->start();
+
+
+}
+
 void BoardsDataAccess::updateBoardsListProperties(
         const BoardsListPropertiesUpdate &propertiesUpdate,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {

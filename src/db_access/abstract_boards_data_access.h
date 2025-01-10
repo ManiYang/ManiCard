@@ -69,6 +69,14 @@ public:
             const int workspaceId, const WorkspaceNodePropertiesUpdate &update,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 
+    //!
+    //! Also removes all boards that the workspace has.
+    //! This operation is atomic and idempotent.
+    //!
+    virtual void removeWorkspace(
+            const int workspaceId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
     // ==== boards list ====
 
     //!

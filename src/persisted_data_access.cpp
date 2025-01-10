@@ -674,6 +674,30 @@ void PersistedDataAccess::updateWorkspaceNodeProperties(
     }
 }
 
+void PersistedDataAccess::removeWorkspace(const int workspaceId, const QSet<int> &boardIds) {
+    // 1. update cache synchronously
+    if (cache.allWorkspaces.has_value()) {
+        QHash<int, Workspace> &allWorkspaces = cache.allWorkspaces.value();
+        if (!allWorkspaces.contains(workspaceId)) {
+            qWarning().noquote() << QString("workspace %1 does not exist in cache").arg(workspaceId);
+        }
+        else {
+            if (allWorkspaces[workspaceId].boardIds != boardIds) {
+                qWarning().noquote()
+                        << QString("workspace %1 in cache contains a different set of boards")
+                           .arg(workspaceId);
+            }
+            allWorkspaces.remove(workspaceId);
+        }
+    }
+
+    for (const int boardId: boardIds)
+        cache.boards.remove(boardId);
+
+    // 2. write DB
+    debouncedDbAccess->removeWorkspace(workspaceId);
+}
+
 void PersistedDataAccess::updateBoardsListProperties(
         const BoardsListPropertiesUpdate &propertiesUpdate) {
     BoardsListPropertiesUpdate propertiesUpdateForDb = propertiesUpdate;
