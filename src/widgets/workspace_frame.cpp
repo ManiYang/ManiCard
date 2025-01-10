@@ -297,10 +297,7 @@ void WorkspaceFrame::setUpConnections() {
     });
 
     connect(boardsTabBar, &CustomTabBar::tabSelectedByUser, this, [this](const int boardId) {
-        qDebug() << "tab bar current index changed by user";
-
-
-
+        onUserSelectedBoard(boardId);
     });
 }
 
@@ -374,7 +371,6 @@ void WorkspaceFrame::onUserToAddBoard() {
                 routine->nextStep();
             })
             ->setAutoDelete()->start();
-
     }, this);
 
     routine->addStep([this, routine]() {
@@ -422,6 +418,68 @@ void WorkspaceFrame::onUserToRenameBoard(const int boardId) {
 
 
 
+}
+
+void WorkspaceFrame::onUserSelectedBoard(const int boardId) {
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // prepare to close `boardView`
+        boardView->setVisible(true);
+        noBoardSign->setVisible(false);
+        boardView->prepareToClose();
+
+        // wait until boardView->canClose() returns true
+        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
+            ->setPredicate([this]() {
+                return boardView->canClose();
+            })
+            ->onPredicateReturnsTrue([routine]() {
+                routine->nextStep();
+            })
+            ->onTimeOut([routine]() {
+                qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
+                routine->nextStep();
+            })
+            ->setAutoDelete()->start();
+    }, this);
+
+    routine->addStep([this, routine, boardId]() {
+        // load board
+        boardView->loadBoard(
+                boardId,
+                // callback
+                [this, routine, boardId](bool ok, bool highlightedCardIdChanged) {
+                    ContinuationContext context(routine);
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg = QString("Could not load board %1").arg(boardId);
+                    }
+
+                    if (highlightedCardIdChanged) {
+                        constexpr int highlightedCardId = -1;
+                        Services::instance()->getAppData()
+                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
+                    }
+                }
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
+
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+            showWarningMessageBox(this, " ", routine->errorMsg);
+    }, this);
+
+    routine->start();
 }
 
 //========
