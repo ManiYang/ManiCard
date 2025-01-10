@@ -749,6 +749,16 @@ void PersistedDataAccess::removeBoard(const int boardId) {
     // 1. update cache synchronously
     cache.boards.remove(boardId);
 
+    if (cache.allWorkspaces.has_value()) {
+        QHash<int, Workspace> &allWorkspaces = cache.allWorkspaces.value();
+        for (auto it = allWorkspaces.begin(); it != allWorkspaces.end(); ++it) {
+            Workspace &workspace = it.value();
+            const bool found = workspace.boardIds.remove(boardId);
+            if (found)
+                break;
+        }
+    }
+
     // 2. write DB
     debouncedDbAccess->removeBoard(boardId);
 }

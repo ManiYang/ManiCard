@@ -558,8 +558,6 @@ void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
 
     routine->addStep([this, routine]() {
         // prepare to close `boardView`
-        saveTopLeftPosAndZoomRatioOfCurrentBoard();
-
         boardView->setVisible(true);
         noBoardSign->setVisible(false);
         boardView->prepareToClose();
