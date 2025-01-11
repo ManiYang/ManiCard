@@ -58,11 +58,11 @@ SOURCES += \
     widgets/components/node_rect.cpp \
     widgets/components/property_value_editor.cpp \
     widgets/components/simple_toolbar.cpp \
-    widgets/dialogs/dialog_board_card_colors.cpp \
     widgets/dialogs/dialog_create_relationship.cpp \
     widgets/dialogs/dialog_set_labels.cpp \
     widgets/dialogs/dialog_user_card_labels.cpp \
     widgets/dialogs/dialog_user_relationship_types.cpp \
+    widgets/dialogs/dialog_workspace_card_colors.cpp \
     widgets/main_window.cpp \
     widgets/right_sidebar.cpp \
     widgets/right_sidebar_toolbar.cpp \
@@ -134,11 +134,11 @@ HEADERS += \
     widgets/components/node_rect.h \
     widgets/components/property_value_editor.h \
     widgets/components/simple_toolbar.h \
-    widgets/dialogs/dialog_board_card_colors.h \
     widgets/dialogs/dialog_create_relationship.h \
     widgets/dialogs/dialog_set_labels.h \
     widgets/dialogs/dialog_user_card_labels.h \
     widgets/dialogs/dialog_user_relationship_types.h \
+    widgets/dialogs/dialog_workspace_card_colors.h \
     widgets/main_window.h \
     widgets/right_sidebar.h \
     widgets/right_sidebar_toolbar.h \
@@ -146,11 +146,11 @@ HEADERS += \
     widgets/workspaces_list.h
 
 FORMS += \
-    widgets/dialogs/dialog_board_card_colors.ui \
     widgets/dialogs/dialog_create_relationship.ui \
     widgets/dialogs/dialog_set_labels.ui \
     widgets/dialogs/dialog_user_card_labels.ui \
     widgets/dialogs/dialog_user_relationship_types.ui \
+    widgets/dialogs/dialog_workspace_card_colors.ui \
     widgets/main_window.ui
 
 RESOURCES += \

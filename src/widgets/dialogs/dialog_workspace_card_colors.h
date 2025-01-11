@@ -1,37 +1,38 @@
-#ifndef DIALOG_BOARD_CARD_COLORS_H
-#define DIALOG_BOARD_CARD_COLORS_H
+#ifndef DIALOG_WORKSPACE_CARD_COLORS_H
+#define DIALOG_WORKSPACE_CARD_COLORS_H
 
 #include <QBoxLayout>
 #include <QDialog>
 #include <QLabel>
-#include "models/board.h"
 
 namespace Ui {
-class DialogBoardCardColors;
+class DialogWorkspaceCardColors;
 }
 
 class ColorDisplayWidget;
 
-class DialogBoardCardColors : public QDialog
+class DialogWorkspaceCardColors : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit DialogBoardCardColors(
-            const QString &boardName,
-            const QVector<Board::LabelAndColor> &cardLabelsAndAssociatedColors,
-            const QColor &defaultNodeRectColor, QWidget *parent = nullptr);
-    ~DialogBoardCardColors();
+    using LabelAndColor = std::pair<QString, QColor>;
 
-    QVector<Board::LabelAndColor> getCardLabelsAndAssociatedColors() const;
+    explicit DialogWorkspaceCardColors(
+            const QString &workspaceName,
+            const QVector<LabelAndColor> &cardLabelsAndAssociatedColors,
+            const QColor &defaultNodeRectColor, QWidget *parent = nullptr);
+    ~DialogWorkspaceCardColors();
+
+    QVector<LabelAndColor> getCardLabelsAndAssociatedColors() const;
     QColor getDefaultColor() const;
 
 private:
-    Ui::DialogBoardCardColors *ui;
+    Ui::DialogWorkspaceCardColors *ui;
 
     void setUpWidgets(
-            const QString &boardName,
-            const QVector<Board::LabelAndColor> &cardLabelsAndAssociatedColors,
+            const QString &workspaceName,
+            const QVector<LabelAndColor> &cardLabelsAndAssociatedColors,
             const QColor &defaultNodeRectColor);
     void setUpConnections();
 
@@ -74,4 +75,4 @@ private:
     QLabel *labelColorHex {nullptr};
 };
 
-#endif // DIALOG_BOARD_CARD_COLORS_H
+#endif // DIALOG_WORKSPACE_CARD_COLORS_H

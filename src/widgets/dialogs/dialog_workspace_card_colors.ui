@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>DialogBoardCardColors</class>
- <widget class="QDialog" name="DialogBoardCardColors">
+ <class>DialogWorkspaceCardColors</class>
+ <widget class="QDialog" name="DialogWorkspaceCardColors">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -17,7 +17,7 @@
    <item>
     <widget class="QLabel" name="labelTitle">
      <property name="text">
-      <string>Board ...</string>
+      <string>Workspace ...</string>
      </property>
     </widget>
    </item>
@@ -248,7 +248,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>DialogBoardCardColors</receiver>
+   <receiver>DialogWorkspaceCardColors</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -264,7 +264,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>DialogBoardCardColors</receiver>
+   <receiver>DialogWorkspaceCardColors</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

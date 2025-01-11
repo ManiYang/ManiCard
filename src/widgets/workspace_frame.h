@@ -56,6 +56,7 @@ signals:
 
 private:
     int workspaceId {-1};
+    QString workspaceName;
 
     WorkspaceToolBar *workspaceToolBar {nullptr};
     CustomTabBar *boardsTabBar {nullptr};
@@ -63,6 +64,11 @@ private:
     NoBoardSign *noBoardSign {nullptr};
     QMenu *boardTabContextMenu {nullptr};
     int boardTabContextMenuTargetBoardId {-1};
+
+    // [needed?]
+//    using LabelAndColor = std::pair<QString, QColor>;
+//    QVector<LabelAndColor> cardLabelsAndAssociatedColors; // in the order of precedence (high to low)
+//    QColor defaultNodeRectColor;
 
     //
     void setUpWidgets();
@@ -74,6 +80,7 @@ private:
     void onUserToRenameBoard(const int boardId);
     void onUserSelectedBoard(const int boardId);
     void onUserToRemoveBoard(const int boardIdToRemove);
+    void onUserToSetCardColors();
 
     //!
     //! save the data for the board currently shown in `boardView`

@@ -41,10 +41,28 @@ public:
 
     void applyZoomAction(const ZoomAction zoomAction);
 
+    using LabelAndColor = std::pair<QString, QColor>;
+
+    //!
+    //! This can be called even if no board is loaded.
+    //! \param cardLabelsAndAssociatedColors: in the order of precedence (high to low)
+    //! \param defaultNodeRectColor
+    //!
+    void setColorsAssociatedWithLabels(
+            const QVector<LabelAndColor> &cardLabelsAndAssociatedColors,
+            const QColor &defaultNodeRectColor);
+
     //
     int getBoardId() const; // can be -1
     QPointF getViewTopLeftPos() const; // in canvas coordinates
     double getZoomRatio() const;
+
+    QVector<LabelAndColor> getCardLabelsAndAssociatedColors() const {
+        return cardLabelsAndAssociatedColors;
+    }
+    QColor getDefaultNodeRectColor() const {
+        return defaultNodeRectColor;
+    }
 
     bool canClose() const;
 
@@ -62,9 +80,8 @@ private:
     constexpr static double zValueForEdgeArrows {15.0};
 
     int boardId {-1}; // -1: no board loaded
-    QString boardName; // TODO: `boardName` can be updated after loadBoard() is called
-    QVector<Board::LabelAndColor> cardLabelsAndAssociatedColors;
-            // in the order of precedence (high to low)
+
+    QVector<LabelAndColor> cardLabelsAndAssociatedColors; // in the order of precedence (high to low)
     QColor defaultNodeRectColor;
 
     double zoomScale {1.0};
@@ -97,7 +114,6 @@ private:
     void onUserToCreateRelationship(const int cardId);
     void onUserToCloseNodeRect(const int cardId);
     void onUserToCloseDataViewBox(const int customDataQueryId);
-    void onUserToSetCardColors(); // not used....
     void onBackgroundClicked();
 
     //
@@ -244,7 +260,7 @@ private:
     static QColor computeNodeRectDisplayColor(
             const QColor &nodeRectOwnColor,
             const QSet<QString> &cardLabels,
-            const QVector<Board::LabelAndColor> &cardLabelsAndAssociatedColors,
+            const QVector<LabelAndColor> &cardLabelsAndAssociatedColors,
             const QColor &boardDefaultColorForNodeRect);
     static QColor computeDataViewBoxDisplayColor(
             const QColor &dataViewBoxOwnColor, const QColor &boardDefaultColorForDataViewBox);

@@ -18,11 +18,6 @@ struct Board {
     QPointF topLeftPos {0, 0}; // view's top-left corner
     double zoomRatio {1.0};
 
-    QColor defaultNodeRectColor {170, 170, 170};
-    using LabelAndColor = std::pair<QString, QColor>;
-    QVector<LabelAndColor> cardLabelsAndAssociatedColors;
-            // in the order of precedence (high to low)
-
     //
     QHash<int, NodeRectData> cardIdToNodeRectData;
     QHash<int, DataViewBoxData> customDataQueryIdToDataViewBoxData;
@@ -40,8 +35,6 @@ struct BoardNodePropertiesUpdate
     std::optional<QString> name;
     std::optional<QPointF> topLeftPos;
     std::optional<double> zoomRatio;
-    std::optional<QColor> defaultNodeRectColor;
-    std::optional<QVector<Board::LabelAndColor>> cardLabelsAndAssociatedColors;
 
     QJsonObject toJson() const;
     QSet<QString> keys() const;

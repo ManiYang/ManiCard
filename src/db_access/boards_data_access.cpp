@@ -319,7 +319,9 @@ void BoardsDataAccess::updateWorkspaceNodeProperties(
 
                 const auto queryResult = queryResponse.getResult().value();
                 if (queryResult.isEmpty()) {
-                    qWarning().noquote() << QString("workspace %1 not found").arg(workspaceId);
+                    qWarning().noquote()
+                            << QString("workspace %1 not found or properties could not be written")
+                               .arg(workspaceId);
                     callback(false);
                     return;
                 }

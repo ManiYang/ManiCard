@@ -5,8 +5,8 @@
 #include <QPainter>
 #include <QRegularExpression>
 #include <QTableWidgetItem>
-#include "dialog_board_card_colors.h"
-#include "ui_dialog_board_card_colors.h"
+#include "dialog_workspace_card_colors.h"
+#include "ui_dialog_workspace_card_colors.h"
 #include "utilities/naming_rules.h"
 
 namespace {
@@ -14,27 +14,28 @@ enum class Column {Label=0, Color, Precedence};
 QPixmap drawColorSamplePixmap(const QColor &color);
 }
 
-DialogBoardCardColors::DialogBoardCardColors(
-        const QString &boardName,
-        const QVector<Board::LabelAndColor> &cardLabelsAndAssociatedColors,
+DialogWorkspaceCardColors::DialogWorkspaceCardColors(
+        const QString &workspaceName,
+        const QVector<LabelAndColor> &cardLabelsAndAssociatedColors,
         const QColor &defaultNodeRectColor, QWidget *parent)
             : QDialog(parent)
-            , ui(new Ui::DialogBoardCardColors) {
+            , ui(new Ui::DialogWorkspaceCardColors) {
     ui->setupUi(this);
     setWindowTitle("Card Colors");
 
-    setUpWidgets(boardName, cardLabelsAndAssociatedColors, defaultNodeRectColor);
+    setUpWidgets(workspaceName, cardLabelsAndAssociatedColors, defaultNodeRectColor);
     setUpConnections();
 
     validateLabels();
 }
 
-DialogBoardCardColors::~DialogBoardCardColors() {
+DialogWorkspaceCardColors::~DialogWorkspaceCardColors() {
     delete ui;
 }
 
-QVector<Board::LabelAndColor> DialogBoardCardColors::getCardLabelsAndAssociatedColors() const {
-    QVector<Board::LabelAndColor> result;
+QVector<DialogWorkspaceCardColors::LabelAndColor>
+DialogWorkspaceCardColors::getCardLabelsAndAssociatedColors() const {
+    QVector<LabelAndColor> result;
     for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
         const QString label = ui->tableWidget->item(row, int(Column::Label))->text();
 
@@ -48,17 +49,16 @@ QVector<Board::LabelAndColor> DialogBoardCardColors::getCardLabelsAndAssociatedC
     return result;
 }
 
-QColor DialogBoardCardColors::getDefaultColor() const {
+QColor DialogWorkspaceCardColors::getDefaultColor() const {
     return QColor(ui->labelDefaultColorHex->text());
 }
 
-
-void DialogBoardCardColors::setUpWidgets(
-        const QString &boardName,
-        const QVector<Board::LabelAndColor> &cardLabelsAndAssociatedColors,
+void DialogWorkspaceCardColors::setUpWidgets(
+        const QString &workspaceName,
+        const QVector<LabelAndColor> &cardLabelsAndAssociatedColors,
         const QColor &defaultNodeRectColor) {
     // title
-    ui->labelTitle->setText(QString("Board: <b>%1</b>").arg(boardName));
+    ui->labelTitle->setText(QString("Workspace: <b>%1</b>").arg(workspaceName));
     {
         QFont f = font();
         f.setPointSize(12);
@@ -114,7 +114,7 @@ void DialogBoardCardColors::setUpWidgets(
             "}");
 }
 
-void DialogBoardCardColors::setUpConnections() {
+void DialogWorkspaceCardColors::setUpConnections() {
     // ui->tableWidget
     connect(ui->tableWidget, &QTableWidget::itemSelectionChanged, this, [this]() {
         if (ui->tableWidget->selectedItems().count() > 0) {
@@ -194,7 +194,7 @@ void DialogBoardCardColors::setUpConnections() {
     });
 }
 
-void DialogBoardCardColors::onUserToPickColorForRow(const int row) {
+void DialogWorkspaceCardColors::onUserToPickColorForRow(const int row) {
     QWidget *w = ui->tableWidget->cellWidget(row, int(Column::Color));
     ColorDisplayWidget *colorDisplayWidget = qobject_cast<ColorDisplayWidget *>(w);
     if (colorDisplayWidget == nullptr) {
@@ -221,7 +221,7 @@ void DialogBoardCardColors::onUserToPickColorForRow(const int row) {
     colorDisplayWidget->setColor(newColor);
 }
 
-void DialogBoardCardColors::onUserToRemoveRow(const int row, const QString &cardLabel) {
+void DialogWorkspaceCardColors::onUserToRemoveRow(const int row, const QString &cardLabel) {
     const auto r = QMessageBox::question(
             this, " ",
             QString("Remove the color association for card label <b>%1</b>?").arg(cardLabel));
@@ -234,7 +234,7 @@ void DialogBoardCardColors::onUserToRemoveRow(const int row, const QString &card
     validateLabels();
 }
 
-void DialogBoardCardColors::addRowToLabelColorAssociationTable(
+void DialogWorkspaceCardColors::addRowToLabelColorAssociationTable(
         const QString &label, const QColor &color) {
     const int row = ui->tableWidget->rowCount();
     ui->tableWidget->setRowCount(row + 1);
@@ -269,7 +269,7 @@ void DialogBoardCardColors::addRowToLabelColorAssociationTable(
     }
 }
 
-void DialogBoardCardColors::swapRows(const int row1, const int row2) {
+void DialogWorkspaceCardColors::swapRows(const int row1, const int row2) {
     Q_ASSERT(row1 >= 0 && row1 < ui->tableWidget->rowCount());
     Q_ASSERT(row2 >= 0 && row2 < ui->tableWidget->rowCount());
 
@@ -304,14 +304,14 @@ void DialogBoardCardColors::swapRows(const int row1, const int row2) {
     // (precedence cells remains unchanged)
 }
 
-void DialogBoardCardColors::updatePrecedenceNumbers() {
+void DialogWorkspaceCardColors::updatePrecedenceNumbers() {
     for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
         const QString text = (row == 0) ? "1 (highest)" : QString::number(row + 1);
         ui->tableWidget->item(row, int(Column::Precedence))->setText(text);
     }
 }
 
-void DialogBoardCardColors::validateLabels() {
+void DialogWorkspaceCardColors::validateLabels() {
     static const QRegularExpression re(regexPatternForCardLabelName);
 
     // check each label is valid
@@ -357,12 +357,12 @@ void DialogBoardCardColors::validateLabels() {
     }
 }
 
-void DialogBoardCardColors::setDefaultColor(const QColor &color) {
+void DialogWorkspaceCardColors::setDefaultColor(const QColor &color) {
     ui->labelDefaultColor->setPixmap(drawColorSamplePixmap(color));
     ui->labelDefaultColorHex->setText(color.name());
 }
 
-int DialogBoardCardColors::getRowOfColorDisplayWidget(
+int DialogWorkspaceCardColors::getRowOfColorDisplayWidget(
         ColorDisplayWidget *colorDisplayWidget) const {
     for (int r = 0; r < ui->tableWidget->rowCount(); ++r) {
         QWidget *w = ui->tableWidget->cellWidget(r, int(Column::Color));

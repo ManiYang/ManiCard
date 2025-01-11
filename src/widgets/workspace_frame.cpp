@@ -14,6 +14,7 @@
 #include "utilities/periodic_checker.h"
 #include "widgets/board_view.h"
 #include "widgets/components/custom_tab_bar.h"
+#include "widgets/dialogs/dialog_workspace_card_colors.h"
 #include "workspace_frame.h"
 
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
@@ -78,7 +79,13 @@ void WorkspaceFrame::loadWorkspace(
     routine->addStep([this, routine]() {
         // 3. clear `boardsTabBar`
         ContinuationContext context(routine);
+
         boardsTabBar->removeAllTabs();
+
+        // clear variables
+        workspaceId = -1;
+        workspaceName = "";
+        workspaceToolBar->setWorkspaceName("");
     }, this);
 
     routine->addStep([this, routine, workspaceIdToLoad]() {
@@ -196,7 +203,11 @@ void WorkspaceFrame::loadWorkspace(
 
         if (!routine->errorFlag) {
             workspaceId = workspaceIdToLoad;
+            workspaceName = routine->workspaceData.name;
             workspaceToolBar->setWorkspaceName(routine->workspaceData.name);
+            boardView->setColorsAssociatedWithLabels(
+                    routine->workspaceData.cardLabelsAndAssociatedColors,
+                    routine->workspaceData.defaultNodeRectColor);
         }
 
         callback(!routine->errorFlag, routine->highlightedCardIdChanged);
@@ -206,6 +217,7 @@ void WorkspaceFrame::loadWorkspace(
 }
 
 void WorkspaceFrame::changeWorkspaceName(const QString newName) {
+    workspaceName = newName;
     workspaceToolBar->setWorkspaceName(newName);
 }
 
@@ -273,12 +285,17 @@ void WorkspaceFrame::setUpWidgets() {
 }
 
 void WorkspaceFrame::setUpConnections() {
+    // `workspaceToolBar`
     connect(workspaceToolBar, &WorkspaceToolBar::userToAddNewBoard, this, [this]() {
         onUserToAddBoard();
     });
 
     connect(workspaceToolBar, &WorkspaceToolBar::openRightSidebar, this, [this]() {
         emit openRightSidebar();
+    });
+
+    connect(workspaceToolBar, &WorkspaceToolBar::openCardColorsDialog, this, [this]() {
+        onUserToSetCardColors();
     });
 
     // `boardsTabBar`
@@ -613,6 +630,39 @@ void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
     }, this);
 
     routine->start();
+}
+
+void WorkspaceFrame::onUserToSetCardColors() {
+    if (workspaceId == -1)
+        return;
+
+    //
+    auto *dialog = new DialogWorkspaceCardColors(
+            workspaceName,
+            boardView->getCardLabelsAndAssociatedColors(),
+            boardView->getDefaultNodeRectColor(),
+            this
+    );
+    connect(dialog, &QDialog::finished, this, [this, dialog](int result) {
+        dialog->deleteLater();
+
+        if (result != QDialog::Accepted)
+            return;
+
+        //
+        boardView->setColorsAssociatedWithLabels(
+                dialog->getCardLabelsAndAssociatedColors(), dialog->getDefaultColor());
+
+        // call AppData
+        WorkspaceNodePropertiesUpdate propertiesUpdate;
+        {
+            propertiesUpdate.defaultNodeRectColor = dialog->getDefaultColor();
+            propertiesUpdate.cardLabelsAndAssociatedColors = dialog->getCardLabelsAndAssociatedColors();
+        }
+        Services::instance()->getAppData()->updateWorkspaceNodeProperties(
+                EventSource(this), workspaceId, propertiesUpdate);
+    });
+    dialog->open();
 }
 
 void WorkspaceFrame::saveTopLeftPosAndZoomRatioOfCurrentBoard() {
