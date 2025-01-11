@@ -1,6 +1,7 @@
 #include <QDebug>
 #include <QHBoxLayout>
 #include <QInputDialog>
+#include <QPushButton>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include "app_data.h"
@@ -256,35 +257,8 @@ void WorkspaceFrame::setUpWidgets() {
         layout->addWidget(workspaceToolBar);
 
         //
-        auto *hLayout = new QHBoxLayout;
-        layout->addLayout(hLayout);
-        hLayout->setContentsMargins(0, 0, 0, 0);
-        hLayout->setSpacing(0);
-        {
-            boardsTabBar = new CustomTabBar;
-            hLayout->addWidget(boardsTabBar, 0, Qt::AlignBottom);
-
-            //
-            auto *buttonAddBoard = new QToolButton;
-            hLayout->addWidget(buttonAddBoard);
-            buttonAddBoard->setIcon(QIcon(":/icons/add_black_24"));
-            buttonAddBoard->setIconSize({20, 20});
-            buttonAddBoard->setToolTip("Add Board");
-            connect(buttonAddBoard, &QToolButton::clicked, this, [this]() {
-                onUserToAddBoard();
-            });
-            buttonAddBoard->setStyleSheet(
-                    "QToolButton {"
-                    "  margin: 2px 2px 0 0;" // ^>v<
-                    "  padding: 2px;"
-                    "  border: none;"
-                    "  border-bottom: 1px solid #a0a0a0;"
-                    "  background: transparent;"
-                    "}"
-                    "QToolButton:hover {"
-                    "  background: #d0d0d0;"
-                    "}");
-        }
+        boardsTabBar = new CustomTabBar;
+        layout->addWidget(boardsTabBar);
 
         //
         boardView = new BoardView;
@@ -292,18 +266,17 @@ void WorkspaceFrame::setUpWidgets() {
         boardView->setVisible(false);
 
         //
-        noBoardSign = new QLabel("No board in this workspace");
-        layout->addWidget(noBoardSign, 0, Qt::AlignCenter);
-        noBoardSign->setStyleSheet(
-                "QLabel {"
-                "  color: #808080;"
-                "  font-size: 14pt;"
-                "  font-weight: bold;"
-                "}");
+        noBoardSign = new NoBoardSign;
+        layout->addWidget(noBoardSign);
+        noBoardSign->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     }
 }
 
 void WorkspaceFrame::setUpConnections() {
+    connect(workspaceToolBar, &WorkspaceToolBar::userToAddNewBoard, this, [this]() {
+        onUserToAddBoard();
+    });
+
     connect(workspaceToolBar, &WorkspaceToolBar::openRightSidebar, this, [this]() {
         emit openRightSidebar();
     });
@@ -329,6 +302,11 @@ void WorkspaceFrame::setUpConnections() {
     connect(boardsTabBar, &CustomTabBar::tabsReorderedByUser,
             this, [this](const QVector<int> &/*boardIdsOrdering*/) {
         saveBoardsOrdering();
+    });
+
+    // `noBoardSign`
+    connect(noBoardSign, &NoBoardSign::userToAddBoard, this, [this]() {
+        onUserToAddBoard();
     });
 }
 
@@ -678,6 +656,29 @@ WorkspaceToolBar::WorkspaceToolBar(QWidget *parent)
     }
     hLayout->addStretch();
     {
+        auto *buttonNewBoard = new QPushButton(QIcon(":/icons/add_black_24"), "New Board");
+        hLayout->addWidget(buttonNewBoard);
+
+        connect(buttonNewBoard, &QPushButton::clicked, this, [this]() {
+            emit userToAddNewBoard();
+        });
+
+        buttonNewBoard->setStyleSheet(
+                "QPushButton {"
+                "  color: #606060;"
+                "  border: none;"
+                "  border-radius: 4px;"
+                "  padding: 2px 4px 2px 2px;"
+                "  background: transparent;"
+                "}"
+                "QPushButton:hover {"
+                "  background: #e0e0e0;"
+                "}"
+                "QPushButton:pressed {"
+                "  background: #c0c0c0;"
+                "}");
+    }
+    {
         buttonWorkspaceSettings = new QToolButton;
         hLayout->addWidget(buttonWorkspaceSettings);
         hLayout->setAlignment(buttonWorkspaceSettings, Qt::AlignVCenter);
@@ -738,4 +739,50 @@ void WorkspaceToolBar::setUpConnections() {
         buttonWorkspaceSettings->update();
                 // without this, the button's appearence stay in hover state
     });
+}
+
+//========
+
+NoBoardSign::NoBoardSign(QWidget *parent)
+        : QFrame(parent) {
+    auto *vLayout = new QVBoxLayout;
+    setLayout(vLayout);
+    vLayout->setSpacing(12);
+
+    vLayout->addStretch();
+    {
+        auto *label = new QLabel("This workspace has no board");
+        vLayout->addWidget(label, 0, Qt::AlignHCenter);
+        label->setStyleSheet(
+                "QLabel {"
+                "  color: #808080;"
+                "  font-size: 14pt;"
+                "  font-weight: bold;"
+                "}");
+    }
+    {
+        auto *button = new QPushButton("Add Board");
+        vLayout->addWidget(button, 0, Qt::AlignHCenter);
+
+        connect(button, &QPushButton::clicked, this, [this]() {
+            emit userToAddBoard();
+        });
+
+        button->setStyleSheet(
+                "QPushButton {"
+                "  font-size: 12pt;"
+                "  color: #808080;"
+                "  border: none;"
+                "  border-radius: 4px;"
+                "  padding: 4px 8px 4px 8px;"
+                "  background: #dddddd;"
+                "}"
+                "QPushButton:hover {"
+                "  background: #e8e8e8;"
+                "}"
+                "QPushButton:pressed {"
+                "  background: #c0c0c0;"
+                "}");
+    }
+    vLayout->addStretch();
 }

@@ -9,6 +9,7 @@
 
 class BoardView;
 class CustomTabBar;
+class NoBoardSign;
 class WorkspaceToolBar;
 
 class WorkspaceFrame : public QFrame
@@ -59,7 +60,7 @@ private:
     WorkspaceToolBar *workspaceToolBar {nullptr};
     CustomTabBar *boardsTabBar {nullptr};
     BoardView *boardView {nullptr};
-    QLabel *noBoardSign {nullptr};
+    NoBoardSign *noBoardSign {nullptr};
     QMenu *boardTabContextMenu {nullptr};
     int boardTabContextMenuTargetBoardId {-1};
 
@@ -97,6 +98,7 @@ public:
     void showButtonOpenRightSidebar();
 
 signals:
+    void userToAddNewBoard();
     void openRightSidebar();
     void openCardColorsDialog();
 
@@ -108,6 +110,18 @@ private:
 
     void setUpWorkspaceSettingsMenu();
     void setUpConnections();
+};
+
+//========
+
+class NoBoardSign : public QFrame
+{
+    Q_OBJECT
+public:
+    explicit NoBoardSign(QWidget *parent = nullptr);
+
+signals:
+    void userToAddBoard();
 };
 
 #endif // WORKSPACEFRAME_H
