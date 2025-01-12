@@ -147,113 +147,216 @@ void BoardsDataAccess::getBoardData(
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
-    neo4jHttpApiClient->queryDb(
-            QueryStatement {
-                R"!(
-                    MATCH (b:Board {id: $boardId})
-                    RETURN b.id AS id, b AS data, 'board' AS what
+    class AsyncRoutineWithVars : public AsyncRoutine
+    {
+    public:
+        bool hasError {false};
+        std::optional<Board> boardData;
+    };
+    auto *routine = new AsyncRoutineWithVars;
 
-                    UNION
+    routine->addStep([this, routine, boardId]() {
+        // ==== 1st query ====
+        neo4jHttpApiClient->queryDb(
+                QueryStatement {
+                    R"!(
+                        MATCH (b:Board {id: $boardId})
+                        RETURN b.id AS id, b AS data, 'board' AS what
 
-                    MATCH (b:Board {id: $boardId})
-                    MATCH (b)-[:HAS]->(n:NodeRect)-[:SHOWS]->(c:Card)
-                    RETURN c.id AS id, n AS data, 'cardId-nodeRect' AS what
+                        UNION
 
-                    UNION
+                        MATCH (b:Board {id: $boardId})
+                        MATCH (b)-[:HAS]->(n:NodeRect)-[:SHOWS]->(c:Card)
+                        RETURN c.id AS id, n AS data, 'cardId-nodeRect' AS what
 
-                    MATCH (b:Board {id: $boardId})
-                    MATCH (b)-[:HAS]->(dv:DataViewBox)-[:SHOWS]->(q:CustomDataQuery)
-                    RETURN q.id AS id, dv AS data, 'customDataQueryId-dataViewBox' AS what
+                        UNION
 
-                    UNION
+                        MATCH (b:Board {id: $boardId})
+                        MATCH (b)-[:HAS]->(dv:DataViewBox)-[:SHOWS]->(q:CustomDataQuery)
+                        RETURN q.id AS id, dv AS data, 'customDataQueryId-dataViewBox' AS what
 
-                    MATCH (b:Board {id: $boardId})
-                    MATCH (b)-[:HAS]->(g:GroupBox)
-                    RETURN g.id AS id, g AS data, 'groupBox' AS what
-                )!",
-                QJsonObject {{"boardId", boardId}}
-            },
-            // callback
-            [callback](const QueryResponseSingleResult &queryResponse) {
-                if (!queryResponse.getResult().has_value()) {
-                    callback(false, std::nullopt);
-                    return;
-                }
+                        UNION
 
-                const auto queryResult = queryResponse.getResult().value();
-                if (queryResult.isEmpty()) {
-                    callback(true, std::nullopt); // board not found
-                    return;
-                }
+                        MATCH (b:Board {id: $boardId})
+                            (()-[:GROUP_ITEM]->(:GroupBox)) {1,}
+                            (g:GroupBox)
+                        RETURN g.id AS id, g AS data, 'groupBox' AS what
+                    )!",
+                    QJsonObject {{"boardId", boardId}}
+                },
+                // callback
+                [routine](const QueryResponseSingleResult &queryResponse) {
+                    if (!queryResponse.getResult().has_value()) {
+                        routine->hasError = true;
+                        routine->skipToFinalStep();
+                        return;
+                    }
 
-                //
-                Board board;
-                bool gotBoardProperties = false;
-                bool hasError = false;
+                    const auto queryResult = queryResponse.getResult().value();
+                    if (queryResult.isEmpty()) { // board not found (not an error)
+                        routine->skipToFinalStep();
+                    }
 
-                for (int r = 0; r < queryResult.rowCount(); ++r) {
-                    const auto idOpt = queryResult.intValueAt(r, "id");
-                    const auto dataOpt = queryResult.objectValueAt(r, "data");
-                    const auto whatOpt = queryResult.stringValueAt(r, "what");
+                    //
+                    Board board;
+                    bool gotBoardProperties = false;
+                    bool hasError = false;
 
-                    if (!idOpt.has_value() || !dataOpt.has_value() || !whatOpt.has_value()) {
+                    for (int r = 0; r < queryResult.rowCount(); ++r) {
+                        const auto idOpt = queryResult.intValueAt(r, "id");
+                        const auto dataOpt = queryResult.objectValueAt(r, "data");
+                        const auto whatOpt = queryResult.stringValueAt(r, "what");
+
+                        if (!idOpt.has_value() || !dataOpt.has_value() || !whatOpt.has_value()) {
+                            hasError = true;
+                            break;
+                        }
+
+                        if (whatOpt.value() == "board") {
+                            gotBoardProperties = true;
+                            board.updateNodeProperties(dataOpt.value());
+                        }
+                        else if (whatOpt.value() == "cardId-nodeRect") {
+                            const int cardId = idOpt.value();
+                            const std::optional<NodeRectData> nodeRectData
+                                    = NodeRectData::fromJson(dataOpt.value());
+                            if (!nodeRectData.has_value()) {
+                                hasError = true;
+                                break;
+                            }
+                            board.cardIdToNodeRectData.insert(cardId, nodeRectData.value());
+                        }
+                        else if (whatOpt.value() == "customDataQueryId-dataViewBox") {
+                            const int customDataQueryId = idOpt.value();
+                            const std::optional<DataViewBoxData> dataViewBoxData
+                                    = DataViewBoxData::fromJson(dataOpt.value());
+                            if (!dataViewBoxData.has_value()) {
+                                hasError = true;
+                                break;
+                            }
+                            board.customDataQueryIdToDataViewBoxData.insert(
+                                    customDataQueryId, dataViewBoxData.value());
+                        }
+                        else if (whatOpt.value() == "groupBox") {
+                            const int groupBoxId = idOpt.value();
+                            const std::optional<GroupBoxData> groupBoxData
+                                    = GroupBoxData::fromJson(dataOpt.value());
+                            if (!groupBoxData.has_value()) {
+                                hasError = true;
+                                break;
+                            }
+                            board.groupBoxIdToData.insert(groupBoxId, groupBoxData.value());
+                        }
+                        else {
+                            Q_ASSERT(false); // case not implemented
+                        }
+                    }
+
+                    if (!gotBoardProperties) {
+                        qWarning().noquote() << "board properties not found";
                         hasError = true;
-                        break;
                     }
 
-                    if (whatOpt.value() == "board") {
-                        gotBoardProperties = true;
-                        board.updateNodeProperties(dataOpt.value());
+                    //
+                    if (hasError) {
+                        routine->hasError = true;
+                        routine->skipToFinalStep();
+                        return;
                     }
-                    else if (whatOpt.value() == "cardId-nodeRect") {
-                        const int cardId = idOpt.value();
-                        const std::optional<NodeRectData> nodeRectData
-                                = NodeRectData::fromJson(dataOpt.value());
-                        if (!nodeRectData.has_value()) {
+
+                    routine->boardData = board;
+                    routine->nextStep();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([this, routine]() {
+        // ==== 2nd query ====
+        // For each group-box, get the group-boxes and cards (NodeRect's) contained in it.
+        Q_ASSERT(routine->boardData.has_value());
+        const QJsonArray groupBoxIds = toJsonArray(
+                keySet(routine->boardData.value().groupBoxIdToData));
+
+        neo4jHttpApiClient->queryDb(
+                QueryStatement {
+                    R"!(
+                        MATCH (g:GroupBox)
+                        WHERE g.id in $groupBoxIds
+                        WITH g
+                        OPTIONAL MATCH (g)-[:GROUP_ITEM]->(g1:GroupBox)
+                        RETURN g.id AS groupBoxId, collect(g1.id) AS items, 'groupBoxes' AS itemType
+
+                        UNION
+
+                        MATCH (g:GroupBox)
+                        WHERE g.id in $groupBoxIds
+                        WITH g
+                        OPTIONAL MATCH (g)-[:GROUP_ITEM]->(:NodeRect)-[:SHOWS]->(c:Card)
+                        RETURN g.id AS groupBoxId, collect(c.id) AS items, 'cards' AS itemType
+                    )!",
+                    QJsonObject {{"groupBoxIds", groupBoxIds}}
+                },
+                // callback
+                [routine](const QueryResponseSingleResult &queryResponse) {
+                    if (!queryResponse.getResult().has_value()) {
+                        routine->hasError = true;
+                        routine->skipToFinalStep();
+                        return;
+                    }
+
+                    Board &boardData = routine->boardData.value();
+
+                    const auto result = queryResponse.getResult().value();
+                    bool hasError = false;
+                    for (int r = 0; r < result.rowCount(); ++r) {
+                        const auto groupBoxIdOpt = result.intValueAt(r, "groupBoxId");
+                        const auto itemsOpt = result.arrayValueAt(r, "items");
+                        const auto itemTypeOpt = result.stringValueAt(r, "itemType");
+
+                        if (!groupBoxIdOpt.has_value()
+                                || !itemsOpt.has_value() || !itemTypeOpt.has_value()) {
                             hasError = true;
                             break;
                         }
-                        board.cardIdToNodeRectData.insert(cardId, nodeRectData.value());
-                    }
-                    else if (whatOpt.value() == "customDataQueryId-dataViewBox") {
-                        const int customDataQueryId = idOpt.value();
-                        const std::optional<DataViewBoxData> dataViewBoxData
-                                = DataViewBoxData::fromJson(dataOpt.value());
-                        if (!dataViewBoxData.has_value()) {
-                            hasError = true;
-                            break;
-                        }
-                        board.customDataQueryIdToDataViewBoxData.insert(
-                                customDataQueryId, dataViewBoxData.value());
-                    }
-                    else if (whatOpt.value() == "groupBox") {
-                        const int groupBoxId = idOpt.value();
-                        const std::optional<GroupBoxData> groupBoxData
-                                = GroupBoxData::fromJson(dataOpt.value());
-                        if (!groupBoxData.has_value()) {
-                            hasError = true;
-                            break;
-                        }
-                        board.groupBoxIdToData.insert(groupBoxId, groupBoxData.value());
-                    }
-                    else {
-                        Q_ASSERT(false); // case not implemented
-                    }
-                }
 
-                if (!gotBoardProperties) {
-                    qWarning().noquote() << "board properties not found";
-                    hasError = true;
-                }
+                        const int groupBoxId = groupBoxIdOpt.value();
+                        if (itemTypeOpt.value() == "groupBoxes") {
+                            boardData.groupBoxIdToData[groupBoxId].childGroupBoxes
+                                    = toIntSet(itemsOpt.value());
+                        }
+                        else if (itemTypeOpt.value() == "cards") {
+                            boardData.groupBoxIdToData[groupBoxId].childCards
+                                    = toIntSet(itemsOpt.value());
+                        }
+                        else {
+                            Q_ASSERT(false); // case not implemented
+                        }
+                    }
 
-                //
-                if (!hasError)
-                    callback(true, board);
-                else
-                    callback(false, std::nullopt);
-            },
-            callbackContext
-    );
+                    //
+                    if (hasError) {
+                        routine->hasError = true;
+                        routine->skipToFinalStep();
+                        return;
+                    }
+                    routine->nextStep();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, callback]() {
+        // ==== final step ====
+        if (routine->hasError)
+            callback(false, std::nullopt);
+        else
+            callback(true, routine->boardData);
+
+        routine->nextStep();
+    }, callbackContext);
+
+    routine->start();
 }
 
 void BoardsDataAccess::createNewWorkspaceWithId(

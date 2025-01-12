@@ -30,6 +30,7 @@ QJsonArray toJsonArray(const Container &c) {
 QStringList toStringList(const QJsonArray &array, const QString &defaultValue);
 QVector<int> toIntVector(const QJsonArray &array, const int defaultValue);
 QVector<double> toDoubleVector(const QJsonArray &array, const double defaultValue);
+QSet<int> toIntSet(const QJsonArray &array);
 
 //!
 //! \return a null document if failed

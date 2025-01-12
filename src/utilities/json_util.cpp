@@ -43,6 +43,15 @@ QVector<double> toDoubleVector(const QJsonArray &array, const double defaultValu
     return result;
 }
 
+QSet<int> toIntSet(const QJsonArray &array) {
+    QSet<int> result;
+    for (const QJsonValue &v: array) {
+        if (jsonValueIsInt(v))
+            result << v.toInt();
+    }
+    return result;
+}
+
 QJsonDocument readJsonFile(const QString &filePath, QString *errorMsg) {
     QFile file(filePath);
     const bool ok = file.open(QIODevice::ReadOnly);

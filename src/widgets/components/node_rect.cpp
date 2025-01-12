@@ -195,7 +195,7 @@ void NodeRect::adjustContents() {
     double yTitleBottom = 0;
     {
         constexpr int padding = 3;
-        constexpr int fontPixelSize = 24;
+        constexpr int fontPixelSize = 20;
         const QColor textColor(Qt::black);
 
         //
