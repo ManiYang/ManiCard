@@ -693,6 +693,30 @@ void DebouncedDbAccess::removeDataViewBox(const int boardId, const int customDat
     );
 }
 
+void DebouncedDbAccess::updateGroupBoxProperties(
+        const int groupBoxId, const GroupBoxDataUpdate &update) {
+    closeDebounceSession();
+
+    boardsDataAccess->updateGroupBoxProperties(
+            groupBoxId, update,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "updateGroupBoxProperties";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"groupBoxId", groupBoxId},
+                        {"update", update.toJson()}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("GroupBox properties update");
+                }
+            },
+            this
+    );
+}
+
 QString DebouncedDbAccess::debounceDataCategoryName(const DebounceDataCategory category) {
     switch (category) {
     case DebounceDataCategory::CardProperties: return "CardProperties";

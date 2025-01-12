@@ -5,6 +5,7 @@
 #include <QPointer>
 #include "models/card.h"
 #include "models/custom_data_query.h"
+#include "models/group_box_data.h"
 #include "models/relationship.h"
 
 class AbstractCardsDataAccessReadOnly

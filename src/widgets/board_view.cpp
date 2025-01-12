@@ -23,6 +23,7 @@
 #include "widgets/components/data_view_box.h"
 #include "widgets/components/edge_arrow.h"
 #include "widgets/components/graphics_scene.h"
+#include "widgets/components/group_box.h"
 #include "widgets/components/node_rect.h"
 #include "widgets/dialogs/dialog_create_relationship.h"
 #include "widgets/dialogs/dialog_set_labels.h"
@@ -182,7 +183,7 @@ void BoardView::loadBoard(
     }, this);
 
     routine->addStep([this, routine]() {
-        // 5. creating NodeRect's, EdgeArrow's, DataViewBox's
+        // 5. create NodeRect's, EdgeArrow's, DataViewBox's, GroupBox's
         ContinuationContext context(routine);
 
         // NodeRect's
@@ -231,6 +232,15 @@ void BoardView::loadBoard(
                     customDataQueryId, customDataQuery, dataViewBoxData.rect,
                     displayColor, dataViewBoxData.ownColor);
             box->setEditable(true);
+        }
+
+        // GroupBox's
+        const QHash<int, GroupBoxData> &groupBoxIdToData = routine->board.groupBoxIdToData;
+        for (auto it = groupBoxIdToData.constBegin(); it != groupBoxIdToData.constEnd(); ++it) {
+            const int &groupBoxId = it.key();
+            const GroupBoxData &groupBoxData = it.value();
+
+            groupBoxesCollection.createGroupBox(groupBoxId, groupBoxData);
         }
 
         //
@@ -1149,32 +1159,6 @@ void BoardView::onUserToCloseDataViewBox(const int customDataQueryId) {
             ->removeDataViewBox(EventSource(this), boardId, customDataQueryId);
 }
 
-//void BoardView::onUserToSetCardColors() {
-//    auto *dialog = new DialogBoardCardColors(
-//            boardName, cardLabelsAndAssociatedColors, defaultNodeRectColor, this);
-//    connect(dialog, &QDialog::finished, this, [this, dialog](int result) {
-//        dialog->deleteLater();
-
-//        if (result != QDialog::Accepted)
-//            return;
-
-//        //
-//        defaultNodeRectColor = dialog->getDefaultColor();
-//        cardLabelsAndAssociatedColors = dialog->getCardLabelsAndAssociatedColors();
-//        nodeRectsCollection.updateAllNodeRectColors();
-
-//        // call AppData
-//        BoardNodePropertiesUpdate propertiesUpdate;
-//        {
-//            propertiesUpdate.defaultNodeRectColor = defaultNodeRectColor;
-//            propertiesUpdate.cardLabelsAndAssociatedColors = cardLabelsAndAssociatedColors;
-//        }
-//        Services::instance()->getAppData()->updateBoardNodeProperties(
-//                EventSource(this), boardId, propertiesUpdate);
-//    });
-//    dialog->open();
-//}
-
 void BoardView::onBackgroundClicked() {
     bool highlightedCardIdChanged; // to -1
     nodeRectsCollection.unhighlightAllCards(&highlightedCardIdChanged);
@@ -1185,6 +1169,9 @@ void BoardView::onBackgroundClicked() {
         Services::instance()->getAppData()
                 ->setHighlightedCardId(EventSource(this), highlightedCardId);
     }
+
+    //
+    groupBoxesCollection.setHighlightedGroupBox(-1);
 }
 
 void BoardView::closeAll(bool *highlightedCardIdChanged_) {
@@ -1209,6 +1196,11 @@ void BoardView::closeAll(bool *highlightedCardIdChanged_) {
     const QSet<int> customDataQueryIds = dataViewBoxesCollection.getAllCustomDataQueryIds();
     for (const int &id: customDataQueryIds)
         dataViewBoxesCollection.closeDataViewBox(id);
+
+    //
+    const QSet<int> groupBoxIds = groupBoxesCollection.getAllGroupBoxIds();
+    for (const int id: groupBoxIds)
+        groupBoxesCollection.removeGroupBox(id);
 }
 
 void BoardView::adjustSceneRect() {
@@ -1373,6 +1365,7 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
 
     // set up connections
     QPointer<NodeRect> nodeRectPtr(nodeRect);
+
     QObject::connect(nodeRect, &NodeRect::movedOrResized, boardView, [this, nodeRectPtr]() {
         if (!nodeRectPtr)
             return;
@@ -1383,6 +1376,17 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         for (const auto &relId: relIds) {
             constexpr bool updateOtherEdgeArrows = false;
             boardView->edgeArrowsCollection.updateEdgeArrow(relId, updateOtherEdgeArrows);
+        }
+
+        // deepest enclosing GroupBox
+        const std::optional<int> groupBoxIdOpt
+                = boardView->groupBoxesCollection.getDeepestEnclosingGroupBox(nodeRectPtr.data());
+        boardView->groupBoxesCollection.setHighlightedGroupBox(groupBoxIdOpt.value_or(-1));
+
+        if (groupBoxIdOpt.has_value()) {
+            // todo: add the NodeRect to the GroupBox....
+
+
         }
     });
 
@@ -1806,4 +1810,86 @@ QRectF BoardView::DataViewBoxesCollection::getBoundingRectOfAllDataViewBoxes() c
             result = result.united(it.value()->boundingRect());
     }
     return result;
+}
+
+//====
+
+GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
+        const int groupBoxId, const GroupBoxData &groupBoxData) {
+    Q_ASSERT(!groupBoxes.contains(groupBoxId));
+
+    auto *groupBox = new GroupBox(boardView->canvas);
+    groupBoxes.insert(groupBoxId, groupBox);
+    groupBox->setZValue(zValueForNodeRects);
+    groupBox->initialize();
+
+    groupBox->setTitle(groupBoxData.title);
+    groupBox->setRect(groupBoxData.rect);
+    groupBox->setBorderWidth(3);
+
+    // set up connections
+    QPointer<GroupBox> groupBoxPtr(groupBox);
+
+    QObject::connect(
+            groupBox, &DataViewBox::finishedMovingOrResizing,
+            boardView, [this, groupBoxId, groupBoxPtr]() {
+        if (!groupBoxPtr)
+            return;
+
+        //
+        boardView->adjustSceneRect();
+
+        // call AppData
+        GroupBoxDataUpdate update;
+        update.rect = groupBoxPtr->getRect();
+
+        Services::instance()->getAppData()->updateGroupBoxProperties(
+                EventSource(boardView), groupBoxId, update);
+    });
+
+    //
+    return groupBox;
+}
+
+void BoardView::GroupBoxesCollection::removeGroupBox(const int groupBoxId) {
+    GroupBox *groupBox = groupBoxes.take(groupBoxId);
+    if (groupBox == nullptr)
+        return;
+
+    //
+    boardView->graphicsScene->removeItem(groupBox);
+    groupBox->deleteLater();
+
+    //
+    boardView->graphicsScene->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
+    // This is to deal with the QGraphicsView problem
+    // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
+}
+
+void BoardView::GroupBoxesCollection::setHighlightedGroupBox(const int groupBoxId) {
+    for (auto it = groupBoxes.constBegin(); it != groupBoxes.constEnd(); ++it)
+        it.value()->setIsHighlighted(it.key() == groupBoxId);
+}
+
+QSet<int> BoardView::GroupBoxesCollection::getAllGroupBoxIds() const {
+    return keySet(groupBoxes);
+}
+
+std::optional<int> BoardView::GroupBoxesCollection::getDeepestEnclosingGroupBox(
+        const BoardBoxItem *boardBoxItem) {
+    const QRectF rect = boardBoxItem->boundingRect();
+
+    // [temp] find a GroupBox whose contents rect encloses `rect`
+    for (auto it = groupBoxes.constBegin(); it != groupBoxes.constEnd(); ++it) {
+        GroupBox *const &groupBox = it.value();
+        if (groupBox->getContentsRect().contains(rect))
+            return it.key();
+    }
+    return std::nullopt;
+
+    // todo:
+    // 1. find group-boxes whose contents rect encloses `rect` (if none is found, return nullopt)
+    // 2. if the set of group-boxes found in step 1 does not form a path (i.e., it has multiple
+    //    branches), return nullopt
+    // 3. return the deepest group-box
 }

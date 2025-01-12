@@ -23,7 +23,7 @@ struct GroupBoxDataUpdate
     std::optional<QString> title;
     std::optional<QRectF> rect;
 
-    QJsonObject toJson();
+    QJsonObject toJson() const;
 };
 
 #endif // GROUPBOXDATA_H

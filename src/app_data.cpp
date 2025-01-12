@@ -262,6 +262,14 @@ void AppData::removeDataViewBox(
     // 2. update all variables and emit "updated" signals
 }
 
+void AppData::updateGroupBoxProperties(
+        const EventSource &/*eventSrc*/, const int groupBoxId, const GroupBoxDataUpdate &update) {
+    // 1. persist
+    persistedDataAccess->updateGroupBoxProperties(groupBoxId, update);
+
+    // 2. update all variables and emit "updated" signals
+}
+
 void AppData::updateMainWindowSize(const EventSource &/*eventSrc*/, const QSize &size) {
     // 1. persist
     persistedDataAccess->saveMainWindowSize(size);

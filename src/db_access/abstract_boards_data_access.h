@@ -162,6 +162,15 @@ public:
     virtual void removeDataViewBox(
             const int boardId, const int customDataQueryId,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    // ==== GroupBox ====
+
+    //!
+    //! The GroupBox must exist. This operation is atomic.
+    //!
+    virtual void updateGroupBoxProperties(
+            const int groupBoxId, const GroupBoxDataUpdate &update,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 };
 
 #endif // ABSTRACT_BOARDS_DATA_ACCESS_H

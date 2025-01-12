@@ -11,12 +11,14 @@
 #include "models/relationship.h"
 #include "widgets/common_types.h"
 
+class BoardBoxItem;
+class Card;
+class CardPropertiesUpdate;
 class DataViewBox;
 class EdgeArrow;
 struct EdgeArrowData;
-class Card;
-class CardPropertiesUpdate;
 class GraphicsScene;
+class GroupBox;
 class NodeRect;
 
 class BoardView : public QFrame
@@ -250,6 +252,25 @@ private:
         QHash<int, QColor> customDataQueryIdToDataViewBoxOwnColor;
     };
     DataViewBoxesCollection dataViewBoxesCollection {this};
+
+    //
+    class GroupBoxesCollection
+    {
+    public:
+        explicit GroupBoxesCollection(BoardView *boardView_) : boardView(boardView_) {}
+
+        GroupBox *createGroupBox(const int groupBoxId, const GroupBoxData &groupBoxData);
+        void removeGroupBox(const int groupBoxId);
+        void setHighlightedGroupBox(const int groupBoxId); // `groupBoxId` can be -1
+
+        QSet<int> getAllGroupBoxIds() const;
+        std::optional<int> getDeepestEnclosingGroupBox(const BoardBoxItem *boardBoxItem);
+
+    private:
+        BoardView *const boardView;
+        QHash<int, GroupBox *> groupBoxes;
+    };
+    GroupBoxesCollection groupBoxesCollection {this};
 
     // tools
     QPoint getScreenPosFromScenePos(const QPointF &scenePos) const;

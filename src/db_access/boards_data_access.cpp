@@ -958,3 +958,48 @@ void BoardsDataAccess::removeDataViewBox(
             callbackContext
     );
 }
+
+void BoardsDataAccess::updateGroupBoxProperties(
+        const int groupBoxId, const GroupBoxDataUpdate &update,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(MATCH (g:GroupBox {id: $id})
+                    SET g += $propertiesMap
+                    RETURN g.id
+                )!",
+                QJsonObject {
+                    {"id", groupBoxId},
+                    {"propertiesMap", update.toJson()}
+                }
+            },
+            // callback:
+            [callback, groupBoxId](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                if (queryResponse.hasNetworkOrDbError()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto queryResult = queryResponse.getResult().value();
+                if (queryResult.isEmpty()) {
+                    qWarning().noquote()
+                            << QString("group-box %1 not found or properties could not be set")
+                               .arg(groupBoxId);
+                    callback(false);
+                    return;
+                }
+
+                qInfo().noquote()
+                        << QString("updated properties of group-box %1").arg(groupBoxId);
+                callback(true);
+            },
+            callbackContext
+    );
+}

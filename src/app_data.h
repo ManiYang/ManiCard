@@ -171,6 +171,10 @@ public:
     void removeDataViewBox(
             const EventSource &eventSrc, const int boardId, const int customDataQueryId);
 
+    void updateGroupBoxProperties(
+            const EventSource &eventSrc,
+            const int groupBoxId, const GroupBoxDataUpdate &update);
+
     void updateMainWindowSize(const EventSource &eventSrc, const QSize &size);
 
     // ==== non-persisted independent data ====

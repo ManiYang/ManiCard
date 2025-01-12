@@ -56,6 +56,7 @@ SOURCES += \
     widgets/components/edge_arrow.cpp \
     widgets/components/graphics_item_move_resize.cpp \
     widgets/components/graphics_scene.cpp \
+    widgets/components/group_box.cpp \
     widgets/components/node_rect.cpp \
     widgets/components/property_value_editor.cpp \
     widgets/components/simple_toolbar.cpp \
@@ -133,6 +134,7 @@ HEADERS += \
     widgets/components/edge_arrow.h \
     widgets/components/graphics_item_move_resize.h \
     widgets/components/graphics_scene.h \
+    widgets/components/group_box.h \
     widgets/components/node_rect.h \
     widgets/components/property_value_editor.h \
     widgets/components/simple_toolbar.h \

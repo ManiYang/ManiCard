@@ -6,14 +6,20 @@
 #include "utilities/margins_util.h"
 #include "widgets/components/graphics_item_move_resize.h"
 
-BoardBoxItem::BoardBoxItem(const BorderShape borderShape, QGraphicsItem *parent)
-        : QGraphicsObject(parent)
-        , borderShape(borderShape)
-        , captionBarItem(new QGraphicsRectItem(this))
-        , captionBarLeftTextItem(new QGraphicsSimpleTextItem(captionBarItem))
-        , captionBarRightTextItem(new QGraphicsSimpleTextItem(captionBarItem))
-        , contentsRectItem(new QGraphicsRectItem(this))
-        , moveResizeHelper(new GraphicsItemMoveResize(this)) {
+constexpr double resizeAreaMaxWidth = 6.0; // in pixel
+
+BoardBoxItem::BoardBoxItem(
+        const BorderShape borderShape, const ContentsBackgroundType contentsBackgroundType,
+        QGraphicsItem *parent)
+            : QGraphicsObject(parent)
+            , borderShape(borderShape)
+            , contentsBackgroundType(contentsBackgroundType)
+            , captionBarMatItem(new QGraphicsRectItem(this))
+            , captionBarItem(new QGraphicsRectItem(this))
+            , captionBarLeftTextItem(new QGraphicsSimpleTextItem(captionBarItem))
+            , captionBarRightTextItem(new QGraphicsSimpleTextItem(captionBarItem))
+            , contentsRectItem(new QGraphicsRectItem(this))
+            , moveResizeHelper(new GraphicsItemMoveResize(this)) {
 }
 
 BoardBoxItem::~BoardBoxItem() {
@@ -32,8 +38,6 @@ void BoardBoxItem::initialize() {
 
     // move-resize helper
     moveResizeHelper->setMoveHandle(captionBarItem);
-
-    constexpr double resizeAreaMaxWidth = 6.0; // in pixel
     moveResizeHelper->setResizeHandle(this, resizeAreaMaxWidth, minSizeForResizing);
 
     //
@@ -81,8 +85,48 @@ bool BoardBoxItem::getIsHighlighted() const {
     return isHighlighted;
 }
 
+QRectF BoardBoxItem::getContentsRect() const {
+    return contentsRectItem->rect();
+}
+
 QRectF BoardBoxItem::boundingRect() const {
     return borderOuterRect.marginsAdded(uniformMarginsF(marginWidth));
+}
+
+QPainterPath BoardBoxItem::shape() const {
+    bool transparentContents = false;
+    switch (contentsBackgroundType) {
+    case ContentsBackgroundType::White:
+        transparentContents = false;
+        break;
+    case ContentsBackgroundType::Transparent:
+        transparentContents = true;
+        break;
+    }
+
+    //
+    if (!transparentContents) {
+        QPainterPath path;
+        path.addRect(boundingRect());
+        return path;
+    }
+    else {
+        // return the union of caption bar and resizing area
+
+        QPainterPath path;
+
+        const QRectF outer = boundingRect();
+        const double h = std::max(0.0, captionBarItem->rect().bottom() - outer.top());
+
+        path.addRect(QRectF(outer.topLeft(), QSizeF {outer.width(), h}));
+        path.addRect(QRectF(outer.topLeft(), QSizeF {resizeAreaMaxWidth, outer.height()}));
+        path.addRect(
+                QRectF(QPointF {outer.x(), outer.bottom() - resizeAreaMaxWidth}, outer.bottomRight()));
+        path.addRect(
+                QRectF(QPointF {outer.right() - resizeAreaMaxWidth, outer.y()}, outer.bottomRight()));
+
+        return path;
+    }
 }
 
 void BoardBoxItem::paint(
@@ -158,10 +202,6 @@ void BoardBoxItem::setCaptionBarRightText(const QString &text, const bool bold) 
     setCaptionBarRightTextItemPos(captionBarRect, captionBarPadding);
 }
 
-QRectF BoardBoxItem::getContentsRect() const {
-    return contentsRectItem->rect();
-}
-
 QGraphicsView *BoardBoxItem::getView() const {
     if (scene() == nullptr)
         return nullptr;
@@ -198,7 +238,7 @@ bool BoardBoxItem::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
 void BoardBoxItem::mousePressEvent(QGraphicsSceneMouseEvent */*event*/) {
     // do nothing
 
-    // This method is reimplemented so that
+    // This method is re-implemented so that
     // 1. the mouse-press event is accepted and `this` becomes the mouse grabber, and
     // 2. the later mouse-release event will be sent to `this` and will not "penetrate"
     //    through `this` and reach the QGraphicsScene.
@@ -276,7 +316,6 @@ void BoardBoxItem::installEventFilterOnChildItems() {
 }
 
 void BoardBoxItem::setUpGraphicsItems() {
-    setFlag(QGraphicsItem::ItemClipsChildrenToShape, true);
     setAcceptHoverEvents(true);
 
     // caption bar
@@ -303,8 +342,22 @@ void BoardBoxItem::setUpGraphicsItems() {
     captionBarRightTextItem->setBrush(captionBarTextColor);
 
     // contents rect
+    std::optional<QBrush> contentsRectBrush;
+    switch (contentsBackgroundType) {
+    case ContentsBackgroundType::White:
+        contentsRectBrush = QBrush(Qt::white);
+        break;
+    case ContentsBackgroundType::Transparent:
+        contentsRectBrush = QBrush(Qt::NoBrush);
+        break;
+    }
+    if (!contentsRectBrush.has_value()) {
+        Q_ASSERT(false); // case not implemented
+        contentsRectBrush = QBrush(Qt::NoBrush);
+    }
+
     contentsRectItem->setPen(Qt::NoPen);
-    contentsRectItem->setBrush(Qt::white);
+    contentsRectItem->setBrush(contentsRectBrush.value());
     contentsRectItem->setFlag(QGraphicsItem::ItemClipsChildrenToShape);
 
     //
@@ -315,12 +368,19 @@ void BoardBoxItem::adjustGraphicsItems() {
     const auto borderInnerRect
             = borderOuterRect.marginsRemoved(uniformMarginsF(borderWidth));
 
-    // caption bar
+    // caption bar & caption bar mat
     {
         captionBarRect = QRectF(
                 borderInnerRect.topLeft(),
                 QSizeF(borderInnerRect.width(), captionBarFontHeight + captionBarPadding * 2));
 
+        //
+        captionBarMatItem->setRect(
+                captionBarRect.marginsAdded(QMarginsF(1, 1, 1, 0))); // <^>v
+        captionBarMatItem->setPen(Qt::NoPen);
+        captionBarMatItem->setBrush(color);
+
+        //
         captionBarItem->setRect(captionBarRect);
         captionBarItem->setPen(Qt::NoPen);
         captionBarItem->setBrush(color);

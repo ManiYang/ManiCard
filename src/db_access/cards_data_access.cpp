@@ -978,6 +978,4 @@ void CardsDataAccess::updateCustomDataQueryProperties(
             },
             callbackContext
     );
-
-
 }

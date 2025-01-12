@@ -12,11 +12,18 @@ class GraphicsItemMoveResize;
 class BoardBoxItem : public QGraphicsObject
 {
     Q_OBJECT
-public:
+protected:
     enum class BorderShape {Solid, Dashed};
 
+    enum class ContentsBackgroundType {
+        White,
+        Transparent //!< the contents rect will be transparent and will not intercept mouse events
+    };
+
 public:
-    explicit BoardBoxItem(const BorderShape borderShape, QGraphicsItem *parent = nullptr);
+    explicit BoardBoxItem(
+            const BorderShape borderShape, const ContentsBackgroundType contentsBackgroundType,
+            QGraphicsItem *parent = nullptr);
     ~BoardBoxItem();
 
     //!
@@ -34,9 +41,11 @@ public:
     //
     QRectF getRect() const;
     bool getIsHighlighted() const;
+    QRectF getContentsRect() const;
 
     //
     QRectF boundingRect() const override;
+    QPainterPath shape() const override;
     void paint(
             QPainter *painter, const QStyleOptionGraphicsItem *option,
             QWidget *widget) override;
@@ -52,8 +61,6 @@ protected:
     void setCaptionBarRightText(const QString &text);
     void setCaptionBarRightText(const QString &text, const bool bold);
 
-    QRectF getContentsRect() const;
-
     QGraphicsView *getView() const; // can return nullptr
 
     //
@@ -65,6 +72,7 @@ protected:
 private:
     // state variables
     const BorderShape borderShape;
+    const ContentsBackgroundType contentsBackgroundType;
 
     QRectF borderOuterRect {0.0, 0.0, 100.0, 100.0};
     double marginWidth {2.0};
@@ -80,6 +88,7 @@ private:
     const int captionBarPadding {2};
 
     // child items
+    QGraphicsRectItem *captionBarMatItem; // before `captionBarItem`
     QGraphicsRectItem *captionBarItem; // also serves as move handle
     QGraphicsSimpleTextItem *captionBarLeftTextItem;
     QGraphicsSimpleTextItem *captionBarRightTextItem;

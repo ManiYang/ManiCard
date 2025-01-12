@@ -185,6 +185,10 @@ public:
             const int boardId, const int customDataQueryId,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
+    void updateGroupBoxProperties(
+            const int groupBoxId, const GroupBoxDataUpdate &update,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
 private:
     std::shared_ptr<AbstractBoardsDataAccess> boardsDataAccess;
     std::shared_ptr<AbstractCardsDataAccess> cardsDataAccess;

@@ -869,6 +869,22 @@ void PersistedDataAccess::removeDataViewBox(const int boardId, const int customD
     debouncedDbAccess->removeDataViewBox(boardId, customDataQueryId);
 }
 
+void PersistedDataAccess::updateGroupBoxProperties(
+        const int groupBoxId, const GroupBoxDataUpdate &update) {
+    // 1. update cache synchronously
+    for (auto it = cache.boards.begin(); it != cache.boards.end(); ++it)
+    {
+        Board &board = it.value();
+        if (board.groupBoxIdToData.contains(groupBoxId)) {
+            board.groupBoxIdToData[groupBoxId].update(update);
+            break;
+        }
+    }
+
+    // 2. write DB
+    debouncedDbAccess->updateGroupBoxProperties(groupBoxId, update);
+}
+
 bool PersistedDataAccess::saveMainWindowSize(const QSize &size) {
     const bool ok = localSettingsFile->writeMainWindowSize(size);
     if (!ok) {

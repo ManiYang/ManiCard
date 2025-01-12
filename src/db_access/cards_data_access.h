@@ -84,6 +84,8 @@ public:
             const int customDataQueryId, const CustomDataQueryUpdate &update,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
+
+
 private:
     Neo4jHttpApiClient *neo4jHttpApiClient;
 };

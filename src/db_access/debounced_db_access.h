@@ -186,6 +186,8 @@ public:
 
     void removeDataViewBox(const int boardId, const int customDataQueryId);
 
+    void updateGroupBoxProperties(const int groupBoxId, const GroupBoxDataUpdate &update);
+
 private:
     AbstractBoardsDataAccess *boardsDataAccess;
     AbstractCardsDataAccess *cardsDataAccess;

@@ -42,7 +42,7 @@ void GroupBoxData::update(const GroupBoxDataUpdate &update) {
 
 //======
 
-QJsonObject GroupBoxDataUpdate::toJson() {
+QJsonObject GroupBoxDataUpdate::toJson() const {
     QJsonObject obj;
 
     if (title.has_value())
