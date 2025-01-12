@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QString>
 #include "models/data_view_box_data.h"
+#include "models/group_box_data.h"
 #include "models/node_rect_data.h"
 #include "relationship.h"
 
@@ -21,6 +22,7 @@ struct Board {
     //
     QHash<int, NodeRectData> cardIdToNodeRectData;
     QHash<int, DataViewBoxData> customDataQueryIdToDataViewBoxData;
+    QHash<int, GroupBoxData> groupBoxIdToData;
 
     //
     QJsonObject getNodePropertiesJson() const;

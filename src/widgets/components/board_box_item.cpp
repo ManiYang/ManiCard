@@ -6,8 +6,9 @@
 #include "utilities/margins_util.h"
 #include "widgets/components/graphics_item_move_resize.h"
 
-BoardBoxItem::BoardBoxItem(QGraphicsItem *parent)
+BoardBoxItem::BoardBoxItem(const BorderShape borderShape, QGraphicsItem *parent)
         : QGraphicsObject(parent)
+        , borderShape(borderShape)
         , captionBarItem(new QGraphicsRectItem(this))
         , captionBarLeftTextItem(new QGraphicsSimpleTextItem(captionBarItem))
         , captionBarRightTextItem(new QGraphicsSimpleTextItem(captionBarItem))
@@ -90,10 +91,26 @@ void BoardBoxItem::paint(
 
     // draw border rect
     {
-        painter->setBrush(color);
-        painter->setPen(Qt::NoPen);
+        std::optional<Qt::PenStyle> penStyle;
+        switch (borderShape) {
+        case BorderShape::Solid:
+            penStyle = Qt::SolidLine;
+            break;
+        case BorderShape::Dashed:
+            penStyle = Qt::DotLine;
+            break;
+        }
+        if (!penStyle.has_value()) {
+            Q_ASSERT(false); // case not implemented
+            penStyle = Qt::SolidLine;
+        }
+
+        painter->setBrush(Qt::NoBrush);
+        painter->setPen(QPen {QBrush(color), borderWidth, penStyle.value()});
         const double radius = borderWidth;
-        painter->drawRoundedRect(borderOuterRect, radius, radius);
+        painter->drawRoundedRect(
+                borderOuterRect.marginsRemoved(uniformMarginsF(borderWidth / 2.0)),
+                radius, radius);
     }
 
     // draw highlight box

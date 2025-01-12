@@ -6,7 +6,7 @@
 #include "widgets/components/custom_text_edit.h"
 
 NodeRect::NodeRect(const int cardId, QGraphicsItem *parent)
-    : BoardBoxItem(parent)
+    : BoardBoxItem(BoardBoxItem::BorderShape::Solid, parent)
     , cardId(cardId)
     , titleItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
     , textEdit(new CustomTextEdit(nullptr))

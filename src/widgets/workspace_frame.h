@@ -65,11 +65,6 @@ private:
     QMenu *boardTabContextMenu {nullptr};
     int boardTabContextMenuTargetBoardId {-1};
 
-    // [needed?]
-//    using LabelAndColor = std::pair<QString, QColor>;
-//    QVector<LabelAndColor> cardLabelsAndAssociatedColors; // in the order of precedence (high to low)
-//    QColor defaultNodeRectColor;
-
     //
     void setUpWidgets();
     void setUpConnections();

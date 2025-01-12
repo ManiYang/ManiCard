@@ -13,7 +13,10 @@ class BoardBoxItem : public QGraphicsObject
 {
     Q_OBJECT
 public:
-    explicit BoardBoxItem(QGraphicsItem *parent = nullptr);
+    enum class BorderShape {Solid, Dashed};
+
+public:
+    explicit BoardBoxItem(const BorderShape borderShape, QGraphicsItem *parent = nullptr);
     ~BoardBoxItem();
 
     //!
@@ -61,6 +64,8 @@ protected:
 
 private:
     // state variables
+    const BorderShape borderShape;
+
     QRectF borderOuterRect {0.0, 0.0, 100.0, 100.0};
     double marginWidth {2.0};
     double borderWidth {5.0};

@@ -10,7 +10,7 @@
 #include "utilities/json_util.h"
 
 DataViewBox::DataViewBox(const int customDataQueryId, QGraphicsItem *parent)
-        : BoardBoxItem(parent)
+        : BoardBoxItem(BoardBoxItem::BorderShape::Solid, parent)
         , customDataQueryId(customDataQueryId)
         , titleItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
         , labelCypher(new QGraphicsSimpleTextItem) //
