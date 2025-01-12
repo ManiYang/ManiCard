@@ -554,11 +554,16 @@ void MainWindow::onUserToRemoveWorkspace(const int workspaceIdToRemove) {
     if (workspaceIdToRemove == -1)
         return;
 
+    // check that workspace is empty
+    if (!workspaceFrame->getAllBoardIds().isEmpty()) {
+        QMessageBox::warning(this, " ", "Workspace is not empty and cannot be removed.");
+        return;
+    }
+
     // show confirmation message box
     const auto r = QMessageBox::question(
             this, "Please Confirm",
-            QString("Remove the workspace \"%1\"?"
-                    " All boards in the workspaces will be removed.")
+            QString("Remove the workspace \"%1\"?")
                 .arg(workspacesList->workspaceName(workspaceIdToRemove)));
     if (r != QMessageBox::Yes)
         return;
