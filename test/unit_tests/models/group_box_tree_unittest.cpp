@@ -196,3 +196,40 @@ TEST(GroupBoxTreeTests, SetFail2) {
     bool ok = tree.set(nodeToChildItems, &errorMsg);
     ASSERT_FALSE(ok);
 }
+
+TEST(GroupBoxTreeTests, Reparent) {
+    // create tree
+    GroupBoxTree tree;
+    tree.node(GroupBoxTree::rootId).addChildGroupBoxes({1, 4});
+    {
+        tree.node(1).addChildCards({11});
+        tree.node(1).addChildGroupBoxes({2, 3});
+        {
+            tree.node(2).addChildCards({12});
+            tree.node(3).addChildCards({13});
+            tree.node(3).addChildGroupBoxes({5});
+            {
+                tree.node(5).addChildCards({15});
+            }
+        }
+        tree.node(4).addChildCards({14});
+    }
+
+    ASSERT_TRUE(tree.getGroupBoxesCount() == 5);
+    ASSERT_TRUE(tree.getCardsCount() == 5);
+
+    //
+    tree.reparentCard(15, 1);
+    EXPECT_TRUE(tree.getChildCards(1) == (QSet<int> {11, 15}));
+    EXPECT_TRUE(tree.getChildCards(5).isEmpty());
+
+    //
+    tree.reparentGroupBox(3, GroupBoxTree::rootId);
+    EXPECT_TRUE(tree.getChildGroupBoxes(GroupBoxTree::rootId) == (QSet<int> {1, 3, 4}));
+    EXPECT_TRUE(tree.getChildGroupBoxes(1) == (QSet<int> {2}));
+
+    //
+    tree.reparentGroupBox(4, 5);
+    EXPECT_TRUE(tree.getChildGroupBoxes(GroupBoxTree::rootId) == (QSet<int> {1, 3}));
+    EXPECT_TRUE(tree.formsSinglePath({3, 4, 5}));
+}

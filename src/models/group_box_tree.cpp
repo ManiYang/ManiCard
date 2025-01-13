@@ -74,6 +74,7 @@ void GroupBoxTree::reparentGroupBox(const int groupBoxId, const int newParentId)
         Q_ASSERT(false); // `groupBoxId` not found
         return;
     }
+
     if (!nodeIdToChildItems.contains(newParentId)) {
         Q_ASSERT(false); // `newParentId` not found
         return;
@@ -89,7 +90,28 @@ void GroupBoxTree::reparentGroupBox(const int groupBoxId, const int newParentId)
 }
 
 void GroupBoxTree::reparentCard(const int cardId, const int newParentGroupBoxId) {
+    if (newParentGroupBoxId == rootId) {
+        Q_ASSERT(false); // root (the Board) cannot have child cards
+        return;
+    }
 
+    if (!cardIdToParent.contains(cardId)) {
+        Q_ASSERT(false); // `cardId` not found
+        return;
+    }
+
+    if (!nodeIdToChildItems.contains(newParentGroupBoxId)) {
+        Q_ASSERT(false); // `newParentId` not found
+        return;
+    }
+
+    const int originalParentId = cardIdToParent.value(cardId);
+    if (newParentGroupBoxId == originalParentId)
+        return;
+
+    nodeIdToChildItems[originalParentId].childCards.remove(cardId);
+    nodeIdToChildItems[newParentGroupBoxId].childCards << cardId;
+    cardIdToParent[cardId] = newParentGroupBoxId;
 }
 
 void GroupBoxTree::removeGroupBox(const int groupBoxIdToRemove, const RemoveOption option) {
