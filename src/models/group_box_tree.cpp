@@ -1,3 +1,4 @@
+#include <QDebug>
 #include "group_box_tree.h"
 #include "utilities/maps_util.h"
 
@@ -5,42 +6,9 @@ GroupBoxTree::GroupBoxTree() {
     nodeIdToChildItems.insert(rootId, {});
 }
 
-void GroupBoxTree::addChildGroupBoxes(const int parentId, const QSet<int> childGroupBoxIds) {
-    if (!nodeIdToChildItems.contains(parentId)) {
-        Q_ASSERT(false); // `parentId` is not found
-        return;
-    }
-
-    if (!(childGroupBoxIds & keySet(groupBoxIdToParent)).isEmpty()) {
-        Q_ASSERT(false); // some of `childGroupBoxIds` already exist
-        return;
-    }
-
-    //
-    nodeIdToChildItems[parentId].childGroupBoxes += childGroupBoxIds;
-
-    for (const int id: childGroupBoxIds) {
-        groupBoxIdToParent.insert(id, parentId);
-        nodeIdToChildItems.insert(id, {});
-    }
-}
-
-void GroupBoxTree::addChildCards(const int parentId, const QSet<int> childCardIds) {
-    if (!nodeIdToChildItems.contains(parentId)) {
-        Q_ASSERT(false); // `parentId` is not found
-        return;
-    }
-
-    if (!(childCardIds & keySet(cardIdToParent)).isEmpty()) {
-        Q_ASSERT(false); // some of `childCardIds` already exist
-        return;
-    }
-
-    //
-    nodeIdToChildItems[parentId].childCards += childCardIds;
-
-    for (const int id: childCardIds)
-        cardIdToParent.insert(id, parentId);
+GroupBoxTree::Node GroupBoxTree::node(const int nodeId) {
+    Q_ASSERT(nodeIdToChildItems.contains(nodeId));
+    return Node(this, nodeId);
 }
 
 void GroupBoxTree::removeGroupBox(const int groupBoxIdToRemove, const RemoveOption option) {
@@ -96,12 +64,36 @@ void GroupBoxTree::removeCard(const int cardIdToRemove) {
     cardIdToParent.remove(cardIdToRemove);
 }
 
+void GroupBoxTree::clear() {
+    nodeIdToChildItems.clear();
+    groupBoxIdToParent.clear();
+    cardIdToParent.clear();
+
+    nodeIdToChildItems.insert(rootId, {});
+}
+
+int GroupBoxTree::getGroupBoxesCount() const {
+    return groupBoxIdToParent.count();
+}
+
+int GroupBoxTree::getCardsCount() const {
+    return cardIdToParent.count();
+}
+
 int GroupBoxTree::getParentOfGroupBox(const int groupBoxId) const {
     return groupBoxIdToParent.value(groupBoxId, -1);
 }
 
 int GroupBoxTree::getParentOfCard(const int cardId) const {
     return cardIdToParent.value(cardId, -1);
+}
+
+QSet<int> GroupBoxTree::getChildGroupBoxes(const int parentId) const{
+    return nodeIdToChildItems.value(parentId).childGroupBoxes;
+}
+
+QSet<int> GroupBoxTree::getChildCards(const int parentId) const {
+    return nodeIdToChildItems.value(parentId).childCards;
 }
 
 std::pair<QSet<int>, QSet<int> > GroupBoxTree::getAllDescendants(const int groupBoxId) const {
@@ -143,9 +135,47 @@ bool GroupBoxTree::formsSinglePath(const QSet<int> &groupBoxIds) const {
     return groupBoxesWithoutChildWithin.count() <= 1;
 }
 
+void GroupBoxTree::addChildGroupBoxes(const int parentId, const QSet<int> childGroupBoxIds) {
+    if (!nodeIdToChildItems.contains(parentId)) {
+        Q_ASSERT(false); // `parentId` is not found
+        return;
+    }
+
+    if (!(childGroupBoxIds & keySet(groupBoxIdToParent)).isEmpty()) {
+        Q_ASSERT(false); // some of `childGroupBoxIds` already exist
+        return;
+    }
+
+    //
+    nodeIdToChildItems[parentId].childGroupBoxes += childGroupBoxIds;
+
+    for (const int id: childGroupBoxIds) {
+        groupBoxIdToParent.insert(id, parentId);
+        nodeIdToChildItems.insert(id, {});
+    }
+}
+
+void GroupBoxTree::addChildCards(const int parentId, const QSet<int> childCardIds) {
+    if (!nodeIdToChildItems.contains(parentId)) {
+        Q_ASSERT(false); // `parentId` is not found
+        return;
+    }
+
+    if (!(childCardIds & keySet(cardIdToParent)).isEmpty()) {
+        Q_ASSERT(false); // some of `childCardIds` already exist
+        return;
+    }
+
+    //
+    nodeIdToChildItems[parentId].childCards += childCardIds;
+
+    for (const int id: childCardIds)
+        cardIdToParent.insert(id, parentId);
+}
+
 std::pair<QSet<int>, QSet<int> > GroupBoxTree::doGetAllDescendants(const int groupBoxId) const {
     // breadth-first search
-    QSet<int> foundGroupBoxes;
+    QSet<int> groupBoxesResult;
 
     QSet<int> groupBoxesToVisit {groupBoxId};
     while (true) {
@@ -156,15 +186,25 @@ std::pair<QSet<int>, QSet<int> > GroupBoxTree::doGetAllDescendants(const int gro
         if (foundInCurrentLevel.isEmpty())
             break;
 
-        foundGroupBoxes += foundInCurrentLevel;
-        groupBoxesToVisit = foundGroupBoxes;
+        groupBoxesResult += foundInCurrentLevel;
+        groupBoxesToVisit = foundInCurrentLevel;
     }
 
     // cards
-    QSet<int> cards = nodeIdToChildItems[groupBoxId].childCards;
-    for (const int id: qAsConst(foundGroupBoxes))
-        cards += nodeIdToChildItems[id].childCards;
+    QSet<int> cardsResult = nodeIdToChildItems[groupBoxId].childCards;
+    for (const int id: qAsConst(groupBoxesResult))
+        cardsResult += nodeIdToChildItems[id].childCards;
 
     //
-    return {foundGroupBoxes, cards};
+    return {groupBoxesResult, cardsResult};
+}
+
+//======
+
+void GroupBoxTree::Node::addChildGroupBoxes(const QSet<int> childGroupBoxIds) {
+    tree->addChildGroupBoxes(nodeId, childGroupBoxIds);
+}
+
+void GroupBoxTree::Node::addChildCards(const QSet<int> childCardIds) {
+    tree->addChildCards(nodeId, childCardIds);
 }

@@ -10,11 +10,13 @@ QT += testlib
 
 
 SOURCES += \
+        ../../src/models/group_box_tree.cpp \
         ../../src/utilities/action_debouncer.cpp \
         ../../src/utilities/async_routine.cpp \
         ../../src/utilities/directed_graph.cpp \
         ../../src/utilities/json_util.cpp \
         main.cpp         \
+        models/group_box_tree_unittest.cpp \
         utilities/action_debouncer_unittest.cpp \
         utilities/async_routine_unittest.cpp \
         utilities/async_routine_with_error_flag_unittest.cpp \
@@ -24,6 +26,7 @@ SOURCES += \
 
 
 HEADERS += \
+    ../../src/models/group_box_tree.h \
     ../../src/utilities/action_debouncer.h \
     ../../src/utilities/async_routine.h \
     ../../src/utilities/directed_graph.h \

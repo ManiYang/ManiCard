@@ -4,24 +4,30 @@
 #include <QHash>
 #include <QSet>
 
+//!
+//! Group-box ID and card ID must be >= 0.
+//!
 class GroupBoxTree
 {
+public:
+    struct Node {
+        explicit Node(GroupBoxTree *tree, const int nodeId) : tree(tree), nodeId(nodeId) {}
+        void addChildGroupBoxes(const QSet<int> childGroupBoxIds);
+        void addChildCards(const QSet<int> childCardIds);
+    private:
+        GroupBoxTree *tree;
+        int nodeId; // can be a group-box or root
+    };
+
 public:
     explicit GroupBoxTree();
 
     inline static const int rootId {-10}; // represents the root (i.e., the Board)
 
     //!
-    //! \param parentId: can be the ID of an existing group-box or \c rootId
-    //! \param childGroupBoxIds: must not already exist in the tree
+    //! \param nodeId: can be the ID of an existing group-box or \c rootId
     //!
-    void addChildGroupBoxes(const int parentId, const QSet<int> childGroupBoxIds);
-
-    //!
-    //! \param parentId: can be the ID of an existing group-box or \c rootId
-    //! \param childCardIds: must not already exist in the tree
-    //!
-    void addChildCards(const int parentId, const QSet<int> childCardIds);
+    Node node(const int nodeId);
 
     enum class RemoveOption {ReparentChildren, RemoveDescendants};
 
@@ -35,7 +41,15 @@ public:
 
     void removeCard(const int cardIdToRemove);
 
+    //!
+    //! Remove all group-boxes and cards. The root (Board) remains.
+    //!
+    void clear();
+
     //
+
+    int getGroupBoxesCount() const;
+    int getCardsCount() const;
 
     //!
     //! \return Returns -1 if \e groupBoxId is not found. Returns \c rootId if the parent is the root.
@@ -46,6 +60,16 @@ public:
     //! \return Returns -1 if \e cardId is not found. Returns \c rootId if the parent is the root.
     //!
     int getParentOfCard(const int cardId) const;
+
+    //!
+    //! \param parentId: can be the ID of an existing group-box or \c rootId
+    //!
+    QSet<int> getChildGroupBoxes(const int parentId) const;
+
+    //!
+    //! \param parentId: can be the ID of an existing group-box or \c rootId
+    //!
+    QSet<int> getChildCards(const int parentId) const;
 
     //!
     //! \return (group-boxes, cards), where group-boxes do not include \e groupBoxId itself.
@@ -71,6 +95,18 @@ private:
 
     QHash<int, int> groupBoxIdToParent; // keys are the existing group-boxes
     QHash<int, int> cardIdToParent; // keys are the existing cards
+
+    //!
+    //! \param parentId: can be the ID of an existing group-box or \c rootId
+    //! \param childGroupBoxIds: must not already exist in the tree
+    //!
+    void addChildGroupBoxes(const int parentId, const QSet<int> childGroupBoxIds);
+
+    //!
+    //! \param parentId: can be the ID of an existing group-box or \c rootId
+    //! \param childCardIds: must not already exist in the tree
+    //!
+    void addChildCards(const int parentId, const QSet<int> childCardIds);
 
     //!
     //! \param groupBoxId: must exist

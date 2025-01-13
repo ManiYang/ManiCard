@@ -1,0 +1,121 @@
+#include <gtest/gtest.h>
+#include <gmock/gmock-matchers.h>
+#include "models/group_box_tree.h"
+
+TEST(GroupBoxTreeTests, CreateAndGet) {
+    // create tree
+    GroupBoxTree tree;
+    ASSERT_TRUE(tree.getGroupBoxesCount() == 0);
+    ASSERT_TRUE(tree.getCardsCount() == 0);
+
+    tree.node(GroupBoxTree::rootId).addChildCards({10});
+    ASSERT_TRUE(tree.getCardsCount() == 1);
+
+    tree.node(GroupBoxTree::rootId).addChildGroupBoxes({1, 4});
+    ASSERT_TRUE(tree.getGroupBoxesCount() == 2);
+
+    tree.node(1).addChildCards({11});
+
+    tree.node(1).addChildGroupBoxes({2, 3});
+    ASSERT_TRUE(tree.getGroupBoxesCount() == 4);
+
+    tree.node(2).addChildCards({12});
+    tree.node(3).addChildCards({13});
+    tree.node(4).addChildCards({14});
+    ASSERT_TRUE(tree.getCardsCount() == 5);
+
+    //
+    ASSERT_TRUE(tree.getParentOfGroupBox(1) == GroupBoxTree::rootId);
+    ASSERT_TRUE(tree.getParentOfGroupBox(2) == 1);
+    ASSERT_TRUE(tree.getParentOfGroupBox(3) == 1);
+    ASSERT_TRUE(tree.getParentOfGroupBox(4) == GroupBoxTree::rootId);
+    ASSERT_TRUE(tree.getParentOfGroupBox(10000) == -1);
+
+    ASSERT_TRUE(tree.getParentOfCard(10) == GroupBoxTree::rootId);
+    ASSERT_TRUE(tree.getParentOfCard(11) == 1);
+    ASSERT_TRUE(tree.getParentOfCard(12) == 2);
+    ASSERT_TRUE(tree.getParentOfCard(13) == 3);
+    ASSERT_TRUE(tree.getParentOfCard(14) == 4);
+
+    //
+    ASSERT_TRUE(tree.getChildGroupBoxes(GroupBoxTree::rootId) == (QSet<int> {1, 4}));
+    ASSERT_TRUE(tree.getChildGroupBoxes(1) == (QSet<int> {2, 3}));
+    ASSERT_TRUE(tree.getChildGroupBoxes(2) == (QSet<int> {}));
+    ASSERT_TRUE(tree.getChildGroupBoxes(3) == (QSet<int> {}));
+    ASSERT_TRUE(tree.getChildGroupBoxes(4) == (QSet<int> {}));
+
+    ASSERT_TRUE(tree.getChildCards(GroupBoxTree::rootId) == (QSet<int> {10}));
+    ASSERT_TRUE(tree.getChildCards(1) == (QSet<int> {11}));
+    ASSERT_TRUE(tree.getChildCards(2) == (QSet<int> {12}));
+    ASSERT_TRUE(tree.getChildCards(3) == (QSet<int> {13}));
+    ASSERT_TRUE(tree.getChildCards(4) == (QSet<int> {14}));
+
+    //
+    auto [groupBoxes, cards] = tree.getAllDescendants(GroupBoxTree::rootId);
+    EXPECT_TRUE(groupBoxes == (QSet<int> {1, 2, 3, 4}));
+    EXPECT_TRUE(cards == (QSet<int> {10, 11, 12, 13, 14}));
+
+    std::tie(groupBoxes, cards) = tree.getAllDescendants(1);
+    EXPECT_TRUE(groupBoxes == (QSet<int> {2, 3}));
+    EXPECT_TRUE(cards == (QSet<int> {11, 12, 13}));
+
+    std::tie(groupBoxes, cards) = tree.getAllDescendants(2);
+    EXPECT_TRUE(groupBoxes == (QSet<int> {}));
+    EXPECT_TRUE(cards == (QSet<int> {12}));
+
+    //
+    EXPECT_TRUE(tree.formsSinglePath(QSet<int> {1, 2}));
+    EXPECT_TRUE(tree.formsSinglePath(QSet<int> {1}));
+    EXPECT_FALSE(tree.formsSinglePath(QSet<int> {2, 3}));
+    EXPECT_FALSE(tree.formsSinglePath(QSet<int> {1, 4}));
+    EXPECT_FALSE(tree.formsSinglePath(QSet<int> {1, 2, 3}));
+    EXPECT_FALSE(tree.formsSinglePath(QSet<int> {1, 2, 4}));
+    EXPECT_FALSE(tree.formsSinglePath(QSet<int> {}));
+}
+
+TEST(GroupBoxTreeTests, RemoveItems) {
+    // create tree
+    GroupBoxTree tree;
+    tree.node(GroupBoxTree::rootId).addChildCards({10});
+    tree.node(GroupBoxTree::rootId).addChildGroupBoxes({1, 4});
+    {
+        tree.node(1).addChildCards({11});
+        tree.node(1).addChildGroupBoxes({2, 3});
+        {
+            tree.node(2).addChildCards({12});
+            tree.node(3).addChildCards({13});
+            tree.node(3).addChildGroupBoxes({5});
+            {
+                tree.node(5).addChildCards({15});
+            }
+        }
+        tree.node(4).addChildCards({14});
+    }
+
+    //
+    ASSERT_TRUE(tree.getGroupBoxesCount() == 5);
+    ASSERT_TRUE(tree.getCardsCount() == 6);
+
+    ASSERT_TRUE(tree.formsSinglePath(QSet<int> {1, 3, 5}));
+
+    auto [groupBoxes, cards] = tree.getAllDescendants(1);
+    EXPECT_TRUE(groupBoxes == (QSet<int> {2, 3, 5}));
+    EXPECT_TRUE(cards == (QSet<int> {11, 12, 13, 15}));
+
+    //
+    tree.removeCard(12);
+    EXPECT_TRUE(tree.getGroupBoxesCount() == 5);
+    EXPECT_TRUE(tree.getCardsCount() == 5);
+    EXPECT_TRUE(tree.getChildCards(2).isEmpty());
+
+    tree.removeGroupBox(4, GroupBoxTree::RemoveOption::RemoveDescendants);
+    EXPECT_TRUE(tree.getGroupBoxesCount() == 4);
+    EXPECT_TRUE(tree.getCardsCount() == 4);
+    EXPECT_TRUE(tree.getChildGroupBoxes(GroupBoxTree::rootId) == (QSet<int> {1}));
+
+    tree.removeGroupBox(1, GroupBoxTree::RemoveOption::ReparentChildren);
+    EXPECT_TRUE(tree.getGroupBoxesCount() == 3);
+    EXPECT_TRUE(tree.getCardsCount() == 4);
+    EXPECT_TRUE(tree.getChildGroupBoxes(GroupBoxTree::rootId) == (QSet<int> {2, 3}));
+    EXPECT_TRUE(tree.getChildCards(GroupBoxTree::rootId) == (QSet<int> {10 ,11}));
+}
