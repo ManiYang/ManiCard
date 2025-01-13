@@ -11,6 +11,55 @@ GroupBoxTree::Node GroupBoxTree::node(const int nodeId) {
     return Node(this, nodeId);
 }
 
+bool GroupBoxTree::set(
+        const QHash<int, ChildGroupBoxesAndCards> &groupBoxIdToChildItems, QString *errorMsg) {
+    clear();
+    *errorMsg = "";
+
+    //
+    for (auto it = groupBoxIdToChildItems.constBegin(); it != groupBoxIdToChildItems.constEnd(); ++it) {
+        const int parentId = it.key();
+        const QSet<int> childGroupBoxes = it.value().first;
+        const QSet<int> childCards = it.value().second;
+
+        nodeIdToChildItems.insert(parentId, {childGroupBoxes, childCards});
+
+        for (const int groupBoxId: childGroupBoxes) {
+            if (groupBoxIdToParent.contains(groupBoxId)) {
+                *errorMsg = QString("group-box %1 already has parent").arg(groupBoxId);
+                return false;
+            }
+            groupBoxIdToParent.insert(groupBoxId, parentId);
+
+            if (!nodeIdToChildItems.contains(groupBoxId))
+                nodeIdToChildItems.insert(groupBoxId, {});
+        }
+
+        for (const int cardId: childCards) {
+            if (cardIdToParent.contains(cardId)) {
+                *errorMsg = QString("card %1 already has parent").arg(cardId);
+                return false;
+            }
+            cardIdToParent.insert(cardId, parentId);
+        }
+    }
+
+    // if a group-box in `nodeToChildItems.keys()` has no parent, set the root as it parent
+    for (auto it = groupBoxIdToChildItems.constBegin(); it != groupBoxIdToChildItems.constEnd(); ++it) {
+        if (it.key() == rootId)
+            continue;
+
+        const int groupBoxId = it.key();
+        if (!groupBoxIdToParent.contains(groupBoxId)) {
+            groupBoxIdToParent.insert(groupBoxId, rootId);
+            nodeIdToChildItems[rootId].childGroupBoxes << groupBoxId;
+        }
+    }
+
+    //
+    return true;
+}
+
 void GroupBoxTree::removeGroupBox(const int groupBoxIdToRemove, const RemoveOption option) {
     const int parentId = groupBoxIdToParent.value(groupBoxIdToRemove, -1);
     if (parentId == -1)  // `groupBoxIdToRemove` not found

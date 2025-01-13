@@ -25,9 +25,19 @@ public:
     inline static const int rootId {-10}; // represents the root (i.e., the Board)
 
     //!
+    //! The returned \c Node can be used to add child items to the node.
     //! \param nodeId: can be the ID of an existing group-box or \c rootId
     //!
     Node node(const int nodeId);
+
+    using ChildGroupBoxesAndCards = std::pair<QSet<int>, QSet<int>>;
+
+    //!
+    //! Sets up the tree from \e groupBoxIdToChildItems. Any group-boxes that is not given a parent
+    //! will be a child of root (the Board).
+    //! \return true if successful
+    //!
+    bool set(const QHash<int, ChildGroupBoxesAndCards> &groupBoxIdToChildItems, QString *errorMsg);
 
     enum class RemoveOption {ReparentChildren, RemoveDescendants};
 

@@ -7,6 +7,7 @@
 #include "models/board.h"
 #include "models/custom_data_query.h"
 #include "models/edge_arrow_data.h"
+#include "models/group_box_tree.h"
 #include "models/node_rect_data.h"
 #include "models/relationship.h"
 #include "widgets/common_types.h"
@@ -89,6 +90,8 @@ private:
     double zoomScale {1.0};
     double graphicsGeometryScaleFactor {1.0};
 
+    GroupBoxTree groupBoxTree;
+
     //
     QGraphicsView *graphicsView {nullptr};
     GraphicsScene *graphicsScene {nullptr};
@@ -121,7 +124,7 @@ private:
     //
 
     //!
-    //! Remove all NodeRect's, EdgeArrow's, & DataViewBox's. Does not check canClose().
+    //! Remove all NodeRect's, EdgeArrow's, DataViewBox's, GroupBox's. Does not check canClose().
     //!
     void closeAll(bool *highlightedCardIdChanged);
 

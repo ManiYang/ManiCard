@@ -2,7 +2,7 @@
 #include <gmock/gmock-matchers.h>
 #include "models/group_box_tree.h"
 
-TEST(GroupBoxTreeTests, CreateAndGet) {
+TEST(GroupBoxTreeTests, addChildItemsAndGet) {
     // create tree
     GroupBoxTree tree;
     ASSERT_TRUE(tree.getGroupBoxesCount() == 0);
@@ -119,3 +119,75 @@ TEST(GroupBoxTreeTests, RemoveItems) {
     EXPECT_TRUE(tree.getChildGroupBoxes(GroupBoxTree::rootId) == (QSet<int> {2, 3}));
     EXPECT_TRUE(tree.getChildCards(GroupBoxTree::rootId) == (QSet<int> {10 ,11}));
 }
+
+TEST(GroupBoxTreeTests, SetSuccess1) {
+    using ChildGroupBoxesAndCards = std::pair<QSet<int>, QSet<int>>;
+    const QHash<int, ChildGroupBoxesAndCards> nodeToChildItems {
+        {2, ChildGroupBoxesAndCards {{}, {12}}},
+        {4, ChildGroupBoxesAndCards {{}, {14}}},
+        {1, ChildGroupBoxesAndCards {{2, 3}, {11}}},
+        {GroupBoxTree::rootId, ChildGroupBoxesAndCards {{1, 4}, {10}}},
+        {3, ChildGroupBoxesAndCards {{}, {13}}},
+    };
+
+    GroupBoxTree tree;
+    QString errorMsg;
+    bool ok = tree.set(nodeToChildItems, &errorMsg);
+    ASSERT_TRUE(ok);
+
+    ASSERT_TRUE(tree.getGroupBoxesCount() == 4);
+    ASSERT_TRUE(tree.getCardsCount() == 5);
+
+    auto [groupBoxes, cards] = tree.getAllDescendants(GroupBoxTree::rootId);
+    EXPECT_TRUE(groupBoxes == (QSet<int> {1, 2, 3, 4}));
+    EXPECT_TRUE(cards == (QSet<int> {10, 11, 12, 13, 14}));
+
+    EXPECT_TRUE(tree.formsSinglePath(QSet<int> {1, 2}));
+}
+
+TEST(GroupBoxTreeTests, SetSuccess2) {
+    using ChildGroupBoxesAndCards = std::pair<QSet<int>, QSet<int>>;
+    const QHash<int, ChildGroupBoxesAndCards> nodeToChildItems {
+        {GroupBoxTree::rootId, ChildGroupBoxesAndCards {{1, 4}, {}}},
+    };
+
+    GroupBoxTree tree;
+    QString errorMsg;
+    bool ok = tree.set(nodeToChildItems, &errorMsg);
+    ASSERT_TRUE(ok);
+
+    ASSERT_TRUE(tree.getGroupBoxesCount() == 2);
+    ASSERT_TRUE(tree.getCardsCount() == 0);
+
+    ASSERT_TRUE(tree.getChildGroupBoxes(1).isEmpty());
+}
+
+TEST(GroupBoxTreeTests, SetSuccess3) {
+    using ChildGroupBoxesAndCards = std::pair<QSet<int>, QSet<int>>;
+    const QHash<int, ChildGroupBoxesAndCards> nodeToChildItems {
+        {GroupBoxTree::rootId, ChildGroupBoxesAndCards {{1}, {}}},
+        {2, ChildGroupBoxesAndCards {{3}, {}}},
+    };
+
+    GroupBoxTree tree;
+    QString errorMsg;
+    bool ok = tree.set(nodeToChildItems, &errorMsg);
+    ASSERT_TRUE(ok);
+
+    ASSERT_TRUE(tree.getChildGroupBoxes(GroupBoxTree::rootId) == (QSet<int> {1, 2}));
+}
+
+TEST(GroupBoxTreeTests, SetFail1) {
+    using ChildGroupBoxesAndCards = std::pair<QSet<int>, QSet<int>>;
+    const QHash<int, ChildGroupBoxesAndCards> nodeToChildItems {
+        {GroupBoxTree::rootId, ChildGroupBoxesAndCards {{1, 4}, {}}},
+        {1, ChildGroupBoxesAndCards {{3}, {}}},
+        {4, ChildGroupBoxesAndCards {{3}, {}}}, // forms a loop
+    };
+
+    GroupBoxTree tree;
+    QString errorMsg;
+    bool ok = tree.set(nodeToChildItems, &errorMsg);
+    ASSERT_FALSE(ok);
+}
+

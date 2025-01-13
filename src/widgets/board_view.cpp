@@ -243,6 +243,17 @@ void BoardView::loadBoard(
             groupBoxesCollection.createGroupBox(groupBoxId, groupBoxData);
         }
 
+        // GroupBoxTree
+//        using ChildGroupBoxesAndCards = std::pair<QSet<int>, QSet<int>>;
+//        QHash<int, ChildGroupBoxesAndCards> treeNodeToChildItems;
+//        for (auto it = groupBoxIdToData.constBegin(); it != groupBoxIdToData.constEnd(); ++it) {
+//            const int &groupBoxId = it.key();
+//            const GroupBoxData &groupBoxData = it.value();
+
+
+
+//        }
+
         //
         zoomScale = routine->board.zoomRatio;
         canvas->setScale(zoomScale * graphicsGeometryScaleFactor); // (1)
@@ -1201,6 +1212,9 @@ void BoardView::closeAll(bool *highlightedCardIdChanged_) {
     const QSet<int> groupBoxIds = groupBoxesCollection.getAllGroupBoxIds();
     for (const int id: groupBoxIds)
         groupBoxesCollection.removeGroupBox(id);
+
+    //
+    groupBoxTree.clear();
 }
 
 void BoardView::adjustSceneRect() {

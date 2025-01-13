@@ -22,7 +22,7 @@ struct Board {
     //
     QHash<int, NodeRectData> cardIdToNodeRectData;
     QHash<int, DataViewBoxData> customDataQueryIdToDataViewBoxData;
-    QHash<int, GroupBoxData> groupBoxIdToData;
+    QHash<int, GroupBoxData> groupBoxIdToData; // including all descendant group-boxes
 
     //
     QJsonObject getNodePropertiesJson() const;
