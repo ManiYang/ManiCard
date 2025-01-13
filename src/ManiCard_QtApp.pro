@@ -25,6 +25,7 @@ SOURCES += \
     models/custom_data_query.cpp \
     models/data_view_box_data.cpp \
     models/group_box_data.cpp \
+    models/group_box_tree.cpp \
     models/node_rect_data.cpp \
     models/relationship.cpp \
     models/workspace.cpp \
@@ -91,6 +92,7 @@ HEADERS += \
     models/data_view_box_data.h \
     models/edge_arrow_data.h \
     models/group_box_data.h \
+    models/group_box_tree.h \
     models/node_labels.h \
     models/node_rect_data.h \
     models/relationship.h \
