@@ -5,7 +5,8 @@
 #include <QSet>
 
 //!
-//! Group-box ID and card ID must be >= 0.
+//! + Group-box ID and card ID must be >= 0.
+//! + The root (the Board) cannot have child cards.
 //!
 class GroupBoxTree
 {
@@ -34,18 +35,24 @@ public:
 
     //!
     //! Sets up the tree from \e groupBoxIdToChildItems. Any group-boxes that is not given a parent
-    //! will be a child of root (the Board).
+    //! will be a child of root (the Board). Note that the root (Board) cannot have child cards.
     //! \return true if successful
     //!
     bool set(const QHash<int, ChildGroupBoxesAndCards> &groupBoxIdToChildItems, QString *errorMsg);
+
+    void reparentGroupBox(const int groupBoxId, const int newParentId);
+
+    void reparentCard(const int cardId, const int newParentGroupBoxId);
 
     enum class RemoveOption {ReparentChildren, RemoveDescendants};
 
     //!
     //! \param groupBoxIdToRemove
     //! \param option:
-    //!           \c ReparentChildren: reparent child items `groupBoxIdToRemove` to its parent
-    //!           \c RemoveDescendants: remove all descendants of `groupBoxIdToRemove`
+    //!           \c ReparentChildren: Reparent child items of `groupBoxIdToRemove` to its
+    //!                   parent. If `groupBoxIdToRemove`'s parent is root, its child cards
+    //!                   are removed (since root cannot have child cards).
+    //!           \c RemoveDescendants: Remove all descendants of `groupBoxIdToRemove`
     //!
     void removeGroupBox(const int groupBoxIdToRemove, const RemoveOption option);
 
@@ -91,9 +98,11 @@ public:
     //! Determine whether the set \e groupBoxIds of existing group-boxes forms a path (i.e., a
     //! linear structure).
     //! \param groupBoxIds: each group-box must already exist
+    //! \param deepestGroupBox: if \e groupBoxIds does form a path, \e deepestGroupBox will be
+    //!                         set to the ID of the deepest group box
     //! \return false if \e groupBoxIds is empty
     //!
-    bool formsSinglePath(const QSet<int> &groupBoxIds) const;
+    bool formsSinglePath(const QSet<int> &groupBoxIds, int *deepestGroupBox = nullptr) const;
 
 private:
     struct ChildItems
@@ -113,10 +122,10 @@ private:
     void addChildGroupBoxes(const int parentId, const QSet<int> childGroupBoxIds);
 
     //!
-    //! \param parentId: can be the ID of an existing group-box or \c rootId
+    //! \param parentGroupBoxId: can be the ID of an existing group-box
     //! \param childCardIds: must not already exist in the tree
     //!
-    void addChildCards(const int parentId, const QSet<int> childCardIds);
+    void addChildCards(const int parentGroupBoxId, const QSet<int> childCardIds);
 
     //!
     //! \param groupBoxId: must exist

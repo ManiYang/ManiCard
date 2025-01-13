@@ -244,15 +244,23 @@ void BoardView::loadBoard(
         }
 
         // GroupBoxTree
-//        using ChildGroupBoxesAndCards = std::pair<QSet<int>, QSet<int>>;
-//        QHash<int, ChildGroupBoxesAndCards> treeNodeToChildItems;
-//        for (auto it = groupBoxIdToData.constBegin(); it != groupBoxIdToData.constEnd(); ++it) {
-//            const int &groupBoxId = it.key();
-//            const GroupBoxData &groupBoxData = it.value();
+        using ChildGroupBoxesAndCards = std::pair<QSet<int>, QSet<int>>;
+        QHash<int, ChildGroupBoxesAndCards> treeNodeToChildItems;
 
+        for (auto it = groupBoxIdToData.constBegin(); it != groupBoxIdToData.constEnd(); ++it) {
+            const int &groupBoxId = it.key();
+            const GroupBoxData &groupBoxData = it.value();
 
+            treeNodeToChildItems.insert(
+                    groupBoxId, {groupBoxData.childGroupBoxes, groupBoxData.childCards});
+        }
 
-//        }
+        QString errorMsg;
+        const bool ok = groupBoxTree.set(treeNodeToChildItems, &errorMsg);
+        if (!ok) {
+            qWarning().noquote() << "Could not create group-boxes tree:" << errorMsg;
+            context.setErrorFlag();
+        }
 
         //
         zoomScale = routine->board.zoomRatio;
@@ -1286,6 +1294,51 @@ void BoardView::updateCanvasScale(const double scale, const QPointF &anchorScene
     adjustSceneRect();
 }
 
+void BoardView::moveFollowerItemsInComovingState(
+        const QPointF &displacement, const ComovingStateData &comovingStateData) {
+    if (!comovingStateData.getIsActive())
+        return;
+
+    // follower group-boxes
+    const auto followerGroupBoxIdToInitialPos
+            = comovingStateData.followerGroupBoxIdToInitialPos;
+    for (auto it = followerGroupBoxIdToInitialPos.constBegin();
+            it != followerGroupBoxIdToInitialPos.constEnd(); ++it) {
+        GroupBox *groupBox = groupBoxesCollection.get(it.key());
+        if (groupBox != nullptr) {
+            QRectF rect = groupBox->getRect();
+            rect.moveTopLeft(it.value() + displacement);
+            groupBox->setRect(rect);
+        }
+    }
+
+    // follower NodeRect's
+    const auto followerCardIdToInitialPos
+            = comovingStateData.followerCardIdToInitialPos;
+    for (auto it = followerCardIdToInitialPos.constBegin();
+            it != followerCardIdToInitialPos.constEnd(); ++it) {
+        NodeRect *nodeRect = nodeRectsCollection.get(it.key());
+        if (nodeRect != nullptr) {
+            QRectF rect = nodeRect->getRect();
+            rect.moveTopLeft(it.value() + displacement);
+            nodeRect->setRect(rect);
+        }
+    }
+
+    // EdgeArrow's
+    QSet<RelationshipId> affectedRelIds;
+    for (auto it = followerCardIdToInitialPos.constBegin();
+            it != followerCardIdToInitialPos.constEnd(); ++it) {
+        const int cardId = it.key();
+        affectedRelIds += getEdgeArrowsConnectingNodeRect(cardId);
+    }
+
+    for (const auto &relId: qAsConst(affectedRelIds)) {
+        constexpr bool updateOtherEdgeArrows = false;
+        edgeArrowsCollection.updateEdgeArrow(relId, updateOtherEdgeArrows);
+    }
+}
+
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) const {
     QPoint posInViewport = graphicsView->mapFromScene(scenePos);
     return graphicsView->viewport()->mapToGlobal(posInViewport);
@@ -1845,7 +1898,51 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
     QPointer<GroupBox> groupBoxPtr(groupBox);
 
     QObject::connect(
-            groupBox, &DataViewBox::finishedMovingOrResizing,
+            groupBox, &GroupBox::aboutToMove, boardView, [this, groupBoxId, groupBoxPtr]() {
+        if (!groupBoxPtr)
+            return;
+
+        // enter co-moving state
+        const auto [groupBoxes, cards] = boardView->groupBoxTree.getAllDescendants(groupBoxId);
+
+        boardView->comovingStateData.activate();
+        boardView->comovingStateData.clearFollowers();
+        for (const int groupBoxId: groupBoxes) {
+            GroupBox *groupBox = this->groupBoxes.value(groupBoxId);
+            if (groupBox != nullptr) {
+                boardView->comovingStateData.followerGroupBoxIdToInitialPos.insert(
+                        groupBoxId, groupBox->getRect().topLeft());
+            }
+        }
+        for (const int cardId: cards) {
+            NodeRect *nodeRect = boardView->nodeRectsCollection.get(cardId);
+            if (nodeRect != nullptr) {
+                boardView->comovingStateData.followerCardIdToInitialPos.insert(
+                        cardId, nodeRect->getRect().topLeft());
+            }
+        }
+        boardView->comovingStateData.followeeInitialPos = groupBoxPtr->getRect().topLeft();
+    });
+
+    QObject::connect(
+            groupBox, &GroupBox::movedOrResized, boardView, [this, groupBoxId, groupBoxPtr]() {
+        if (!groupBoxPtr)
+            return;
+
+        //
+        if (boardView->comovingStateData.getIsActive()) {
+            const QPointF displacement
+                    = groupBoxPtr->getRect().topLeft() - boardView->comovingStateData.followeeInitialPos;
+            boardView->moveFollowerItemsInComovingState(displacement, boardView->comovingStateData);
+        }
+
+        //
+
+
+    });
+
+    QObject::connect(
+            groupBox, &GroupBox::finishedMovingOrResizing,
             boardView, [this, groupBoxId, groupBoxPtr]() {
         if (!groupBoxPtr)
             return;
@@ -1859,6 +1956,10 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
 
         Services::instance()->getAppData()->updateGroupBoxProperties(
                 EventSource(boardView), groupBoxId, update);
+
+        //
+        if (boardView->comovingStateData.getIsActive())
+            boardView->comovingStateData.deactivate();
     });
 
     //
@@ -1885,6 +1986,10 @@ void BoardView::GroupBoxesCollection::setHighlightedGroupBox(const int groupBoxI
         it.value()->setIsHighlighted(it.key() == groupBoxId);
 }
 
+GroupBox *BoardView::GroupBoxesCollection::get(const int groupBoxId) {
+    return groupBoxes.value(groupBoxId);
+}
+
 QSet<int> BoardView::GroupBoxesCollection::getAllGroupBoxIds() const {
     return keySet(groupBoxes);
 }
@@ -1893,17 +1998,37 @@ std::optional<int> BoardView::GroupBoxesCollection::getDeepestEnclosingGroupBox(
         const BoardBoxItem *boardBoxItem) {
     const QRectF rect = boardBoxItem->boundingRect();
 
-    // [temp] find a GroupBox whose contents rect encloses `rect`
+    // find group-boxes whose contents rects enclose `rect`
+    QSet<int> enclosingGroupBoxes;
     for (auto it = groupBoxes.constBegin(); it != groupBoxes.constEnd(); ++it) {
         GroupBox *const &groupBox = it.value();
         if (groupBox->getContentsRect().contains(rect))
-            return it.key();
+            enclosingGroupBoxes << it.key();
     }
-    return std::nullopt;
 
-    // todo:
-    // 1. find group-boxes whose contents rect encloses `rect` (if none is found, return nullopt)
-    // 2. if the set of group-boxes found in step 1 does not form a path (i.e., it has multiple
-    //    branches), return nullopt
-    // 3. return the deepest group-box
+    if (enclosingGroupBoxes.isEmpty())
+        return std::nullopt;
+
+    // if `enclosingGroupBoxes` does not form a single path, return nullopt
+    int deepestGroupBox;
+    const bool formsSinglePath
+            = boardView->groupBoxTree.formsSinglePath(enclosingGroupBoxes, &deepestGroupBox);
+    if (!formsSinglePath)
+        return std::nullopt;
+
+    // return the deepest group-box
+    return deepestGroupBox;
+}
+
+//======
+
+void BoardView::ComovingStateData::activate() {
+    if (isActive)
+        qWarning().noquote() << "co-moving state is already active";
+    isActive = true;
+}
+
+void BoardView::ComovingStateData::deactivate() {
+    isActive = false;
+    clearFollowers();
 }

@@ -52,6 +52,7 @@ public:
 
 signals:
     void clicked();
+    void aboutToMove();
     void movedOrResized();
     void finishedMovingOrResizing();
 

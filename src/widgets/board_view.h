@@ -266,6 +266,7 @@ private:
         void removeGroupBox(const int groupBoxId);
         void setHighlightedGroupBox(const int groupBoxId); // `groupBoxId` can be -1
 
+        GroupBox *get(const int groupBoxId); // returns nullptr if not found
         QSet<int> getAllGroupBoxIds() const;
         std::optional<int> getDeepestEnclosingGroupBox(const BoardBoxItem *boardBoxItem);
 
@@ -274,6 +275,32 @@ private:
         QHash<int, GroupBox *> groupBoxes;
     };
     GroupBoxesCollection groupBoxesCollection {this};
+
+    // co-moving state
+    struct ComovingStateData
+    {
+        bool getIsActive() const { return isActive; }
+
+        QPointF followeeInitialPos;
+        QHash<int, QPointF> followerGroupBoxIdToInitialPos;
+        QHash<int, QPointF> followerCardIdToInitialPos; // (initial positions of NodeRect's)
+
+        //
+        void activate();
+        void deactivate();
+
+        void clearFollowers() {
+            followerGroupBoxIdToInitialPos.clear();
+            followerCardIdToInitialPos.clear();
+        }
+    private:
+        bool isActive {false};
+
+    };
+    ComovingStateData comovingStateData;
+
+    void moveFollowerItemsInComovingState(
+            const QPointF &displacement, const ComovingStateData &comovingStateData);
 
     // tools
     QPoint getScreenPosFromScenePos(const QPointF &scenePos) const;

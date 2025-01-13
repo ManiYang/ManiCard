@@ -70,6 +70,7 @@ bool GraphicsItemMoveResize::eventFilterForMoveHandle(QEvent *event) {
             const QPoint displacement = mouseEvent->screenPos() - mousePressScreenPos; // (pix)
             constexpr double bufferDistance = 4.0;
             if (vectorLength(displacement) >= bufferDistance) {
+                emit aboutToMove();
                 emit setTargetItemPosition(targetItemPosBeforeMove + displacement);
                 state = State::Moving;
             }

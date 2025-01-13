@@ -254,6 +254,10 @@ void BoardBoxItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 void BoardBoxItem::setUpConnections() {
     // ==== moveResizeHelper ====
 
+    connect(moveResizeHelper, &GraphicsItemMoveResize::aboutToMove, this, [this]() {
+        emit aboutToMove();
+    }, Qt::DirectConnection);
+
     connect(moveResizeHelper, &GraphicsItemMoveResize::getTargetItemPosition,
             this, [this](QPointF *pos) {
         *pos = this->mapToScene(borderOuterRect.topLeft());

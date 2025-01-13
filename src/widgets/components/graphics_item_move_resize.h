@@ -32,6 +32,8 @@ public:
             QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
 signals:
+    void aboutToMove();
+
     void getTargetItemPosition(QPointF *pos); // use Qt::DirectConnection
     void setTargetItemPosition(const QPointF &pos);
             // the `pos` parameter in the above 2 methods must be in the same coordinates

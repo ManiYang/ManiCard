@@ -22,7 +22,16 @@ bool GroupBoxTree::set(
         const QSet<int> childGroupBoxes = it.value().first;
         const QSet<int> childCards = it.value().second;
 
-        nodeIdToChildItems.insert(parentId, {childGroupBoxes, childCards});
+        if (parentId == rootId) {
+            if (!childCards.isEmpty()) {
+                *errorMsg = "root node (the Board) cannot have child cards.";
+                return false;
+            }
+            nodeIdToChildItems.insert(parentId, {childGroupBoxes, QSet<int> {}});
+        }
+        else {
+            nodeIdToChildItems.insert(parentId, {childGroupBoxes, childCards});
+        }
 
         for (const int groupBoxId: childGroupBoxes) {
             if (groupBoxIdToParent.contains(groupBoxId)) {
@@ -60,6 +69,29 @@ bool GroupBoxTree::set(
     return true;
 }
 
+void GroupBoxTree::reparentGroupBox(const int groupBoxId, const int newParentId) {
+    if (!groupBoxIdToParent.contains(groupBoxId)) {
+        Q_ASSERT(false); // `groupBoxId` not found
+        return;
+    }
+    if (!nodeIdToChildItems.contains(newParentId)) {
+        Q_ASSERT(false); // `newParentId` not found
+        return;
+    }
+
+    const int originalParentId = groupBoxIdToParent.value(groupBoxId);
+    if (newParentId == originalParentId)
+        return;
+
+    nodeIdToChildItems[originalParentId].childGroupBoxes.remove(groupBoxId);
+    nodeIdToChildItems[newParentId].childGroupBoxes << groupBoxId;
+    groupBoxIdToParent[groupBoxId] = newParentId;
+}
+
+void GroupBoxTree::reparentCard(const int cardId, const int newParentGroupBoxId) {
+
+}
+
 void GroupBoxTree::removeGroupBox(const int groupBoxIdToRemove, const RemoveOption option) {
     const int parentId = groupBoxIdToParent.value(groupBoxIdToRemove, -1);
     if (parentId == -1)  // `groupBoxIdToRemove` not found
@@ -74,12 +106,19 @@ void GroupBoxTree::removeGroupBox(const int groupBoxIdToRemove, const RemoveOpti
     switch (option) {
     case RemoveOption::ReparentChildren:
         nodeIdToChildItems[parentId].childGroupBoxes += childItems.childGroupBoxes;
-        nodeIdToChildItems[parentId].childCards += childItems.childCards;
-
         for (const int groupBoxId: childItems.childGroupBoxes)
             groupBoxIdToParent[groupBoxId] = parentId;
-        for (const int cardId: childItems.childCards)
-            cardIdToParent[cardId] = parentId;
+
+        if (parentId != rootId) {
+            nodeIdToChildItems[parentId].childCards += childItems.childCards;
+            for (const int cardId: childItems.childCards)
+                cardIdToParent[cardId] = parentId;
+        }
+        else {
+            for (const int cardId: childItems.childCards)
+                cardIdToParent.remove(cardId);
+        }
+
         return;
 
     case RemoveOption::RemoveDescendants:
@@ -151,7 +190,7 @@ std::pair<QSet<int>, QSet<int> > GroupBoxTree::getAllDescendants(const int group
     return doGetAllDescendants(groupBoxId);
 }
 
-bool GroupBoxTree::formsSinglePath(const QSet<int> &groupBoxIds) const {
+bool GroupBoxTree::formsSinglePath(const QSet<int> &groupBoxIds, int *deepestGroupBox) const {
     if (groupBoxIds.isEmpty())
         return false;
 
@@ -181,7 +220,15 @@ bool GroupBoxTree::formsSinglePath(const QSet<int> &groupBoxIds) const {
         }
     }
 
-    return groupBoxesWithoutChildWithin.count() <= 1;
+    Q_ASSERT(!groupBoxesWithoutChildWithin.isEmpty());
+    if (groupBoxesWithoutChildWithin.count() <= 1) {
+        if (deepestGroupBox != nullptr)
+            *deepestGroupBox = *groupBoxesWithoutChildWithin.constBegin();
+        return true;
+    }
+    else {
+        return false;
+    }
 }
 
 void GroupBoxTree::addChildGroupBoxes(const int parentId, const QSet<int> childGroupBoxIds) {
@@ -204,8 +251,13 @@ void GroupBoxTree::addChildGroupBoxes(const int parentId, const QSet<int> childG
     }
 }
 
-void GroupBoxTree::addChildCards(const int parentId, const QSet<int> childCardIds) {
-    if (!nodeIdToChildItems.contains(parentId)) {
+void GroupBoxTree::addChildCards(const int parentGroupBoxId, const QSet<int> childCardIds) {
+    if (parentGroupBoxId == rootId) {
+        Q_ASSERT(false); // root cannot have child cards
+        return;
+    }
+
+    if (!nodeIdToChildItems.contains(parentGroupBoxId)) {
         Q_ASSERT(false); // `parentId` is not found
         return;
     }
@@ -216,10 +268,10 @@ void GroupBoxTree::addChildCards(const int parentId, const QSet<int> childCardId
     }
 
     //
-    nodeIdToChildItems[parentId].childCards += childCardIds;
+    nodeIdToChildItems[parentGroupBoxId].childCards += childCardIds;
 
     for (const int id: childCardIds)
-        cardIdToParent.insert(id, parentId);
+        cardIdToParent.insert(id, parentGroupBoxId);
 }
 
 std::pair<QSet<int>, QSet<int> > GroupBoxTree::doGetAllDescendants(const int groupBoxId) const {
