@@ -161,7 +161,7 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     });
 
     connect(titleItem, &CustomGraphicsTextItem::clicked, this, [this]() {
-        emit mousePressedOrClicked();
+        emit leftButtonPressedOrClicked();
     });
 
     // textEdit
@@ -170,7 +170,7 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     });
 
     connect(textEdit, &CustomTextEdit::clicked, this, [this]() {
-        emit mousePressedOrClicked();
+        emit leftButtonPressedOrClicked();
     });
 
     connect(textEdit, &CustomTextEdit::focusedIn, this, [this]() {
@@ -242,13 +242,19 @@ void NodeRect::adjustContents() {
                 );
 }
 
-void NodeRect::onMousePressed(const bool isOnCaptionBar) {
-    if (isOnCaptionBar)
-        emit mousePressedOrClicked();
+void NodeRect::onMouseLeftPressed(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) {
+    if (modifiers == Qt::NoModifier) {
+        emit leftButtonPressedOrClicked();
+    }
+    else if (modifiers == Qt::ControlModifier) {
+        if (isOnCaptionBar)
+            emit ctrlLeftButtonPressedOnCaptionBar();
+    }
 }
 
-void NodeRect::onMouseLeftClicked() {
-    emit mousePressedOrClicked();
+void NodeRect::onMouseLeftClicked(
+        const bool /*isOnCaptionBar*/, const Qt::KeyboardModifiers /*modifiers*/) {
+    // do nothing
 }
 
 QString NodeRect::getNodeLabelsString(const QStringList &labels) {

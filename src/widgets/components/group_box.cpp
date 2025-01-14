@@ -1,5 +1,7 @@
 #include "group_box.h"
 
+#include <QMessageBox>
+
 GroupBox::GroupBox(QGraphicsItem *parent)
         : BoardBoxItem(getCreationParameters(), parent) {
 }
@@ -20,7 +22,14 @@ BoardBoxItem::CreationParameters GroupBox::getCreationParameters() {
 }
 
 QMenu *GroupBox::createCaptionBarContextMenu(){
-    return nullptr;
+    auto *contextMenu = new QMenu;
+    {
+        auto *action = contextMenu->addAction(QIcon(":/icons/delete_black_24"), "Ungroup");
+        connect(action, &QAction::triggered, this, [this]() {
+            emit userToRemoveGroupBox();
+        });
+    }
+    return contextMenu;
 }
 
 void GroupBox::setUpContents(QGraphicsItem */*contentsContainer*/) {
@@ -31,10 +40,18 @@ void GroupBox::adjustContents() {
     // do nothing
 }
 
-void GroupBox::onMousePressed(const bool /*isOnCaptionBar*/) {
-    emit mousePressed();
+void GroupBox::onMouseLeftPressed(
+        const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) {
+    if (modifiers == Qt::NoModifier) {
+        emit leftButtonPressed();
+    }
+    else if (modifiers == Qt::ControlModifier) {
+        if (isOnCaptionBar)
+            emit ctrlLeftButtonPressedOnCaptionBar();
+    }
 }
 
-void GroupBox::onMouseLeftClicked() {
+void GroupBox::onMouseLeftClicked(
+        const bool /*isOnCaptionBar*/, const Qt::KeyboardModifiers /*modifiers*/) {
     // do nothing
 }

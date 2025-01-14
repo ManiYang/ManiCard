@@ -96,6 +96,10 @@ public:
             const int groupBoxId, const GroupBoxDataUpdate &update,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
+    void removeGroupBoxAndReparentChildItems(
+            const int groupBoxId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
 private:
     Neo4jHttpApiClient *neo4jHttpApiClient;
 };

@@ -191,6 +191,8 @@ public:
 
     void updateGroupBoxProperties(const int groupBoxId, const GroupBoxDataUpdate &update);
 
+    void removeGroupBoxAndReparentChildItems(const int groupBoxId);
+
 private:
     AbstractBoardsDataAccess *boardsDataAccess;
     AbstractCardsDataAccess *cardsDataAccess;

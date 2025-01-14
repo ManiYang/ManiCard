@@ -179,6 +179,8 @@ public:
             const EventSource &eventSrc,
             const int groupBoxId, const GroupBoxDataUpdate &update);
 
+    void removeGroupBoxAndReparentChildItems(const EventSource &eventSrc, const int groupBoxId);
+
     void updateMainWindowSize(const EventSource &eventSrc, const QSize &size);
 
     // ==== non-persisted independent data ====

@@ -39,6 +39,14 @@ void Board::updateNodeProperties(const BoardNodePropertiesUpdate &update) {
 #undef UPDATE_PROPERTY
 }
 
+int Board::findParentOfGroupBox(const int groupBoxId) const {
+    for (auto it = groupBoxIdToData.constBegin(); it != groupBoxIdToData.constEnd(); ++it) {
+        if (it.value().childGroupBoxes.contains(groupBoxId))
+            return it.key();
+    }
+    return -1;
+}
+
 //====
 
 QJsonObject BoardNodePropertiesUpdate::toJson() const {

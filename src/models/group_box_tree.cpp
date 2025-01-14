@@ -198,6 +198,10 @@ int GroupBoxTree::getParentOfCard(const int cardId) const {
     return cardIdToParent.value(cardId, -1);
 }
 
+bool GroupBoxTree::hasChild(const int nodeId) const {
+    return !nodeIdToChildItems.value(nodeId).isEmpty();
+}
+
 QSet<int> GroupBoxTree::getChildGroupBoxes(const int parentId) const{
     return nodeIdToChildItems.value(parentId).childGroupBoxes;
 }

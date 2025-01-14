@@ -2,6 +2,7 @@
 #include <QDebug>
 #include <QGraphicsView>
 #include <QInputDialog>
+#include <QMessageBox>
 #include <QResizeEvent>
 #include <QVBoxLayout>
 #include "app_data.h"
@@ -1271,6 +1272,18 @@ void BoardView::onUserToCloseDataViewBox(const int customDataQueryId) {
             ->removeDataViewBox(EventSource(this), boardId, customDataQueryId);
 }
 
+void BoardView::onUserToRemoveGroupBox(const int groupBoxId) {
+    groupBoxesCollection.removeGroupBox(groupBoxId);
+    adjustSceneRect();
+
+    //
+    groupBoxTree.removeGroupBox(groupBoxId, GroupBoxTree::RemoveOption::ReparentChildren);
+
+    // call AppData
+    Services::instance()->getAppData()
+            ->removeGroupBoxAndReparentChildItems(EventSource(this), groupBoxId);
+}
+
 void BoardView::onBackgroundClicked() {
     nodeRectsCollection.setHighlightedCardIds({});
     groupBoxesCollection.setHighlightedGroupBoxes({});
@@ -1521,7 +1534,7 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
     // set up connections
     QPointer<NodeRect> nodeRectPtr(nodeRect);
 
-    QObject::connect(nodeRect, &NodeRect::mousePressedOrClicked, boardView, [this, nodeRectPtr]() {
+    QObject::connect(nodeRect, &NodeRect::leftButtonPressedOrClicked, boardView, [this, nodeRectPtr]() {
         if (nodeRectPtr.isNull())
             return;
 
@@ -1645,9 +1658,25 @@ void BoardView::NodeRectsCollection::closeNodeRect(
         *highlightedCardIdUpdated = true;
 }
 
-void BoardView::NodeRectsCollection::setHighlightedCardIds(const QSet<int> &cardIds) {
+void BoardView::NodeRectsCollection::setHighlightedCardIds(const QSet<int> &cardIdsToHighlight) {
     for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it)
-        it.value()->setIsHighlighted(cardIds.contains(it.key()));
+        it.value()->setIsHighlighted(cardIdsToHighlight.contains(it.key()));
+}
+
+QSet<int> BoardView::NodeRectsCollection::addToHighlightedCards(const QSet<int> &cardIdsToHighlight) {
+    QSet<int> cardsInHighlightedState;
+    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it) {
+        const int cardId = it.key();
+        if (cardIdsToHighlight.contains(cardId)) {
+            it.value()->setIsHighlighted(true);
+            cardsInHighlightedState << cardId;
+        }
+        else {
+            if (it.value()->getIsHighlighted())
+                cardsInHighlightedState << cardId;
+        }
+    }
+    return cardsInHighlightedState;
 }
 
 void BoardView::NodeRectsCollection::updateAllNodeRectColors() {
@@ -1968,19 +1997,12 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
     QPointer<GroupBox> groupBoxPtr(groupBox);
 
     QObject::connect(
-            groupBox, &GroupBox::mousePressed, boardView, [this, groupBoxId, groupBoxPtr]() {
+            groupBox, &GroupBox::leftButtonPressed, boardView, [this, groupBoxId, groupBoxPtr]() {
         if (!groupBoxPtr)
             return;
 
-        // highlight the group-box & all its descendants, and unghighlight all other items
-        const auto [groupBoxes, cards] = boardView->groupBoxTree.getAllDescendants(groupBoxId);
-        boardView->nodeRectsCollection.setHighlightedCardIds(cards);
-        setHighlightedGroupBoxes(groupBoxes + QSet<int> {groupBoxId});
-
-        // call AppData
-        const int singleHighlightedCardId = (cards.count() == 1) ? *cards.begin() : -1;
-        Services::instance()->getAppData()
-                ->setSingleHighlightedCardId(EventSource(boardView), singleHighlightedCardId);
+        constexpr bool unhighlightOtherItems = true;
+        highlightGroupBoxAndDescendants(groupBoxId, unhighlightOtherItems);
     });
 
     QObject::connect(
@@ -2048,6 +2070,19 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
             boardView->comovingStateData.deactivate();
     });
 
+    QObject::connect(
+            groupBox, &GroupBox::userToRemoveGroupBox, boardView, [this, groupBoxId, groupBoxPtr]() {
+        if (!groupBoxPtr)
+            return;
+
+        QString msg = "Remove the grouping?";
+        if (boardView->groupBoxTree.hasChild(groupBoxId))
+            msg += " (Its contents will not be removed.)";
+        const auto r = QMessageBox::question(boardView, " ", msg);
+        if (r == QMessageBox::Yes)
+            boardView->onUserToRemoveGroupBox(groupBoxId);
+    });
+
     //
     return groupBox;
 }
@@ -2070,6 +2105,13 @@ void BoardView::GroupBoxesCollection::removeGroupBox(const int groupBoxId) {
 void BoardView::GroupBoxesCollection::setHighlightedGroupBoxes(const QSet<int> &groupBoxIds) {
     for (auto it = groupBoxes.constBegin(); it != groupBoxes.constEnd(); ++it)
         it.value()->setIsHighlighted(groupBoxIds.contains(it.key()));
+}
+
+void BoardView::GroupBoxesCollection::addToHighlightedGroupBoxes(const QSet<int> &groupBoxIds) {
+    for (auto it = groupBoxes.constBegin(); it != groupBoxes.constEnd(); ++it) {
+        if (groupBoxIds.contains(it.key()))
+            it.value()->setIsHighlighted(true);
+    }
 }
 
 GroupBox *BoardView::GroupBoxesCollection::get(const int groupBoxId) {
@@ -2104,6 +2146,34 @@ std::optional<int> BoardView::GroupBoxesCollection::getDeepestEnclosingGroupBox(
 
     // return the deepest group-box
     return deepestGroupBox;
+}
+
+void BoardView::GroupBoxesCollection::highlightGroupBoxAndDescendants(
+        const int groupBoxIdToHighlight, const bool unhlighlightOtherItems) {
+    // highlight `groupBoxId` & all its descendants
+    int singleHighlightedCardId = -1;
+
+    const auto [groupBoxes, cards] = boardView->groupBoxTree.getAllDescendants(groupBoxIdToHighlight);
+    if (unhlighlightOtherItems) {
+        boardView->nodeRectsCollection.setHighlightedCardIds(cards);
+        setHighlightedGroupBoxes(groupBoxes + QSet<int> {groupBoxIdToHighlight});
+
+        //
+        singleHighlightedCardId = (cards.count() == 1) ? *cards.begin() : -1;
+    }
+    else {
+        const QSet<int> highlightedCards
+                = boardView->nodeRectsCollection.addToHighlightedCards(cards);
+        addToHighlightedGroupBoxes(groupBoxes + QSet<int> {groupBoxIdToHighlight});
+
+        //
+        singleHighlightedCardId
+                = (highlightedCards.count() == 1) ? *highlightedCards.begin() : -1;
+    }
+
+    // call AppData
+    Services::instance()->getAppData()
+            ->setSingleHighlightedCardId(EventSource(boardView), singleHighlightedCardId);
 }
 
 //======

@@ -23,7 +23,7 @@ public:
     int getCustomDataQueryId() const;
 
 signals:
-    void mousePressedOrClicked();
+    void leftButtonPressedOrClicked();
     void titleUpdated(const QString &updatedTitle);
     void queryUpdated(const QString &cypher, const QJsonObject &parameters);
     void closeByUser();
@@ -62,8 +62,8 @@ private:
     QMenu *createCaptionBarContextMenu() override;
     void setUpContents(QGraphicsItem *contentsContainer) override;
     void adjustContents() override;
-    void onMousePressed(const bool isOnCaptionBar) override;
-    void onMouseLeftClicked() override;
+    void onMouseLeftPressed(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) override;
+    void onMouseLeftClicked(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) override;
 
     //!
     //! Updates the text of `queryCypherErrorMsgItem`.

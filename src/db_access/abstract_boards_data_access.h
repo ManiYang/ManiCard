@@ -179,6 +179,13 @@ public:
     virtual void updateGroupBoxProperties(
             const int groupBoxId, const GroupBoxDataUpdate &update,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    //!
+    //! This operation is atomic.
+    //!
+    virtual void removeGroupBoxAndReparentChildItems(
+            const int groupBoxId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 };
 
 #endif // ABSTRACT_BOARDS_DATA_ACCESS_H

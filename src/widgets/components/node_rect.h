@@ -31,7 +31,9 @@ public:
     QString getText() const;
 
 signals:
-    void mousePressedOrClicked();
+    void leftButtonPressedOrClicked();
+    void ctrlLeftButtonPressedOnCaptionBar();
+
     void titleTextUpdated(
             const std::optional<QString> &updatedTitle,
             const std::optional<QString> &updatedText);
@@ -61,8 +63,8 @@ private:
     QMenu *createCaptionBarContextMenu() override;
     void setUpContents(QGraphicsItem *contentsContainer) override;
     void adjustContents() override;
-    void onMousePressed(const bool isOnCaptionBar) override;
-    void onMouseLeftClicked() override;
+    void onMouseLeftPressed(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) override;
+    void onMouseLeftClicked(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) override;
 
     // tools
     static QString getNodeLabelsString(const QStringList &labels);

@@ -889,8 +889,7 @@ void PersistedDataAccess::createTopLevelGroupBoxWithId(
 void PersistedDataAccess::updateGroupBoxProperties(
         const int groupBoxId, const GroupBoxDataUpdate &update) {
     // 1. update cache synchronously
-    for (auto it = cache.boards.begin(); it != cache.boards.end(); ++it)
-    {
+    for (auto it = cache.boards.begin(); it != cache.boards.end(); ++it) {
         Board &board = it.value();
         if (board.groupBoxIdToData.contains(groupBoxId)) {
             board.groupBoxIdToData[groupBoxId].update(update);
@@ -900,6 +899,28 @@ void PersistedDataAccess::updateGroupBoxProperties(
 
     // 2. write DB
     debouncedDbAccess->updateGroupBoxProperties(groupBoxId, update);
+}
+
+void PersistedDataAccess::removeGroupBoxAndReparentChildItems(const int groupBoxId) {
+    // 1. update cache synchronously
+    for (auto it = cache.boards.begin(); it != cache.boards.end(); ++it) {
+        Board &board = it.value();
+        if (board.groupBoxIdToData.contains(groupBoxId)) {
+            const int parentGroupBoxId = board.findParentOfGroupBox(groupBoxId); // can be -1
+            if (parentGroupBoxId != -1) { // parent is a group-box
+                const auto childGroupBoxes = board.groupBoxIdToData[groupBoxId].childGroupBoxes;
+                const auto childCards = board.groupBoxIdToData[groupBoxId].childCards;
+
+                board.groupBoxIdToData[parentGroupBoxId].childGroupBoxes += childGroupBoxes;
+                board.groupBoxIdToData[parentGroupBoxId].childCards += childCards;
+            }
+            board.groupBoxIdToData.remove(groupBoxId);
+            break;
+        }
+    }
+
+    // 2. write DB
+    debouncedDbAccess->removeGroupBoxAndReparentChildItems(groupBoxId);
 }
 
 bool PersistedDataAccess::saveMainWindowSize(const QSize &size) {

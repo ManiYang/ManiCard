@@ -174,6 +174,8 @@ public:
 
     void updateGroupBoxProperties(const int groupBoxId, const GroupBoxDataUpdate &update);
 
+    void removeGroupBoxAndReparentChildItems(const int groupBoxId);
+
     bool saveMainWindowSize(const QSize &size);
 
 private:

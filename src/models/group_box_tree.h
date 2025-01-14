@@ -81,6 +81,12 @@ public:
     int getParentOfCard(const int cardId) const;
 
     //!
+    //! \param nodeId: can be the ID of an existing group-box or \c rootId
+    //! \return
+    //!
+    bool hasChild(const int nodeId) const;
+
+    //!
     //! \param parentId: can be the ID of an existing group-box or \c rootId
     //!
     QSet<int> getChildGroupBoxes(const int parentId) const;
@@ -111,8 +117,10 @@ private:
     {
         QSet<int> childGroupBoxes;
         QSet<int> childCards;
+
+        bool isEmpty() const { return childGroupBoxes.isEmpty() && childCards.isEmpty(); }
     };
-    QHash<int, ChildItems> nodeIdToChildItems; // keys are the existing group-boxes (plus `rootId`)
+    QHash<int, ChildItems> nodeIdToChildItems; // keys are the existing group-boxes, plus `rootId`
 
     QHash<int, int> groupBoxIdToParent; // keys are the existing group-boxes
     QHash<int, int> cardIdToParent; // keys are the existing cards

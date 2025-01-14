@@ -56,8 +56,6 @@ public:
             QWidget *widget) override;
 
 signals:
-//    void mousePressedOnCaptionBar();
-//    void clicked();
     void aboutToMove();
     void movedOrResized();
     void finishedMovingOrResizing();
@@ -132,8 +130,8 @@ private:
     virtual void setUpContents(QGraphicsItem *contentsContainer);
     virtual void adjustContents();
 
-    virtual void onMousePressed(const bool isOnCaptionBar);
-    virtual void onMouseLeftClicked();
+    virtual void onMouseLeftPressed(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers);
+    virtual void onMouseLeftClicked(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers);
 };
 
 #endif // BOARDBOXITEM_H

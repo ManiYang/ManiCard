@@ -22,13 +22,16 @@ struct Board {
     //
     QHash<int, NodeRectData> cardIdToNodeRectData;
     QHash<int, DataViewBoxData> customDataQueryIdToDataViewBoxData;
-    QHash<int, GroupBoxData> groupBoxIdToData; // including all descendant group-boxes
+    QHash<int, GroupBoxData> groupBoxIdToData; // including all descendant group-boxes of the board
 
     //
     QJsonObject getNodePropertiesJson() const;
 
     void updateNodeProperties(const QJsonObject &obj);
     void updateNodeProperties(const BoardNodePropertiesUpdate &update);
+
+    // tools
+    int findParentOfGroupBox(const int groupBoxId) const; // returns -1 if not found
 };
 
 

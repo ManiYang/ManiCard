@@ -121,6 +121,7 @@ private:
     void onUserToCreateRelationship(const int cardId);
     void onUserToCloseNodeRect(const int cardId);
     void onUserToCloseDataViewBox(const int customDataQueryId);
+    void onUserToRemoveGroupBox(const int groupBoxId);
     void onBackgroundClicked();
 
     //
@@ -171,7 +172,9 @@ private:
                 const int cardId, const bool removeConnectedEdgeArrows,
                 bool *highlightedCardIdUpdated);
 
-        void setHighlightedCardIds(const QSet<int> &cardIds);
+        void setHighlightedCardIds(const QSet<int> &cardIdsToHighlight);
+        QSet<int> addToHighlightedCards(const QSet<int> &cardIdsToHighlight);
+                // returns all cards that are in highlighted state
 
         void updateAllNodeRectColors();
         void setAllNodeRectsTextEditorIgnoreWheelEvent(const bool b);
@@ -262,7 +265,9 @@ private:
 
         GroupBox *createGroupBox(const int groupBoxId, const GroupBoxData &groupBoxData);
         void removeGroupBox(const int groupBoxId);
+
         void setHighlightedGroupBoxes(const QSet<int> &groupBoxIds);
+        void addToHighlightedGroupBoxes(const QSet<int> &groupBoxIds);
 
         GroupBox *get(const int groupBoxId); // returns nullptr if not found
         QSet<int> getAllGroupBoxIds() const;
@@ -271,6 +276,8 @@ private:
     private:
         BoardView *const boardView;
         QHash<int, GroupBox *> groupBoxes;
+
+        void highlightGroupBoxAndDescendants(const int groupBoxIdToHighlight, const bool unhlighlightOtherItems);
     };
     GroupBoxesCollection groupBoxesCollection {this};
 

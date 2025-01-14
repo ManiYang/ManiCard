@@ -13,7 +13,10 @@ public:
     void setTitle(const QString &title);
 
 signals:
-    void mousePressed();
+    void leftButtonPressed();
+    void ctrlLeftButtonPressedOnCaptionBar();
+
+    void userToRemoveGroupBox();
 
 private:
     static BoardBoxItem::CreationParameters getCreationParameters();
@@ -22,8 +25,8 @@ private:
     QMenu *createCaptionBarContextMenu() override;
     void setUpContents(QGraphicsItem *contentsContainer) override;
     void adjustContents() override;
-    void onMousePressed(const bool isOnCaptionBar) override;
-    void onMouseLeftClicked() override;
+    void onMouseLeftPressed(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) override;
+    void onMouseLeftClicked(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) override;
 };
 
 #endif // GROUPBOX_H

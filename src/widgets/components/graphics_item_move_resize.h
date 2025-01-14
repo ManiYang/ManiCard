@@ -50,8 +50,8 @@ signals:
 
     void leftMousePressedOnResizeActivationArea();
             // The resize handle itself won't receive the `QGraphicsSceneMouseEvent` event when
-            // mouse left button pressed on it within the resize activation area. If the resize
-            // handle needs to know when this happends, it can connect to this signal.
+            // mouse left button pressed on it (without modifiers) within the resize activation area.
+            // If the resize handle needs to know when this happends, it can connect to this signal.
 
 protected:
     bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) override;

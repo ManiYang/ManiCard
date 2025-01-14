@@ -742,6 +742,28 @@ void DebouncedDbAccess::updateGroupBoxProperties(
     );
 }
 
+void DebouncedDbAccess::removeGroupBoxAndReparentChildItems(const int groupBoxId) {
+    closeDebounceSession();
+
+    boardsDataAccess->removeGroupBoxAndReparentChildItems(
+            groupBoxId,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "removeGroupBoxAndReparentChildItems";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"groupBoxId", groupBoxId}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("removal of GroupBox and reparent of its child items");
+                }
+            },
+            this
+    );
+}
+
 QString DebouncedDbAccess::debounceDataCategoryName(const DebounceDataCategory category) {
     switch (category) {
     case DebounceDataCategory::CardProperties: return "CardProperties";

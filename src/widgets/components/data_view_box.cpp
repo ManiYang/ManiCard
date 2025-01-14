@@ -204,7 +204,7 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     });
 
     connect(titleItem, &CustomGraphicsTextItem::clicked, this, [this]() {
-        emit mousePressedOrClicked();
+        emit leftButtonPressedOrClicked();
     });
 
     // queryCypherItem
@@ -228,7 +228,7 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     });
 
     connect(queryCypherItem, &CustomGraphicsTextItem::clicked, this, [this]() {
-        emit mousePressedOrClicked();
+        emit leftButtonPressedOrClicked();
     });
 
     // queryParametersItem
@@ -252,7 +252,7 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     });
 
     connect(queryParametersItem, &CustomGraphicsTextItem::clicked, this, [this]() {
-        emit mousePressedOrClicked();
+        emit leftButtonPressedOrClicked();
     });
 }
 
@@ -386,13 +386,15 @@ void DataViewBox::adjustContents() {
     }
 }
 
-void DataViewBox::onMousePressed(const bool isOnCaptionBar) {
-    if (isOnCaptionBar)
-        emit mousePressedOrClicked();
+void DataViewBox::onMouseLeftPressed(
+        const bool /*isOnCaptionBar*/, const Qt::KeyboardModifiers modifiers) {
+    if (modifiers == Qt::NoModifier)
+        emit leftButtonPressedOrClicked();
 }
 
-void DataViewBox::onMouseLeftClicked() {
-    emit mousePressedOrClicked();
+void DataViewBox::onMouseLeftClicked(
+        const bool /*isOnCaptionBar*/, const Qt::KeyboardModifiers /*modifiers*/) {
+    // do nothing
 }
 
 std::pair<bool, bool> DataViewBox::validateQueryCypher() {

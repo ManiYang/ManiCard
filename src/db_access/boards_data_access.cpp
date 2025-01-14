@@ -545,8 +545,6 @@ void BoardsDataAccess::removeWorkspace(
 
     //
     routine->start();
-
-
 }
 
 void BoardsDataAccess::updateWorkspacesListProperties(
@@ -1162,4 +1160,124 @@ void BoardsDataAccess::updateGroupBoxProperties(
             },
             callbackContext
     );
+}
+
+void BoardsDataAccess::removeGroupBoxAndReparentChildItems(
+        const int groupBoxId,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        Neo4jTransaction *transaction {nullptr};
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // open transaction
+        routine->transaction = neo4jHttpApiClient->getTransaction();
+        routine->transaction->open(
+                // callback
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, groupBoxId]() {
+        // create relationships
+        //     (parent of `groupBoxId`) -[:GROUP_ITEM]-> (child group-boxes of `groupBoxId`)
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (parent:GroupBox|Board)
+                                -[:GROUP_ITEM]->(:GroupBox {id: $groupBoxId})
+                                -[:GROUP_ITEM]->(childGroupBox:GroupBox)
+                        MERGE (parent)-[:GROUP_ITEM]->(childGroupBox)
+                    )!",
+                    QJsonObject {{"groupBoxId", groupBoxId}}
+                },
+                // callback
+                [routine](bool ok, const QueryResponseSingleResult &/*queryResponse*/) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, groupBoxId]() {
+        // create relationships
+        //     (parent group-box of `groupBoxId`) -[:GROUP_ITEM]-> (child NodeRect's of `groupBoxId`),
+        // if the parent of `groupBoxId` is a group-box
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (parent:GroupBox)
+                                -[:GROUP_ITEM]->(:GroupBox {id: $groupBoxId})
+                                -[:GROUP_ITEM]->(childNodeRect:NodeRect)
+                        MERGE (parent)-[:GROUP_ITEM]->(childNodeRect)
+                    )!",
+                    QJsonObject {{"groupBoxId", groupBoxId}}
+                },
+                // callback
+                [routine](bool ok, const QueryResponseSingleResult &/*queryResponse*/) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, groupBoxId]() {
+        // delete `groupBoxId`
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (g:GroupBox {id: $groupBoxId})
+                        DETACH DELETE g
+                    )!",
+                    QJsonObject {{"groupBoxId", groupBoxId}}
+                },
+                // callback
+                [routine](bool ok, const QueryResponseSingleResult &/*queryResponse*/) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, groupBoxId]() {
+        // commit transaction
+        routine->transaction->commit(
+                // callback
+                [routine, groupBoxId](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                    else
+                        qInfo() << QString("GroupBox %1 removed").arg(groupBoxId);
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, callback]() {
+        // final step
+        ContinuationContext context(routine);
+        routine->transaction->deleteLater();
+        callback(!routine->errorFlag);
+    }, callbackContext);
+
+    //
+    routine->start();
 }

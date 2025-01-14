@@ -227,19 +227,24 @@ bool BoardBoxItem::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
                 captionBarContextMenu->popup(pos);
             return true;
         }
-        else if (event->type() == QEvent::GraphicsSceneMouseRelease) {
-            onMouseLeftClicked();
-        }
         else if (event->type() == QEvent::GraphicsSceneMousePress) {
-            onMousePressed(true);
+            auto *e = dynamic_cast<QGraphicsSceneMouseEvent *>(event);
+            if (e->button() == Qt::LeftButton)
+                onMouseLeftPressed(true, e->modifiers());
+        }
+        else if (event->type() == QEvent::GraphicsSceneMouseRelease) {
+            auto *e = dynamic_cast<QGraphicsSceneMouseEvent *>(event);
+            if (e->button() == Qt::LeftButton)
+                onMouseLeftClicked(true, e->modifiers());
         }
     }
 
     return false;
 }
 
-void BoardBoxItem::mousePressEvent(QGraphicsSceneMouseEvent */*event*/) {
-    onMousePressed(false);
+void BoardBoxItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+    if (event->button() == Qt::LeftButton)
+        onMouseLeftPressed(false, event->modifiers());
 
     // This method needs to be re-implemented so that
     // 1. the mouse-press event is accepted and `this` becomes the mouse grabber, and
@@ -251,7 +256,7 @@ void BoardBoxItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
     QGraphicsObject::mouseReleaseEvent(event);
 
     if (event->button() == Qt::LeftButton)
-        onMouseLeftClicked();
+        onMouseLeftClicked(false, event->modifiers());
 }
 
 void BoardBoxItem::setUpConnections() {
@@ -317,7 +322,7 @@ void BoardBoxItem::setUpConnections() {
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::leftMousePressedOnResizeActivationArea,
             this, [this]() {
-        onMousePressed(false);
+        onMouseLeftPressed(false, Qt::NoModifier);
     });
 }
 
@@ -448,10 +453,12 @@ void BoardBoxItem::adjustContents() {
     // do nothing
 }
 
-void BoardBoxItem::onMousePressed(const bool /*isOnCaptionBar*/) {
+void BoardBoxItem::onMouseLeftPressed(
+        const bool /*isOnCaptionBar*/, const Qt::KeyboardModifiers /*modifiers*/) {
     // do nothing
 }
 
-void BoardBoxItem::onMouseLeftClicked() {
+void BoardBoxItem::onMouseLeftClicked(
+        const bool /*isOnCaptionBar*/, const Qt::KeyboardModifiers /*modifiers*/) {
     // do nothing
 }
