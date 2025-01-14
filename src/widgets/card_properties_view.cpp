@@ -142,7 +142,7 @@ void CardPropertiesView::setUpConnections() {
             return;
 
         const int cardId
-                = Services::instance()->getAppData()->getHighlightedCardId(); // can be -1
+                = Services::instance()->getAppData()->getSingleHighlightedCardId(); // can be -1
         loadCard(cardId);
     });
 

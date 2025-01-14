@@ -34,8 +34,10 @@ public:
     using ChildGroupBoxesAndCards = std::pair<QSet<int>, QSet<int>>;
 
     //!
-    //! Sets up the tree from \e groupBoxIdToChildItems. Any group-boxes that is not given a parent
-    //! will be a child of root (the Board). Note that the root (Board) cannot have child cards.
+    //! Sets up the tree from \e groupBoxIdToChildItems.
+    //!   - Any group-boxes that is not given a parent will be a child of root (the Board). So,
+    //!     it is OK not to provide the child group-boxes of the root (Board).
+    //!   - Note that the root (Board) cannot have child cards.
     //! \return true if successful
     //!
     bool set(const QHash<int, ChildGroupBoxesAndCards> &groupBoxIdToChildItems, QString *errorMsg);

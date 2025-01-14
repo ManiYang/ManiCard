@@ -23,6 +23,7 @@ public:
     int getCustomDataQueryId() const;
 
 signals:
+    void mousePressedOrClicked();
     void titleUpdated(const QString &updatedTitle);
     void queryUpdated(const QString &cypher, const QJsonObject &parameters);
     void closeByUser();
@@ -57,10 +58,12 @@ private:
             // functionality.)
     QGraphicsProxyWidget *textEditProxyWidget;
 
-    //
+    // override
     QMenu *createCaptionBarContextMenu() override;
     void setUpContents(QGraphicsItem *contentsContainer) override;
     void adjustContents() override;
+    void onMousePressedOnCaptionBar() override;
+    void onMouseClicked() override;
 
     //!
     //! Updates the text of `queryCypherErrorMsgItem`.

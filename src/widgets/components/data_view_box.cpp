@@ -10,8 +10,7 @@
 #include "utilities/json_util.h"
 
 DataViewBox::DataViewBox(const int customDataQueryId, QGraphicsItem *parent)
-        : BoardBoxItem(
-              BoardBoxItem::BorderShape::Solid, BoardBoxItem::ContentsBackgroundType::White, parent)
+        : BoardBoxItem(BoardBoxItem::CreationParameters {}, parent)
         , customDataQueryId(customDataQueryId)
         , titleItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
         , labelCypher(new QGraphicsSimpleTextItem) //
@@ -205,7 +204,7 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     });
 
     connect(titleItem, &CustomGraphicsTextItem::clicked, this, [this]() {
-        emit clicked();
+        emit mousePressedOrClicked();
     });
 
     // queryCypherItem
@@ -229,7 +228,7 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     });
 
     connect(queryCypherItem, &CustomGraphicsTextItem::clicked, this, [this]() {
-        emit clicked();
+        emit mousePressedOrClicked();
     });
 
     // queryParametersItem
@@ -253,7 +252,7 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     });
 
     connect(queryParametersItem, &CustomGraphicsTextItem::clicked, this, [this]() {
-        emit clicked();
+        emit mousePressedOrClicked();
     });
 }
 
@@ -385,6 +384,14 @@ void DataViewBox::adjustContents() {
 
         textEditProxyWidget->setPos(contentsRect.left() + leftPadding, yBottom);
     }
+}
+
+void DataViewBox::onMousePressedOnCaptionBar() {
+    emit mousePressedOrClicked();
+}
+
+void DataViewBox::onMouseClicked() {
+    emit mousePressedOrClicked();
 }
 
 std::pair<bool, bool> DataViewBox::validateQueryCypher() {

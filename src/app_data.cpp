@@ -277,13 +277,13 @@ void AppData::updateMainWindowSize(const EventSource &/*eventSrc*/, const QSize 
     // 2. update all variables and emit "updated" signals
 }
 
-int AppData::getHighlightedCardId() const {
-    return highlightedCardId;
+int AppData::getSingleHighlightedCardId() const {
+    return singleHighlightedCardId;
 }
 
-void AppData::setHighlightedCardId(const EventSource &eventSrc, const int cardId) {
+void AppData::setSingleHighlightedCardId(const EventSource &eventSrc, const int cardId) {
     // synchornously update derived variables and emit "updated" signals
-    highlightedCardId = cardId;
+    singleHighlightedCardId = cardId;
     emit highlightedCardIdUpdated(eventSrc);
 }
 

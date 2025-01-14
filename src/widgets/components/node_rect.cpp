@@ -6,8 +6,7 @@
 #include "widgets/components/custom_text_edit.h"
 
 NodeRect::NodeRect(const int cardId, QGraphicsItem *parent)
-    : BoardBoxItem(
-          BoardBoxItem::BorderShape::Solid, BoardBoxItem::ContentsBackgroundType::White, parent)
+    : BoardBoxItem(BoardBoxItem::CreationParameters {}, parent)
     , cardId(cardId)
     , titleItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
     , textEdit(new CustomTextEdit(nullptr))
@@ -162,7 +161,7 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     });
 
     connect(titleItem, &CustomGraphicsTextItem::clicked, this, [this]() {
-        emit clicked();
+        emit mousePressedOrClicked();
     });
 
     // textEdit
@@ -171,7 +170,7 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     });
 
     connect(textEdit, &CustomTextEdit::clicked, this, [this]() {
-        emit clicked();
+        emit mousePressedOrClicked();
     });
 
     connect(textEdit, &CustomTextEdit::focusedIn, this, [this]() {
@@ -241,6 +240,14 @@ void NodeRect::adjustContents() {
                    contentsRect.width(), textEditHeight + 2.0)
                 .marginsRemoved(uniformMarginsF(textEditFocusIndicatorLineWidth / 2.0))
                 );
+}
+
+void NodeRect::onMousePressedOnCaptionBar() {
+    emit mousePressedOrClicked();
+}
+
+void NodeRect::onMouseClicked() {
+    emit mousePressedOrClicked();
 }
 
 QString NodeRect::getNodeLabelsString(const QStringList &labels) {

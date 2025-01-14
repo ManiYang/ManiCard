@@ -12,13 +12,18 @@ public:
     // Call these "set" methods only after this item is initialized:
     void setTitle(const QString &title);
 
-private:
+signals:
+    void mousePressed();
 
+private:
+    static BoardBoxItem::CreationParameters getCreationParameters();
 
     //
     QMenu *createCaptionBarContextMenu() override;
     void setUpContents(QGraphicsItem *contentsContainer) override;
     void adjustContents() override;
+    void onMousePressedOnCaptionBar() override;
+    void onMouseClicked() override;
 };
 
 #endif // GROUPBOX_H

@@ -1,3 +1,4 @@
+#include <QDebug>
 #include <QGraphicsScene>
 #include <QGraphicsSceneContextMenuEvent>
 #include <QGraphicsSceneMouseEvent>
@@ -8,12 +9,11 @@
 
 constexpr double resizeAreaMaxWidth = 6.0; // in pixel
 
-BoardBoxItem::BoardBoxItem(
-        const BorderShape borderShape, const ContentsBackgroundType contentsBackgroundType,
-        QGraphicsItem *parent)
+BoardBoxItem::BoardBoxItem(const CreationParameters &parameters, QGraphicsItem *parent)
             : QGraphicsObject(parent)
-            , borderShape(borderShape)
-            , contentsBackgroundType(contentsBackgroundType)
+            , borderShape(parameters.borderShape)
+            , contentsBackgroundType(parameters.contentsBackgroundType)
+            , highlightFrameColor(parameters.highlightFrameColor)
             , captionBarMatItem(new QGraphicsRectItem(this))
             , captionBarItem(new QGraphicsRectItem(this))
             , captionBarLeftTextItem(new QGraphicsSimpleTextItem(captionBarItem))
@@ -160,7 +160,7 @@ void BoardBoxItem::paint(
     // draw highlight box
     if (isHighlighted) {
         painter->setBrush(Qt::NoBrush);
-        painter->setPen(QPen(getHighlightBoxColor(color), highlightBoxWidth));
+        painter->setPen(QPen(highlightFrameColor, highlightBoxWidth));
         const double radius = borderWidth;
         painter->drawRoundedRect(
                 borderOuterRect.marginsAdded(uniformMarginsF(marginWidth))
@@ -228,7 +228,10 @@ bool BoardBoxItem::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
             return true;
         }
         else if (event->type() == QEvent::GraphicsSceneMouseRelease) {
-            emit clicked();
+            onMouseClicked();
+        }
+        else if (event->type() == QEvent::GraphicsSceneMousePress) {
+            onMousePressedOnCaptionBar();
         }
     }
 
@@ -248,7 +251,7 @@ void BoardBoxItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
     QGraphicsObject::mouseReleaseEvent(event);
 
     if (event->button() == Qt::LeftButton)
-        emit clicked();
+        emit onMouseClicked();
 }
 
 void BoardBoxItem::setUpConnections() {
@@ -414,19 +417,19 @@ void BoardBoxItem::setCaptionBarRightTextItemPos(
     captionBarRightTextItem->setPos(x, captionBarRect.top() + captionBarPadding);
 }
 
-QColor BoardBoxItem::getHighlightBoxColor(const QColor &color) {
-    int h, s, v;
-    color.getHsv(&h, &s, &v);
+//QColor BoardBoxItem::getHighlightBoxColor(const QColor &color) {
+//    int h, s, v;
+//    color.getHsv(&h, &s, &v);
 
-    if (h >= 180 && h <= 240
-            && s >= 50
-            && v >= 60) {
-        return QColor(90, 90, 90);
-    }
-    else {
-        return QColor(36, 128, 220); // hue = 210
-    }
-}
+//    if (h >= 180 && h <= 240
+//            && s >= 50
+//            && v >= 60) {
+//        return QColor(90, 90, 90);
+//    }
+//    else {
+//        return QColor(36, 128, 220); // hue = 210
+//    }
+//}
 
 QMenu *BoardBoxItem::createCaptionBarContextMenu() {
     return nullptr;
@@ -437,5 +440,13 @@ void BoardBoxItem::setUpContents(QGraphicsItem */*contentsContainer*/) {
 }
 
 void BoardBoxItem::adjustContents() {
+    // do nothing
+}
+
+void BoardBoxItem::onMousePressedOnCaptionBar() {
+    // do nothing
+}
+
+void BoardBoxItem::onMouseClicked() {
     // do nothing
 }

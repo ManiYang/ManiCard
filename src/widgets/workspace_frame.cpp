@@ -421,9 +421,8 @@ void WorkspaceFrame::onUserToAddBoard() {
                     }
 
                     if (highlightedCardIdChanged) {
-                        constexpr int highlightedCardId = -1;
                         Services::instance()->getAppData()
-                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
+                                ->setSingleHighlightedCardId(EventSource(this), -1);
                     }
                 }
         );
@@ -520,9 +519,8 @@ void WorkspaceFrame::onUserSelectedBoard(const int boardId) {
                     }
 
                     if (highlightedCardIdChanged) {
-                        constexpr int highlightedCardId = -1;
                         Services::instance()->getAppData()
-                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
+                                ->setSingleHighlightedCardId(EventSource(this), -1);
                     }
                 }
         );
@@ -605,9 +603,8 @@ void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
                     }
 
                     if (highlightedCardIdChanged) {
-                        constexpr int highlightedCardId = -1;
                         Services::instance()->getAppData()
-                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
+                                ->setSingleHighlightedCardId(EventSource(this), -1);
                     }
                 }
         );

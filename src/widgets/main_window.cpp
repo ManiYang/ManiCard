@@ -397,9 +397,8 @@ void MainWindow::onStartUp() {
 
                         if (highlightedCardIdChanged) {
                             // call AppData
-                            constexpr int highlightedCardId = -1;
                             Services::instance()->getAppData()
-                                    ->setHighlightedCardId(EventSource(this), highlightedCardId);
+                                    ->setSingleHighlightedCardId(EventSource(this), -1);
                         }
                     }
             );
@@ -466,9 +465,8 @@ void MainWindow::onWorkspaceSelectedByUser(const int workspaceId) {
                     }
                     if (highlightedCardIdChanged) {
                         // call AppData
-                        constexpr int highlightedCardId = -1;
                         Services::instance()->getAppData()
-                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
+                                ->setSingleHighlightedCardId(EventSource(this), -1);
                     }
                     routine->nextStep();
                 });
@@ -668,9 +666,8 @@ void MainWindow::onUserToRemoveWorkspace(const int workspaceIdToRemove) {
                     }
 
                     if (highlightedCardIdChanged) {
-                        constexpr int highlightedCardId = -1;
                         Services::instance()->getAppData()
-                                ->setHighlightedCardId(EventSource(this), highlightedCardId);
+                                ->setSingleHighlightedCardId(EventSource(this), -1);
                     }
                 }
         );

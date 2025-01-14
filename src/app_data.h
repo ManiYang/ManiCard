@@ -179,9 +179,14 @@ public:
 
     // ==== non-persisted independent data ====
 
-    int getHighlightedCardId() const override; // can return -1
+    int getSingleHighlightedCardId() const override; // can return -1
 
-    void setHighlightedCardId(const EventSource &eventSrc, const int cardId); // `cardId` can be -1
+    //!
+    //! \param eventSrc
+    //! \param cardId: -1 if no card or more than one card is highlighted
+    //!
+    void setSingleHighlightedCardId(
+            const EventSource &eventSrc, const int cardId); // `cardId` can be -1
 
     void updateFontSizeScaleFactor(const QWidget *window, const double factor);
 
@@ -191,7 +196,9 @@ private:
     PersistedDataAccess *persistedDataAccess;
 
     // non-persisted independent data
-    int highlightedCardId {-1};
+    int singleHighlightedCardId {-1};
+            // If exactly one card is highlighted, this is set to that card.
+            // Otherwise, this is set to -1.
 
     // derived data (can be cached or not)
     // - cache can be nullopt (not computed yet)

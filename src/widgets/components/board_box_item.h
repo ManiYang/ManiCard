@@ -12,18 +12,23 @@ class GraphicsItemMoveResize;
 class BoardBoxItem : public QGraphicsObject
 {
     Q_OBJECT
-protected:
-    enum class BorderShape {Solid, Dashed};
-
+public:
     enum class ContentsBackgroundType {
         White,
         Transparent //!< the contents rect will be transparent and will not intercept mouse events
     };
 
+    enum class BorderShape {Solid, Dashed};
+
+    struct CreationParameters
+    {
+        ContentsBackgroundType contentsBackgroundType {ContentsBackgroundType::White};
+        BorderShape borderShape {BorderShape::Solid};
+        QColor highlightFrameColor {36, 128, 220};
+    };
+
 public:
-    explicit BoardBoxItem(
-            const BorderShape borderShape, const ContentsBackgroundType contentsBackgroundType,
-            QGraphicsItem *parent = nullptr);
+    explicit BoardBoxItem(const CreationParameters &parameters, QGraphicsItem *parent = nullptr);
     ~BoardBoxItem();
 
     //!
@@ -51,7 +56,8 @@ public:
             QWidget *widget) override;
 
 signals:
-    void clicked();
+//    void mousePressedOnCaptionBar();
+//    void clicked();
     void aboutToMove();
     void movedOrResized();
     void finishedMovingOrResizing();
@@ -74,6 +80,7 @@ private:
     // state variables
     const BorderShape borderShape;
     const ContentsBackgroundType contentsBackgroundType;
+    const QColor highlightFrameColor;
 
     QRectF borderOuterRect {0.0, 0.0, 100.0, 100.0};
     double marginWidth {2.0};
@@ -112,8 +119,8 @@ private:
     //!
     void setCaptionBarRightTextItemPos(const QRectF captionBarRect, const double captionBarPadding);
 
-    // tools
-    static QColor getHighlightBoxColor(const QColor &color);
+    //
+//    static QColor getHighlightBoxColor(const QColor &color);
 
     // ==== private virtual methods ====
 
@@ -124,6 +131,9 @@ private:
 
     virtual void setUpContents(QGraphicsItem *contentsContainer);
     virtual void adjustContents();
+
+    virtual void onMousePressedOnCaptionBar();
+    virtual void onMouseClicked();
 };
 
 #endif // BOARDBOXITEM_H

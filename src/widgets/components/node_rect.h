@@ -31,6 +31,7 @@ public:
     QString getText() const;
 
 signals:
+    void mousePressedOrClicked();
     void titleTextUpdated(
             const std::optional<QString> &updatedTitle,
             const std::optional<QString> &updatedText);
@@ -56,10 +57,12 @@ private:
     QGraphicsProxyWidget *textEditProxyWidget;
     QGraphicsRectItem *textEditFocusIndicator;
 
-    //
+    // override
     QMenu *createCaptionBarContextMenu() override;
     void setUpContents(QGraphicsItem *contentsContainer) override;
     void adjustContents() override;
+    void onMousePressedOnCaptionBar() override;
+    void onMouseClicked() override;
 
     // tools
     static QString getNodeLabelsString(const QStringList &labels);

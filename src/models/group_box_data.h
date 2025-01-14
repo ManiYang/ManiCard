@@ -20,7 +20,7 @@ struct GroupBoxData
     QSet<int> childCards;
 
     //
-    // todo: rename.....
+    // todo: rename to updateNodeProperties(), getNodePropertiesJson()....
     QJsonObject toJson() const;
     static std::optional<GroupBoxData> fromJson(const QJsonObject &obj);
     void update(const GroupBoxDataUpdate &update);

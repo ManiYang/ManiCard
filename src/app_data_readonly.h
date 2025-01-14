@@ -80,7 +80,10 @@ public:
 
     // ==== non-persisted independent data ====
 
-    virtual int getHighlightedCardId() const = 0; // can return -1
+    //!
+    //! \return -1 if no card or more than one card is highlighted
+    //!
+    virtual int getSingleHighlightedCardId() const = 0; // can return -1
 
 signals:
     void cardPropertiesUpdated(

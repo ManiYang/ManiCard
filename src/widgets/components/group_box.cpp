@@ -1,14 +1,22 @@
 #include "group_box.h"
 
 GroupBox::GroupBox(QGraphicsItem *parent)
-        : BoardBoxItem(
-              BoardBoxItem::BorderShape::Dashed,
-              BoardBoxItem::ContentsBackgroundType::Transparent, parent) {
+        : BoardBoxItem(getCreationParameters(), parent) {
 }
 
 void GroupBox::setTitle(const QString &title) {
     constexpr bool bold = true;
     setCaptionBarLeftText(title, bold);
+}
+
+BoardBoxItem::CreationParameters GroupBox::getCreationParameters() {
+    CreationParameters parameters;
+
+    parameters.contentsBackgroundType = ContentsBackgroundType::Transparent;
+    parameters.borderShape = BorderShape::Dashed;
+    parameters.highlightFrameColor = QColor(186, 204, 222);
+
+    return parameters;
 }
 
 QMenu *GroupBox::createCaptionBarContextMenu(){
@@ -23,4 +31,10 @@ void GroupBox::adjustContents() {
     // do nothing
 }
 
+void GroupBox::onMousePressedOnCaptionBar() {
+    emit mousePressed();
+}
 
+void GroupBox::onMouseClicked() {
+    // do nothing
+}

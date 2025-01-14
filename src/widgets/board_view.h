@@ -4,6 +4,7 @@
 #include <QFrame>
 #include <QGraphicsView>
 #include <QMenu>
+#include <QSet>
 #include "models/board.h"
 #include "models/custom_data_query.h"
 #include "models/edge_arrow_data.h"
@@ -169,10 +170,7 @@ private:
                 const int cardId, const bool removeConnectedEdgeArrows,
                 bool *highlightedCardIdUpdated);
 
-        //!
-        //! \param highlightedCardIdChanged: will be true if highlighted Card ID changes to -1
-        //!
-        void unhighlightAllCards(bool *highlightedCardIdChanged);
+        void setHighlightedCardIds(const QSet<int> &cardIds);
 
         void updateAllNodeRectColors();
         void setAllNodeRectsTextEditorIgnoreWheelEvent(const bool b);
@@ -187,7 +185,6 @@ private:
         BoardView *const boardView;
         QHash<int, NodeRect *> cardIdToNodeRect;
         QHash<int, QColor> cardIdToNodeRectOwnColor;
-        int highlightedCardId {-1};
     };
     NodeRectsCollection nodeRectsCollection {this};
 
@@ -264,7 +261,7 @@ private:
 
         GroupBox *createGroupBox(const int groupBoxId, const GroupBoxData &groupBoxData);
         void removeGroupBox(const int groupBoxId);
-        void setHighlightedGroupBox(const int groupBoxId); // `groupBoxId` can be -1
+        void setHighlightedGroupBoxes(const QSet<int> &groupBoxIds);
 
         GroupBox *get(const int groupBoxId); // returns nullptr if not found
         QSet<int> getAllGroupBoxIds() const;

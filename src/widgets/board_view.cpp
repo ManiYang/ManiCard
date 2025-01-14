@@ -240,7 +240,33 @@ void BoardView::loadBoard(
             const int &groupBoxId = it.key();
             const GroupBoxData &groupBoxData = it.value();
 
-            groupBoxesCollection.createGroupBox(groupBoxId, groupBoxData);
+            GroupBox *groupBox = groupBoxesCollection.createGroupBox(groupBoxId, groupBoxData);
+
+            // -- check that child items' rects are within `groupBox`
+            const auto childGroupBoxes = it.value().childGroupBoxes;
+            const auto childCards = it.value().childCards;
+
+            //
+            for (const int childGroupBoxId: childGroupBoxes) {
+                const auto childRect = groupBoxIdToData.value(childGroupBoxId).rect;
+                if (childRect.isNull())
+                    continue;
+                if (!groupBox->getContentsRect().contains(childRect)) {
+                    qWarning().noquote()
+                            << QString("group-box %1 does not enclose its child group-box %2")
+                               .arg(groupBoxId).arg(childGroupBoxId);
+                }
+            }
+            for (const int childCardId: childCards) {
+                const auto childRect = routine->board.cardIdToNodeRectData.value(childCardId).rect;
+                if (childRect.isNull())
+                    continue;
+                if (!groupBox->getContentsRect().contains(childRect)) {
+                    qWarning().noquote()
+                            << QString("group-box %1 does not enclose its child card %2")
+                               .arg(groupBoxId).arg(childCardId);
+                }
+            }
         }
 
         // GroupBoxTree
@@ -248,11 +274,8 @@ void BoardView::loadBoard(
         QHash<int, ChildGroupBoxesAndCards> treeNodeToChildItems;
 
         for (auto it = groupBoxIdToData.constBegin(); it != groupBoxIdToData.constEnd(); ++it) {
-            const int &groupBoxId = it.key();
-            const GroupBoxData &groupBoxData = it.value();
-
             treeNodeToChildItems.insert(
-                    groupBoxId, {groupBoxData.childGroupBoxes, groupBoxData.childCards});
+                    it.key(), {it.value().childGroupBoxes, it.value().childCards});
         }
 
         QString errorMsg;
@@ -1159,7 +1182,7 @@ void BoardView::onUserToCloseNodeRect(const int cardId) {
 
     // call AppData
     if (updatedHighlightedCardId.has_value()) {
-        Services::instance()->getAppData()->setHighlightedCardId(
+        Services::instance()->getAppData()->setSingleHighlightedCardId(
                 EventSource(this), updatedHighlightedCardId.value());
     }
 
@@ -1179,18 +1202,13 @@ void BoardView::onUserToCloseDataViewBox(const int customDataQueryId) {
 }
 
 void BoardView::onBackgroundClicked() {
-    bool highlightedCardIdChanged; // to -1
-    nodeRectsCollection.unhighlightAllCards(&highlightedCardIdChanged);
+    nodeRectsCollection.setHighlightedCardIds({});
+    groupBoxesCollection.setHighlightedGroupBoxes({});
 
-    if (highlightedCardIdChanged) {
-        // call AppData
-        constexpr int highlightedCardId = -1;
-        Services::instance()->getAppData()
-                ->setHighlightedCardId(EventSource(this), highlightedCardId);
-    }
-
-    //
-    groupBoxesCollection.setHighlightedGroupBox(-1);
+    // call AppData
+    constexpr int highlightedCardId = -1;
+    Services::instance()->getAppData()
+            ->setSingleHighlightedCardId(EventSource(this), highlightedCardId);
 }
 
 void BoardView::closeAll(bool *highlightedCardIdChanged_) {
@@ -1433,6 +1451,18 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
     // set up connections
     QPointer<NodeRect> nodeRectPtr(nodeRect);
 
+    QObject::connect(nodeRect, &NodeRect::mousePressedOrClicked, boardView, [this, nodeRectPtr]() {
+        if (nodeRectPtr.isNull())
+            return;
+
+        setHighlightedCardIds({nodeRectPtr->getCardId()});
+        boardView->groupBoxesCollection.setHighlightedGroupBoxes({});
+
+        // call AppData
+        Services::instance()->getAppData()
+                ->setSingleHighlightedCardId(EventSource(boardView), nodeRectPtr->getCardId());
+    });
+
     QObject::connect(nodeRect, &NodeRect::movedOrResized, boardView, [this, nodeRectPtr]() {
         if (!nodeRectPtr)
             return;
@@ -1448,7 +1478,8 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         // deepest enclosing GroupBox
         const std::optional<int> groupBoxIdOpt
                 = boardView->groupBoxesCollection.getDeepestEnclosingGroupBox(nodeRectPtr.data());
-        boardView->groupBoxesCollection.setHighlightedGroupBox(groupBoxIdOpt.value_or(-1));
+        boardView->groupBoxesCollection.setHighlightedGroupBoxes(
+                    groupBoxIdOpt.has_value() ? QSet<int> {groupBoxIdOpt.value()} : QSet<int> {});
 
         if (groupBoxIdOpt.has_value()) {
             // todo: add the NodeRect to the GroupBox....
@@ -1472,29 +1503,6 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         Services::instance()->getAppData()->updateNodeRectProperties(
                 EventSource(boardView),
                 boardView->boardId, nodeRectPtr->getCardId(), update);
-    });
-
-    QObject::connect(nodeRect, &NodeRect::clicked, boardView, [this, nodeRectPtr]() {
-        if (nodeRectPtr.isNull())
-            return;
-
-        // highlight `nodeRectPtr` (if not yet) and un-highlight the other NodeRect's
-        const int cardIdClicked = nodeRectPtr->getCardId();
-        if (nodeRectPtr->getIsHighlighted()) {
-            Q_ASSERT(highlightedCardId == cardIdClicked);
-            return;
-        }
-
-        for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it) {
-            it.value()->setIsHighlighted(it.key() == cardIdClicked);
-        }
-
-        //
-        highlightedCardId = cardIdClicked;
-
-        // call AppData
-        Services::instance()->getAppData()
-                ->setHighlightedCardId(EventSource(boardView), highlightedCardId);
     });
 
     QObject::connect(nodeRect, &NodeRect::titleTextUpdated,
@@ -1563,22 +1571,13 @@ void BoardView::NodeRectsCollection::closeNodeRect(
     // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
 
     //
-    if (highlightedCardId == cardId) {
-        highlightedCardId = -1;
+    if (nodeRect->getIsHighlighted())
         *highlightedCardIdUpdated = true;
-    }
 }
 
-void BoardView::NodeRectsCollection::unhighlightAllCards(bool *highlightedCardIdChanged) {
-    *highlightedCardIdChanged = false;
-
-    if (highlightedCardId != -1) {
-        Q_ASSERT(cardIdToNodeRect.contains(highlightedCardId));
-        cardIdToNodeRect.value(highlightedCardId)->setIsHighlighted(false);
-
-        highlightedCardId = -1;
-        *highlightedCardIdChanged = true;
-    }
+void BoardView::NodeRectsCollection::setHighlightedCardIds(const QSet<int> &cardIds) {
+    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it)
+        it.value()->setIsHighlighted(cardIds.contains(it.key()));
 }
 
 void BoardView::NodeRectsCollection::updateAllNodeRectColors() {
@@ -1893,16 +1892,33 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
     groupBox->setTitle(groupBoxData.title);
     groupBox->setRect(groupBoxData.rect);
     groupBox->setBorderWidth(3);
+    groupBox->setColor(QColor(180, 180, 180));
 
     // set up connections
     QPointer<GroupBox> groupBoxPtr(groupBox);
+
+    QObject::connect(
+            groupBox, &GroupBox::mousePressed, boardView, [this, groupBoxId, groupBoxPtr]() {
+        if (!groupBoxPtr)
+            return;
+
+        // highlight the group-box & all its descendants, and unghighlight all other items
+        const auto [groupBoxes, cards] = boardView->groupBoxTree.getAllDescendants(groupBoxId);
+        boardView->nodeRectsCollection.setHighlightedCardIds(cards);
+        setHighlightedGroupBoxes(groupBoxes + QSet<int> {groupBoxId});
+
+        // call AppData
+        const int singleHighlightedCardId = (cards.count() == 1) ? *cards.begin() : -1;
+        Services::instance()->getAppData()
+                ->setSingleHighlightedCardId(EventSource(boardView), singleHighlightedCardId);
+    });
 
     QObject::connect(
             groupBox, &GroupBox::aboutToMove, boardView, [this, groupBoxId, groupBoxPtr]() {
         if (!groupBoxPtr)
             return;
 
-        // enter co-moving state
+        // enter co-moving state, let all descendants follow the move
         const auto [groupBoxes, cards] = boardView->groupBoxTree.getAllDescendants(groupBoxId);
 
         boardView->comovingStateData.activate();
@@ -1981,9 +1997,9 @@ void BoardView::GroupBoxesCollection::removeGroupBox(const int groupBoxId) {
     // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
 }
 
-void BoardView::GroupBoxesCollection::setHighlightedGroupBox(const int groupBoxId) {
+void BoardView::GroupBoxesCollection::setHighlightedGroupBoxes(const QSet<int> &groupBoxIds) {
     for (auto it = groupBoxes.constBegin(); it != groupBoxes.constEnd(); ++it)
-        it.value()->setIsHighlighted(it.key() == groupBoxId);
+        it.value()->setIsHighlighted(groupBoxIds.contains(it.key()));
 }
 
 GroupBox *BoardView::GroupBoxesCollection::get(const int groupBoxId) {
