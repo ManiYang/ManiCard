@@ -869,6 +869,23 @@ void PersistedDataAccess::removeDataViewBox(const int boardId, const int customD
     debouncedDbAccess->removeDataViewBox(boardId, customDataQueryId);
 }
 
+void PersistedDataAccess::createTopLevelGroupBoxWithId(
+        const int boardId, const int groupBoxId, const GroupBoxData &groupBoxData) {
+    // 1. update cache synchronously
+    for (auto it = cache.boards.constBegin(); it != cache.boards.constEnd(); ++it) {
+        if (it.value().groupBoxIdToData.contains(groupBoxId)) {
+            qWarning().noquote() << QString("GroupBox %1 already exists").arg(groupBoxId);
+            return;
+        }
+    }
+
+    if (cache.boards.contains(boardId))
+        cache.boards[boardId].groupBoxIdToData.insert(groupBoxId, groupBoxData);
+
+    // 2. write DB
+    debouncedDbAccess->createTopLevelGroupBoxWithId(boardId, groupBoxId, groupBoxData);
+}
+
 void PersistedDataAccess::updateGroupBoxProperties(
         const int groupBoxId, const GroupBoxDataUpdate &update) {
     // 1. update cache synchronously

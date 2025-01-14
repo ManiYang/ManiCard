@@ -242,11 +242,12 @@ void NodeRect::adjustContents() {
                 );
 }
 
-void NodeRect::onMousePressedOnCaptionBar() {
-    emit mousePressedOrClicked();
+void NodeRect::onMousePressed(const bool isOnCaptionBar) {
+    if (isOnCaptionBar)
+        emit mousePressedOrClicked();
 }
 
-void NodeRect::onMouseClicked() {
+void NodeRect::onMouseLeftClicked() {
     emit mousePressedOrClicked();
 }
 

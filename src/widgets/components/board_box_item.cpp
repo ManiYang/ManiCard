@@ -228,10 +228,10 @@ bool BoardBoxItem::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
             return true;
         }
         else if (event->type() == QEvent::GraphicsSceneMouseRelease) {
-            onMouseClicked();
+            onMouseLeftClicked();
         }
         else if (event->type() == QEvent::GraphicsSceneMousePress) {
-            onMousePressedOnCaptionBar();
+            onMousePressed(true);
         }
     }
 
@@ -239,9 +239,9 @@ bool BoardBoxItem::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
 }
 
 void BoardBoxItem::mousePressEvent(QGraphicsSceneMouseEvent */*event*/) {
-    // do nothing
+    onMousePressed(false);
 
-    // This method is re-implemented so that
+    // This method needs to be re-implemented so that
     // 1. the mouse-press event is accepted and `this` becomes the mouse grabber, and
     // 2. the later mouse-release event will be sent to `this` and will not "penetrate"
     //    through `this` and reach the QGraphicsScene.
@@ -251,7 +251,7 @@ void BoardBoxItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
     QGraphicsObject::mouseReleaseEvent(event);
 
     if (event->button() == Qt::LeftButton)
-        emit onMouseClicked();
+        onMouseLeftClicked();
 }
 
 void BoardBoxItem::setUpConnections() {
@@ -313,6 +313,11 @@ void BoardBoxItem::setUpConnections() {
             setCursor(cursorShape.value());
         else
             unsetCursor();
+    });
+
+    connect(moveResizeHelper, &GraphicsItemMoveResize::leftMousePressedOnResizeActivationArea,
+            this, [this]() {
+        onMousePressed(false);
     });
 }
 
@@ -443,10 +448,10 @@ void BoardBoxItem::adjustContents() {
     // do nothing
 }
 
-void BoardBoxItem::onMousePressedOnCaptionBar() {
+void BoardBoxItem::onMousePressed(const bool /*isOnCaptionBar*/) {
     // do nothing
 }
 
-void BoardBoxItem::onMouseClicked() {
+void BoardBoxItem::onMouseLeftClicked() {
     // do nothing
 }

@@ -415,6 +415,14 @@ void BoardView::setUpContextMenu() {
     contextMenu->addSeparator();
     {
         QAction *action = contextMenu->addAction(
+                QIcon(":/icons/add_box_black_24"), "Create New Group");
+        connect(action, &QAction::triggered, this, [this]() {
+            onUserToCreateNewGroup(contextMenuData.requestScenePos);
+        });
+    }
+    contextMenu->addSeparator();
+    {
+        QAction *action = contextMenu->addAction(
                 QIcon(":/icons/add_box_black_24"), "Create New Data Query...");
         connect(action, &QAction::triggered, this, [this]() {
             onUserToCreateNewCustomDataQuery(contextMenuData.requestScenePos);
@@ -844,6 +852,68 @@ void BoardView::onUserToDuplicateCard(const QPointF &scenePos) {
     routine->start();
 }
 
+void BoardView::onUserToCreateNewGroup(const QPointF &scenePos) {
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        int newGroupBoxId {-1};
+        GroupBoxData groupBoxData;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([routine]() {
+        // request new group-box ID (using requestNewCardId())
+        Services::instance()->getAppData()->requestNewCardId(
+                // callback:
+                [routine](std::optional<int> cardId) {
+                    ContinuationContext context(routine);
+                    if (cardId.has_value()) {
+                        routine->newGroupBoxId = cardId.value();
+                    }
+                    else {
+                        context.setErrorFlag();
+                        routine->errorMsg = "Could not get new group-box ID. See logs for details.";
+                    }
+                },
+                routine
+        );
+    }, this);
+
+    routine->addStep([this, routine, scenePos]() {
+        // create new GroupBox
+        ContinuationContext context(routine);
+
+        routine->groupBoxData.title = "New Group";
+        routine->groupBoxData.rect = QRectF(canvas->mapFromScene(scenePos), defaultNewNodeRectSize);
+
+        groupBoxesCollection.createGroupBox(routine->newGroupBoxId, routine->groupBoxData);
+
+        adjustSceneRect();
+
+        // -- update `groupBoxTree`
+        groupBoxTree.node(GroupBoxTree::rootId).addChildGroupBoxes({routine->newGroupBoxId});
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // call AppData
+        ContinuationContext context(routine);
+
+        Services::instance()->getAppData()->createTopLevelGroupBoxWithId(
+                EventSource(this), this->boardId, routine->newGroupBoxId, routine->groupBoxData);
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+            showWarningMessageBox(this, " ", routine->errorMsg);
+    }, this);
+
+    routine->start();
+}
+
 void BoardView::onUserToCreateNewCustomDataQuery(const QPointF &scenePos) {
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
@@ -872,7 +942,7 @@ void BoardView::onUserToCreateNewCustomDataQuery(const QPointF &scenePos) {
                 },
                 routine
         );
-    }, routine);
+    }, this);
 
     routine->addStep([this, routine, scenePos]() {
         // create new DataViewBox
@@ -1892,7 +1962,7 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
     groupBox->setTitle(groupBoxData.title);
     groupBox->setRect(groupBoxData.rect);
     groupBox->setBorderWidth(3);
-    groupBox->setColor(QColor(180, 180, 180));
+    groupBox->setColor(QColor(170, 170, 170));
 
     // set up connections
     QPointer<GroupBox> groupBoxPtr(groupBox);

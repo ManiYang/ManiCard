@@ -169,6 +169,9 @@ public:
 
     void removeDataViewBox(const int boardId, const int customDataQueryId);
 
+    void createTopLevelGroupBoxWithId(
+            const int boardId, const int groupBoxId, const GroupBoxData &groupBoxData);
+
     void updateGroupBoxProperties(const int groupBoxId, const GroupBoxDataUpdate &update);
 
     bool saveMainWindowSize(const QSize &size);

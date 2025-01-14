@@ -171,6 +171,10 @@ public:
     void removeDataViewBox(
             const EventSource &eventSrc, const int boardId, const int customDataQueryId);
 
+    void createTopLevelGroupBoxWithId(
+            const EventSource &eventSrc,
+            const int boardId, const int groupBoxId, const GroupBoxData &groupBoxData);
+
     void updateGroupBoxProperties(
             const EventSource &eventSrc,
             const int groupBoxId, const GroupBoxDataUpdate &update);

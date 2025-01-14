@@ -386,11 +386,12 @@ void DataViewBox::adjustContents() {
     }
 }
 
-void DataViewBox::onMousePressedOnCaptionBar() {
-    emit mousePressedOrClicked();
+void DataViewBox::onMousePressed(const bool isOnCaptionBar) {
+    if (isOnCaptionBar)
+        emit mousePressedOrClicked();
 }
 
-void DataViewBox::onMouseClicked() {
+void DataViewBox::onMouseLeftClicked() {
     emit mousePressedOrClicked();
 }
 

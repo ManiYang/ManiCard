@@ -132,8 +132,8 @@ private:
     virtual void setUpContents(QGraphicsItem *contentsContainer);
     virtual void adjustContents();
 
-    virtual void onMousePressedOnCaptionBar();
-    virtual void onMouseClicked();
+    virtual void onMousePressed(const bool isOnCaptionBar);
+    virtual void onMouseLeftClicked();
 };
 
 #endif // BOARDBOXITEM_H

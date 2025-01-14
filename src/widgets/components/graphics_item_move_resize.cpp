@@ -143,6 +143,8 @@ bool GraphicsItemMoveResize::eventFilterForResizeHandle(QEvent *event) {
                     mousePressScreenPos = mouseEvent->screenPos();
                     targetItemRectBeforeResize = itemRect;
                     state = State::Resizing;
+
+                    emit leftMousePressedOnResizeActivationArea();
                     return true;
                 }
             }

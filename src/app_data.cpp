@@ -262,6 +262,15 @@ void AppData::removeDataViewBox(
     // 2. update all variables and emit "updated" signals
 }
 
+void AppData::createTopLevelGroupBoxWithId(
+        const EventSource &/*eventSrc*/,
+        const int boardId, const int groupBoxId, const GroupBoxData &groupBoxData) {
+    // 1. persist
+    persistedDataAccess->createTopLevelGroupBoxWithId(boardId, groupBoxId, groupBoxData);
+
+    // 2. update all variables and emit "updated" signals
+}
+
 void AppData::updateGroupBoxProperties(
         const EventSource &/*eventSrc*/, const int groupBoxId, const GroupBoxDataUpdate &update) {
     // 1. persist

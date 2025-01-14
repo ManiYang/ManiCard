@@ -115,6 +115,7 @@ private:
     void onUserToOpenExistingCard(const QPointF &scenePos);
     void onUserToCreateNewCard(const QPointF &scenePos);
     void onUserToDuplicateCard(const QPointF &scenePos);
+    void onUserToCreateNewGroup(const QPointF &scenePos);
     void onUserToCreateNewCustomDataQuery(const QPointF &scenePos);
     void onUserToSetLabels(const int cardId);
     void onUserToCreateRelationship(const int cardId);

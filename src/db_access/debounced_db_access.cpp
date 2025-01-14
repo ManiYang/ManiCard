@@ -693,6 +693,31 @@ void DebouncedDbAccess::removeDataViewBox(const int boardId, const int customDat
     );
 }
 
+void DebouncedDbAccess::createTopLevelGroupBoxWithId(
+        const int boardId, const int groupBoxId, const GroupBoxData &groupBoxData) {
+    closeDebounceSession();
+
+    boardsDataAccess->createTopLevelGroupBoxWithId(
+            boardId, groupBoxId, groupBoxData,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "createTopLevelGroupBoxWithId";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"boardId", boardId},
+                        {"groupBoxId", groupBoxId},
+                        {"groupBoxData", groupBoxData.toJson()}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("created GroupBox");
+                }
+            },
+            this
+    );
+}
+
 void DebouncedDbAccess::updateGroupBoxProperties(
         const int groupBoxId, const GroupBoxDataUpdate &update) {
     closeDebounceSession();

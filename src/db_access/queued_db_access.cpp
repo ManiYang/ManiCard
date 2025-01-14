@@ -705,6 +705,26 @@ void QueuedDbAccess::removeDataViewBox(
     addToQueue(func);
 }
 
+void QueuedDbAccess::createTopLevelGroupBoxWithId(
+        const int boardId, const int groupBoxId, const GroupBoxData &groupBoxData,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(boardId), decltype(groupBoxId), decltype(groupBoxData) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->createTopLevelGroupBoxWithId(args...); // method
+            },
+            boardId, groupBoxId, groupBoxData, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
 void QueuedDbAccess::updateGroupBoxProperties(
         const int groupBoxId, const GroupBoxDataUpdate &update,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {

@@ -1062,6 +1062,63 @@ void BoardsDataAccess::removeDataViewBox(
     );
 }
 
+void BoardsDataAccess::createTopLevelGroupBoxWithId(
+        const int boardId, const int groupBoxId, const GroupBoxData &groupBoxData,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (b:Board {id: $boardId})
+                    MERGE (b)-[:GROUP_ITEM]->(g:GroupBox {id: $groupBoxId})
+                    ON CREATE
+                        SET g += $propertiesMap, g._is_created_ = true
+                    ON MATCH
+                        SET g._is_created_ = false
+                    WITH g, g._is_created_ AS isCreated
+                    REMOVE g._is_created_
+                    RETURN isCreated
+                )!",
+                QJsonObject {
+                    {"boardId", boardId},
+                    {"groupBoxId", groupBoxId},
+                    {"propertiesMap", groupBoxData.toJson()}
+                }
+            },
+            // callback
+            [callback, boardId, groupBoxId](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                if (result.isEmpty()) {
+                    qWarning().noquote() << QString("Board %1 does not exist").arg(boardId);
+                    callback(false);
+                    return;
+                }
+
+                std::optional<bool> isCreated = result.boolValueAt(0, "isCreated");
+                if (!isCreated.has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                if (!isCreated.value()) {
+                    qWarning().noquote() << QString("GroupBox %1 already exists").arg(groupBoxId);
+                    callback(false);
+                    return;
+                }
+
+                qInfo().noquote() << QString("top-level GroupBox %1 created").arg(groupBoxId);
+                callback(true);
+            },
+            callbackContext
+    );
+}
+
 void BoardsDataAccess::updateGroupBoxProperties(
         const int groupBoxId, const GroupBoxDataUpdate &update,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {

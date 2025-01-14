@@ -166,6 +166,14 @@ public:
     // ==== GroupBox ====
 
     //!
+    //! The board must already exist, and the GroupBox must not already exist.
+    //! The operation is atomic.
+    //!
+    virtual void createTopLevelGroupBoxWithId(
+            const int boardId, const int groupBoxId, const GroupBoxData &groupBoxData,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    //!
     //! The GroupBox must exist. This operation is atomic.
     //!
     virtual void updateGroupBoxProperties(

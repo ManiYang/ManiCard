@@ -61,8 +61,8 @@ private:
     QMenu *createCaptionBarContextMenu() override;
     void setUpContents(QGraphicsItem *contentsContainer) override;
     void adjustContents() override;
-    void onMousePressedOnCaptionBar() override;
-    void onMouseClicked() override;
+    void onMousePressed(const bool isOnCaptionBar) override;
+    void onMouseLeftClicked() override;
 
     // tools
     static QString getNodeLabelsString(const QStringList &labels);

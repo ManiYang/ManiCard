@@ -31,10 +31,10 @@ void GroupBox::adjustContents() {
     // do nothing
 }
 
-void GroupBox::onMousePressedOnCaptionBar() {
+void GroupBox::onMousePressed(const bool /*isOnCaptionBar*/) {
     emit mousePressed();
 }
 
-void GroupBox::onMouseClicked() {
+void GroupBox::onMouseLeftClicked() {
     // do nothing
 }

@@ -185,6 +185,10 @@ public:
             const int boardId, const int customDataQueryId,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
+    void createTopLevelGroupBoxWithId(
+            const int boardId, const int groupBoxId, const GroupBoxData &groupBoxData,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
     void updateGroupBoxProperties(
             const int groupBoxId, const GroupBoxDataUpdate &update,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
