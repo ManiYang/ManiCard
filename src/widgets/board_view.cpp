@@ -417,7 +417,7 @@ void BoardView::setUpContextMenu() {
     contextMenu->addSeparator();
     {
         QAction *action = contextMenu->addAction(
-                QIcon(":/icons/add_box_black_24"), "Create New Group");
+                QIcon(":/icons/add_box_black_24"), "Create Group Box");
         connect(action, &QAction::triggered, this, [this]() {
             onUserToCreateNewGroup(contextMenuData.requestScenePos);
         });
@@ -887,7 +887,7 @@ void BoardView::onUserToCreateNewGroup(const QPointF &scenePos) {
         // create new GroupBox
         ContinuationContext context(routine);
 
-        routine->groupBoxData.title = "New Group";
+        routine->groupBoxData.title = "Group";
         routine->groupBoxData.rect = QRectF(canvas->mapFromScene(scenePos), defaultNewNodeRectSize);
 
         Q_ASSERT(routine->newGroupBoxId != -1);
@@ -1272,6 +1272,17 @@ void BoardView::onUserToCloseDataViewBox(const int customDataQueryId) {
     // call AppData
     Services::instance()->getAppData()
             ->removeDataViewBox(EventSource(this), boardId, customDataQueryId);
+}
+
+void BoardView::onUserToSetGroupBoxTitle(const int groupBoxId, const QString &newTitle) {
+    groupBoxesCollection.get(groupBoxId)->setTitle(newTitle);
+
+    //
+    GroupBoxNodePropertiesUpdate update;
+    update.title = newTitle;
+
+    Services::instance()->getAppData()
+            ->updateGroupBoxProperties(EventSource(this), groupBoxId, update);
 }
 
 void BoardView::onUserToRemoveGroupBox(const int groupBoxId) {
@@ -2185,6 +2196,19 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
             }
         }
         boardView->itemMovingResizingStateData.deactivate();
+    });
+
+    QObject::connect(
+            groupBox, &GroupBox::userToRenameGroupBox, boardView, [this, groupBoxId, groupBoxPtr]() {
+        if (!groupBoxPtr)
+            return;
+
+        bool ok;
+        const QString newTitle = QInputDialog::getText(
+                boardView, "Rename Group Box", "Enter new name:",
+                QLineEdit::Normal, groupBoxPtr->getTitle(), &ok);
+        if (ok)
+            boardView->onUserToSetGroupBoxTitle(groupBoxId, newTitle);
     });
 
     QObject::connect(

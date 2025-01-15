@@ -7,8 +7,14 @@ GroupBox::GroupBox(QGraphicsItem *parent)
 }
 
 void GroupBox::setTitle(const QString &title) {
+    this->title = title;
+
     constexpr bool bold = true;
     setCaptionBarLeftText(title, bold);
+}
+
+QString GroupBox::getTitle() const {
+    return title;
 }
 
 BoardBoxItem::CreationParameters GroupBox::getCreationParameters() {
@@ -24,7 +30,16 @@ BoardBoxItem::CreationParameters GroupBox::getCreationParameters() {
 QMenu *GroupBox::createCaptionBarContextMenu(){
     auto *contextMenu = new QMenu;
     {
-        auto *action = contextMenu->addAction(QIcon(":/icons/delete_black_24"), "Ungroup");
+        auto *action = contextMenu->addAction(
+                QIcon(":/icons/edit_square_black_24"), "Rename");
+        connect(action, &QAction::triggered, this, [this]() {
+            emit userToRenameGroupBox();
+        });
+    }
+    contextMenu->addSeparator();
+    {
+        auto *action = contextMenu->addAction(
+                QIcon(":/icons/delete_black_24"), "Remove Group Box");
         connect(action, &QAction::triggered, this, [this]() {
             emit userToRemoveGroupBox();
         });

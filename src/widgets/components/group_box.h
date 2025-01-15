@@ -12,14 +12,20 @@ public:
     // Call these "set" methods only after this item is initialized:
     void setTitle(const QString &title);
 
+    //
+    QString getTitle() const;
+
 signals:
     void leftButtonPressed();
     void ctrlLeftButtonPressedOnCaptionBar();
 
+    void userToRenameGroupBox();
     void userToRemoveGroupBox();
 
 private:
     static BoardBoxItem::CreationParameters getCreationParameters();
+
+    QString title;
 
     //
     QMenu *createCaptionBarContextMenu() override;

@@ -121,6 +121,7 @@ private:
     void onUserToCreateRelationship(const int cardId);
     void onUserToCloseNodeRect(const int cardId);
     void onUserToCloseDataViewBox(const int customDataQueryId);
+    void onUserToSetGroupBoxTitle(const int groupBoxId, const QString &newTitle);
     void onUserToRemoveGroupBox(const int groupBoxId);
     void onBackgroundClicked();
 
