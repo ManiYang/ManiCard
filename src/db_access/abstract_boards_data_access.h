@@ -177,7 +177,7 @@ public:
     //! The GroupBox must exist. This operation is atomic.
     //!
     virtual void updateGroupBoxProperties(
-            const int groupBoxId, const GroupBoxDataUpdate &update,
+            const int groupBoxId, const GroupBoxNodePropertiesUpdate &update,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 
     //!

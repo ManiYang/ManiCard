@@ -190,7 +190,7 @@ public:
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
     void updateGroupBoxProperties(
-            const int groupBoxId, const GroupBoxDataUpdate &update,
+            const int groupBoxId, const GroupBoxNodePropertiesUpdate &update,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
     void removeGroupBoxAndReparentChildItems(

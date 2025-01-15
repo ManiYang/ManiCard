@@ -177,7 +177,7 @@ public:
 
     void updateGroupBoxProperties(
             const EventSource &eventSrc,
-            const int groupBoxId, const GroupBoxDataUpdate &update);
+            const int groupBoxId, const GroupBoxNodePropertiesUpdate &update);
 
     void removeGroupBoxAndReparentChildItems(const EventSource &eventSrc, const int groupBoxId);
 

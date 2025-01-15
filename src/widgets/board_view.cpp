@@ -1451,7 +1451,7 @@ void BoardView::savePositionsOfComovingItems(const ComovingStateData &comovingSt
         if (groupBox == nullptr)
             return;
 
-        GroupBoxDataUpdate update;
+        GroupBoxNodePropertiesUpdate update;
         update.rect = groupBox->getRect();
 
         Services::instance()->getAppData()->updateGroupBoxProperties(
@@ -2150,7 +2150,7 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
         boardView->adjustSceneRect();
 
         // save properties of `groupBoxId`
-        GroupBoxDataUpdate update;
+        GroupBoxNodePropertiesUpdate update;
         update.rect = groupBoxPtr->getRect();
 
         Services::instance()->getAppData()->updateGroupBoxProperties(

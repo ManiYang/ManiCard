@@ -172,7 +172,7 @@ public:
     void createTopLevelGroupBoxWithId(
             const int boardId, const int groupBoxId, const GroupBoxData &groupBoxData);
 
-    void updateGroupBoxProperties(const int groupBoxId, const GroupBoxDataUpdate &update);
+    void updateGroupBoxProperties(const int groupBoxId, const GroupBoxNodePropertiesUpdate &update);
 
     void removeGroupBoxAndReparentChildItems(const int groupBoxId);
 

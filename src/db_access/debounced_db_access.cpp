@@ -707,7 +707,7 @@ void DebouncedDbAccess::createTopLevelGroupBoxWithId(
                     const QString updateDetails = printJson(QJsonObject {
                         {"boardId", boardId},
                         {"groupBoxId", groupBoxId},
-                        {"groupBoxData", groupBoxData.toJson()}
+                        {"groupBoxData", groupBoxData.getNodePropertiesJson()}
                     }, false);
                     unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
 
@@ -719,7 +719,7 @@ void DebouncedDbAccess::createTopLevelGroupBoxWithId(
 }
 
 void DebouncedDbAccess::updateGroupBoxProperties(
-        const int groupBoxId, const GroupBoxDataUpdate &update) {
+        const int groupBoxId, const GroupBoxNodePropertiesUpdate &update) {
     closeDebounceSession();
 
     boardsDataAccess->updateGroupBoxProperties(

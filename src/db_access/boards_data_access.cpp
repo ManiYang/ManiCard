@@ -240,13 +240,15 @@ void BoardsDataAccess::getBoardData(
                         }
                         else if (whatOpt.value() == "groupBox") {
                             const int groupBoxId = idOpt.value();
-                            const std::optional<GroupBoxData> groupBoxData
-                                    = GroupBoxData::fromJson(dataOpt.value());
-                            if (!groupBoxData.has_value()) {
+
+                            GroupBoxData groupBoxData;
+                            bool ok = groupBoxData.updateNodeProperties(dataOpt.value());
+                            if (!ok) {
                                 hasError = true;
                                 break;
                             }
-                            board.groupBoxIdToData.insert(groupBoxId, groupBoxData.value());
+
+                            board.groupBoxIdToData.insert(groupBoxId, groupBoxData);
                         }
                         else {
                             Q_ASSERT(false); // case not implemented
@@ -1082,7 +1084,7 @@ void BoardsDataAccess::createTopLevelGroupBoxWithId(
                 QJsonObject {
                     {"boardId", boardId},
                     {"groupBoxId", groupBoxId},
-                    {"propertiesMap", groupBoxData.toJson()}
+                    {"propertiesMap", groupBoxData.getNodePropertiesJson()}
                 }
             },
             // callback
@@ -1119,7 +1121,7 @@ void BoardsDataAccess::createTopLevelGroupBoxWithId(
 }
 
 void BoardsDataAccess::updateGroupBoxProperties(
-        const int groupBoxId, const GroupBoxDataUpdate &update,
+        const int groupBoxId, const GroupBoxNodePropertiesUpdate &update,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 

@@ -272,7 +272,7 @@ void AppData::createTopLevelGroupBoxWithId(
 }
 
 void AppData::updateGroupBoxProperties(
-        const EventSource &/*eventSrc*/, const int groupBoxId, const GroupBoxDataUpdate &update) {
+        const EventSource &/*eventSrc*/, const int groupBoxId, const GroupBoxNodePropertiesUpdate &update) {
     // 1. persist
     persistedDataAccess->updateGroupBoxProperties(groupBoxId, update);
 

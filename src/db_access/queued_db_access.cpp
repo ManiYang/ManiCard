@@ -726,7 +726,7 @@ void QueuedDbAccess::createTopLevelGroupBoxWithId(
 }
 
 void QueuedDbAccess::updateGroupBoxProperties(
-        const int groupBoxId, const GroupBoxDataUpdate &update,
+        const int groupBoxId, const GroupBoxNodePropertiesUpdate &update,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 

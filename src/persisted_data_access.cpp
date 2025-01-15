@@ -888,14 +888,14 @@ void PersistedDataAccess::createTopLevelGroupBoxWithId(
 }
 
 void PersistedDataAccess::updateGroupBoxProperties(
-        const int groupBoxId, const GroupBoxDataUpdate &update) {
+        const int groupBoxId, const GroupBoxNodePropertiesUpdate &update) {
     Q_ASSERT(groupBoxId != -1);
 
     // 1. update cache synchronously
     for (auto it = cache.boards.begin(); it != cache.boards.end(); ++it) {
         Board &board = it.value();
         if (board.groupBoxIdToData.contains(groupBoxId)) {
-            board.groupBoxIdToData[groupBoxId].update(update);
+            board.groupBoxIdToData[groupBoxId].updateNodeProperties(update);
             break;
         }
     }

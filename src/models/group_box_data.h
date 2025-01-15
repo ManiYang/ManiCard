@@ -7,7 +7,7 @@
 #include <QSet>
 #include <QString>
 
-struct GroupBoxDataUpdate;
+struct GroupBoxNodePropertiesUpdate;
 
 struct GroupBoxData
 {
@@ -17,16 +17,16 @@ struct GroupBoxData
 
     //
     QSet<int> childGroupBoxes;
-    QSet<int> childCards;
+    QSet<int> childCards; // child NodeRect's corresponding card ID's
 
     //
-    // todo: rename to updateNodeProperties(), getNodePropertiesJson()....
-    QJsonObject toJson() const;
-    static std::optional<GroupBoxData> fromJson(const QJsonObject &obj);
-    void update(const GroupBoxDataUpdate &update);
+    QJsonObject getNodePropertiesJson() const;
+
+    bool updateNodeProperties(const QJsonObject &obj);
+    void updateNodeProperties(const GroupBoxNodePropertiesUpdate &update);
 };
 
-struct GroupBoxDataUpdate
+struct GroupBoxNodePropertiesUpdate
 {
     std::optional<QString> title;
     std::optional<QRectF> rect;

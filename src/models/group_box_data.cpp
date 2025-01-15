@@ -6,30 +6,28 @@ QJsonArray rectToJsonArray(const QRectF &rect);
 std::optional<QRectF> parseJsonValueAsRect(const QJsonValue &v);
 }
 
-QJsonObject GroupBoxData::toJson() const {
+QJsonObject GroupBoxData::getNodePropertiesJson() const {
     return QJsonObject {
         {"title", title},
         {"rect", rectToJsonArray(rect)}
     };
 }
 
-std::optional<GroupBoxData> GroupBoxData::fromJson(const QJsonObject &obj) {
-    GroupBoxData data;
-
+bool GroupBoxData::updateNodeProperties(const QJsonObject &obj) {
     if (const QJsonValue v = obj.value("title"); !v.isUndefined())
-        data.title = v.toString();
+        title = v.toString();
 
     if (const QJsonValue v = obj.value("rect"); !v.isUndefined()) {
         const auto rectOpt = parseJsonValueAsRect(v);
         if (!rectOpt.has_value())
-            return std::nullopt;
-        data.rect = rectOpt.value();
+            return false;
+        rect = rectOpt.value();
     }
 
-    return data;
+    return true;
 }
 
-void GroupBoxData::update(const GroupBoxDataUpdate &update) {
+void GroupBoxData::updateNodeProperties(const GroupBoxNodePropertiesUpdate &update) {
 #define UPDATE_PROPERTY(member) \
         if (update.member.has_value()) \
             this->member = update.member.value();
@@ -42,7 +40,7 @@ void GroupBoxData::update(const GroupBoxDataUpdate &update) {
 
 //======
 
-QJsonObject GroupBoxDataUpdate::toJson() const {
+QJsonObject GroupBoxNodePropertiesUpdate::toJson() const {
     QJsonObject obj;
 
     if (title.has_value())
