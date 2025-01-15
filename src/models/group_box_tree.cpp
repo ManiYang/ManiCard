@@ -69,7 +69,7 @@ bool GroupBoxTree::set(
     return true;
 }
 
-void GroupBoxTree::reparentGroupBox(const int groupBoxId, const int newParentId) {
+void GroupBoxTree::reparentExistingGroupBox(const int groupBoxId, const int newParentId) {
     if (!groupBoxIdToParent.contains(groupBoxId)) {
         Q_ASSERT(false); // `groupBoxId` not found
         return;
@@ -82,14 +82,24 @@ void GroupBoxTree::reparentGroupBox(const int groupBoxId, const int newParentId)
 
     const int originalParentId = groupBoxIdToParent.value(groupBoxId);
     if (newParentId == originalParentId)
+        return; // nothing need to be done
+
+    if (newParentId == groupBoxId) {
+        Q_ASSERT(false); // `newParentId` equals `groupBoxId`
         return;
+    }
+
+    if (doGetAllDescendants(groupBoxId).first.contains(newParentId)) {
+        Q_ASSERT(false); // `newParentId` is a descendant of `groupBoxId`
+        return;
+    }
 
     nodeIdToChildItems[originalParentId].childGroupBoxes.remove(groupBoxId);
     nodeIdToChildItems[newParentId].childGroupBoxes << groupBoxId;
     groupBoxIdToParent[groupBoxId] = newParentId;
 }
 
-void GroupBoxTree::reparentCard(const int cardId, const int newParentGroupBoxId) {
+void GroupBoxTree::reparentExistingCard(const int cardId, const int newParentGroupBoxId) {
     if (newParentGroupBoxId == rootId) {
         Q_ASSERT(false); // root (the Board) cannot have child cards
         return;
@@ -112,6 +122,13 @@ void GroupBoxTree::reparentCard(const int cardId, const int newParentGroupBoxId)
     nodeIdToChildItems[originalParentId].childCards.remove(cardId);
     nodeIdToChildItems[newParentGroupBoxId].childCards << cardId;
     cardIdToParent[cardId] = newParentGroupBoxId;
+}
+
+void GroupBoxTree::addOrReparentCard(const int cardId, const int newParentGroupBoxId) {
+    if (cardIdToParent.contains(cardId))
+        reparentExistingCard(cardId, newParentGroupBoxId);
+    else
+        addChildCards(newParentGroupBoxId, {cardId});
 }
 
 void GroupBoxTree::removeGroupBox(const int groupBoxIdToRemove, const RemoveOption option) {
@@ -174,6 +191,11 @@ void GroupBoxTree::removeCard(const int cardIdToRemove) {
     cardIdToParent.remove(cardIdToRemove);
 }
 
+void GroupBoxTree::removeCardIfExists(const int cardIdToRemove) {
+    if (cardIdToParent.contains(cardIdToRemove))
+        removeCard(cardIdToRemove);
+}
+
 void GroupBoxTree::clear() {
     nodeIdToChildItems.clear();
     groupBoxIdToParent.clear();
@@ -194,7 +216,7 @@ int GroupBoxTree::getParentOfGroupBox(const int groupBoxId) const {
     return groupBoxIdToParent.value(groupBoxId, -1);
 }
 
-int GroupBoxTree::getParentOfCard(const int cardId) const {
+int GroupBoxTree::getParentGroupBoxOfCard(const int cardId) const {
     return cardIdToParent.value(cardId, -1);
 }
 

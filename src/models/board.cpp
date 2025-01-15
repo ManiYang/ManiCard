@@ -39,12 +39,37 @@ void Board::updateNodeProperties(const BoardNodePropertiesUpdate &update) {
 #undef UPDATE_PROPERTY
 }
 
-int Board::findParentOfGroupBox(const int groupBoxId) const {
+int Board::findParentGroupBoxOfGroupBox(const int groupBoxId) const {
     for (auto it = groupBoxIdToData.constBegin(); it != groupBoxIdToData.constEnd(); ++it) {
         if (it.value().childGroupBoxes.contains(groupBoxId))
             return it.key();
     }
     return -1;
+}
+
+int Board::findParentGroupBoxOfCard(const int cardId) const {
+    for (auto it = groupBoxIdToData.constBegin(); it != groupBoxIdToData.constEnd(); ++it) {
+        if (it.value().childCards.contains(cardId))
+            return it.key();
+    }
+    return -1;
+}
+
+bool Board::isGroupBoxADescendantOfGroupBox(const int groupBoxId1, const int groupBoxId2) {
+    Q_ASSERT(groupBoxId1 != -1 && groupBoxId2 != -1);
+
+    if (groupBoxId1 == groupBoxId2)
+        return false;
+
+    int id = groupBoxId1;
+    while (true) {
+        const int parent = findParentGroupBoxOfGroupBox(id);
+        if (parent == -1)
+            return false;
+        else if (parent == groupBoxId2)
+            return true;
+        id = parent;
+    }
 }
 
 //====

@@ -181,6 +181,24 @@ public:
 
     void removeGroupBoxAndReparentChildItems(const EventSource &eventSrc, const int groupBoxId);
 
+    void removeNodeRectFromGroupBox(
+            const EventSource &eventSrc, const int cardId, const int groupBoxId);
+
+    //!
+    //! The board having group-box `newParentGroupBox` must have the NodeRect for `cardId`.
+    //!
+    void addOrReparentNodeRectToGroupBox(
+            const EventSource &eventSrc, const int cardId, const int newParentGroupBox);
+
+    //!
+    //! \param groupBoxId: must exist
+    //! \param newParentGroupBoxId:
+    //!           + if = -1: `groupBoxId` will be reparented to the board
+    //!           + if != -1: must be on the same board as `groupBoxId`
+    //!
+    void reparentGroupBox(
+            const EventSource &eventSrc, const int groupBoxId, const int newParentGroupBoxId);
+
     void updateMainWindowSize(const EventSource &eventSrc, const QSize &size);
 
     // ==== non-persisted independent data ====

@@ -287,6 +287,30 @@ void AppData::removeGroupBoxAndReparentChildItems(
     // 2. update all variables and emit "updated" signals
 }
 
+void AppData::removeNodeRectFromGroupBox(
+        const EventSource &/*eventSrc*/, const int cardId, const int groupBoxId) {
+    // 1. persist
+    persistedDataAccess->removeNodeRectFromGroupBox(cardId, groupBoxId);
+
+    // 2. update all variables and emit "updated" signals
+}
+
+void AppData::addOrReparentNodeRectToGroupBox(
+        const EventSource &/*eventSrc*/, const int cardId, const int newParentGroupBox) {
+    // 1. persist
+    persistedDataAccess->addOrReparentNodeRectToGroupBox(cardId, newParentGroupBox);
+
+    // 2. update all variables and emit "updated" signals
+}
+
+void AppData::reparentGroupBox(
+        const EventSource &/*eventSrc*/, const int groupBoxId, const int newParentGroupBoxId) {
+    // 1. persist
+    persistedDataAccess->reparentGroupBox(groupBoxId, newParentGroupBoxId);
+
+    // 2. update all variables and emit "updated" signals
+}
+
 void AppData::updateMainWindowSize(const EventSource &/*eventSrc*/, const QSize &size) {
     // 1. persist
     persistedDataAccess->saveMainWindowSize(size);

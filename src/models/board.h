@@ -22,7 +22,8 @@ struct Board {
     //
     QHash<int, NodeRectData> cardIdToNodeRectData;
     QHash<int, DataViewBoxData> customDataQueryIdToDataViewBoxData;
-    QHash<int, GroupBoxData> groupBoxIdToData; // including all descendant group-boxes of the board
+    QHash<int, GroupBoxData> groupBoxIdToData;
+            // includes all group-boxes the board has (directly or indirectly)
 
     //
     QJsonObject getNodePropertiesJson() const;
@@ -31,7 +32,11 @@ struct Board {
     void updateNodeProperties(const BoardNodePropertiesUpdate &update);
 
     // tools
-    int findParentOfGroupBox(const int groupBoxId) const; // returns -1 if not found
+    int findParentGroupBoxOfGroupBox(const int groupBoxId) const; // returns -1 if not found
+    int findParentGroupBoxOfCard(const int cardId) const; // returns -1 if not found
+    bool isGroupBoxADescendantOfGroupBox(const int groupBoxId1, const int groupBoxId2);
+            // + returns false if either group box is not found
+            // + returns false if `groupBoxId1` = `groupBoxId2`
 };
 
 

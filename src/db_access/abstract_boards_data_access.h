@@ -186,6 +186,38 @@ public:
     virtual void removeGroupBoxAndReparentChildItems(
             const int groupBoxId,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    //!
+    //! This operation is atomic.
+    //! \param cardId: in the same board as `newGroupBoxId`, the NodeRect for this card must exist
+    //! \param newGroupBoxId: the new parent group-box, must already exist
+    //! \param callback
+    //! \param callbackContext
+    //!
+    virtual void addOrReparentNodeRectToGroupBox(
+            const int cardId, const int newGroupBoxId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    //!
+    //! This operation is atomic.
+    //! \param groupBoxId: must exist
+    //! \param newParentGroupBox
+    //!           + if = -1: `groupBoxId` will be reparented to the board
+    //!           + if != -1: must be on the same board as `groupBoxId`, and must not be `groupBoxId`
+    //!                       or its descendant
+    //! \param callback
+    //! \param callbackContext
+    //!
+    virtual void reparentGroupBox(
+            const int groupBoxId, const int newParentGroupBox,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    //!
+    //! This operation is atomic and idempotent.
+    //!
+    virtual void removeNodeRectFromGroupBox(
+            const int cardId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 };
 
 #endif // ABSTRACT_BOARDS_DATA_ACCESS_H

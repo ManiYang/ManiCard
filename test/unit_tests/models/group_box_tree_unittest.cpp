@@ -28,10 +28,11 @@ TEST(GroupBoxTreeTests, addChildItemsAndGet) {
     ASSERT_TRUE(tree.getParentOfGroupBox(4) == GroupBoxTree::rootId);
     ASSERT_TRUE(tree.getParentOfGroupBox(10000) == -1);
 
-    ASSERT_TRUE(tree.getParentOfCard(11) == 1);
-    ASSERT_TRUE(tree.getParentOfCard(12) == 2);
-    ASSERT_TRUE(tree.getParentOfCard(13) == 3);
-    ASSERT_TRUE(tree.getParentOfCard(14) == 4);
+    ASSERT_TRUE(tree.getParentGroupBoxOfCard(11) == 1);
+    ASSERT_TRUE(tree.getParentGroupBoxOfCard(12) == 2);
+    ASSERT_TRUE(tree.getParentGroupBoxOfCard(13) == 3);
+    ASSERT_TRUE(tree.getParentGroupBoxOfCard(14) == 4);
+    ASSERT_TRUE(tree.getParentGroupBoxOfCard(99) == -1);
 
     //
     ASSERT_TRUE(tree.getChildGroupBoxes(GroupBoxTree::rootId) == (QSet<int> {1, 4}));
@@ -219,17 +220,17 @@ TEST(GroupBoxTreeTests, Reparent) {
     ASSERT_TRUE(tree.getCardsCount() == 5);
 
     //
-    tree.reparentCard(15, 1);
+    tree.reparentExistingCard(15, 1);
     EXPECT_TRUE(tree.getChildCards(1) == (QSet<int> {11, 15}));
     EXPECT_TRUE(tree.getChildCards(5).isEmpty());
 
     //
-    tree.reparentGroupBox(3, GroupBoxTree::rootId);
+    tree.reparentExistingGroupBox(3, GroupBoxTree::rootId);
     EXPECT_TRUE(tree.getChildGroupBoxes(GroupBoxTree::rootId) == (QSet<int> {1, 3, 4}));
     EXPECT_TRUE(tree.getChildGroupBoxes(1) == (QSet<int> {2}));
 
     //
-    tree.reparentGroupBox(4, 5);
+    tree.reparentExistingGroupBox(4, 5);
     EXPECT_TRUE(tree.getChildGroupBoxes(GroupBoxTree::rootId) == (QSet<int> {1, 3}));
     EXPECT_TRUE(tree.formsSinglePath({3, 4, 5}));
 }

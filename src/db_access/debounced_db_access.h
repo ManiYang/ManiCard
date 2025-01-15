@@ -193,6 +193,12 @@ public:
 
     void removeGroupBoxAndReparentChildItems(const int groupBoxId);
 
+    void addOrReparentNodeRectToGroupBox(const int cardId, const int newGroupBoxId);
+
+    void reparentGroupBox(const int groupBoxId, const int newParentGroupBox);
+
+    void removeNodeRectFromGroupBox(const int cardId);
+
 private:
     AbstractBoardsDataAccess *boardsDataAccess;
     AbstractCardsDataAccess *cardsDataAccess;

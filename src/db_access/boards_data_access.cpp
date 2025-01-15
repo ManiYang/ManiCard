@@ -1,6 +1,7 @@
 #include "boards_data_access.h"
 #include "neo4j_http_api_client.h"
 #include "utilities/async_routine.h"
+#include "utilities/functor.h"
 #include "utilities/json_util.h"
 #include "utilities/maps_util.h"
 #include "utilities/lists_vectors_util.h"
@@ -1265,7 +1266,7 @@ void BoardsDataAccess::removeGroupBoxAndReparentChildItems(
                     if (!ok)
                         context.setErrorFlag();
                     else
-                        qInfo() << QString("GroupBox %1 removed").arg(groupBoxId);
+                        qInfo().noquote() << QString("GroupBox %1 removed").arg(groupBoxId);
                 },
                 routine
         );
@@ -1280,4 +1281,429 @@ void BoardsDataAccess::removeGroupBoxAndReparentChildItems(
 
     //
     routine->start();
+}
+
+void BoardsDataAccess::addOrReparentNodeRectToGroupBox(
+        const int cardId, const int newGroupBoxId,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        Neo4jTransaction *transaction {nullptr};
+        int boardId {-1};
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // open transaction
+        routine->transaction = neo4jHttpApiClient->getTransaction();
+        routine->transaction->open(
+                // callback
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, newGroupBoxId]() {
+        // find the board where `newGroupBoxId` is in
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (b:Board)
+                            (()-[:GROUP_ITEM]->(:GroupBox)) {1,}
+                            (:GroupBox {id: $newGroupBoxId})
+                        RETURN b.id AS boardId
+                    )!",
+                    QJsonObject {{"newGroupBoxId", newGroupBoxId}}
+                },
+                // callback
+                [routine, newGroupBoxId](bool ok, const QueryResponseSingleResult &queryResponse) {
+                    ContinuationContext context(routine);
+
+                    if (!ok || !queryResponse.getResult().has_value()) {
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    const auto result = queryResponse.getResult().value();
+                    if (result.isEmpty()) { // `newGroupBoxId` not found
+                        qWarning().noquote() << QString("group-box %1 not found").arg(newGroupBoxId);
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    const auto boardIdOpt = result.intValueAt(0, "boardId");
+                    if (!boardIdOpt.has_value()) {
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    routine->boardId = boardIdOpt.value();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, cardId]() {
+        // remove NodeRect from its original parent, if found
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (:Board {id: $boardId})
+                                -[:HAS]->(n:NodeRect)
+                                -[:SHOWS]->(:Card {id: $cardId})
+                        MATCH (:GroupBox)-[r:GROUP_ITEM]->(n)
+                        DELETE r
+                    )!",
+                    QJsonObject {
+                        {"boardId", routine->boardId},
+                        {"cardId", cardId}
+                    }
+                },
+                // callback
+                [routine](bool ok, const QueryResponseSingleResult &/*queryResponse*/) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, cardId, newGroupBoxId]() {
+        // add NodeRect to `newGroupBoxId`
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (:Board {id: $boardId})
+                                -[:HAS]->(n:NodeRect)
+                                -[:SHOWS]->(:Card {id: $cardId})
+                        MATCH (gNew:GroupBox {id: $newGroupBoxId})
+                        MERGE (gNew)-[:GROUP_ITEM]->(n)
+                        RETURN gNew.id
+                    )!",
+                    QJsonObject {
+                        {"boardId", routine->boardId},
+                        {"cardId", cardId},
+                        {"newGroupBoxId", newGroupBoxId}
+                    }
+                },
+                // callback
+                [routine, cardId](bool ok, const QueryResponseSingleResult &queryResponse) {
+                    ContinuationContext context(routine);
+
+                    if (!ok || !queryResponse.getResult().has_value()) {
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    const auto result = queryResponse.getResult().value();
+                    if (result.isEmpty()) { // NodeRect for (routine->boardId, cardId) not found
+                        qWarning().noquote()
+                                << QString("NodeRect for board %1 and card %2 is not found")
+                                   .arg(routine->boardId).arg(cardId);
+                        context.setErrorFlag();
+                        return;
+                    }
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, newGroupBoxId]() {
+        // commit transaction
+        routine->transaction->commit(
+                // callback
+                [routine, newGroupBoxId](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok) {
+                        context.setErrorFlag();
+                    }
+                    else {
+                        qInfo().noquote()
+                                << QString("NodeRect added or reparented to GroupBox %1")
+                                   .arg(newGroupBoxId);
+                    }
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, callback]() {
+        // final step
+        ContinuationContext context(routine);
+        routine->transaction->deleteLater();
+        callback(!routine->errorFlag);
+    }, callbackContext);
+
+    //
+    routine->start();
+}
+
+void BoardsDataAccess::reparentGroupBox(
+        const int groupBoxId, const int newParentGroupBox,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    // \param groupBoxId: must exist
+    // \param newParentGroupBox
+    //           + if = -1: `groupBoxId` will be reparented to the board
+    //           + if != -1: must be on the same board as `groupBoxId`, and must not be `groupBoxId`
+    //                       or its descendant
+
+    Q_ASSERT(callback);
+
+    // ==== case: `newParentGroupBox` = -1 ====
+    if (newParentGroupBox == -1) {
+        // reparent `groupBoxId` to the board if its parent is a group-box
+        neo4jHttpApiClient->queryDb(
+                QueryStatement {
+                    R"!(
+                        MATCH (g:GroupBox {id: $groupBoxId})
+                        RETURN 1 AS x
+
+                        UNION
+
+                        MATCH (:GroupBox)-[r:GROUP_ITEM]->(g:GroupBox {id: $groupBoxId})
+                        MATCH (b:Board) (()-[:GROUP_ITEM]->(:GroupBox)) {1,} (g)
+                        MERGE (b)-[:GROUP_ITEM]->(g)
+                        DELETE r
+                        RETURN 2 AS x
+                    )!",
+                    QJsonObject {
+                        {"groupBoxId", groupBoxId},
+                    }
+                },
+                // callback:
+                [callback, groupBoxId](const QueryResponseSingleResult &queryResponse) {
+                    if (!queryResponse.getResult().has_value()) {
+                        callback(false);
+                        return;
+                    }
+
+                    if (queryResponse.hasNetworkOrDbError()) {
+                        callback(false);
+                        return;
+                    }
+
+                    const auto queryResult = queryResponse.getResult().value();
+                    if (queryResult.isEmpty()) {
+                        qWarning().noquote() << QString("group-box %1 not found").arg(groupBoxId);
+                        callback(false);
+                        return;
+                    }
+
+                    qInfo().noquote() << QString("reparented GroupBox %1").arg(groupBoxId);
+                    callback(true);
+                },
+                callbackContext
+        );
+
+        return;
+    }
+
+    // ==== case: `newParentGroupBox` != -1 ====
+    Q_ASSERT(newParentGroupBox != -1);
+
+    if (newParentGroupBox == groupBoxId) {
+        qWarning().noquote() << QString("cannot reparent group-box %1 to itself").arg(groupBoxId);
+        invokeAction(callbackContext, [callback]() {
+            callback(false);
+        });
+        return;
+    }
+
+    //
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        Neo4jTransaction *transaction {nullptr};
+        int boardId {-1};
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // open transaction
+        routine->transaction = neo4jHttpApiClient->getTransaction();
+        routine->transaction->open(
+                // callback
+                [routine](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, groupBoxId, newParentGroupBox]() {
+        // check `groupBoxId` & `newParentGroupBox` belong to the same board
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (b:Board)
+                                (()-[:GROUP_ITEM]->(:GroupBox)) {1,}
+                                (:GroupBox {id: $groupBoxId})
+                        MATCH (b)
+                                (()-[:GROUP_ITEM]->(:GroupBox)) {1,}
+                                (:GroupBox {id: $newParentGroupBox})
+                        RETURN b.id
+                    )!",
+                    QJsonObject {
+                        {"groupBoxId", groupBoxId},
+                        {"newParentGroupBox", newParentGroupBox}
+                    }
+                },
+                // callback
+                [=](bool ok, const QueryResponseSingleResult &queryResponse) {
+                    ContinuationContext context(routine);
+
+                    if (!ok || !queryResponse.getResult().has_value()) {
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    const auto result = queryResponse.getResult().value();
+                    if (result.isEmpty()) {
+                        qWarning().noquote()
+                                << QString("group-boxes %1 & %2 do not belong to the same board")
+                                   .arg(groupBoxId, newParentGroupBox);
+                        context.setErrorFlag();
+                        return;
+                    }
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, groupBoxId, newParentGroupBox]() {
+        // check that `newParentGroupBox` is not a descendant of `groupBoxId`
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (:GroupBox {id: $groupBoxId})
+                                (()-[:GROUP_ITEM]->(:GroupBox)) {1,}
+                                (:GroupBox {id: $newParentGroupBox})
+                        RETURN 1
+                    )!",
+                    QJsonObject {
+                        {"groupBoxId", groupBoxId},
+                        {"newParentGroupBox", newParentGroupBox}
+                    }
+                },
+                // callback
+                [=](bool ok, const QueryResponseSingleResult &queryResponse) {
+                    ContinuationContext context(routine);
+
+                    if (!ok || !queryResponse.getResult().has_value()) {
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    const auto result = queryResponse.getResult().value();
+                    if (!result.isEmpty()) {
+                        qWarning().noquote()
+                                << QString("group-boxes %1 is a descendant of group-box %2")
+                                   .arg(newParentGroupBox, groupBoxId);
+                        context.setErrorFlag();
+                        return;
+                    }
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, groupBoxId, newParentGroupBox]() {
+        // reparent `groupBoxId`
+        routine->transaction->query(
+                QueryStatement {
+                    R"!(
+                        MATCH (:GroupBox|Board)
+                                -[r:GROUP_ITEM]->(:GroupBox {id: $groupBoxId})
+                        DELETE r
+                        RETURN 1 AS x
+
+                        UNION
+
+                        MATCH (g:GroupBox {id: $groupBoxId})
+                        MATCH (gNew:GroupBox {id: $newParentGroupBox})
+                        MERGE (gNew)-[:GROUP_ITEM]->(g)
+                        RETURN 2 AS x
+                    )!",
+                    QJsonObject {
+                        {"groupBoxId", groupBoxId},
+                        {"newParentGroupBox", newParentGroupBox},
+                    }
+                },
+                // callback
+                [routine](bool ok, const QueryResponseSingleResult &queryResponse) {
+                    ContinuationContext context(routine);
+                    if (!ok || !queryResponse.getResult().has_value()) {
+                        context.setErrorFlag();
+                        return;
+                    }
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, groupBoxId]() {
+        // commit transaction
+        routine->transaction->commit(
+                // callback
+                [routine, groupBoxId](bool ok) {
+                    ContinuationContext context(routine);
+                    if (!ok)
+                        context.setErrorFlag();
+                    else
+                        qInfo().noquote() << QString("reparented GroupBox %1").arg(groupBoxId);
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, callback]() {
+        // final step
+        ContinuationContext context(routine);
+        routine->transaction->deleteLater();
+        callback(!routine->errorFlag);
+    }, callbackContext);
+
+    //
+    routine->start();
+}
+
+void BoardsDataAccess::removeNodeRectFromGroupBox(
+        const int cardId, std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (:GroupBox)
+                            -[r:GROUP_ITEM]->(:NodeRect)
+                            -[:SHOWS]->(:Card {id: $cardId})
+                    DELETE r
+                )!",
+                QJsonObject {
+                    {"cardId", cardId}
+                }
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+                qInfo().noquote() << QString("removed NodeRect from GroupBox");
+                callback(true);
+            },
+            callbackContext
+    );
 }

@@ -42,9 +42,15 @@ public:
     //!
     bool set(const QHash<int, ChildGroupBoxesAndCards> &groupBoxIdToChildItems, QString *errorMsg);
 
-    void reparentGroupBox(const int groupBoxId, const int newParentId);
+    //!
+    //! \param groupBoxId
+    //! \param newParentId: can be the ID of an existing group-box or \c rootId, but must not
+    //!                     be `groupBoxId` or its descendant
+    //!
+    void reparentExistingGroupBox(const int groupBoxId, const int newParentId);
 
-    void reparentCard(const int cardId, const int newParentGroupBoxId);
+    void reparentExistingCard(const int cardId, const int newParentGroupBoxId);
+    void addOrReparentCard(const int cardId, const int newParentGroupBoxId);
 
     enum class RemoveOption {ReparentChildren, RemoveDescendants};
 
@@ -59,6 +65,7 @@ public:
     void removeGroupBox(const int groupBoxIdToRemove, const RemoveOption option);
 
     void removeCard(const int cardIdToRemove);
+    void removeCardIfExists(const int cardIdToRemove);
 
     //!
     //! Remove all group-boxes and cards. The root (Board) remains.
@@ -76,9 +83,9 @@ public:
     int getParentOfGroupBox(const int groupBoxId) const;
 
     //!
-    //! \return Returns -1 if \e cardId is not found. Returns \c rootId if the parent is the root.
+    //! \return Returns -1 if \e cardId is not found.
     //!
-    int getParentOfCard(const int cardId) const;
+    int getParentGroupBoxOfCard(const int cardId) const;
 
     //!
     //! \param nodeId: can be the ID of an existing group-box or \c rootId

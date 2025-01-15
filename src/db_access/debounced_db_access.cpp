@@ -764,6 +764,74 @@ void DebouncedDbAccess::removeGroupBoxAndReparentChildItems(const int groupBoxId
     );
 }
 
+void DebouncedDbAccess::addOrReparentNodeRectToGroupBox(const int cardId, const int newGroupBoxId) {
+    closeDebounceSession();
+
+    boardsDataAccess->addOrReparentNodeRectToGroupBox(
+            cardId, newGroupBoxId,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "addOrReparentNodeRectToGroupBox";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"cardId", cardId},
+                        {"newGroupBoxId", newGroupBoxId}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("adding or reparenting of NodeRect to group-box");
+                }
+            },
+            this
+    );
+}
+
+void DebouncedDbAccess::reparentGroupBox(const int groupBoxId, const int newParentGroupBox) {
+    closeDebounceSession();
+
+    boardsDataAccess->reparentGroupBox(
+            groupBoxId, newParentGroupBox,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "reparentGroupBox";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"groupBoxId", groupBoxId},
+                        {"newParentGroupBox", newParentGroupBox}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("reparenting of group-box");
+                }
+            },
+            this
+    );
+}
+
+void DebouncedDbAccess::removeNodeRectFromGroupBox(const int cardId) {
+    closeDebounceSession();
+
+    boardsDataAccess->removeNodeRectFromGroupBox(
+            cardId,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "removeNodeRectFromGroupBox";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"cardId", cardId}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("removal of NodeRect from group-box");
+                }
+            },
+            this
+    );
+}
+
 QString DebouncedDbAccess::debounceDataCategoryName(const DebounceDataCategory category) {
     switch (category) {
     case DebounceDataCategory::CardProperties: return "CardProperties";

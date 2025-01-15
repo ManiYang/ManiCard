@@ -392,7 +392,6 @@ void PersistedDataAccess::getBoardData(
                 // callback
                 [routine](bool ok, std::optional<Board> board) {
                     ContinuationContext context(routine);
-
                     if (ok)
                         routine->board = board;
                     routine->queryDbOk = ok;
@@ -871,6 +870,8 @@ void PersistedDataAccess::removeDataViewBox(const int boardId, const int customD
 
 void PersistedDataAccess::createTopLevelGroupBoxWithId(
         const int boardId, const int groupBoxId, const GroupBoxData &groupBoxData) {
+    Q_ASSERT(groupBoxId != -1);
+
     // 1. update cache synchronously
     for (auto it = cache.boards.constBegin(); it != cache.boards.constEnd(); ++it) {
         if (it.value().groupBoxIdToData.contains(groupBoxId)) {
@@ -888,6 +889,8 @@ void PersistedDataAccess::createTopLevelGroupBoxWithId(
 
 void PersistedDataAccess::updateGroupBoxProperties(
         const int groupBoxId, const GroupBoxDataUpdate &update) {
+    Q_ASSERT(groupBoxId != -1);
+
     // 1. update cache synchronously
     for (auto it = cache.boards.begin(); it != cache.boards.end(); ++it) {
         Board &board = it.value();
@@ -902,11 +905,13 @@ void PersistedDataAccess::updateGroupBoxProperties(
 }
 
 void PersistedDataAccess::removeGroupBoxAndReparentChildItems(const int groupBoxId) {
+    Q_ASSERT(groupBoxId != -1);
+
     // 1. update cache synchronously
     for (auto it = cache.boards.begin(); it != cache.boards.end(); ++it) {
         Board &board = it.value();
         if (board.groupBoxIdToData.contains(groupBoxId)) {
-            const int parentGroupBoxId = board.findParentOfGroupBox(groupBoxId); // can be -1
+            const int parentGroupBoxId = board.findParentGroupBoxOfGroupBox(groupBoxId); // can be -1
             if (parentGroupBoxId != -1) { // parent is a group-box
                 const auto childGroupBoxes = board.groupBoxIdToData[groupBoxId].childGroupBoxes;
                 const auto childCards = board.groupBoxIdToData[groupBoxId].childCards;
@@ -921,6 +926,121 @@ void PersistedDataAccess::removeGroupBoxAndReparentChildItems(const int groupBox
 
     // 2. write DB
     debouncedDbAccess->removeGroupBoxAndReparentChildItems(groupBoxId);
+}
+
+void PersistedDataAccess::removeNodeRectFromGroupBox(const int cardId, const int groupBoxId) {
+    Q_ASSERT(groupBoxId != -1);
+
+    // 1. update cache synchronously
+    for (auto it = cache.boards.begin(); it != cache.boards.end(); ++it) {
+        Board &board = it.value();
+        if (board.groupBoxIdToData.contains(groupBoxId)) {
+            board.groupBoxIdToData[groupBoxId].childCards.remove(cardId);
+            break;
+        }
+    }
+
+    // 2. write DB
+    debouncedDbAccess->removeNodeRectFromGroupBox(cardId);
+}
+
+void PersistedDataAccess::addOrReparentNodeRectToGroupBox(
+        const int cardId, const int newParentGroupBox) {
+    Q_ASSERT(cardId != -1);
+    Q_ASSERT(newParentGroupBox != -1);
+
+    // 1. update cache synchronously
+    // -- find board containing `newParentGroupBox`
+    int boardIdFoundInCache = -1;
+    for (auto it = cache.boards.constBegin(); it != cache.boards.constEnd(); ++it) {
+        if (it.value().groupBoxIdToData.contains(newParentGroupBox)) {
+            boardIdFoundInCache = it.key();
+            break;
+        }
+    }
+
+    if (boardIdFoundInCache != -1) {
+        Board &board = cache.boards[boardIdFoundInCache];
+        if (!board.cardIdToNodeRectData.contains(cardId)) {
+            qWarning().noquote()
+                    << QString("in cache, board %1 does not have NodeRect for card %1")
+                       .arg(boardIdFoundInCache).arg(cardId);
+            return;
+        }
+
+        // remove from original parent group-box, if found
+        const int originalParentGroupBox = board.findParentGroupBoxOfCard(cardId); // can be -1
+        if (originalParentGroupBox != -1)
+            board.groupBoxIdToData[originalParentGroupBox].childCards.remove(cardId);
+
+        // add to `newParentGroupBox`
+        board.groupBoxIdToData[newParentGroupBox].childCards << cardId;
+    }
+
+    // 2. write DB
+    debouncedDbAccess->addOrReparentNodeRectToGroupBox(cardId, newParentGroupBox);
+}
+
+void PersistedDataAccess::reparentGroupBox(const int groupBoxId, const int newParentGroupBoxId) {
+    Q_ASSERT(groupBoxId != -1);
+
+    // 1. update cache synchronously
+    // -- find board containing `groupBoxId`
+    int boardIdFoundInCache = -1;
+    for (auto it = cache.boards.constBegin(); it != cache.boards.constEnd(); ++it) {
+        if (it.value().groupBoxIdToData.contains(groupBoxId)) {
+            boardIdFoundInCache = it.key();
+            break;
+        }
+    }
+
+    if (boardIdFoundInCache != -1) {
+        Board &board = cache.boards[boardIdFoundInCache];
+
+        // checks
+        const int originalParent = board.findParentGroupBoxOfGroupBox(groupBoxId); // can be -1
+
+        if (newParentGroupBoxId != -1) {
+            if (!board.groupBoxIdToData.contains(newParentGroupBoxId)) {
+                qWarning().noquote()
+                        << QString("group-boxes %1 & %2 are not on the same board")
+                           .arg(groupBoxId).arg(newParentGroupBoxId);
+                return;
+            }
+
+            if (originalParent == newParentGroupBoxId)
+                return; // `newParentGroupBoxId` is already the parent of groupBoxId
+
+            if (newParentGroupBoxId == groupBoxId) {
+                qWarning().noquote()
+                        << QString("cannot reparent group-box %1 to itself").arg(groupBoxId);
+                return;
+            }
+
+            if (board.isGroupBoxADescendantOfGroupBox(newParentGroupBoxId, groupBoxId)) {
+                qWarning().noquote()
+                        << QString("cannot reparent group-box %1 to one of its descendants")
+                           .arg(groupBoxId);
+                return;
+            }
+        }
+        else {
+            if (originalParent == -1)
+                return; // `groupBoxId` is already a child of the board
+        }
+
+        //
+        if (originalParent != -1)
+            board.groupBoxIdToData[originalParent].childGroupBoxes.remove(groupBoxId);
+
+        if (newParentGroupBoxId != -1) {
+            Q_ASSERT(board.groupBoxIdToData.contains(newParentGroupBoxId));
+            board.groupBoxIdToData[newParentGroupBoxId].childGroupBoxes << groupBoxId;
+        }
+    }
+
+    // 2. write DB
+    debouncedDbAccess->reparentGroupBox(groupBoxId, newParentGroupBoxId);
 }
 
 bool PersistedDataAccess::saveMainWindowSize(const QSize &size) {

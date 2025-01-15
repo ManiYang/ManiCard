@@ -765,6 +765,65 @@ void QueuedDbAccess::removeGroupBoxAndReparentChildItems(
     addToQueue(func);
 }
 
+void QueuedDbAccess::addOrReparentNodeRectToGroupBox(
+        const int cardId, const int newGroupBoxId,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(cardId), decltype(newGroupBoxId) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->addOrReparentNodeRectToGroupBox(args...); // method
+            },
+            cardId, newGroupBoxId, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
+void QueuedDbAccess::reparentGroupBox(
+        const int groupBoxId, const int newParentGroupBox,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(groupBoxId), decltype(newParentGroupBox) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->reparentGroupBox(args...); // method
+            },
+            groupBoxId, newParentGroupBox, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
+void QueuedDbAccess::removeNodeRectFromGroupBox(
+        const int cardId, std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(cardId) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->removeNodeRectFromGroupBox(args...); // method
+            },
+            cardId, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
 void QueuedDbAccess::addToQueue(std::function<void (const bool)> func) {
     const bool failDirectly = errorFlag;
     queue << Task {func, failDirectly};

@@ -176,6 +176,26 @@ public:
 
     void removeGroupBoxAndReparentChildItems(const int groupBoxId);
 
+    void removeNodeRectFromGroupBox(const int cardId, const int groupBoxId);
+
+    //!
+    //! The board having group-box `newParentGroupBox` must have the NodeRect for `cardId`.
+    //!
+    void addOrReparentNodeRectToGroupBox(const int cardId, const int newParentGroupBox);
+
+    //!
+    //! The group-boxes `groupBoxId` & `newParentGroupBoxId` must be on the same board.
+    //! `newParentGroupBoxId`
+
+    //!
+    //! \param groupBoxId: must exist
+    //! \param newParentGroupBoxId:
+    //!           + if = -1: `groupBoxId` will be reparented to the board
+    //!           + if != -1: must be on the same board as `groupBoxId`, and must not be `groupBoxId`
+    //!                       or its descendant
+    //!
+    void reparentGroupBox(const int groupBoxId, const int newParentGroupBoxId);
+
     bool saveMainWindowSize(const QSize &size);
 
 private:

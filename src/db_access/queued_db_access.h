@@ -197,6 +197,18 @@ public:
             const int groupBoxId,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
+    void addOrReparentNodeRectToGroupBox(
+            const int cardId, const int newGroupBoxId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+    void reparentGroupBox(
+            const int groupBoxId, const int newParentGroupBox,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+    void removeNodeRectFromGroupBox(
+            const int cardId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
 private:
     std::shared_ptr<AbstractBoardsDataAccess> boardsDataAccess;
     std::shared_ptr<AbstractCardsDataAccess> cardsDataAccess;

@@ -268,18 +268,72 @@ private:
 
         void setHighlightedGroupBoxes(const QSet<int> &groupBoxIds);
         void addToHighlightedGroupBoxes(const QSet<int> &groupBoxIds);
+        void unhighlightGroupBoxes(const QSet<int> &groupBoxIds);
 
         GroupBox *get(const int groupBoxId); // returns nullptr if not found
         QSet<int> getAllGroupBoxIds() const;
-        std::optional<int> getDeepestEnclosingGroupBox(const BoardBoxItem *boardBoxItem);
+
+        //!
+        //! Returns the deepest (smallest) of the group-boxes enclosing `boardBoxItem` (not
+        //! considering `groupBoxIdsToExclude`), if they form a single set of nesting group-boxes.
+        //! Otherwise, returns \c nullopt.
+        //!
+        std::optional<int> getDeepestEnclosingGroupBox(
+                const BoardBoxItem *boardBoxItem,
+                const QSet<int> &groupBoxIdsToExclude = QSet<int> {});
 
     private:
         BoardView *const boardView;
         QHash<int, GroupBox *> groupBoxes;
 
-        void highlightGroupBoxAndDescendants(const int groupBoxIdToHighlight, const bool unhlighlightOtherItems);
+        void highlightGroupBoxAndDescendants(
+                const int groupBoxIdToHighlight, const bool unhlighlightOtherItems);
     };
     GroupBoxesCollection groupBoxesCollection {this};
+
+    // item moving/resizing state
+    struct ItemMovingResizingStateData
+    {
+        void activateWithTargetNodeRect(const int cardId) {
+            clear(); targetCardId = cardId;
+        }
+        void activateWithTargetGroupBox(
+                const int groupBoxId,
+                const QSet<int> &descendantGroupBoxes, const QSet<int> &descendantCards) {
+            clear();
+            targetGroupBoxId = groupBoxId;
+            descendantGroupBoxesOfTargetGroupBox = descendantGroupBoxes;
+            descendantCardsOfTargetGroupBox = descendantCards;
+        }
+        void deactivate() { clear(); }
+
+        bool targetIsNodeRect(const int cardId) const { return targetCardId == cardId; }
+        bool targetIsGroupBox(const int groupBoxId) const { return targetGroupBoxId == groupBoxId; }
+
+        // parameters to be used when moving/resizing finishes
+        std::optional<int> newParentGroupBoxId;
+                // + if != -1: reparent the target to this group-box
+                // + if == -1: reparent to board (if target is a group-box) or remove from
+                //             original group-box (if target is a NodeRect)
+                // + Note that it can be the target's original parent.
+
+        // other parameters
+        QSet<int> descendantGroupBoxesOfTargetGroupBox;
+        QSet<int> descendantCardsOfTargetGroupBox;
+
+    private:
+        int targetCardId {-1}; // when the item being moved/resized is a NodeRect
+        int targetGroupBoxId {-1}; // when the item being moved/resized is a group-box
+
+        void clear() {
+            targetCardId = -1;
+            targetGroupBoxId = -1;
+            newParentGroupBoxId = std::nullopt;
+            descendantGroupBoxesOfTargetGroupBox.clear();
+            descendantCardsOfTargetGroupBox.clear();
+        }
+    };
+    ItemMovingResizingStateData itemMovingResizingStateData;
 
     // co-moving state
     struct ComovingStateData
@@ -306,6 +360,8 @@ private:
 
     void moveFollowerItemsInComovingState(
             const QPointF &displacement, const ComovingStateData &comovingStateData);
+            // does not save to AppData
+    void savePositionsOfComovingItems(const ComovingStateData &comovingStateData);
 
     // tools
     QPoint getScreenPosFromScenePos(const QPointF &scenePos) const;

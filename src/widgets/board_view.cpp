@@ -238,9 +238,10 @@ void BoardView::loadBoard(
         // GroupBox's
         const QHash<int, GroupBoxData> &groupBoxIdToData = routine->board.groupBoxIdToData;
         for (auto it = groupBoxIdToData.constBegin(); it != groupBoxIdToData.constEnd(); ++it) {
-            const int &groupBoxId = it.key();
+            const int groupBoxId = it.key();
             const GroupBoxData &groupBoxData = it.value();
 
+            Q_ASSERT(groupBoxId != -1);
             GroupBox *groupBox = groupBoxesCollection.createGroupBox(groupBoxId, groupBoxData);
 
             // -- check that child items' rects are within `groupBox`
@@ -889,6 +890,7 @@ void BoardView::onUserToCreateNewGroup(const QPointF &scenePos) {
         routine->groupBoxData.title = "New Group";
         routine->groupBoxData.rect = QRectF(canvas->mapFromScene(scenePos), defaultNewNodeRectSize);
 
+        Q_ASSERT(routine->newGroupBoxId != -1);
         groupBoxesCollection.createGroupBox(routine->newGroupBoxId, routine->groupBoxData);
 
         adjustSceneRect();
@@ -1440,6 +1442,35 @@ void BoardView::moveFollowerItemsInComovingState(
     }
 }
 
+void BoardView::savePositionsOfComovingItems(const ComovingStateData &comovingStateData) {
+    const auto groupBoxIds = keySet(comovingStateData.followerGroupBoxIdToInitialPos);
+    const auto cardIds = keySet(comovingStateData.followerCardIdToInitialPos);
+
+    for (const int groupBoxId: groupBoxIds) {
+        GroupBox *groupBox = groupBoxesCollection.get(groupBoxId);
+        if (groupBox == nullptr)
+            return;
+
+        GroupBoxDataUpdate update;
+        update.rect = groupBox->getRect();
+
+        Services::instance()->getAppData()->updateGroupBoxProperties(
+                EventSource(this), groupBoxId, update);
+    }
+
+    for (const int cardId: cardIds) {
+        NodeRect *nodeRect = nodeRectsCollection.get(cardId);
+        if (nodeRect == nullptr)
+            return;
+
+        NodeRectDataUpdate update;
+        update.rect = nodeRect->getRect();
+
+        Services::instance()->getAppData()->updateNodeRectProperties(
+                EventSource(this), this->boardId, cardId, update);
+    }
+}
+
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) const {
     QPoint posInViewport = graphicsView->mapFromScene(scenePos);
     return graphicsView->viewport()->mapToGlobal(posInViewport);
@@ -1546,46 +1577,77 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
                 ->setSingleHighlightedCardId(EventSource(boardView), nodeRectPtr->getCardId());
     });
 
-    QObject::connect(nodeRect, &NodeRect::movedOrResized, boardView, [this, nodeRectPtr]() {
+    QObject::connect(nodeRect, &NodeRect::aboutToMove, boardView, [this, cardId, nodeRectPtr]() {
+        if (!nodeRectPtr)
+            return;
+        boardView->itemMovingResizingStateData.activateWithTargetNodeRect(cardId);
+    });
+
+
+    QObject::connect(nodeRect, &NodeRect::movedOrResized, boardView, [this, cardId, nodeRectPtr]() {
         if (!nodeRectPtr)
             return;
 
         // update edge arrows
-        const QSet<RelationshipId> relIds
-                = boardView->getEdgeArrowsConnectingNodeRect(nodeRectPtr->getCardId());
+        const QSet<RelationshipId> relIds = boardView->getEdgeArrowsConnectingNodeRect(cardId);
         for (const auto &relId: relIds) {
             constexpr bool updateOtherEdgeArrows = false;
             boardView->edgeArrowsCollection.updateEdgeArrow(relId, updateOtherEdgeArrows);
         }
 
-        // deepest enclosing GroupBox
+        // add to a group-box?
         const std::optional<int> groupBoxIdOpt
                 = boardView->groupBoxesCollection.getDeepestEnclosingGroupBox(nodeRectPtr.data());
+
+        // -- highlight only the group-box
         boardView->groupBoxesCollection.setHighlightedGroupBoxes(
-                    groupBoxIdOpt.has_value() ? QSet<int> {groupBoxIdOpt.value()} : QSet<int> {});
+                groupBoxIdOpt.has_value() ? QSet<int> {groupBoxIdOpt.value()} : QSet<int> {});
 
-        if (groupBoxIdOpt.has_value()) {
-            // todo: add the NodeRect to the GroupBox....
-
-
-        }
+        // -- set new parent to be applied when moving finishes
+        boardView->itemMovingResizingStateData.newParentGroupBoxId = groupBoxIdOpt.value_or(-1);
     });
 
     QObject::connect(nodeRect, &NodeRect::finishedMovingOrResizing,
-                     boardView, [this, nodeRectPtr]() {
+                     boardView, [this, cardId, nodeRectPtr]() {
         if (!nodeRectPtr)
             return;
 
         //
         boardView->adjustSceneRect();
 
-        // call AppData
+        // call AppData -- NodeRect properties
         NodeRectDataUpdate update;
         update.rect = nodeRectPtr->getRect();
 
         Services::instance()->getAppData()->updateNodeRectProperties(
                 EventSource(boardView),
                 boardView->boardId, nodeRectPtr->getCardId(), update);
+
+        // deactivate `itemMovingResizingStateData`, after necessary actions
+        if (boardView->itemMovingResizingStateData.targetIsNodeRect(cardId)) { // should be true
+            // action: reparent/add the NodeRect to new parent (or remove it from original parent)
+            if (boardView->itemMovingResizingStateData.newParentGroupBoxId.has_value()) {
+                const int originalParentGroupBox
+                        = boardView->groupBoxTree.getParentGroupBoxOfCard(cardId); // can be -1
+                const int newParentGroupBox
+                        = boardView->itemMovingResizingStateData.newParentGroupBoxId.value(); // can be -1
+                if (originalParentGroupBox != newParentGroupBox) {
+                    if (newParentGroupBox == -1) {
+                        boardView->groupBoxTree.removeCard(cardId);
+
+                        Services::instance()->getAppData()->removeNodeRectFromGroupBox(
+                                EventSource(boardView), cardId, originalParentGroupBox);
+                    }
+                    else {
+                        boardView->groupBoxTree.addOrReparentCard(cardId, newParentGroupBox);
+
+                        Services::instance()->getAppData()->addOrReparentNodeRectToGroupBox(
+                                EventSource(boardView), cardId, newParentGroupBox);
+                    }
+                }
+            }
+        }
+        boardView->itemMovingResizingStateData.deactivate();
     });
 
     QObject::connect(nodeRect, &NodeRect::titleTextUpdated,
@@ -1981,6 +2043,7 @@ QRectF BoardView::DataViewBoxesCollection::getBoundingRectOfAllDataViewBoxes() c
 
 GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
         const int groupBoxId, const GroupBoxData &groupBoxData) {
+    Q_ASSERT(groupBoxId != -1);
     Q_ASSERT(!groupBoxes.contains(groupBoxId));
 
     auto *groupBox = new GroupBox(boardView->canvas);
@@ -2010,19 +2073,24 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
         if (!groupBoxPtr)
             return;
 
-        // enter co-moving state, let all descendants follow the move
-        const auto [groupBoxes, cards] = boardView->groupBoxTree.getAllDescendants(groupBoxId);
+        // enter moving/resizing state
+        const auto [descendantGroupBoxes, descendantCards]
+                = boardView->groupBoxTree.getAllDescendants(groupBoxId);
 
+        boardView->itemMovingResizingStateData.activateWithTargetGroupBox(
+                groupBoxId, descendantGroupBoxes, descendantCards);
+
+        // enter co-moving state, let all descendants follow the move
         boardView->comovingStateData.activate();
         boardView->comovingStateData.clearFollowers();
-        for (const int groupBoxId: groupBoxes) {
+        for (const int groupBoxId: descendantGroupBoxes) {
             GroupBox *groupBox = this->groupBoxes.value(groupBoxId);
             if (groupBox != nullptr) {
                 boardView->comovingStateData.followerGroupBoxIdToInitialPos.insert(
                         groupBoxId, groupBox->getRect().topLeft());
             }
         }
-        for (const int cardId: cards) {
+        for (const int cardId: descendantCards) {
             NodeRect *nodeRect = boardView->nodeRectsCollection.get(cardId);
             if (nodeRect != nullptr) {
                 boardView->comovingStateData.followerCardIdToInitialPos.insert(
@@ -2037,16 +2105,39 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
         if (!groupBoxPtr)
             return;
 
-        //
-        if (boardView->comovingStateData.getIsActive()) {
-            const QPointF displacement
-                    = groupBoxPtr->getRect().topLeft() - boardView->comovingStateData.followeeInitialPos;
-            boardView->moveFollowerItemsInComovingState(displacement, boardView->comovingStateData);
+        // add to a group-box?
+        {
+            const auto groupBoxesBeingMoved
+                    = boardView->itemMovingResizingStateData.descendantGroupBoxesOfTargetGroupBox
+                      + QSet<int> {groupBoxId};
+
+            const std::optional<int> addToGroupBoxIdOpt = getDeepestEnclosingGroupBox(
+                    groupBoxPtr.data(),
+                    groupBoxesBeingMoved // groupBoxIdsToExclude
+            );
+
+            // -- highlight `addToGroupBoxIdOpt`, unhighlight other group-boxes except
+            //    `groupBoxesBeingMoved`
+            if (addToGroupBoxIdOpt.has_value())
+                addToHighlightedGroupBoxes({addToGroupBoxIdOpt.value()});
+
+            QSet<int> groupBoxesToUnhighlight = keySet(groupBoxes) - groupBoxesBeingMoved;
+            if (addToGroupBoxIdOpt.has_value())
+                groupBoxesToUnhighlight.remove(addToGroupBoxIdOpt.value());
+            unhighlightGroupBoxes(groupBoxesToUnhighlight);
+
+            // -- set new parent to be applied when moving finishes
+            boardView->itemMovingResizingStateData.newParentGroupBoxId
+                    = addToGroupBoxIdOpt.value_or(-1);
         }
 
         //
-
-
+        if (boardView->comovingStateData.getIsActive()) {
+            const QPointF displacement
+                    = groupBoxPtr->getRect().topLeft()
+                      - boardView->comovingStateData.followeeInitialPos;
+            boardView->moveFollowerItemsInComovingState(displacement, boardView->comovingStateData);
+        }
     });
 
     QObject::connect(
@@ -2058,16 +2149,42 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
         //
         boardView->adjustSceneRect();
 
-        // call AppData
+        // save properties of `groupBoxId`
         GroupBoxDataUpdate update;
         update.rect = groupBoxPtr->getRect();
 
         Services::instance()->getAppData()->updateGroupBoxProperties(
                 EventSource(boardView), groupBoxId, update);
 
-        //
-        if (boardView->comovingStateData.getIsActive())
+        // save position of co-moving items and deactivate `comovingStateData`
+        if (boardView->comovingStateData.getIsActive()) {
+            boardView->savePositionsOfComovingItems(boardView->comovingStateData);
             boardView->comovingStateData.deactivate();
+        }
+
+        // deactivate `itemMovingResizingStateData`, after necessary actions
+        if (boardView->itemMovingResizingStateData.targetIsGroupBox(groupBoxId)) { // should be true
+            // action: reparent the group-box
+            if (boardView->itemMovingResizingStateData.newParentGroupBoxId.has_value()) {
+                int originalParentGroupBox;
+                {
+                    int originalParent = boardView->groupBoxTree.getParentOfGroupBox(groupBoxId);
+                    originalParentGroupBox = (originalParent == GroupBoxTree::rootId)
+                            ? -1 : originalParent;
+                }
+                const int newParentGroupBox
+                        = boardView->itemMovingResizingStateData.newParentGroupBoxId.value(); // can be -1
+                if (originalParentGroupBox != newParentGroupBox) {
+                    const int newParentId = (newParentGroupBox != -1)
+                            ? newParentGroupBox : GroupBoxTree::rootId;
+                    boardView->groupBoxTree.reparentExistingGroupBox(groupBoxId, newParentId);
+
+                    Services::instance()->getAppData()->reparentGroupBox(
+                            EventSource(boardView), groupBoxId, newParentGroupBox);
+                }
+            }
+        }
+        boardView->itemMovingResizingStateData.deactivate();
     });
 
     QObject::connect(
@@ -2114,6 +2231,13 @@ void BoardView::GroupBoxesCollection::addToHighlightedGroupBoxes(const QSet<int>
     }
 }
 
+void BoardView::GroupBoxesCollection::unhighlightGroupBoxes(const QSet<int> &groupBoxIds) {
+    for (auto it = groupBoxes.constBegin(); it != groupBoxes.constEnd(); ++it) {
+        if (groupBoxIds.contains(it.key()))
+            it.value()->setIsHighlighted(false);
+    }
+}
+
 GroupBox *BoardView::GroupBoxesCollection::get(const int groupBoxId) {
     return groupBoxes.value(groupBoxId);
 }
@@ -2123,12 +2247,14 @@ QSet<int> BoardView::GroupBoxesCollection::getAllGroupBoxIds() const {
 }
 
 std::optional<int> BoardView::GroupBoxesCollection::getDeepestEnclosingGroupBox(
-        const BoardBoxItem *boardBoxItem) {
+        const BoardBoxItem *boardBoxItem, const QSet<int> &groupBoxIdsToExclude) {
     const QRectF rect = boardBoxItem->boundingRect();
 
-    // find group-boxes whose contents rects enclose `rect`
+    // find group-boxes whose contents rects enclose `rect`, excluding `groupBoxIdToExclude`
     QSet<int> enclosingGroupBoxes;
     for (auto it = groupBoxes.constBegin(); it != groupBoxes.constEnd(); ++it) {
+        if (groupBoxIdsToExclude.contains(it.key()))
+            continue;
         GroupBox *const &groupBox = it.value();
         if (groupBox->getContentsRect().contains(rect))
             enclosingGroupBoxes << it.key();
@@ -2137,7 +2263,8 @@ std::optional<int> BoardView::GroupBoxesCollection::getDeepestEnclosingGroupBox(
     if (enclosingGroupBoxes.isEmpty())
         return std::nullopt;
 
-    // if `enclosingGroupBoxes` does not form a single path, return nullopt
+    // if `enclosingGroupBoxes` does not form a single path (i.e., does not consist of single
+    // set of nesting group-boxes), return nullopt
     int deepestGroupBox;
     const bool formsSinglePath
             = boardView->groupBoxTree.formsSinglePath(enclosingGroupBoxes, &deepestGroupBox);
