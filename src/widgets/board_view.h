@@ -11,6 +11,7 @@
 #include "models/group_box_tree.h"
 #include "models/node_rect_data.h"
 #include "models/relationship.h"
+#include "models/relationships_bundle.h"
 #include "widgets/common_types.h"
 
 class BoardBoxItem;
@@ -262,7 +263,7 @@ private:
     class GroupBoxesCollection
     {
     public:
-        explicit GroupBoxesCollection(BoardView *boardView_) : boardView(boardView_) {}
+        explicit GroupBoxesCollection(BoardView *boardView) : boardView(boardView) {}
 
         GroupBox *createGroupBox(const int groupBoxId, const GroupBoxData &groupBoxData);
         void removeGroupBox(const int groupBoxId);
@@ -291,6 +292,28 @@ private:
                 const int groupBoxIdToHighlight, const bool unhlighlightOtherItems);
     };
     GroupBoxesCollection groupBoxesCollection {this};
+
+    //
+    class RelationshipBundlesCollection
+    {
+    public:
+        explicit RelationshipBundlesCollection(BoardView *boardView) : boardView(boardView) {}
+
+        //!
+        //! Call this whenever a relationship is created/removed, a NodeRect is created/removed,
+        //! or the GroupBoxTree is modified
+        //!
+        void update();
+
+        QSet<RelationshipsBundle> getBundlesOfGroupBox(const int groupBoxId) const;
+        QSet<RelationshipId> getBundledRelationships() const;
+
+    private:
+        BoardView *const boardView;
+        QHash<int, QSet<RelationshipsBundle>> relBundlesByGroupBoxId;
+        QSet<RelationshipId> bundledRels;
+    };
+    RelationshipBundlesCollection relationshipBundlesCollection {this};
 
     // item moving/resizing state
     struct ItemMovingResizingStateData

@@ -34,8 +34,7 @@ struct RelationshipId
     static RelationshipId fromJson(const QJsonObject &obj);
 };
 
-inline uint qHash(const RelationshipId &id, uint seed)
-{
+inline uint qHash(const RelationshipId &id, uint seed) {
     hashCombine(seed, id.startCardId);
     hashCombine(seed, id.endCardId);
     hashCombine(seed, id.type);

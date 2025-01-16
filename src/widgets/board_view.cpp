@@ -288,6 +288,9 @@ void BoardView::loadBoard(
         }
 
         //
+        relationshipBundlesCollection.update();
+
+        //
         zoomScale = routine->board.zoomRatio;
         canvas->setScale(zoomScale * graphicsGeometryScaleFactor); // (1)
         adjustSceneRect(); // (2)
@@ -594,9 +597,9 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
     }, this);
 
     routine->addStep([this, routine, cardId]() {
-        // create EdgeArrow's
         ContinuationContext context(routine);
 
+        // create EdgeArrow's
         EdgeArrowData edgeArrowData;
         {
             edgeArrowData.lineColor = defaultEdgeArrowLineColor;
@@ -614,6 +617,9 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
 
             edgeArrowsCollection.createEdgeArrow(relId, edgeArrowData);
         }
+
+        // update relationship bundles
+        relationshipBundlesCollection.update();
     }, this);
 
     routine->addStep([this, routine, cardId]() {
@@ -896,7 +902,8 @@ void BoardView::onUserToCreateNewGroup(const QPointF &scenePos) {
         adjustSceneRect();
 
         // -- update `groupBoxTree`
-        groupBoxTree.containerNode(GroupBoxTree::rootId).addChildGroupBoxes({routine->newGroupBoxId});
+        groupBoxTree.containerNode(GroupBoxTree::rootId)
+                .addChildGroupBoxes({routine->newGroupBoxId});
     }, this);
 
     routine->addStep([this, routine]() {
@@ -1199,7 +1206,6 @@ void BoardView::onUserToCreateRelationship(const int cardId) {
     }, this);
 
     routine->addStep([this, routine]() {
-        // create EdgeArrow
         ContinuationContext context(routine);
 
         if (!nodeRectsCollection.contains(routine->relIdToCreate.startCardId)
@@ -1211,12 +1217,16 @@ void BoardView::onUserToCreateRelationship(const int cardId) {
             return;
         }
 
+        // create EdgeArrow
         EdgeArrowData edgeArrowData;
         {
             edgeArrowData.lineColor = defaultEdgeArrowLineColor;
             edgeArrowData.lineWidth = defaultEdgeArrowLineWidth;
         }
         edgeArrowsCollection.createEdgeArrow(routine->relIdToCreate, edgeArrowData);
+
+        // update relationship bundles
+        relationshipBundlesCollection.update();
     }, this);
 
     routine->addStep([this, routine]() {
@@ -1251,6 +1261,12 @@ void BoardView::onUserToCloseNodeRect(const int cardId) {
             updatedHighlightedCardId = -1;
 
         adjustSceneRect();
+
+        //
+        groupBoxTree.removeCardIfExists(cardId);
+
+        // update relationship bundles
+        relationshipBundlesCollection.update();
     }
 
     // call AppData
@@ -1291,6 +1307,9 @@ void BoardView::onUserToRemoveGroupBox(const int groupBoxId) {
 
     //
     groupBoxTree.removeGroupBox(groupBoxId, GroupBoxTree::RemoveOption::ReparentChildren);
+
+    //
+    relationshipBundlesCollection.update();
 
     // call AppData
     Services::instance()->getAppData()
@@ -1337,6 +1356,7 @@ void BoardView::closeAll(bool *highlightedCardIdChanged_) {
 
     //
     groupBoxTree.clear();
+    relationshipBundlesCollection.update();
 }
 
 void BoardView::adjustSceneRect() {
@@ -1656,6 +1676,9 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
                                 EventSource(boardView), cardId, newParentGroupBox);
                     }
                 }
+
+                //
+                boardView->relationshipBundlesCollection.update();
             }
         }
         boardView->itemMovingResizingStateData.deactivate();
@@ -2193,6 +2216,9 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
                     Services::instance()->getAppData()->reparentGroupBox(
                             EventSource(boardView), groupBoxId, newParentGroupBox);
                 }
+
+                //
+                boardView->relationshipBundlesCollection.update();
             }
         }
         boardView->itemMovingResizingStateData.deactivate();
@@ -2338,4 +2364,107 @@ void BoardView::ComovingStateData::activate() {
 void BoardView::ComovingStateData::deactivate() {
     isActive = false;
     clearFollowers();
+}
+
+//======
+
+void BoardView::RelationshipBundlesCollection::update() {
+    relBundlesByGroupBoxId.clear();
+
+    //
+    QVector<int> groupBoxIdsFromDFS;
+    const QHash<int, QSet<int>> groupBoxIdToDescendantCards
+            = boardView->groupBoxTree.getDescendantCardsOfEveryGroupBox(&groupBoxIdsFromDFS);
+
+    // consider every group-box in a topological order (predecessor first)
+    QHash<int, QSet<RelationshipId>> cardIdToBundledRels;
+
+    for (const int groupBoxId: qAsConst(groupBoxIdsFromDFS)) {
+        const QSet<int> cardsWithin = groupBoxIdToDescendantCards.value(groupBoxId);
+
+        // For every card in `cardsWithin`, find the set of possible bundles as if the group
+        // contains only that card, not considering the already-bundled relationships.
+        // Then take the intersection of the obtained bundle sets.
+        QSet<RelationshipsBundle> bundlesOfGroup;
+
+        for (auto it = cardsWithin.constBegin(); it != cardsWithin.constEnd(); ++it) {
+            const int cardId = *it;
+
+            // get all possible bundles as if the group contains only this card, not considering
+            // the already-bundled relationships
+            QSet<RelationshipsBundle> possibleBundles1;
+
+            const auto allRels = boardView->edgeArrowsCollection.getAllRelationshipIds();
+            for (const RelationshipId &rel: allRels) {
+                if (cardIdToBundledRels.value(cardId).contains(rel)) // relationship already bundled
+                    continue;
+
+                int theOtherCard;
+                const bool connectsThisCard = rel.connectsCard(cardId, &theOtherCard);
+                if (!connectsThisCard)
+                    continue;
+
+                if (cardsWithin.contains(theOtherCard)) // `theOtherCard` is not external card
+                    continue;
+
+                RelationshipsBundle bundle;
+                {
+                    bundle.groupBoxId = groupBoxId;
+                    bundle.externalCardId = theOtherCard;
+                    bundle.relationshipType = rel.type;
+                    bundle.direction = (cardId == rel.startCardId)
+                            ? RelationshipsBundle::Direction::OutFromGroup
+                            : RelationshipsBundle::Direction::IntoGroup;
+                }
+                possibleBundles1 << bundle;
+            }
+
+            //
+            if (it == cardsWithin.constBegin()) {
+                if (possibleBundles1.isEmpty())
+                    break;
+                bundlesOfGroup = possibleBundles1;
+            }
+            else {
+                bundlesOfGroup &= possibleBundles1;
+                if (bundlesOfGroup.isEmpty())
+                    break;
+            }
+        }
+
+        // add to `cardIdToBundledRels`
+        for (const int cardId: cardsWithin) {
+            QSet<RelationshipId> bundledRels;
+            for (const RelationshipsBundle &bundle: qAsConst(bundlesOfGroup)) {
+                if (bundle.direction == RelationshipsBundle::Direction::IntoGroup) {
+                    bundledRels
+                            << RelationshipId(bundle.externalCardId, cardId, bundle.relationshipType);
+                }
+                else {
+                    bundledRels
+                            << RelationshipId(cardId, bundle.externalCardId, bundle.relationshipType);
+                }
+            }
+            cardIdToBundledRels[cardId] += bundledRels;
+        }
+
+        //
+        relBundlesByGroupBoxId.insert(groupBoxId, bundlesOfGroup);
+    }
+
+    //
+    bundledRels.clear();
+    for (auto it = cardIdToBundledRels.constBegin(); it != cardIdToBundledRels.constEnd(); ++it)
+        bundledRels += it.value();
+
+    qInfo().noquote() << QString("%1 relationships bundled").arg(bundledRels.count());
+}
+
+QSet<RelationshipsBundle> BoardView::RelationshipBundlesCollection::getBundlesOfGroupBox(
+        const int groupBoxId) const {
+    return relBundlesByGroupBoxId.value(groupBoxId);
+}
+
+QSet<RelationshipId> BoardView::RelationshipBundlesCollection::getBundledRelationships() const {
+    return bundledRels;
 }

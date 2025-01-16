@@ -365,18 +365,20 @@ bool GroupBoxTree::isNodeDescendantOfNode(
     if (containerNodeId2 == rootId)
         return true;
 
-    bool foundNode1 = false;
-    breadthFirstSearch(
-            containerNodeId2,
-            [containerNodeId1, &foundNode1](const int currentContainerNodeId) {
-                if (currentContainerNodeId == containerNodeId1) {
-                    foundNode1 = true;
-                    return false; // stop the search
-                }
-                return true;
-            }
-    );
-    return foundNode1;
+    int currentNode = containerNodeId1;
+    while (true) {
+        int parent = groupBoxIdToParent.value(currentNode, -1);
+        if (parent == -1) {
+            Q_ASSERT(false);
+            return false;
+        }
+
+        if (parent == containerNodeId2)
+            return true;
+        else if (parent == rootId)
+            return false;
+        currentNode = parent;
+    }
 }
 
 std::pair<QSet<int>, QSet<int> > GroupBoxTree::breadthFirstTraversal(
