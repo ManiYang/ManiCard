@@ -896,7 +896,7 @@ void BoardView::onUserToCreateNewGroup(const QPointF &scenePos) {
         adjustSceneRect();
 
         // -- update `groupBoxTree`
-        groupBoxTree.node(GroupBoxTree::rootId).addChildGroupBoxes({routine->newGroupBoxId});
+        groupBoxTree.containerNode(GroupBoxTree::rootId).addChildGroupBoxes({routine->newGroupBoxId});
     }, this);
 
     routine->addStep([this, routine]() {

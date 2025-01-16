@@ -1,23 +1,39 @@
 #ifndef GROUPBOXTREE_H
 #define GROUPBOXTREE_H
 
+#include <functional>
 #include <QHash>
 #include <QSet>
+#include <QStack>
 
 //!
 //! + Group-box ID and card ID must be >= 0.
 //! + The root (the Board) cannot have child cards.
+//! + A "container node" is a group-box or the root (Board).
 //!
 class GroupBoxTree
 {
 public:
-    struct Node {
-        explicit Node(GroupBoxTree *tree, const int nodeId) : tree(tree), nodeId(nodeId) {}
+    struct ConstContainerNode
+    {
+        explicit ConstContainerNode(GroupBoxTree *tree, const int containerNodeId)
+            : treeConst(tree), nodeId(containerNodeId) {}
+        bool isDescendantOfContainerNode(const int containerNodeId);
+
+    protected:
+        const GroupBoxTree *treeConst;
+        int nodeId; // can be a group-box or root
+    };
+
+    struct ContainerNode : public ConstContainerNode
+    {
+        explicit ContainerNode(GroupBoxTree *tree, const int containerNodeId)
+            : ConstContainerNode(tree, containerNodeId), tree(tree) {}
         void addChildGroupBoxes(const QSet<int> childGroupBoxIds);
         void addChildCards(const QSet<int> childCardIds);
+
     private:
         GroupBoxTree *tree;
-        int nodeId; // can be a group-box or root
     };
 
 public:
@@ -26,10 +42,12 @@ public:
     inline static const int rootId {-10}; // represents the root (i.e., the Board)
 
     //!
-    //! The returned \c Node can be used to add child items to the node.
+    //! The returned \c ContainerNode can be used to add child items to the node or do queries
+    //! about the node.
     //! \param nodeId: can be the ID of an existing group-box or \c rootId
     //!
-    Node node(const int nodeId);
+    ContainerNode containerNode(const int nodeId);
+    ConstContainerNode containerNode(const int nodeId) const;
 
     using ChildGroupBoxesAndCards = std::pair<QSet<int>, QSet<int>>;
 
@@ -88,10 +106,10 @@ public:
     int getParentGroupBoxOfCard(const int cardId) const;
 
     //!
-    //! \param nodeId: can be the ID of an existing group-box or \c rootId
+    //! \param constainerNodeId: can be the ID of an existing group-box or \c rootId
     //! \return
     //!
-    bool hasChild(const int nodeId) const;
+    bool hasChild(const int constainerNodeId) const;
 
     //!
     //! \param parentId: can be the ID of an existing group-box or \c rootId
@@ -119,6 +137,12 @@ public:
     //!
     bool formsSinglePath(const QSet<int> &groupBoxIds, int *deepestGroupBox = nullptr) const;
 
+    //!
+    //! \return a QHash that maps group box ID to the set of its descendant cards
+    //!
+    QHash<int, QSet<int>> getDescendantCardsOfEveryGroupBox(
+            QVector<int> *groupBoxIdsFromDepthFirstTraversal = nullptr) const;
+
 private:
     struct ChildItems
     {
@@ -145,10 +169,43 @@ private:
     void addChildCards(const int parentGroupBoxId, const QSet<int> childCardIds);
 
     //!
-    //! \param groupBoxId: must exist
-    //! \return (group-boxes, cards), where group-boxes do not include \e groupBoxId itself
+    //! \param containerNodeId1: group-box ID or \c rootId
+    //! \param containerNodeId2: group-box ID or \c rootId
+    //! \return whether \e containerNodeId1 is a descendant of \e containerNodeId2 (false if they
+    //!         are the same node). Returns false if either node is not found.
     //!
-    std::pair<QSet<int>, QSet<int>> doGetAllDescendants(const int groupBoxId) const;
+    bool isNodeDescendantOfNode(const int containerNodeId1, const int containerNodeId2) const;
+
+    //!
+    //! \param startContainerNodeId: starting group-box ID (must exist) or \c rootId
+    //! \return (group-boxes, cards), where group-boxes do not include \e containerNodeId itself
+    //!
+    std::pair<QSet<int>, QSet<int>> breadthFirstTraversal(const int startContainerNodeId) const;
+
+    //!
+    //! \param startContainerNodeId: starting group-box ID (must exist) or \c rootId
+    //! \param action:
+    //!          + This function will be called when a containter node is visited (including
+    //!            \e startContainerNodeId itself)
+    //!          + If this function returns false, the search stops.
+    //!          + This function must not modify the tree.
+    //!
+    void breadthFirstSearch(
+            const int startContainerNodeId,
+            std::function<bool (const int currentContainerNodeId)> action) const;
+
+    //!
+    //! Do depth-first traversal from the root.
+    //! \param action:
+    //!          + This function will be called when a container node (including the root) is
+    //!            visited.
+    //!          + The parameter \e currentPath contains the current container node and all its
+    //!            predecessors. Its \c top() or \c last() is the current container node, and its
+    //!            \c first() is the root (the Board).
+    //!          + This function must not modify the tree.
+    //!
+    void depthFirstTraversal(
+            std::function<void (const QStack<int> &currentPath)> action) const;
 };
 
 #endif // GROUPBOXTREE_H

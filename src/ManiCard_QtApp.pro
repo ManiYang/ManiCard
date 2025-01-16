@@ -28,6 +28,7 @@ SOURCES += \
     models/group_box_tree.cpp \
     models/node_rect_data.cpp \
     models/relationship.cpp \
+    models/relationships_bundle.cpp \
     models/workspace.cpp \
     models/workspaces_list_properties.cpp \
     neo4j_http_api_client.cpp \
@@ -96,6 +97,7 @@ HEADERS += \
     models/node_labels.h \
     models/node_rect_data.h \
     models/relationship.h \
+    models/relationships_bundle.h \
     models/workspace.h \
     models/workspaces_list_properties.h \
     neo4j_http_api_client.h \

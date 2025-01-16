@@ -8,17 +8,17 @@ TEST(GroupBoxTreeTests, addChildItemsAndGet) {
     ASSERT_TRUE(tree.getGroupBoxesCount() == 0);
     ASSERT_TRUE(tree.getCardsCount() == 0);
 
-    tree.node(GroupBoxTree::rootId).addChildGroupBoxes({1, 4});
+    tree.containerNode(GroupBoxTree::rootId).addChildGroupBoxes({1, 4});
     ASSERT_TRUE(tree.getGroupBoxesCount() == 2);
 
-    tree.node(1).addChildCards({11});
+    tree.containerNode(1).addChildCards({11});
 
-    tree.node(1).addChildGroupBoxes({2, 3});
+    tree.containerNode(1).addChildGroupBoxes({2, 3});
     ASSERT_TRUE(tree.getGroupBoxesCount() == 4);
 
-    tree.node(2).addChildCards({12});
-    tree.node(3).addChildCards({13});
-    tree.node(4).addChildCards({14});
+    tree.containerNode(2).addChildCards({12});
+    tree.containerNode(3).addChildCards({13});
+    tree.containerNode(4).addChildCards({14});
     ASSERT_TRUE(tree.getCardsCount() == 4);
 
     //
@@ -67,24 +67,49 @@ TEST(GroupBoxTreeTests, addChildItemsAndGet) {
     EXPECT_FALSE(tree.formsSinglePath(QSet<int> {1, 2, 3}));
     EXPECT_FALSE(tree.formsSinglePath(QSet<int> {1, 2, 4}));
     EXPECT_FALSE(tree.formsSinglePath(QSet<int> {}));
+
+    //
+    EXPECT_TRUE(tree.containerNode(2).isDescendantOfContainerNode(GroupBoxTree::rootId));
+    EXPECT_TRUE(tree.containerNode(2).isDescendantOfContainerNode(1));
+    EXPECT_FALSE(tree.containerNode(2).isDescendantOfContainerNode(2));
+    EXPECT_FALSE(tree.containerNode(1).isDescendantOfContainerNode(2));
+    EXPECT_FALSE(tree.containerNode(GroupBoxTree::rootId).isDescendantOfContainerNode(2));
+
+    //
+    QVector<int> groupBoxesFromDFS;
+    const QHash<int, QSet<int>> groupBoxIdToDescendantCards
+             = tree.getDescendantCardsOfEveryGroupBox(&groupBoxesFromDFS);
+
+    EXPECT_TRUE(
+            groupBoxesFromDFS == (QVector<int> {1, 2, 3, 4})
+            || groupBoxesFromDFS == (QVector<int> {1, 3, 2, 4})
+            || groupBoxesFromDFS == (QVector<int> {1, 4, 2, 3})
+            || groupBoxesFromDFS == (QVector<int> {4, 1, 2, 3})
+            || groupBoxesFromDFS == (QVector<int> {4, 1, 3, 2})
+    );
+
+    EXPECT_TRUE(groupBoxIdToDescendantCards[1] == (QSet<int> {11, 12, 13}));
+    EXPECT_TRUE(groupBoxIdToDescendantCards[2] == (QSet<int> {12}));
+    EXPECT_TRUE(groupBoxIdToDescendantCards[3] == (QSet<int> {13}));
+    EXPECT_TRUE(groupBoxIdToDescendantCards[4] == (QSet<int> {14}));
 }
 
 TEST(GroupBoxTreeTests, RemoveItems) {
     // create tree
     GroupBoxTree tree;
-    tree.node(GroupBoxTree::rootId).addChildGroupBoxes({1, 4});
+    tree.containerNode(GroupBoxTree::rootId).addChildGroupBoxes({1, 4});
     {
-        tree.node(1).addChildCards({11});
-        tree.node(1).addChildGroupBoxes({2, 3});
+        tree.containerNode(1).addChildCards({11});
+        tree.containerNode(1).addChildGroupBoxes({2, 3});
         {
-            tree.node(2).addChildCards({12});
-            tree.node(3).addChildCards({13});
-            tree.node(3).addChildGroupBoxes({5});
+            tree.containerNode(2).addChildCards({12});
+            tree.containerNode(3).addChildCards({13});
+            tree.containerNode(3).addChildGroupBoxes({5});
             {
-                tree.node(5).addChildCards({15});
+                tree.containerNode(5).addChildCards({15});
             }
         }
-        tree.node(4).addChildCards({14});
+        tree.containerNode(4).addChildCards({14});
     }
 
     //
@@ -201,19 +226,19 @@ TEST(GroupBoxTreeTests, SetFail2) {
 TEST(GroupBoxTreeTests, Reparent) {
     // create tree
     GroupBoxTree tree;
-    tree.node(GroupBoxTree::rootId).addChildGroupBoxes({1, 4});
+    tree.containerNode(GroupBoxTree::rootId).addChildGroupBoxes({1, 4});
     {
-        tree.node(1).addChildCards({11});
-        tree.node(1).addChildGroupBoxes({2, 3});
+        tree.containerNode(1).addChildCards({11});
+        tree.containerNode(1).addChildGroupBoxes({2, 3});
         {
-            tree.node(2).addChildCards({12});
-            tree.node(3).addChildCards({13});
-            tree.node(3).addChildGroupBoxes({5});
+            tree.containerNode(2).addChildCards({12});
+            tree.containerNode(3).addChildCards({13});
+            tree.containerNode(3).addChildGroupBoxes({5});
             {
-                tree.node(5).addChildCards({15});
+                tree.containerNode(5).addChildCards({15});
             }
         }
-        tree.node(4).addChildCards({14});
+        tree.containerNode(4).addChildCards({14});
     }
 
     ASSERT_TRUE(tree.getGroupBoxesCount() == 5);

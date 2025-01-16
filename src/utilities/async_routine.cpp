@@ -118,8 +118,10 @@ void AsyncRoutine::finish() {
                 else
                     qDebug().noquote() << "routine" << this << "finished";
             }
-            qDebug().noquote()
-                    << QString("there are %1 unfinished routines").arg(startedInstances);
+            if (logVerboseDebugMsg) {
+                qDebug().noquote()
+                        << QString("there are %1 unfinished routines").arg(startedInstances);
+            }
         }
     }
 }

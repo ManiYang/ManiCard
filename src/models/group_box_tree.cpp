@@ -6,9 +6,9 @@ GroupBoxTree::GroupBoxTree() {
     nodeIdToChildItems.insert(rootId, {});
 }
 
-GroupBoxTree::Node GroupBoxTree::node(const int nodeId) {
+GroupBoxTree::ContainerNode GroupBoxTree::containerNode(const int nodeId) {
     Q_ASSERT(nodeIdToChildItems.contains(nodeId));
-    return Node(this, nodeId);
+    return ContainerNode(this, nodeId);
 }
 
 bool GroupBoxTree::set(
@@ -89,7 +89,7 @@ void GroupBoxTree::reparentExistingGroupBox(const int groupBoxId, const int newP
         return;
     }
 
-    if (doGetAllDescendants(groupBoxId).first.contains(newParentId)) {
+    if (isNodeDescendantOfNode(newParentId, groupBoxId)) {
         Q_ASSERT(false); // `newParentId` is a descendant of `groupBoxId`
         return;
     }
@@ -165,7 +165,7 @@ void GroupBoxTree::removeGroupBox(const int groupBoxIdToRemove, const RemoveOpti
             cardIdToParent.remove(cardId);
 
         for (const int groupBoxId: childItems.childGroupBoxes) {
-            const auto [descendantGroupBoxes, descendantCards] = doGetAllDescendants(groupBoxId);
+            const auto [descendantGroupBoxes, descendantCards] = breadthFirstTraversal(groupBoxId);
             for (const int id: descendantGroupBoxes) {
                 nodeIdToChildItems.remove(id);
                 groupBoxIdToParent.remove(id);
@@ -220,8 +220,8 @@ int GroupBoxTree::getParentGroupBoxOfCard(const int cardId) const {
     return cardIdToParent.value(cardId, -1);
 }
 
-bool GroupBoxTree::hasChild(const int nodeId) const {
-    return !nodeIdToChildItems.value(nodeId).isEmpty();
+bool GroupBoxTree::hasChild(const int constainerNodeId) const {
+    return !nodeIdToChildItems.value(constainerNodeId).isEmpty();
 }
 
 QSet<int> GroupBoxTree::getChildGroupBoxes(const int parentId) const{
@@ -235,7 +235,7 @@ QSet<int> GroupBoxTree::getChildCards(const int parentId) const {
 std::pair<QSet<int>, QSet<int> > GroupBoxTree::getAllDescendants(const int groupBoxId) const {
     if (!nodeIdToChildItems.contains(groupBoxId))
         return {QSet<int>{}, QSet<int>{}};
-    return doGetAllDescendants(groupBoxId);
+    return breadthFirstTraversal(groupBoxId);
 }
 
 bool GroupBoxTree::formsSinglePath(const QSet<int> &groupBoxIds, int *deepestGroupBox) const {
@@ -277,6 +277,33 @@ bool GroupBoxTree::formsSinglePath(const QSet<int> &groupBoxIds, int *deepestGro
     else {
         return false;
     }
+}
+
+QHash<int, QSet<int>> GroupBoxTree::getDescendantCardsOfEveryGroupBox(
+        QVector<int> *groupBoxIdsFromDepthFirstTraversal) const {
+    QHash<int, QSet<int>> groupBoxIdToCards;
+    QVector<int> visitedGroupBoxes;
+    depthFirstTraversal(
+            [this, &groupBoxIdToCards, &visitedGroupBoxes](const QStack<int> &currentPath) {
+                const int top = currentPath.top();
+                if (top == rootId)
+                    return;
+
+                visitedGroupBoxes << top;
+
+                const QSet<int> cards = nodeIdToChildItems[top].childCards;
+                for (const int nodeId: currentPath) {
+                    if (nodeId == rootId)
+                        continue;
+                    groupBoxIdToCards[nodeId] += cards;
+                }
+            }
+    );
+
+    if (groupBoxIdsFromDepthFirstTraversal != nullptr)
+        *groupBoxIdsFromDepthFirstTraversal = visitedGroupBoxes;
+
+    return groupBoxIdToCards;
 }
 
 void GroupBoxTree::addChildGroupBoxes(const int parentId, const QSet<int> childGroupBoxIds) {
@@ -322,38 +349,132 @@ void GroupBoxTree::addChildCards(const int parentGroupBoxId, const QSet<int> chi
         cardIdToParent.insert(id, parentGroupBoxId);
 }
 
-std::pair<QSet<int>, QSet<int> > GroupBoxTree::doGetAllDescendants(const int groupBoxId) const {
-    // breadth-first search
-    QSet<int> groupBoxesResult;
+bool GroupBoxTree::isNodeDescendantOfNode(
+        const int containerNodeId1, const int containerNodeId2) const {
+    if (!nodeIdToChildItems.contains(containerNodeId1)
+            || !nodeIdToChildItems.contains(containerNodeId2)) {
+        return false;
+    }
 
-    QSet<int> groupBoxesToVisit {groupBoxId};
+    if (containerNodeId1 == containerNodeId2)
+        return false;
+
+    if (containerNodeId1 == rootId)
+        return false;
+
+    if (containerNodeId2 == rootId)
+        return true;
+
+    bool foundNode1 = false;
+    breadthFirstSearch(
+            containerNodeId2,
+            [containerNodeId1, &foundNode1](const int currentContainerNodeId) {
+                if (currentContainerNodeId == containerNodeId1) {
+                    foundNode1 = true;
+                    return false; // stop the search
+                }
+                return true;
+            }
+    );
+    return foundNode1;
+}
+
+std::pair<QSet<int>, QSet<int> > GroupBoxTree::breadthFirstTraversal(
+        const int startContainerNodeId) const {
+    Q_ASSERT(nodeIdToChildItems.contains(startContainerNodeId));
+
+    QSet<int> groupBoxes;
+    QSet<int> cards;
+    breadthFirstSearch(
+            startContainerNodeId,
+            [this, &groupBoxes, &cards](const int currentContainerNodeId) {
+                groupBoxes += nodeIdToChildItems[currentContainerNodeId].childGroupBoxes;
+                cards += nodeIdToChildItems[currentContainerNodeId].childCards;
+                return true;
+            }
+    );
+    return {groupBoxes, cards};
+}
+
+void GroupBoxTree::breadthFirstSearch(
+        const int startContainerNodeId, std::function<bool (const int)> action) const {
+    Q_ASSERT(nodeIdToChildItems.contains(startContainerNodeId));
+    Q_ASSERT(action);
+
+    bool toContinue = action(startContainerNodeId);
+    if (!toContinue)
+        return;
+
+    QVector<int> nodesToVisit {startContainerNodeId};
+    QVector<int> foundInCurrentLevel;
     while (true) {
-        QSet<int> foundInCurrentLevel;
-        for (const int id: qAsConst(groupBoxesToVisit))
-            foundInCurrentLevel += nodeIdToChildItems[id].childGroupBoxes;
+        foundInCurrentLevel.clear();
+        for (const int id: qAsConst(nodesToVisit)) {
+            const QSet<int> &childGroupBoxes = nodeIdToChildItems[id].childGroupBoxes;
+            for (const int childId: childGroupBoxes) {
+                foundInCurrentLevel << childId;
+                toContinue = action(childId);
+                if (!toContinue)
+                    return;
+            }
+        }
 
         if (foundInCurrentLevel.isEmpty())
             break;
 
-        groupBoxesResult += foundInCurrentLevel;
-        groupBoxesToVisit = foundInCurrentLevel;
+        nodesToVisit = foundInCurrentLevel;
     }
+}
 
-    // cards
-    QSet<int> cardsResult = nodeIdToChildItems[groupBoxId].childCards;
-    for (const int id: qAsConst(groupBoxesResult))
-        cardsResult += nodeIdToChildItems[id].childCards;
+void GroupBoxTree::depthFirstTraversal(std::function<void (const QStack<int> &)> action) const {
+    Q_ASSERT(action);
 
-    //
-    return {groupBoxesResult, cardsResult};
+    QSet<int> visitedNodes;
+    QStack<int> parentNodesStack;
+
+    visitedNodes << rootId;
+    parentNodesStack.push(rootId);
+    action(parentNodesStack);
+
+
+    while (!parentNodesStack.isEmpty()) {
+        const int currentParent = parentNodesStack.top();
+
+        // find a child group-box of `currentParent` that is not visited
+        int unvisitedChild = -1;
+        const QSet<int> childGroupBoxes = nodeIdToChildItems[currentParent].childGroupBoxes;
+        for (const int id: childGroupBoxes) {
+            if (!visitedNodes.contains(id)) {
+                unvisitedChild = id;
+                break;
+            }
+        }
+
+        //
+        if (unvisitedChild == -1) {
+             // backtrack
+            parentNodesStack.pop();
+        }
+        else {
+            parentNodesStack.push(unvisitedChild);
+            visitedNodes << unvisitedChild;
+            action(parentNodesStack);
+        }
+    }
 }
 
 //======
 
-void GroupBoxTree::Node::addChildGroupBoxes(const QSet<int> childGroupBoxIds) {
+bool GroupBoxTree::ConstContainerNode::isDescendantOfContainerNode(const int containerNodeId) {
+    return treeConst->isNodeDescendantOfNode(nodeId, containerNodeId);
+}
+
+//======
+
+void GroupBoxTree::ContainerNode::addChildGroupBoxes(const QSet<int> childGroupBoxIds) {
     tree->addChildGroupBoxes(nodeId, childGroupBoxIds);
 }
 
-void GroupBoxTree::Node::addChildCards(const QSet<int> childCardIds) {
+void GroupBoxTree::ContainerNode::addChildCards(const QSet<int> childCardIds) {
     tree->addChildCards(nodeId, childCardIds);
 }
