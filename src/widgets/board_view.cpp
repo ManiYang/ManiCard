@@ -215,7 +215,7 @@ void BoardView::loadBoard(
 
         const auto relIds = keySet(routine->relationshipsData);
         for (const auto &relId: relIds)
-            edgeArrowsCollection.createEdgeArrow(relId, edgeArrowData);
+            relationshipsCollection.createEdgeArrow(relId, edgeArrowData);
 
         // DataViewBox's
         for (auto it = routine->customDataQueriesData.constBegin();
@@ -288,7 +288,7 @@ void BoardView::loadBoard(
         }
 
         //
-        relationshipBundlesCollection.update();
+        updateRelationshipBundles();
 
         //
         zoomScale = routine->board.zoomRatio;
@@ -615,11 +615,11 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
             if (!nodeRectsCollection.contains(otherCardId)) // `otherCardId` not opened in this board
                 continue;
 
-            edgeArrowsCollection.createEdgeArrow(relId, edgeArrowData);
+            relationshipsCollection.createEdgeArrow(relId, edgeArrowData);
         }
 
-        // update relationship bundles
-        relationshipBundlesCollection.update();
+        //
+        updateRelationshipBundles();
     }, this);
 
     routine->addStep([this, routine, cardId]() {
@@ -1223,10 +1223,10 @@ void BoardView::onUserToCreateRelationship(const int cardId) {
             edgeArrowData.lineColor = defaultEdgeArrowLineColor;
             edgeArrowData.lineWidth = defaultEdgeArrowLineWidth;
         }
-        edgeArrowsCollection.createEdgeArrow(routine->relIdToCreate, edgeArrowData);
+        relationshipsCollection.createEdgeArrow(routine->relIdToCreate, edgeArrowData);
 
-        // update relationship bundles
-        relationshipBundlesCollection.update();
+        //
+        updateRelationshipBundles();
     }, this);
 
     routine->addStep([this, routine]() {
@@ -1265,8 +1265,8 @@ void BoardView::onUserToCloseNodeRect(const int cardId) {
         //
         groupBoxTree.removeCardIfExists(cardId);
 
-        // update relationship bundles
-        relationshipBundlesCollection.update();
+        //
+        updateRelationshipBundles();
     }
 
     // call AppData
@@ -1309,7 +1309,7 @@ void BoardView::onUserToRemoveGroupBox(const int groupBoxId) {
     groupBoxTree.removeGroupBox(groupBoxId, GroupBoxTree::RemoveOption::ReparentChildren);
 
     //
-    relationshipBundlesCollection.update();
+    updateRelationshipBundles();
 
     // call AppData
     Services::instance()->getAppData()
@@ -1324,6 +1324,47 @@ void BoardView::onBackgroundClicked() {
     constexpr int highlightedCardId = -1;
     Services::instance()->getAppData()
             ->setSingleHighlightedCardId(EventSource(this), highlightedCardId);
+}
+
+void BoardView::reparentNodeRectInGroupBoxTree(const int cardId, const int newParentGroupBox) {
+    const int originalParentGroupBox = groupBoxTree.getParentGroupBoxOfCard(cardId); // can be -1
+    if (originalParentGroupBox != newParentGroupBox) {
+        if (newParentGroupBox == -1) {
+            groupBoxTree.removeCard(cardId);
+
+            Services::instance()->getAppData()->removeNodeRectFromGroupBox(
+                    EventSource(this), cardId, originalParentGroupBox);
+        }
+        else {
+            groupBoxTree.addOrReparentCard(cardId, newParentGroupBox);
+
+            Services::instance()->getAppData()->addOrReparentNodeRectToGroupBox(
+                    EventSource(this), cardId, newParentGroupBox);
+        }
+    }
+
+    //
+    updateRelationshipBundles();
+}
+
+void BoardView::reparentGroupBoxInGroupBoxTree(const int groupBoxId, const int newParentGroupBox) {
+    int originalParentGroupBox;
+    {
+        int originalParent = groupBoxTree.getParentOfGroupBox(groupBoxId);
+        originalParentGroupBox
+                = (originalParent == GroupBoxTree::rootId) ? -1 : originalParent;
+    }
+    if (originalParentGroupBox != newParentGroupBox) {
+        const int newParentId
+                = (newParentGroupBox != -1) ? newParentGroupBox : GroupBoxTree::rootId;
+        groupBoxTree.reparentExistingGroupBox(groupBoxId, newParentId);
+
+        Services::instance()->getAppData()->reparentGroupBox(
+                EventSource(this), groupBoxId, newParentGroupBox);
+    }
+
+    //
+    updateRelationshipBundles();
 }
 
 void BoardView::closeAll(bool *highlightedCardIdChanged_) {
@@ -1341,8 +1382,8 @@ void BoardView::closeAll(bool *highlightedCardIdChanged_) {
     }
 
     //
-    const auto relIds = edgeArrowsCollection.getAllRelationshipIds();
-    edgeArrowsCollection.removeEdgeArrows(relIds);
+    const auto relIds = relationshipsCollection.getAllRelationshipIds();
+    relationshipsCollection.removeEdgeArrows(relIds);
 
     //
     const QSet<int> customDataQueryIds = dataViewBoxesCollection.getAllCustomDataQueryIds();
@@ -1356,7 +1397,7 @@ void BoardView::closeAll(bool *highlightedCardIdChanged_) {
 
     //
     groupBoxTree.clear();
-    relationshipBundlesCollection.update();
+    updateRelationshipBundles();
 }
 
 void BoardView::adjustSceneRect() {
@@ -1428,6 +1469,18 @@ void BoardView::updateCanvasScale(const double scale, const QPointF &anchorScene
     adjustSceneRect();
 }
 
+void BoardView::updateRelationshipBundles() {
+    // show all EdgeArrow's of relationships
+    relationshipsCollection.setAllEdgeArrowsVisible();
+
+    // update bundles
+    relationshipBundlesCollection.update();
+
+    // hide EdgeArrow's of bundled relationships
+    const auto rels = relationshipBundlesCollection.getBundledRelationships();
+    relationshipsCollection.hideEdgeArrows(rels);
+}
+
 void BoardView::moveFollowerItemsInComovingState(
         const QPointF &displacement, const ComovingStateData &comovingStateData) {
     if (!comovingStateData.getIsActive())
@@ -1438,12 +1491,16 @@ void BoardView::moveFollowerItemsInComovingState(
             = comovingStateData.followerGroupBoxIdToInitialPos;
     for (auto it = followerGroupBoxIdToInitialPos.constBegin();
             it != followerGroupBoxIdToInitialPos.constEnd(); ++it) {
-        GroupBox *groupBox = groupBoxesCollection.get(it.key());
+        const int groupBoxId = it.key();
+        GroupBox *groupBox = groupBoxesCollection.get(groupBoxId);
         if (groupBox != nullptr) {
             QRectF rect = groupBox->getRect();
             rect.moveTopLeft(it.value() + displacement);
             groupBox->setRect(rect);
         }
+
+        // relationship bundles
+        relationshipBundlesCollection.updateBundlesConnectingGroupBox(groupBoxId);
     }
 
     // follower NodeRect's
@@ -1451,12 +1508,16 @@ void BoardView::moveFollowerItemsInComovingState(
             = comovingStateData.followerCardIdToInitialPos;
     for (auto it = followerCardIdToInitialPos.constBegin();
             it != followerCardIdToInitialPos.constEnd(); ++it) {
-        NodeRect *nodeRect = nodeRectsCollection.get(it.key());
+        const int cardId = it.key();
+        NodeRect *nodeRect = nodeRectsCollection.get(cardId);
         if (nodeRect != nullptr) {
             QRectF rect = nodeRect->getRect();
             rect.moveTopLeft(it.value() + displacement);
             nodeRect->setRect(rect);
         }
+
+        // relationship bundles
+        relationshipBundlesCollection.updateBundlesConnectingNodeRect(cardId);
     }
 
     // EdgeArrow's
@@ -1469,7 +1530,7 @@ void BoardView::moveFollowerItemsInComovingState(
 
     for (const auto &relId: qAsConst(affectedRelIds)) {
         constexpr bool updateOtherEdgeArrows = false;
-        edgeArrowsCollection.updateEdgeArrow(relId, updateOtherEdgeArrows);
+        relationshipsCollection.updateEdgeArrow(relId, updateOtherEdgeArrows);
     }
 }
 
@@ -1562,13 +1623,62 @@ QColor BoardView::computeDataViewBoxDisplayColor(
 QSet<RelationshipId> BoardView::getEdgeArrowsConnectingNodeRect(const int cardId) {
     QSet<RelationshipId> result;
 
-    const auto relIds = edgeArrowsCollection.getAllRelationshipIds();
+    const auto relIds = relationshipsCollection.getAllRelationshipIds();
     for (const RelationshipId &relId: relIds) {
         if (relId.connectsCard(cardId))
             result << relId;
     }
 
     return result;
+}
+
+QLineF BoardView::computeArrowLineConnectingRects(
+        const QRectF &fromRect, const QRectF &toRect,
+        const int parallelIndex, const int parallelCount) {
+    // Compute the vector for translating the center-to-center line. The result must be invariant
+    // if `fromRect` and `toRect` are swapped.
+    QPointF vecTranslation;
+    {
+        constexpr double spacing = 22;
+        const double shiftDistance = (parallelIndex - (parallelCount - 1.0) / 2.0) * spacing;
+
+        //
+        QPointF p1 = fromRect.center();
+        QPointF p2 = toRect.center();
+
+        const int x1 = nearestInteger(p1.x() * 100);
+        const int x2 = nearestInteger(p2.x() * 100);
+        if (x1 > x2) {
+            std::swap(p1, p2);
+        }
+        else if (x1 == x2) {
+            const int y1 = nearestInteger(p1.y() * 100);
+            const int y2 = nearestInteger(p2.y() * 100);
+            if (y1 > y2)
+                std::swap(p1, p2);
+        }
+
+        const QLineF lineNormal = QLineF(p1, p2).normalVector().unitVector();
+        const QPointF vecNormal(lineNormal.dx(), lineNormal.dy());
+        vecTranslation = vecNormal * shiftDistance;
+    }
+
+    //
+    const QLineF lineC2CTranslated
+            = QLineF(fromRect.center(), toRect.center())
+              .translated(vecTranslation);
+
+    //
+    bool intersect;
+    QPointF intersectionPoint;
+
+    intersect = rectEdgeIntersectsWithLine(fromRect, lineC2CTranslated, &intersectionPoint);
+    const QPointF startPoint = intersect ?  intersectionPoint : fromRect.center();
+
+    intersect = rectEdgeIntersectsWithLine(toRect, lineC2CTranslated, &intersectionPoint);
+    const QPointF endPoint = intersect ? intersectionPoint : toRect.center();
+
+    return {startPoint, endPoint};
 }
 
 //====
@@ -1619,11 +1729,13 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         if (!nodeRectPtr)
             return;
 
+        boardView->relationshipBundlesCollection.updateBundlesConnectingNodeRect(cardId);
+
         // update edge arrows
         const QSet<RelationshipId> relIds = boardView->getEdgeArrowsConnectingNodeRect(cardId);
         for (const auto &relId: relIds) {
             constexpr bool updateOtherEdgeArrows = false;
-            boardView->edgeArrowsCollection.updateEdgeArrow(relId, updateOtherEdgeArrows);
+            boardView->relationshipsCollection.updateEdgeArrow(relId, updateOtherEdgeArrows);
         }
 
         // add to a group-box?
@@ -1658,27 +1770,9 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         if (boardView->itemMovingResizingStateData.targetIsNodeRect(cardId)) { // should be true
             // action: reparent/add the NodeRect to new parent (or remove it from original parent)
             if (boardView->itemMovingResizingStateData.newParentGroupBoxId.has_value()) {
-                const int originalParentGroupBox
-                        = boardView->groupBoxTree.getParentGroupBoxOfCard(cardId); // can be -1
                 const int newParentGroupBox
                         = boardView->itemMovingResizingStateData.newParentGroupBoxId.value(); // can be -1
-                if (originalParentGroupBox != newParentGroupBox) {
-                    if (newParentGroupBox == -1) {
-                        boardView->groupBoxTree.removeCard(cardId);
-
-                        Services::instance()->getAppData()->removeNodeRectFromGroupBox(
-                                EventSource(boardView), cardId, originalParentGroupBox);
-                    }
-                    else {
-                        boardView->groupBoxTree.addOrReparentCard(cardId, newParentGroupBox);
-
-                        Services::instance()->getAppData()->addOrReparentNodeRectToGroupBox(
-                                EventSource(boardView), cardId, newParentGroupBox);
-                    }
-                }
-
-                //
-                boardView->relationshipBundlesCollection.update();
+                boardView->reparentNodeRectInGroupBoxTree(cardId, newParentGroupBox);
             }
         }
         boardView->itemMovingResizingStateData.deactivate();
@@ -1741,7 +1835,7 @@ void BoardView::NodeRectsCollection::closeNodeRect(
 
     if (removeConnectedEdgeArrows) {
         const auto relIds = boardView->getEdgeArrowsConnectingNodeRect(cardId);
-        boardView->edgeArrowsCollection.removeEdgeArrows(relIds);
+        boardView->relationshipsCollection.removeEdgeArrows(relIds);
     }
 
     //
@@ -1822,13 +1916,13 @@ QRectF BoardView::NodeRectsCollection::getBoundingRectOfAllNodeRects() const {
 
 //====
 
-EdgeArrow *BoardView::EdgeArrowsCollection::createEdgeArrow(
+EdgeArrow *BoardView::RelationshipsCollection::createEdgeArrow(
         const RelationshipId relId, const EdgeArrowData &edgeArrowData) {
     Q_ASSERT(!relIdToEdgeArrow.contains(relId));
     Q_ASSERT(boardView->nodeRectsCollection.contains(relId.startCardId));
     Q_ASSERT(boardView->nodeRectsCollection.contains(relId.endCardId));
 
-    auto *edgeArrow = new EdgeArrow(relId, boardView->canvas);
+    auto *edgeArrow = new EdgeArrow(boardView->canvas);
     relIdToEdgeArrow.insert(relId, edgeArrow);
     cardIdPairToParallelRels[QSet<int> {relId.startCardId, relId.endCardId}] << relId;
 
@@ -1844,7 +1938,7 @@ EdgeArrow *BoardView::EdgeArrowsCollection::createEdgeArrow(
     return edgeArrow;
 }
 
-void BoardView::EdgeArrowsCollection::updateEdgeArrow(
+void BoardView::RelationshipsCollection::updateEdgeArrow(
         const RelationshipId &relId, const bool updateOtherEdgeArrows) {
     Q_ASSERT(relIdToEdgeArrow.contains(relId));
 
@@ -1861,7 +1955,7 @@ void BoardView::EdgeArrowsCollection::updateEdgeArrow(
     }
 }
 
-void BoardView::EdgeArrowsCollection::removeEdgeArrows(const QSet<RelationshipId> &relIds) {
+void BoardView::RelationshipsCollection::removeEdgeArrows(const QSet<RelationshipId> &relIds) {
     for (const auto &relId: relIds) {
         if (!relIdToEdgeArrow.contains(relId))
             continue;
@@ -1877,7 +1971,20 @@ void BoardView::EdgeArrowsCollection::removeEdgeArrows(const QSet<RelationshipId
     }
 }
 
-QSet<RelationshipId> BoardView::EdgeArrowsCollection::getAllRelationshipIds() const {
+void BoardView::RelationshipsCollection::setAllEdgeArrowsVisible() {
+    for (auto it = relIdToEdgeArrow.constBegin(); it != relIdToEdgeArrow.constEnd(); ++it)
+        it.value()->setVisible(true);
+}
+
+void BoardView::RelationshipsCollection::hideEdgeArrows(const QSet<RelationshipId> &relIds) {
+    for (const auto &rel: relIds) {
+        EdgeArrow *edgeArrow = relIdToEdgeArrow.value(rel);
+        if (edgeArrow != nullptr)
+            edgeArrow->setVisible(false);
+    }
+}
+
+QSet<RelationshipId> BoardView::RelationshipsCollection::getAllRelationshipIds() const {
     return keySet(relIdToEdgeArrow);
 }
 
@@ -1886,7 +1993,7 @@ QSet<RelationshipId> BoardView::EdgeArrowsCollection::getAllRelationshipIds() co
 //! \param parallelIndex: index of \e relId in the sorted list of all parallel relationships
 //! \param parallelCount: number of all parallel relationships
 //!
-void BoardView::EdgeArrowsCollection::updateSingleEdgeArrow(
+void BoardView::RelationshipsCollection::updateSingleEdgeArrow(
         const RelationshipId &relId, const int parallelIndex, const int parallelCount) {
     Q_ASSERT(parallelCount >= 1);
     Q_ASSERT(parallelIndex < parallelCount);
@@ -1898,7 +2005,7 @@ void BoardView::EdgeArrowsCollection::updateSingleEdgeArrow(
     edgeArrow->setLabel(relId.type);
 }
 
-QVector<RelationshipId> BoardView::EdgeArrowsCollection::sortRelationshipIds(
+QVector<RelationshipId> BoardView::RelationshipsCollection::sortRelationshipIds(
         const QSet<RelationshipId> relIds) {
     QVector<RelationshipId> result(relIds.constBegin(), relIds.constEnd());
     std::sort(
@@ -1911,49 +2018,16 @@ QVector<RelationshipId> BoardView::EdgeArrowsCollection::sortRelationshipIds(
     return result;
 }
 
-QLineF BoardView::EdgeArrowsCollection::computeEdgeArrowLine(
+QLineF BoardView::RelationshipsCollection::computeEdgeArrowLine(
         const RelationshipId &relId, const int parallelIndex, const int parallelCount) {
-    // Compute the vector for translating the center-to-center line. The result must be the
-    // same for all relationships connecting the same pair of cards.
-    QPointF vecTranslation;
-    {
-        constexpr double spacing = 22;
-        const double shiftDistance = (parallelIndex - (parallelCount - 1.0) / 2.0) * spacing;
+    NodeRect *startNodeRect = boardView->nodeRectsCollection.get(relId.startCardId);
+    Q_ASSERT(startNodeRect != nullptr);
 
-        //
-        const int card1 = std::min(relId.startCardId, relId.endCardId);
-        const int card2 = std::max(relId.startCardId, relId.endCardId);
+    NodeRect *endNodeRect = boardView->nodeRectsCollection.get(relId.endCardId);
+    Q_ASSERT(endNodeRect != nullptr);
 
-        const QPointF center1
-                = boardView->nodeRectsCollection.get(card1)->getRect().center();
-        const QPointF center2
-                = boardView->nodeRectsCollection.get(card2)->getRect().center();
-        const QLineF lineNormal = QLineF(center1, center2).normalVector().unitVector();
-        const QPointF vecNormal(lineNormal.dx(), lineNormal.dy());
-
-        //
-        vecTranslation = vecNormal * shiftDistance;
-    }
-
-    //
-    const QRectF startNodeRect = boardView->nodeRectsCollection.get(relId.startCardId)->getRect();
-    const QRectF endNodeRect = boardView->nodeRectsCollection.get(relId.endCardId)->getRect();
-
-    const QLineF lineC2CTranslated
-            = QLineF(startNodeRect.center(), endNodeRect.center())
-              .translated(vecTranslation);
-
-    //
-    bool intersect;
-    QPointF intersectionPoint;
-
-    intersect = rectEdgeIntersectsWithLine(startNodeRect, lineC2CTranslated, &intersectionPoint);
-    const QPointF startPoint = intersect ?  intersectionPoint : startNodeRect.center();
-
-    intersect = rectEdgeIntersectsWithLine(endNodeRect, lineC2CTranslated, &intersectionPoint);
-    const QPointF endPoint = intersect ?  intersectionPoint : endNodeRect.center();
-
-    return {startPoint, endPoint};
+    return computeArrowLineConnectingRects(
+            startNodeRect->getRect(), endNodeRect->getRect(), parallelIndex, parallelCount);
 }
 
 DataViewBox *BoardView::DataViewBoxesCollection::createDataViewBox(
@@ -2139,6 +2213,8 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
         if (!groupBoxPtr)
             return;
 
+        boardView->relationshipBundlesCollection.updateBundlesConnectingGroupBox(groupBoxId);
+
         // add to a group-box?
         {
             const auto groupBoxesBeingMoved
@@ -2200,25 +2276,9 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
         if (boardView->itemMovingResizingStateData.targetIsGroupBox(groupBoxId)) { // should be true
             // action: reparent the group-box
             if (boardView->itemMovingResizingStateData.newParentGroupBoxId.has_value()) {
-                int originalParentGroupBox;
-                {
-                    int originalParent = boardView->groupBoxTree.getParentOfGroupBox(groupBoxId);
-                    originalParentGroupBox = (originalParent == GroupBoxTree::rootId)
-                            ? -1 : originalParent;
-                }
-                const int newParentGroupBox
-                        = boardView->itemMovingResizingStateData.newParentGroupBoxId.value(); // can be -1
-                if (originalParentGroupBox != newParentGroupBox) {
-                    const int newParentId = (newParentGroupBox != -1)
-                            ? newParentGroupBox : GroupBoxTree::rootId;
-                    boardView->groupBoxTree.reparentExistingGroupBox(groupBoxId, newParentId);
-
-                    Services::instance()->getAppData()->reparentGroupBox(
-                            EventSource(boardView), groupBoxId, newParentGroupBox);
-                }
-
-                //
-                boardView->relationshipBundlesCollection.update();
+                const int newParentGroupBox // can be -1
+                        = boardView->itemMovingResizingStateData.newParentGroupBoxId.value();
+                boardView->reparentGroupBoxInGroupBoxTree(groupBoxId, newParentGroupBox);
             }
         }
         boardView->itemMovingResizingStateData.deactivate();
@@ -2394,7 +2454,7 @@ void BoardView::RelationshipBundlesCollection::update() {
             // the already-bundled relationships
             QSet<RelationshipsBundle> possibleBundles1;
 
-            const auto allRels = boardView->edgeArrowsCollection.getAllRelationshipIds();
+            const auto allRels = boardView->relationshipsCollection.getAllRelationshipIds();
             for (const RelationshipId &rel: allRels) {
                 if (cardIdToBundledRels.value(cardId).contains(rel)) // relationship already bundled
                     continue;
@@ -2458,6 +2518,62 @@ void BoardView::RelationshipBundlesCollection::update() {
         bundledRels += it.value();
 
     qInfo().noquote() << QString("%1 relationships bundled").arg(bundledRels.count());
+
+    // compute `relBundlesByExternalCardId` & `groupBoxAndCardToBundles`
+    QSet<RelationshipsBundle> allBundles;
+    for (auto it = relBundlesByGroupBoxId.constBegin();
+            it != relBundlesByGroupBoxId.constEnd(); ++it) {
+        allBundles += it.value();
+    }
+
+    relBundlesByExternalCardId.clear();
+    relBundlesByGroupBoxAndCard.clear();
+    for (const RelationshipsBundle &bundle: qAsConst(allBundles)) {
+        relBundlesByExternalCardId[bundle.externalCardId] << bundle;
+        relBundlesByGroupBoxAndCard[{bundle.groupBoxId, bundle.externalCardId}] << bundle;
+    }
+
+    //
+    redrawBundleArrows();
+}
+
+void BoardView::RelationshipBundlesCollection::updateBundlesConnectingGroupBox(
+        const int groupBoxId) {
+    const QSet<RelationshipsBundle> bundles = relBundlesByGroupBoxId.value(groupBoxId);
+
+    QSet<int> externalCardIds;
+    for (const auto &bundle: bundles)
+        externalCardIds << bundle.externalCardId;
+
+    for (const int cardId: qAsConst(externalCardIds)) {
+        const QSet<RelationshipsBundle> parallelBundles
+                = relBundlesByGroupBoxAndCard.value({groupBoxId, cardId});
+
+        int index = 0;
+        for (const auto &bundle: parallelBundles) {
+            updateEdgeArrow(bundle, index, parallelBundles.count());
+            ++index;
+        }
+    }
+}
+
+void BoardView::RelationshipBundlesCollection::updateBundlesConnectingNodeRect(const int cardId) {
+    const QSet<RelationshipsBundle> bundles = relBundlesByExternalCardId.value(cardId);
+
+    QSet<int> groupBoxIds;
+    for (const auto &bundle: bundles)
+        groupBoxIds << bundle.groupBoxId;
+
+    for (const int groupBoxId: qAsConst(groupBoxIds)) {
+        const QSet<RelationshipsBundle> parallelBundles
+                = relBundlesByGroupBoxAndCard.value({groupBoxId, cardId});
+
+        int index = 0;
+        for (const auto &bundle: parallelBundles) {
+            updateEdgeArrow(bundle, index, parallelBundles.count());
+            ++index;
+        }
+    }
 }
 
 QSet<RelationshipsBundle> BoardView::RelationshipBundlesCollection::getBundlesOfGroupBox(
@@ -2467,4 +2583,71 @@ QSet<RelationshipsBundle> BoardView::RelationshipBundlesCollection::getBundlesOf
 
 QSet<RelationshipId> BoardView::RelationshipBundlesCollection::getBundledRelationships() const {
     return bundledRels;
+}
+
+void BoardView::RelationshipBundlesCollection::redrawBundleArrows() {
+    // remove current edge arrows
+    for (auto it = relBundleToEdgeArrow.constBegin(); it != relBundleToEdgeArrow.constEnd(); ++it) {
+        EdgeArrow *edgeArrow = it.value();
+        boardView->graphicsScene->removeItem(edgeArrow);
+        delete edgeArrow;
+    }
+    relBundleToEdgeArrow.clear();
+
+    //
+    constexpr double lineWidth = 4;
+    const QColor lineColor = defaultEdgeArrowLineColor;
+
+    for (auto it = relBundlesByGroupBoxAndCard.constBegin();
+            it != relBundlesByGroupBoxAndCard.constEnd(); ++it) {
+        const QSet<RelationshipsBundle> &parallelBundles = it.value();
+        int index = 0;
+        for (const auto &bundle: parallelBundles) {
+            // create EdgeArrow
+            auto *edgeArrow = new EdgeArrow(boardView->canvas);
+            relBundleToEdgeArrow.insert(bundle, edgeArrow);
+
+            edgeArrow->setZValue(zValueForEdgeArrows);
+            edgeArrow->setLineWidth(lineWidth);
+            edgeArrow->setLineColor(lineColor);
+
+            updateEdgeArrow(bundle, index, parallelBundles.count());
+
+            //
+            ++index;
+        }
+    }
+}
+
+void BoardView::RelationshipBundlesCollection::updateEdgeArrow(
+        const RelationshipsBundle &bundle, const int parallelIndex, const int parallelCount) {
+    Q_ASSERT(parallelCount >= 1);
+    Q_ASSERT(parallelIndex < parallelCount);
+
+    const QLineF line = computeEdgeArrowLine(bundle, parallelIndex, parallelCount);
+
+    auto *edgeArrow = relBundleToEdgeArrow.value(bundle);
+    edgeArrow->setStartEndPoint(line.p1(), line.p2());
+    edgeArrow->setLabel(bundle.relationshipType);
+}
+
+QLineF BoardView::RelationshipBundlesCollection::computeEdgeArrowLine(
+        const RelationshipsBundle &bundle, const int parallelIndex, const int parallelCount) {
+    QRectF startRect;
+    QRectF endRect;
+
+    GroupBox *groupBox = boardView->groupBoxesCollection.get(bundle.groupBoxId);
+    Q_ASSERT(groupBox != nullptr);
+    NodeRect *nodeRect = boardView->nodeRectsCollection.get(bundle.externalCardId);
+    Q_ASSERT(nodeRect != nullptr);
+
+    if (bundle.direction == RelationshipsBundle::Direction::IntoGroup) {
+        startRect = nodeRect->getRect();
+        endRect = groupBox->getRect();
+    }
+    else {
+        startRect = groupBox->getRect();
+        endRect = nodeRect->getRect();
+    }
+    return computeArrowLineConnectingRects(startRect, endRect, parallelIndex, parallelCount);
 }

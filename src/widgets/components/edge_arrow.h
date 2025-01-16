@@ -5,12 +5,11 @@
 #include <QGraphicsLineItem>
 #include <QGraphicsSimpleTextItem>
 #include <QPolygonF>
-#include "models/relationship.h"
 
 class EdgeArrow : public QGraphicsItem
 {
 public:
-    explicit EdgeArrow(const RelationshipId &relId_, QGraphicsItem *parent = nullptr);
+    explicit EdgeArrow(QGraphicsItem *parent = nullptr);
 
     //
     void setStartEndPoint(const QPointF &startPoint, const QPointF &endPoint);
@@ -24,8 +23,6 @@ public:
             QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
 private:
-    const RelationshipId relId;
-
     QPointF startPoint;
     QPointF endPoint;
     double lineWidth {2.0};

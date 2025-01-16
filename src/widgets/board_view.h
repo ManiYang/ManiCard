@@ -126,6 +126,12 @@ private:
     void onUserToRemoveGroupBox(const int groupBoxId);
     void onBackgroundClicked();
 
+    void reparentNodeRectInGroupBoxTree(const int cardId, const int newParentGroupBox);
+            // - including adding/removing it to/from the tree
+            // - `newParentGroupBox` = -1: remove it from tree
+    void reparentGroupBoxInGroupBoxTree(const int groupBoxId, const int newParentGroupBox);
+            //  - `newParentGroupBox` = -1: reparent it to the Board
+
     //
 
     //!
@@ -195,10 +201,10 @@ private:
     NodeRectsCollection nodeRectsCollection {this};
 
     //
-    class EdgeArrowsCollection
+    class RelationshipsCollection
     {
     public:
-        explicit EdgeArrowsCollection(BoardView *boardView_) : boardView(boardView_) {}
+        explicit RelationshipsCollection(BoardView *boardView_) : boardView(boardView_) {}
 
         //!
         //! NodeRect's for start/end cards must exist.
@@ -216,6 +222,9 @@ private:
 
         void removeEdgeArrows(const QSet<RelationshipId> &relIds);
 
+        void setAllEdgeArrowsVisible();
+        void hideEdgeArrows(const QSet<RelationshipId> &relIds);
+
         QSet<RelationshipId> getAllRelationshipIds() const;
 
     private:
@@ -230,7 +239,7 @@ private:
         QLineF computeEdgeArrowLine(
                 const RelationshipId &relId, const int parallelIndex, const int parallelCount);
     };
-    EdgeArrowsCollection edgeArrowsCollection {this};
+    RelationshipsCollection relationshipsCollection {this};
 
     //
     class DataViewBoxesCollection
@@ -300,20 +309,46 @@ private:
         explicit RelationshipBundlesCollection(BoardView *boardView) : boardView(boardView) {}
 
         //!
-        //! Call this whenever a relationship is created/removed, a NodeRect is created/removed,
-        //! or the GroupBoxTree is modified
+        //! Updates the whole collection. This can be called when a relationship is created/removed,
+        //! a NodeRect is created/removed, or the GroupBoxTree is modified.
         //!
         void update();
+
+        void updateBundlesConnectingGroupBox(const int groupBoxId);
+        void updateBundlesConnectingNodeRect(const int cardId);
 
         QSet<RelationshipsBundle> getBundlesOfGroupBox(const int groupBoxId) const;
         QSet<RelationshipId> getBundledRelationships() const;
 
     private:
         BoardView *const boardView;
+
+        // data
         QHash<int, QSet<RelationshipsBundle>> relBundlesByGroupBoxId;
+        QHash<int, QSet<RelationshipsBundle>> relBundlesByExternalCardId;
         QSet<RelationshipId> bundledRels;
+
+        using GroupBoxAndCard = std::pair<int, int>;
+        QHash<GroupBoxAndCard, QSet<RelationshipsBundle>> relBundlesByGroupBoxAndCard;
+                // relBundlesByGroupBoxAndCard[(g, c)] is the bundles connecting g & c
+
+        // EdgeArrow's
+        QHash<RelationshipsBundle, EdgeArrow *> relBundleToEdgeArrow;
+        void redrawBundleArrows();
+        void updateEdgeArrow(
+                const RelationshipsBundle &bundle, const int parallelIndex, const int parallelCount);
+
+        //
+        static QHash<RelationshipsBundle, int> computeBundleToParallelIndex(
+                const QHash<int, QSet<RelationshipsBundle>> &relBundlesByGroupBoxId);
+        QLineF computeEdgeArrowLine(
+                const RelationshipsBundle &bundle, const int parallelIndex, const int parallelCount);
+
+
     };
     RelationshipBundlesCollection relationshipBundlesCollection {this};
+
+    void updateRelationshipBundles();
 
     // item moving/resizing state
     struct ItemMovingResizingStateData
@@ -402,6 +437,10 @@ private:
             const QColor &dataViewBoxOwnColor, const QColor &boardDefaultColorForDataViewBox);
 
     QSet<RelationshipId> getEdgeArrowsConnectingNodeRect(const int cardId);
+
+    static QLineF computeArrowLineConnectingRects(
+            const QRectF &fromRect, const QRectF &toRect,
+            const int parallelIndex, const int parallelCount);
 };
 
 #endif // BOARDVIEW_H

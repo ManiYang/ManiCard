@@ -2,9 +2,8 @@
 #include <QPen>
 #include "edge_arrow.h"
 
-EdgeArrow::EdgeArrow(const RelationshipId &relId_, QGraphicsItem *parent)
+EdgeArrow::EdgeArrow(QGraphicsItem *parent)
         : QGraphicsItem(parent)
-        , relId(relId_)
         , lineItem(new QGraphicsLineItem(this))
         , labelItem(new QGraphicsSimpleTextItem(this))
         , arrowHeadItem(new QGraphicsPolygonItem(this)) {
@@ -56,7 +55,9 @@ void EdgeArrow::adjustChildItems() {
     lineItem->setPen(QPen(QBrush(lineColor), lineWidth));
 
     // arrow head
-    const QPolygonF polygon = computeArrowHeadPolygon(line, 12);
+    const double arrowHeadSize = (4.0 * lineWidth * lineWidth + 16) / (lineWidth + 1.0);
+
+    const QPolygonF polygon = computeArrowHeadPolygon(line, arrowHeadSize);
     arrowHeadItem->setPolygon(polygon);
     arrowHeadItem->setBrush(lineColor);
 
