@@ -1,10 +1,13 @@
+#include <cmath>
 #include <QDebug>
 #include <QGraphicsScene>
 #include <QGraphicsSceneContextMenuEvent>
 #include <QGraphicsSceneMouseEvent>
 #include <QPainter>
 #include "board_box_item.h"
+#include "global_constants.h"
 #include "utilities/margins_util.h"
+#include "utilities/numbers_util.h"
 #include "widgets/components/graphics_item_move_resize.h"
 
 constexpr double resizeAreaMaxWidth = 6.0; // in pixel
@@ -274,7 +277,7 @@ void BoardBoxItem::setUpConnections() {
     connect(moveResizeHelper, &GraphicsItemMoveResize::setTargetItemPosition,
             this, [this](const QPointF &pos) {
         prepareGeometryChange();
-        borderOuterRect.moveTopLeft(this->mapFromScene(pos));
+        borderOuterRect.moveTopLeft(quantize(this->mapFromScene(pos), boardSnapGridSize));
         update();
         adjustGraphicsItems();
 
@@ -300,8 +303,9 @@ void BoardBoxItem::setUpConnections() {
             this, [this](const QRectF &rect) {
         prepareGeometryChange();
         borderOuterRect = QRectF(
-                mapFromScene(rect.topLeft()),
-                mapFromScene(rect.bottomRight()));
+                quantize(mapFromScene(rect.topLeft()), boardSnapGridSize),
+                quantize(mapFromScene(rect.bottomRight()), boardSnapGridSize)
+        );
         update();
         adjustGraphicsItems();
 

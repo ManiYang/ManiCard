@@ -36,22 +36,23 @@ signals:
 
     void getTargetItemPosition(QPointF *pos); // use Qt::DirectConnection
     void setTargetItemPosition(const QPointF &pos);
-            // the `pos` parameter in the above 2 methods must be in the same coordinates
-            // (not necessarily the scene or screen coordinates) whose length unit is pixel.
+            // the `pos` parameter in the above 2 methods must be in the same coordinates (not
+            // necessarily the scene or screen coordinates) whose length unit is screen pixel.
     void movingEnded();
 
     void getTargetItemRect(QRectF *rect); // use Qt::DirectConnection
     void setTargetItemRect(const QRectF &rect);
-            // the `rect` parameter in the above 2 methods must be in the same coordinates
-            // (not necessarily the scene or screen coordinates) whose length unit is pixel.
+            // the `rect` parameter in the above 2 methods must be in the same coordinates (not
+            // necessarily the scene or screen coordinates) whose length unit is screen pixel.
     void resizingEnded();
 
     void setCursorShape(const std::optional<Qt::CursorShape> cursorShape);
 
     void leftMousePressedOnResizeActivationArea();
             // The resize handle itself won't receive the `QGraphicsSceneMouseEvent` event when
-            // mouse left button pressed on it (without modifiers) within the resize activation area.
-            // If the resize handle needs to know when this happends, it can connect to this signal.
+            // mouse left button pressed on it (without modifiers) within the resize activation
+            // area, because the event is filtered out by `this`. If the resize handle needs to
+            // know when this happends, it can connect to this signal.
 
 protected:
     bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) override;

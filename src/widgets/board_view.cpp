@@ -7,6 +7,7 @@
 #include <QVBoxLayout>
 #include "app_data.h"
 #include "board_view.h"
+#include "global_constants.h"
 #include "models/custom_data_query.h"
 #include "models/data_view_box_data.h"
 #include "persisted_data_access.h"
@@ -555,8 +556,10 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
         // create NodeRect
         ContinuationContext context(routine);
 
-        routine->nodeRectData.rect
-                = QRectF(canvas->mapFromScene(scenePos), defaultNewNodeRectSize);
+        routine->nodeRectData.rect = QRectF(
+                quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
+                quantize(defaultNewNodeRectSize, boardSnapGridSize)
+        );
         routine->nodeRectData.ownColor = QColor();
 
         const QColor displayColor = computeNodeRectDisplayColor(
@@ -693,8 +696,10 @@ void BoardView::onUserToCreateNewCard(const QPointF &scenePos) {
 
         ContinuationContext context(routine);
 
-        routine->nodeRectData.rect
-                = QRectF(canvas->mapFromScene(scenePos), defaultNewNodeRectSize);
+        routine->nodeRectData.rect = QRectF(
+                quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
+                quantize(defaultNewNodeRectSize, boardSnapGridSize)
+        );
         routine->nodeRectData.ownColor = QColor();
 
         const QColor displayColor = computeNodeRectDisplayColor(
@@ -822,8 +827,10 @@ void BoardView::onUserToDuplicateCard(const QPointF &scenePos) {
         // create new NodeRect
         ContinuationContext context(routine);
 
-        routine->nodeRectData.rect
-                = QRectF(canvas->mapFromScene(scenePos), defaultNewNodeRectSize);
+        routine->nodeRectData.rect = QRectF(
+                quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
+                quantize(defaultNewNodeRectSize, boardSnapGridSize)
+        );
         routine->nodeRectData.ownColor = QColor();
 
         const QColor displayColor = computeNodeRectDisplayColor(
@@ -894,7 +901,10 @@ void BoardView::onUserToCreateNewGroup(const QPointF &scenePos) {
         ContinuationContext context(routine);
 
         routine->groupBoxData.title = "Group";
-        routine->groupBoxData.rect = QRectF(canvas->mapFromScene(scenePos), defaultNewNodeRectSize);
+        routine->groupBoxData.rect = QRectF(
+                quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
+                quantize(defaultNewNodeRectSize, boardSnapGridSize)
+        );
 
         Q_ASSERT(routine->newGroupBoxId != -1);
         groupBoxesCollection.createGroupBox(routine->newGroupBoxId, routine->groupBoxData);
@@ -965,8 +975,10 @@ void BoardView::onUserToCreateNewCustomDataQuery(const QPointF &scenePos) {
                   "RETURN c.id AS id, c.title AS title;";
         routine->customDataQuery.queryParameters = QJsonObject();
 
-        routine->dataViewBoxData.rect
-                = QRectF(canvas->mapFromScene(scenePos), defaultNewDataViewBoxSize);
+        routine->dataViewBoxData.rect = QRectF(
+                quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
+                quantize(defaultNewDataViewBoxSize, boardSnapGridSize)
+        );
         routine->dataViewBoxData.ownColor = QColor();
 
         const QColor displayColor = routine->dataViewBoxData.ownColor.isValid()
