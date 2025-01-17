@@ -1,9 +1,12 @@
+#include <QDebug>
 #include <QGraphicsScene>
 #include <QMessageBox>
 #include "node_rect.h"
 #include "utilities/margins_util.h"
 #include "widgets/components/custom_graphics_text_item.h"
 #include "widgets/components/custom_text_edit.h"
+
+constexpr double textEditLineHeightPercentage = 120;
 
 NodeRect::NodeRect(const int cardId, QGraphicsItem *parent)
     : BoardBoxItem(BoardBoxItem::CreationParameters {}, parent)
@@ -27,29 +30,43 @@ void NodeRect::setTitle(const QString &title) {
 }
 
 void NodeRect::setText(const QString &text) {
-    const double textEditLineHeightPercent {120};
-
+    plainText = text;
+    textEditIsPreviewMode = false;
     textEdit->setPlainText(text);
-
-    // set line height of whole document
-    auto cursor = textEdit->textCursor();
-    auto blockFormat = cursor.blockFormat();
-    blockFormat.setLineHeight(
-            textEditLineHeightPercent, QTextBlockFormat::ProportionalHeight);
-    cursor.select(QTextCursor::Document);
-    cursor.setBlockFormat(blockFormat);
-
-    //
+    textEdit->setLineHeightPercent(textEditLineHeightPercentage);
     adjustContents();
 }
 
 void NodeRect::setEditable(const bool editable) {
     titleItem->setEditable(editable);
-    textEdit->setReadOnly(!editable);
+
+    nodeRectIsEditable = editable;
+    textEdit->setReadOnly(
+            !computeTextEditEditable(nodeRectIsEditable, textEditIsPreviewMode));
 }
 
 void NodeRect::setTextEditorIgnoreWheelEvent(const bool b) {
     textEditIgnoreWheelEvent = b;
+}
+
+void NodeRect::togglePreview() {
+    textEditIsPreviewMode = !textEditIsPreviewMode;
+
+    if (textEditIsPreviewMode) {
+        textEdit->setMarkdown(plainText);
+        textEdit->document()->setIndentWidth(20);
+        textEdit->setParagraphSpacing(20);
+    }
+    else {
+        textEdit->setPlainText(plainText);
+    }
+    textEdit->setLineHeightPercent(textEditLineHeightPercentage);
+
+    textEdit->setReadOnly(
+            !computeTextEditEditable(nodeRectIsEditable, textEditIsPreviewMode));
+
+    //
+    adjustContents();
 }
 
 int NodeRect::getCardId() const {
@@ -113,6 +130,9 @@ QMenu *NodeRect::createCaptionBarContextMenu() {
 
 void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     titleItem->setParentItem(contentsContainer);
+    titleItem->setEnableContextMenu(false);
+
+    //
     textEditProxyWidget->setParentItem(contentsContainer);
 
     //
@@ -121,7 +141,7 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
 
     //
     textEdit->enableSetEveryWheelEventAccepted(true);
-    textEdit->setReadOnly(true);
+    textEdit->setReadOnly(!computeTextEditEditable(nodeRectIsEditable, textEditIsPreviewMode));
     textEdit->setReplaceTabBySpaces(4);
     textEdit->setFrameShape(QFrame::NoFrame);
     textEdit->setMinimumHeight(10);
@@ -166,7 +186,10 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
 
     // textEdit
     connect(textEdit, &CustomTextEdit::textEdited, this, [this]() {
-        emit titleTextUpdated(std::nullopt, textEdit->toPlainText());
+        if (!textEditIsPreviewMode) {
+            plainText = textEdit->toPlainText();
+            emit titleTextUpdated(std::nullopt, plainText);
+        }
     });
 
     connect(textEdit, &CustomTextEdit::clicked, this, [this]() {
@@ -262,4 +285,9 @@ QString NodeRect::getNodeLabelsString(const QStringList &labels) {
     for (const QString &label: labels)
         labels2 << (":" + label);
     return labels2.join(" ");
+}
+
+bool NodeRect::computeTextEditEditable(
+        const bool nodeRectIsEditable, const bool textEditIsPreviewMode) {
+    return !textEditIsPreviewMode && nodeRectIsEditable;
 }

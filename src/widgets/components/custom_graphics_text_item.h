@@ -20,6 +20,7 @@ public:
     void setTextWidth(const double width);
     void setFont(const QFont &font);
     void setDefaultTextColor(const QColor &color);
+    void setEnableContextMenu(const bool enable);
 
     QString toPlainText() const;
     QFont font() const;
@@ -47,6 +48,8 @@ class GraphicsTextItemTweak : public QGraphicsTextItem
 public:
     explicit GraphicsTextItemTweak(QGraphicsItem *parent = nullptr);
 
+    void setEnableContextMenu(const bool enable);
+
     void paint(
             QPainter *painter, const QStyleOptionGraphicsItem *option,
             QWidget *widget) override;
@@ -57,6 +60,10 @@ signals:
 protected:
     void focusOutEvent(QFocusEvent *event) override;
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
+    void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
+
+private:
+    bool enableContextMenu {false};
 };
 
 #endif // GRAPHICSTEXTITEM_H

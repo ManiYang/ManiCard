@@ -24,8 +24,12 @@ public:
 
     void clear();
     void setPlainText(const QString &text);
+    void setMarkdown(const QString &text);
     void setReadOnly(const bool readonly);
     void enableSetEveryWheelEventAccepted(const bool enable);
+
+    void setLineHeightPercent(const int percentage);
+    void setParagraphSpacing(const double spacing);
 
     //!
     //! \param numberOfSpaces: if < 0, won't replace TAB
@@ -36,9 +40,6 @@ public:
     //! Sets context-menu policy for the wrapped QTextEdit.
     //!
     void setContextMenuPolicy(Qt::ContextMenuPolicy policy);
-
-    QTextCursor textCursor() const;
-    void setTextCursor(const QTextCursor &cursor);
 
     QString toPlainText() const;
 

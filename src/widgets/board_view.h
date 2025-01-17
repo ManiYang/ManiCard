@@ -45,6 +45,7 @@ public:
     void prepareToClose();
 
     void applyZoomAction(const ZoomAction zoomAction);
+    void toggleCardPreview();
 
     using LabelAndColor = std::pair<QString, QColor>;
 

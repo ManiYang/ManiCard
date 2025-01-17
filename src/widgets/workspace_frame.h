@@ -32,6 +32,7 @@ public:
     void changeWorkspaceName(const QString newName);
     void showButtonRightSidebar();
     void applyZoomAction(const ZoomAction zoomAction);
+    void toggleCardPreview();
 
     void prepareToClose();
 

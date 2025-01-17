@@ -24,6 +24,8 @@ public:
 
     void setTextEditorIgnoreWheelEvent(const bool b);
 
+    void togglePreview();
+
     //
     int getCardId() const;
     QSet<QString> getNodeLabels() const;
@@ -49,6 +51,10 @@ private:
     const double textEditFocusIndicatorLineWidth {2.0};
     QStringList nodeLabels;
     bool textEditIgnoreWheelEvent {false};
+    bool nodeRectIsEditable {false};
+
+    QString plainText;
+    bool textEditIsPreviewMode {false};
 
     // content items
     // -- title
@@ -68,6 +74,8 @@ private:
 
     // tools
     static QString getNodeLabelsString(const QStringList &labels);
+    static bool computeTextEditEditable(
+            const bool nodeRectIsEditable, const bool textEditIsPreviewMode);
 };
 
 #endif // NODERECT_H

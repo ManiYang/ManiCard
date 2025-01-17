@@ -2,6 +2,7 @@
 #include <QKeyEvent>
 #include <QMimeData>
 #include <QScrollBar>
+#include <QTextBlock>
 #include <QTextCursor>
 #include <QVBoxLayout>
 #include <QWheelEvent>
@@ -51,6 +52,12 @@ void CustomTextEdit::setPlainText(const QString &text) {
     textChangeIsByUser = true;
 }
 
+void CustomTextEdit::setMarkdown(const QString &text) {
+    textChangeIsByUser = false;
+    textEdit->setMarkdown(text);
+    textChangeIsByUser = true;
+}
+
 void CustomTextEdit::setReadOnly(const bool readonly) {
     textEdit->setReadOnly(readonly);
 }
@@ -59,20 +66,62 @@ void CustomTextEdit::enableSetEveryWheelEventAccepted(const bool enable){
     textEdit->enableSetEveryWheelEventAccepted(enable);
 }
 
+void CustomTextEdit::setLineHeightPercent(const int percentage) {
+    textChangeIsByUser = false;
+
+    //
+    auto cursor = textEdit->textCursor();
+    cursor.movePosition(QTextCursor::Start);
+    while (true) {
+        auto blockFormat = cursor.blockFormat();
+        blockFormat.setLineHeight(percentage, QTextBlockFormat::ProportionalHeight);
+
+        cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor); // select the block
+        cursor.setBlockFormat(blockFormat);
+
+        bool ok = cursor.movePosition(QTextCursor::NextBlock);
+        if (!ok)
+            break;
+    }
+
+    //
+    textChangeIsByUser = true;
+}
+
+void CustomTextEdit::setParagraphSpacing(const double spacing) {
+    textChangeIsByUser = false;
+
+    //
+    auto cursor = textEdit->textCursor();
+    cursor.movePosition(QTextCursor::Start);
+    while (true) {
+        cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor); // select the block
+
+        const bool isListItem = (cursor.block().textList() != nullptr);
+        if (!isListItem) {
+            auto blockFormat = cursor.blockFormat();
+            blockFormat.setTopMargin(spacing / 2.0);
+            blockFormat.setBottomMargin(spacing / 2.0);
+
+            cursor.setBlockFormat(blockFormat);
+        }
+
+        // move to next block
+        bool ok = cursor.movePosition(QTextCursor::NextBlock);
+        if (!ok)
+            break;
+    }
+
+    //
+    textChangeIsByUser = true;
+}
+
 void CustomTextEdit::setReplaceTabBySpaces(const int numberOfSpaces) {
     numberOfSpacesToReplaceTab = numberOfSpaces;
 }
 
 void CustomTextEdit::setContextMenuPolicy(Qt::ContextMenuPolicy policy) {
     textEdit->setContextMenuPolicy(policy);
-}
-
-QTextCursor CustomTextEdit::textCursor() const {
-    return textEdit->textCursor();
-}
-
-void CustomTextEdit::setTextCursor(const QTextCursor &cursor) {
-    textEdit->setTextCursor(cursor);
 }
 
 QString CustomTextEdit::toPlainText() const {

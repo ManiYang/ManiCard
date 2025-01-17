@@ -268,6 +268,17 @@ void MainWindow::setUpMainMenu() {
             this->addAction(action); // without this, the shortcut won't work
         }
     }
+    {
+        auto *submenu = mainMenu->addMenu("Cards");
+        {
+            auto *action = submenu->addAction("Toggle Preview", this, [this]() {
+                if (workspaceFrame->isVisible())
+                    workspaceFrame->toggleCardPreview();
+            });
+            action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_E));
+            this->addAction(action); // without this, the shortcut won't work
+        }
+    }
     mainMenu->addSeparator();
     {
         auto *action = mainMenu->addAction("Quit", this, [this]() {

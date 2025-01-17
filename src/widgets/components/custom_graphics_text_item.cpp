@@ -59,6 +59,10 @@ void CustomGraphicsTextItem::setDefaultTextColor(const QColor &color) {
     graphicsTextItem->setDefaultTextColor(color);
 }
 
+void CustomGraphicsTextItem::setEnableContextMenu(const bool enable) {
+    graphicsTextItem->setEnableContextMenu(enable);
+}
+
 QString CustomGraphicsTextItem::toPlainText() const {
     return graphicsTextItem->toPlainText();
 }
@@ -80,7 +84,11 @@ void CustomGraphicsTextItem::paint(
 //====
 
 GraphicsTextItemTweak::GraphicsTextItemTweak(QGraphicsItem *parent)
-        : QGraphicsTextItem(parent) {
+    : QGraphicsTextItem(parent) {
+}
+
+void GraphicsTextItemTweak::setEnableContextMenu(const bool enable) {
+    enableContextMenu = enable;
 }
 
 void GraphicsTextItemTweak::paint(
@@ -108,4 +116,11 @@ void GraphicsTextItemTweak::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 
     if (event->button() == Qt::LeftButton)
         emit mouseReleased();
+}
+
+void GraphicsTextItemTweak::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
+    if (enableContextMenu)
+        QGraphicsTextItem::contextMenuEvent(event);
+    else
+        event->ignore();
 }

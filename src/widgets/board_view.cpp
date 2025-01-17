@@ -321,6 +321,14 @@ void BoardView::applyZoomAction(const ZoomAction zoomAction) {
     doApplyZoomAction(zoomAction, anchorScenePos);
 }
 
+void BoardView::toggleCardPreview() {
+    const int singleHighlightedCardId // can be -1
+            = Services::instance()->getAppDataReadonly()->getSingleHighlightedCardId();
+    if (singleHighlightedCardId == -1 || !nodeRectsCollection.contains(singleHighlightedCardId))
+        return;
+    nodeRectsCollection.get(singleHighlightedCardId)->togglePreview();
+}
+
 void BoardView::setColorsAssociatedWithLabels(
         const QVector<LabelAndColor> &cardLabelsAndAssociatedColors,
         const QColor &defaultNodeRectColor) {

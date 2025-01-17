@@ -230,6 +230,11 @@ void WorkspaceFrame::applyZoomAction(const ZoomAction zoomAction) {
         boardView->applyZoomAction(zoomAction);
 }
 
+void WorkspaceFrame::toggleCardPreview() {
+    if (boardView->isVisible())
+        boardView->toggleCardPreview();
+}
+
 void WorkspaceFrame::prepareToClose() {
     boardView->prepareToClose();
 }
