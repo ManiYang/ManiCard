@@ -269,6 +269,10 @@ void BoardBoxItem::setUpConnections() {
         emit aboutToMove();
     }, Qt::DirectConnection);
 
+    connect(moveResizeHelper, &GraphicsItemMoveResize::aboutToResize, this, [this]() {
+        emit aboutToResize();
+    }, Qt::DirectConnection);
+
     connect(moveResizeHelper, &GraphicsItemMoveResize::getTargetItemPosition,
             this, [this](QPointF *pos) {
         *pos = this->mapToScene(borderOuterRect.topLeft());

@@ -1718,7 +1718,8 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
     // set up connections
     QPointer<NodeRect> nodeRectPtr(nodeRect);
 
-    QObject::connect(nodeRect, &NodeRect::leftButtonPressedOrClicked, boardView, [this, nodeRectPtr]() {
+    QObject::connect(
+            nodeRect, &NodeRect::leftButtonPressedOrClicked, boardView, [this, nodeRectPtr]() {
         if (nodeRectPtr.isNull())
             return;
 
@@ -1736,8 +1737,14 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         boardView->itemMovingResizingStateData.activateWithTargetNodeRect(cardId);
     });
 
+    QObject::connect(nodeRect, &NodeRect::aboutToResize, boardView, [this, cardId, nodeRectPtr]() {
+        if (!nodeRectPtr)
+            return;
+        boardView->itemMovingResizingStateData.activateWithTargetNodeRect(cardId);
+    });
 
-    QObject::connect(nodeRect, &NodeRect::movedOrResized, boardView, [this, cardId, nodeRectPtr]() {
+    QObject::connect(
+            nodeRect, &NodeRect::movedOrResized, boardView, [this, cardId, nodeRectPtr]() {
         if (!nodeRectPtr)
             return;
 
@@ -1750,16 +1757,19 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
             boardView->relationshipsCollection.updateEdgeArrow(relId, updateOtherEdgeArrows);
         }
 
-        // add to a group-box?
-        const std::optional<int> groupBoxIdOpt
-                = boardView->groupBoxesCollection.getDeepestEnclosingGroupBox(nodeRectPtr.data());
+        // can be added to a group-box?
+        {
+            const std::optional<int> groupBoxIdOpt
+                    = boardView->groupBoxesCollection.getDeepestEnclosingGroupBox(
+                            nodeRectPtr.data());
 
-        // -- highlight only the group-box
-        boardView->groupBoxesCollection.setHighlightedGroupBoxes(
-                groupBoxIdOpt.has_value() ? QSet<int> {groupBoxIdOpt.value()} : QSet<int> {});
+            // -- highlight only the group-box
+            boardView->groupBoxesCollection.setHighlightedGroupBoxes(
+                    groupBoxIdOpt.has_value() ? QSet<int> {groupBoxIdOpt.value()} : QSet<int> {});
 
-        // -- set new parent to be applied when moving finishes
-        boardView->itemMovingResizingStateData.newParentGroupBoxId = groupBoxIdOpt.value_or(-1);
+            // -- set new parent to be applied when moving/resizing finishes
+            boardView->itemMovingResizingStateData.newParentGroupBoxId = groupBoxIdOpt.value_or(-1);
+        }
     });
 
     QObject::connect(nodeRect, &NodeRect::finishedMovingOrResizing,
@@ -2221,18 +2231,29 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
     });
 
     QObject::connect(
+            groupBox, &GroupBox::aboutToResize, boardView, [this, groupBoxId, groupBoxPtr]() {
+        if (!groupBoxPtr)
+            return;
+
+        // enter moving/resizing state
+        const auto [descendantGroupBoxes, descendantCards]
+                = boardView->groupBoxTree.getAllDescendants(groupBoxId);
+        boardView->itemMovingResizingStateData.activateWithTargetGroupBox(
+                groupBoxId, descendantGroupBoxes, descendantCards);
+    });
+
+    QObject::connect(
             groupBox, &GroupBox::movedOrResized, boardView, [this, groupBoxId, groupBoxPtr]() {
         if (!groupBoxPtr)
             return;
 
         boardView->relationshipBundlesCollection.updateBundlesConnectingGroupBox(groupBoxId);
 
-        // add to a group-box?
+        // can be added to a group-box?
         {
             const auto groupBoxesBeingMoved
                     = boardView->itemMovingResizingStateData.descendantGroupBoxesOfTargetGroupBox
                       + QSet<int> {groupBoxId};
-
             const std::optional<int> addToGroupBoxIdOpt = getDeepestEnclosingGroupBox(
                     groupBoxPtr.data(),
                     groupBoxesBeingMoved // groupBoxIdsToExclude
@@ -2248,7 +2269,7 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
                 groupBoxesToUnhighlight.remove(addToGroupBoxIdOpt.value());
             unhighlightGroupBoxes(groupBoxesToUnhighlight);
 
-            // -- set new parent to be applied when moving finishes
+            // -- set new parent to be applied when moving/resizing finishes
             boardView->itemMovingResizingStateData.newParentGroupBoxId
                     = addToGroupBoxIdOpt.value_or(-1);
         }

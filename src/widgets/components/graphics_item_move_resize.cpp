@@ -140,6 +140,8 @@ bool GraphicsItemMoveResize::eventFilterForResizeHandle(QEvent *event) {
                 QRectF itemRect;
                 emit getTargetItemRect(&itemRect);
                 if (!itemRect.isNull()) {
+                    emit aboutToResize();
+
                     mousePressScreenPos = mouseEvent->screenPos();
                     targetItemRectBeforeResize = itemRect;
                     state = State::Resizing;

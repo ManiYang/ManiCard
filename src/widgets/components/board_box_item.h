@@ -57,6 +57,7 @@ public:
 
 signals:
     void aboutToMove();
+    void aboutToResize();
     void movedOrResized();
     void finishedMovingOrResizing();
 

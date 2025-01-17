@@ -33,6 +33,7 @@ public:
 
 signals:
     void aboutToMove();
+    void aboutToResize();
 
     void getTargetItemPosition(QPointF *pos); // use Qt::DirectConnection
     void setTargetItemPosition(const QPointF &pos);
