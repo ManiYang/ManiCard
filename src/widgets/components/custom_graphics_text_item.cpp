@@ -1,5 +1,6 @@
 #include <QDebug>
 #include <QGraphicsSceneMouseEvent>
+#include <QKeyEvent>
 #include <QStyleOptionGraphicsItem>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -28,6 +29,10 @@ CustomGraphicsTextItem::CustomGraphicsTextItem(QGraphicsItem *parent)
 
     connect(graphicsTextItem, &GraphicsTextItemTweak::mouseReleased, this, [this]() {
         emit clicked();
+    });
+
+    connect(graphicsTextItem, &GraphicsTextItemTweak::tabKeyPressed, this, [this]() {
+        emit tabKeyPressed();
     });
 }
 
@@ -101,6 +106,17 @@ void GraphicsTextItemTweak::paint(
     QGraphicsTextItem::paint(painter, &optionAdjusted, widget);
 }
 
+bool GraphicsTextItemTweak::event(QEvent *event) {
+    if (event->type() == QEvent::KeyPress) {
+        const auto *keyEvent = dynamic_cast<QKeyEvent *>(event);
+        if (keyEvent->key() == Qt::Key_Tab) {
+            emit tabKeyPressed();
+            return true;
+        }
+    }
+    return QGraphicsTextItem::event(event);
+}
+
 void GraphicsTextItemTweak::focusOutEvent(QFocusEvent *event) {
     auto cursor = textCursor();
     if (cursor.hasSelection()) {
@@ -124,3 +140,4 @@ void GraphicsTextItemTweak::contextMenuEvent(QGraphicsSceneContextMenuEvent *eve
     else
         event->ignore();
 }
+

@@ -116,6 +116,10 @@ void CustomTextEdit::setParagraphSpacing(const double spacing) {
     textChangeIsByUser = true;
 }
 
+void CustomTextEdit::obtainFocus() {
+    textEdit->setFocus();
+}
+
 void CustomTextEdit::setReplaceTabBySpaces(const int numberOfSpaces) {
     numberOfSpacesToReplaceTab = numberOfSpaces;
 }

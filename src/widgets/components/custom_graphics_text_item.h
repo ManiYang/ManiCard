@@ -34,6 +34,7 @@ public:
 signals:
     void textEdited(bool heightChanged);
     void clicked();
+    void tabKeyPressed();
 
 private:
     GraphicsTextItemTweak *graphicsTextItem;
@@ -50,12 +51,16 @@ public:
 
     void setEnableContextMenu(const bool enable);
 
+    //
     void paint(
             QPainter *painter, const QStyleOptionGraphicsItem *option,
             QWidget *widget) override;
 
+    bool event(QEvent *event) override;
+
 signals:
     void mouseReleased();
+    void tabKeyPressed();
 
 protected:
     void focusOutEvent(QFocusEvent *event) override;

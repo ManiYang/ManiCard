@@ -184,6 +184,10 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
         emit leftButtonPressedOrClicked();
     });
 
+    connect(titleItem, &CustomGraphicsTextItem::tabKeyPressed, this, [this]() {
+        textEdit->obtainFocus();
+    });
+
     // textEdit
     connect(textEdit, &CustomTextEdit::textEdited, this, [this]() {
         if (!textEditIsPreviewMode) {

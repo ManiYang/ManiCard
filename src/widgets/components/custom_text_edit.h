@@ -31,6 +31,8 @@ public:
     void setLineHeightPercent(const int percentage);
     void setParagraphSpacing(const double spacing);
 
+    void obtainFocus();
+
     //!
     //! \param numberOfSpaces: if < 0, won't replace TAB
     //!
