@@ -270,7 +270,10 @@ void BoardBoxItem::setUpConnections() {
     }, Qt::DirectConnection);
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::aboutToResize, this, [this]() {
-        emit aboutToResize();
+        QRectF mustKeepEnclosingRect;
+        emit aboutToResize(&mustKeepEnclosingRect);
+            // the handler of this signal could omit setting `mustKeepEnclosingRect`
+        mustKeepEnclosingRectWhileResizing = mustKeepEnclosingRect;
     }, Qt::DirectConnection);
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::getTargetItemPosition,
@@ -305,11 +308,17 @@ void BoardBoxItem::setUpConnections() {
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::setTargetItemRect,
             this, [this](const QRectF &rect) {
-        prepareGeometryChange();
-        borderOuterRect = QRectF(
-                quantize(mapFromScene(rect.topLeft()), boardSnapGridSize),
-                quantize(mapFromScene(rect.bottomRight()), boardSnapGridSize)
+        QRectF newRect(
+            quantize(mapFromScene(rect.topLeft()), boardSnapGridSize),
+            quantize(mapFromScene(rect.bottomRight()), boardSnapGridSize)
         );
+
+        if (!mustKeepEnclosingRectWhileResizing.isNull())
+            newRect = newRect.united(mustKeepEnclosingRectWhileResizing);
+
+        //
+        prepareGeometryChange();
+        borderOuterRect = newRect;
         update();
         adjustGraphicsItems();
 
@@ -318,6 +327,7 @@ void BoardBoxItem::setUpConnections() {
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::resizingEnded, this, [this]() {
         emit finishedMovingOrResizing();
+        mustKeepEnclosingRectWhileResizing = QRectF();
     });
 
     connect(moveResizeHelper, &GraphicsItemMoveResize::setCursorShape,

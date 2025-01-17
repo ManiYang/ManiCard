@@ -57,7 +57,10 @@ public:
 
 signals:
     void aboutToMove();
-    void aboutToResize();
+    void aboutToResize(QRectF *mustKeepEnclosingRect);
+            // - `*mustKeepEnclosingRect` can be set to a null QRectF
+            // - if `*mustKeepEnclosingRect` is not set, a null QRect is assumed
+
     void movedOrResized();
     void finishedMovingOrResizing();
 
@@ -93,6 +96,8 @@ private:
     const double highlightBoxWidth {3.0};
     const QSizeF minSizeForResizing {100, 60};
     const int captionBarPadding {2};
+
+    QRectF mustKeepEnclosingRectWhileResizing; // can be null
 
     // child items
     QGraphicsRectItem *captionBarMatItem; // before `captionBarItem`

@@ -17,3 +17,28 @@ bool rectEdgeIntersectsWithLine(
     }
     return false;
 }
+
+QMarginsF diffMargins(const QRectF &enclosingRect, const QRectF &enclosedRect) {
+    if (!enclosingRect.contains(enclosedRect))
+        return QMarginsF {};
+    return QMarginsF {
+        enclosedRect.left() - enclosingRect.left(),
+        enclosedRect.top() - enclosingRect.top(),
+        enclosingRect.right() - enclosedRect.right(),
+        enclosingRect.bottom() - enclosedRect.bottom()
+    };
+}
+
+QRectF boundingRectOfRects(const QVector<QRectF> &rects) {
+    QRectF result;
+    for (const QRectF &rect: rects) {
+        if (rect.isNull())
+            continue;
+
+        if (result.isNull())
+            result = rect;
+        else
+            result = result.united(rect);
+    }
+    return result;
+}

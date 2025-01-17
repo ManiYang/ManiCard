@@ -2231,16 +2231,39 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
     });
 
     QObject::connect(
-            groupBox, &GroupBox::aboutToResize, boardView, [this, groupBoxId, groupBoxPtr]() {
+            groupBox, &GroupBox::aboutToResize,
+            boardView, [this, groupBoxId, groupBoxPtr](QRectF *mustKeepEnclosingRect) {
         if (!groupBoxPtr)
             return;
 
-        // enter moving/resizing state
+        // determine `*mustKeepEnclosingRect` (the group-box must keep enclosing the bounding
+        // rect of its descendant items)
         const auto [descendantGroupBoxes, descendantCards]
                 = boardView->groupBoxTree.getAllDescendants(groupBoxId);
+
+        QRectF mustEncloseRect;
+        if (!descendantGroupBoxes.isEmpty() || !descendantCards.isEmpty()) {
+            QVector<QRectF> descendantItemsRects;
+            for (const int groupBoxId: descendantGroupBoxes) {
+                if (auto *groupBox = groupBoxes.value(groupBoxId); groupBox != nullptr)
+                    descendantItemsRects << groupBox->getRect();
+            }
+            for (const int cardId: descendantCards) {
+                if (auto *nodeRect = boardView->nodeRectsCollection.get(cardId); nodeRect != nullptr)
+                    descendantItemsRects << nodeRect->getRect();
+            }
+
+            const QRectF boundingRectOfChildItems = boundingRectOfRects(descendantItemsRects);
+            const QMarginsF margins
+                    = diffMargins(groupBoxPtr->getRect(), groupBoxPtr->getContentsRect());
+            mustEncloseRect = boundingRectOfChildItems.marginsAdded(margins);
+        }
+        *mustKeepEnclosingRect = mustEncloseRect;
+
+        // enter moving/resizing state
         boardView->itemMovingResizingStateData.activateWithTargetGroupBox(
                 groupBoxId, descendantGroupBoxes, descendantCards);
-    });
+    }, Qt::DirectConnection);
 
     QObject::connect(
             groupBox, &GroupBox::movedOrResized, boardView, [this, groupBoxId, groupBoxPtr]() {
