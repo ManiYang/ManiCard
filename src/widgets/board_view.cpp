@@ -823,13 +823,16 @@ void BoardView::onUserToDuplicateCard(const QPointF &scenePos) {
         );
     }, routine);
 
-    routine->addStep([this, routine, scenePos]() {
+    routine->addStep([this, routine, cardIdToDuplicate, scenePos]() {
         // create new NodeRect
         ContinuationContext context(routine);
 
+        QSizeF newNodeRectSize = nodeRectsCollection.contains(cardIdToDuplicate)
+                ? nodeRectsCollection.get(cardIdToDuplicate)->getRect().size()
+                : quantize(defaultNewNodeRectSize, boardSnapGridSize);
         routine->nodeRectData.rect = QRectF(
                 quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
-                quantize(defaultNewNodeRectSize, boardSnapGridSize)
+                newNodeRectSize
         );
         routine->nodeRectData.ownColor = QColor();
 
