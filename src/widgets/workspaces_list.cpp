@@ -1,6 +1,9 @@
 #include <QVBoxLayout>
+#include "app_data_readonly.h"
+#include "services.h"
 #include "utilities/maps_util.h"
 #include "utilities/lists_vectors_util.h"
+#include "widgets/app_style_sheet.h"
 #include "widgets/components/custom_list_widget.h"
 #include "workspaces_list.h"
 
@@ -80,30 +83,23 @@ void WorkspacesList::setUpWidgets() {
 
         listWidget = new CustomListWidget;
         rootVLayout->addWidget(listWidget);
-        listWidget->setFrameShape(QFrame::NoFrame);
+        {
+            listWidget->setFrameShape(QFrame::NoFrame);
+
+            const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+            listWidget->setHighlightColor(getListWidgetHighlightedItemColor(isDarkTheme));
+        }
     }
 
     //
+    setStyleClasses(this, {StyleClass::highContrastBackground});
+
     listWidget->setStyleSheet(
             "QListWidget {"
             "  font-size: 11pt;"
-            "  background: transparent;"
             "}");
 
-    buttonNewWorkspace->setStyleSheet(
-            "QPushButton {"
-            "  color: #606060;"
-            "  border: none;"
-            "  border-radius: 4px;"
-            "  padding: 2px 4px 2px 2px;"
-            "  background: transparent;"
-            "}"
-            "QPushButton:hover {"
-            "  background: #e0e0e0;"
-            "}"
-            "QPushButton:pressed {"
-            "  background: #c0c0c0;"
-            "}");
+    setStyleClasses(buttonNewWorkspace, {StyleClass::flatPushButton});
 }
 
 void WorkspacesList::setUpConnections() {
@@ -140,6 +136,12 @@ void WorkspacesList::setUpConnections() {
     connect(buttonNewWorkspace, &QPushButton::clicked, this, [this]() {
         emit userToCreateNewWorkspace();
     });
+
+    //
+    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
+            this, [this](bool const isDarkTheme) {
+        listWidget->setHighlightColor(getListWidgetHighlightedItemColor(isDarkTheme));
+    });
 }
 
 void WorkspacesList::setUpBoardContextMenu() {
@@ -158,4 +160,8 @@ void WorkspacesList::setUpBoardContextMenu() {
             emit userToRemoveWorkspace(workspaceIdOnContextMenuRequest);
         });
     }
+}
+
+QColor WorkspacesList::getListWidgetHighlightedItemColor(const bool isDarkTheme) {
+    return isDarkTheme ? QColor(72, 72, 72) : QColor(220, 220, 220);
 }

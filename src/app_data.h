@@ -79,8 +79,6 @@ public:
             std::function<void (std::optional<int> boardId)> callback,
             QPointer<QObject> callbackContext) override;
 
-    std::optional<QSize> getMainWindowSize() override;
-
     void queryCustomDataQueries(
                 const QSet<int> &customDataQueryIds,
                 std::function<void (bool ok, const QHash<int, CustomDataQuery> &dataQueries)> callback,
@@ -90,6 +88,10 @@ public:
             const QString &cypher, const QJsonObject &parameters,
             std::function<void (bool ok, const QVector<QJsonObject> &result)> callback,
             QPointer<QObject> callbackContext) override;
+
+    std::optional<QSize> getMainWindowSize() override;
+
+    bool getIsDarkTheme() override;
 
     // ---- persisted data: update ----
 
@@ -200,6 +202,8 @@ public:
             const EventSource &eventSrc, const int groupBoxId, const int newParentGroupBoxId);
 
     void updateMainWindowSize(const EventSource &eventSrc, const QSize &size);
+
+    void updateIsDarkTheme(const EventSource &eventSrc, const bool &isDarkTheme);
 
     // ==== non-persisted independent data ====
 

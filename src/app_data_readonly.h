@@ -66,8 +66,6 @@ public:
             std::function<void (std::optional<int> boardId)> callback,
             QPointer<QObject> callbackContext) = 0;
 
-    virtual std::optional<QSize> getMainWindowSize() = 0;
-
     virtual void queryCustomDataQueries(
             const QSet<int> &customDataQueryIds,
             std::function<void (bool ok, const QHash<int, CustomDataQuery> &dataQueries)> callback,
@@ -77,6 +75,10 @@ public:
             const QString &cypher, const QJsonObject &parameters,
             std::function<void (bool ok, const QVector<QJsonObject> &result)> callback,
             QPointer<QObject> callbackContext) = 0;
+
+    virtual std::optional<QSize> getMainWindowSize() = 0;
+
+    virtual bool getIsDarkTheme() = 0;
 
     // ==== non-persisted independent data ====
 
@@ -94,6 +96,7 @@ signals:
             const int customDataQueryId, const CustomDataQueryUpdate &update);
     void highlightedCardIdUpdated(EventSource eventSrc);
     void fontSizeScaleFactorChanged(const QWidget *window, const double factor);
+    void isDarkThemeUpdated(const bool isDarkTheme);
 };
 
 #endif // APP_DATA_READONLY_H

@@ -454,13 +454,6 @@ void PersistedDataAccess::requestNewBoardId(
     );
 }
 
-std::optional<QSize> PersistedDataAccess::getMainWindowSize() {
-    const auto [ok, sizeOpt] = localSettingsFile->readMainWindowSize();
-    if (!ok)
-        return std::nullopt;
-    return sizeOpt;
-}
-
 void PersistedDataAccess::queryCustomDataQueries(
         const QSet<int> &customDataQueryIds,
         std::function<void (bool, const QHash<int, CustomDataQuery> &)> callback,
@@ -528,6 +521,20 @@ void PersistedDataAccess::performCustomCypherQuery(
     Q_ASSERT(callback);
 
     debouncedDbAccess->performCustomCypherQuery(cypher, parameters, callback, callbackContext);
+}
+
+std::optional<QSize> PersistedDataAccess::getMainWindowSize() {
+    const auto [ok, sizeOpt] = localSettingsFile->readMainWindowSize();
+    if (!ok)
+        return std::nullopt;
+    return sizeOpt;
+}
+
+bool PersistedDataAccess::getIsDarkTheme() {
+    const auto [ok, isDarkThemeOpt] = localSettingsFile->readIsDarkTheme();
+    if (!ok)
+        return false;
+    return isDarkThemeOpt.value_or(false);
 }
 
 void PersistedDataAccess::createNewCardWithId(const int cardId, const Card &card) {
@@ -1054,6 +1061,21 @@ bool PersistedDataAccess::saveMainWindowSize(const QSize &size) {
         unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
 
         showMsgOnFailedToSaveToFile("main-window size");
+    }
+    return ok;
+}
+
+bool PersistedDataAccess::saveIsDarkTheme(const bool isDarkTheme) {
+    const bool ok = localSettingsFile->writeIsDarkTheme(isDarkTheme);
+    if (!ok) {
+        const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+        const QString updateTitle = "saveIsDarkTheme";
+        const QString updateDetails = printJson(QJsonObject {
+            {"isDarkTheme", isDarkTheme},
+        }, false);
+        unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+        showMsgOnFailedToSaveToFile("theme option");
     }
     return ok;
 }

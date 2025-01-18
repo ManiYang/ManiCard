@@ -5,10 +5,10 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QPainter>
 #include "board_box_item.h"
-#include "global_constants.h"
 #include "utilities/margins_util.h"
 #include "utilities/numbers_util.h"
 #include "widgets/components/graphics_item_move_resize.h"
+#include "widgets/widgets_constants.h"
 
 constexpr double resizeAreaMaxWidth = 6.0; // in pixel
 

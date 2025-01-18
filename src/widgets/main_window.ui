@@ -39,11 +39,6 @@
          <height>0</height>
         </size>
        </property>
-       <property name="styleSheet">
-        <string notr="true">#frameLeftSideBar {
-  background: #ffffff;
-}</string>
-       </property>
        <property name="frameShape">
         <enum>QFrame::NoFrame</enum>
        </property>

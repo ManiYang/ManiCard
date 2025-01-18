@@ -10,6 +10,9 @@
 /* example:
  *
  * {
+ *   "theme": {
+ *     "isDark": true
+ *   },
  *   "mainWindow": {
  *     "size": [1000, 800]
  *   },
@@ -35,6 +38,7 @@
 
 constexpr char fileName[] = "user_settings.json";
 
+constexpr char sectionTheme[] = "theme";
 constexpr char sectionMainWindow[] = "mainWindow";
 constexpr char sectionWorkspaces[] = "workspaces";
 constexpr char sectionBoards[] = "boards";
@@ -43,10 +47,20 @@ constexpr char keySize[] = "size";
 constexpr char keyLastOpenedBoardId[] = "lastOpenedBoardId";
 constexpr char keyLastOpenedWorkspaceId[] = "lastOpenedWorkspaceId";
 constexpr char keyTopLeftPos[] = "topLeftPos";
+constexpr char keyIsDark[] = "isDark";
 
 LocalSettingsFile::LocalSettingsFile(const QString &appLocalDataDir)
         : filePath(QDir(appLocalDataDir).filePath(fileName)) {
     Q_ASSERT(!appLocalDataDir.isEmpty());
+}
+
+std::pair<bool, std::optional<bool> > LocalSettingsFile::readIsDarkTheme() {
+    const QJsonObject obj = read();
+    const QJsonValue v = JsonReader(obj)[sectionTheme][keyIsDark].get();
+    if (v.isUndefined())
+        return {true, std::nullopt};
+    else
+        return {true, v.toBool()};
 }
 
 std::pair<bool, std::optional<int> > LocalSettingsFile::readLastOpenedBoardIdOfWorkspace(
@@ -114,6 +128,20 @@ std::pair<bool, std::optional<QSize> > LocalSettingsFile::readMainWindowSize() {
     }
 
     return {true, QSize(v[0].toInt(), v[1].toInt())};
+}
+
+bool LocalSettingsFile::writeIsDarkTheme(const bool isDarkTheme) {
+    QJsonObject obj = read();
+
+    // set obj[sectionTheme][keyIsDark] = isDarkTheme
+    QJsonObject themeObj = obj[sectionTheme].toObject();
+    themeObj[keyIsDark] = isDarkTheme;
+
+    obj[sectionTheme] = themeObj;
+
+    //
+    const bool ok = write(obj);
+    return ok;
 }
 
 bool LocalSettingsFile::writeLastOpenedBoardIdOfWorkspace(

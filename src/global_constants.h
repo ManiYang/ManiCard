@@ -8,6 +8,4 @@ constexpr bool buildInReleaseMode =
     false;
 #endif
 
-constexpr double boardSnapGridSize = 8.0;
-
 #endif // GLOBAL_CONSTANTS_H

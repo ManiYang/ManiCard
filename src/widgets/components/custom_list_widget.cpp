@@ -80,6 +80,11 @@ void CustomListWidget::onItemContextMenuClosed() {
     listWidget->setCurrentRow(-1);
 }
 
+void CustomListWidget::setHighlightColor(const QColor &color) {
+    highlightColor = color;
+    setHighlightedItem(highlightedItem);
+}
+
 int CustomListWidget::count() const {
     return listWidget->count();
 }
@@ -148,11 +153,6 @@ void CustomListWidget::setUpConnections() {
 }
 
 void CustomListWidget::setHighlightedItem(QListWidgetItem *item) {
-    const static QColor highlightColor(220, 220, 220);
-
-    if (highlightedItem == item)
-        return;
-
     if (highlightedItem != nullptr)
         highlightedItem->setBackground(Qt::transparent);
 

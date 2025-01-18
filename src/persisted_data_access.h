@@ -87,8 +87,6 @@ public:
             std::function<void (std::optional<int> boardId)> callback,
             QPointer<QObject> callbackContext);
 
-    std::optional<QSize> getMainWindowSize();
-
     void queryCustomDataQueries(
             const QSet<int> &customDataQueryIds,
             std::function<void (bool ok, const QHash<int, CustomDataQuery> &dataQueries)> callback,
@@ -98,6 +96,10 @@ public:
             const QString &cypher, const QJsonObject &parameters,
             std::function<void (bool, const QVector<QJsonObject> &)> callback,
             QPointer<QObject> callbackContext);
+
+    std::optional<QSize> getMainWindowSize();
+
+    bool getIsDarkTheme();
 
     // ==== write ====
 
@@ -197,6 +199,8 @@ public:
     void reparentGroupBox(const int groupBoxId, const int newParentGroupBoxId);
 
     bool saveMainWindowSize(const QSize &size);
+
+    bool saveIsDarkTheme(const bool isDarkTheme);
 
 private:
     DebouncedDbAccess *debouncedDbAccess;

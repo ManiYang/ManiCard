@@ -7,7 +7,6 @@
 #include <QVBoxLayout>
 #include "app_data.h"
 #include "board_view.h"
-#include "global_constants.h"
 #include "models/custom_data_query.h"
 #include "models/data_view_box_data.h"
 #include "persisted_data_access.h"
@@ -29,6 +28,7 @@
 #include "widgets/components/node_rect.h"
 #include "widgets/dialogs/dialog_create_relationship.h"
 #include "widgets/dialogs/dialog_set_labels.h"
+#include "widgets/widgets_constants.h"
 
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 

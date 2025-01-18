@@ -62,6 +62,8 @@ private:
     void setUpWidgets();
     void setUpConnections();
     void setUpBoardContextMenu();
+
+    QColor getListWidgetHighlightedItemColor(const bool isDarkTheme);
 };
 
 #endif // WORKSPACESLIST_H

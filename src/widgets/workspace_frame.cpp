@@ -12,6 +12,7 @@
 #include "utilities/maps_util.h"
 #include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
+#include "widgets/app_style_sheet.h"
 #include "widgets/board_view.h"
 #include "widgets/components/custom_tab_bar.h"
 #include "widgets/dialogs/dialog_workspace_card_colors.h"
@@ -696,39 +697,20 @@ WorkspaceToolBar::WorkspaceToolBar(QWidget *parent)
     setUpWorkspaceSettingsMenu();
 
     //
+    QPushButton *buttonNewBoard;
+
     {
         labelWorkspaceName = new QLabel;
         hLayout->addWidget(labelWorkspaceName);
-
-        labelWorkspaceName->setStyleSheet(
-                "QLabel {"
-                "  font-size: 12pt;"
-                "  margin-left: 4px"
-                "}");
     }
     hLayout->addStretch();
     {
-        auto *buttonNewBoard = new QPushButton(QIcon(":/icons/add_black_24"), "New Board");
+        buttonNewBoard = new QPushButton(QIcon(":/icons/add_black_24"), "New Board");
         hLayout->addWidget(buttonNewBoard);
 
         connect(buttonNewBoard, &QPushButton::clicked, this, [this]() {
             emit userToAddNewBoard();
         });
-
-        buttonNewBoard->setStyleSheet(
-                "QPushButton {"
-                "  color: #606060;"
-                "  border: none;"
-                "  border-radius: 4px;"
-                "  padding: 2px 4px 2px 2px;"
-                "  background: transparent;"
-                "}"
-                "QPushButton:hover {"
-                "  background: #e0e0e0;"
-                "}"
-                "QPushButton:pressed {"
-                "  background: #c0c0c0;"
-                "}");
     }
     {
         buttonWorkspaceSettings = new QToolButton;
@@ -762,6 +744,20 @@ WorkspaceToolBar::WorkspaceToolBar(QWidget *parent)
             buttonOpenRightSidebar->setVisible(false);
         });
     }
+
+    // styles
+    labelWorkspaceName->setStyleSheet(
+            "QLabel {"
+            "  font-size: 12pt;"
+            "  margin-left: 4px;"
+            "  background: transparent;"
+            "}");
+
+    setStyleClasses(buttonNewBoard, {StyleClass::flatPushButton});
+
+    setStyleClasses(buttonWorkspaceSettings, {StyleClass::flatToolButton});
+
+    setStyleClasses(buttonOpenRightSidebar, {StyleClass::flatToolButton});
 }
 
 void WorkspaceToolBar::setWorkspaceName(const QString &name) {

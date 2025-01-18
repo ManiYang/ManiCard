@@ -46,6 +46,7 @@ SOURCES += \
     utilities/periodic_checker.cpp \
     utilities/periodic_timer.cpp \
     utilities/strings_util.cpp \
+    widgets/app_style_sheet.cpp \
     widgets/board_view.cpp \
     widgets/board_view_toolbar.cpp \
     widgets/card_properties_view.cpp \
@@ -124,7 +125,9 @@ HEADERS += \
     utilities/periodic_timer.h \
     utilities/sets_util.h \
     utilities/strings_util.h \
+    utilities/style_sheet_util.h \
     utilities/variables_update_propagator.h \
+    widgets/app_style_sheet.h \
     widgets/board_view.h \
     widgets/board_view_toolbar.h \
     widgets/card_properties_view.h \
@@ -150,6 +153,7 @@ HEADERS += \
     widgets/main_window.h \
     widgets/right_sidebar.h \
     widgets/right_sidebar_toolbar.h \
+    widgets/widgets_constants.h \
     widgets/workspace_frame.h \
     widgets/workspaces_list.h
 

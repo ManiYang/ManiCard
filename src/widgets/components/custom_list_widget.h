@@ -44,6 +44,8 @@ public:
 
     void onItemContextMenuClosed();
 
+    void setHighlightColor(const QColor &color);
+
     //
 
     int count() const;
@@ -69,6 +71,8 @@ private:
     ListWidgetTweak *listWidget;
     QListWidgetItem *highlightedItem {nullptr};
     int startedEditItemId {-1};
+
+    QColor highlightColor {220, 220, 220};
 
     //
     void setUpConnections();

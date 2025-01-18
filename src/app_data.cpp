@@ -67,10 +67,6 @@ void AppData::requestNewBoardId(
     persistedDataAccess->requestNewBoardId(callback, callbackContext);
 }
 
-std::optional<QSize> AppData::getMainWindowSize() {
-    return persistedDataAccess->getMainWindowSize();
-}
-
 void AppData::queryCustomDataQueries(
         const QSet<int> &customDataQueryIds,
         std::function<void (bool, const QHash<int, CustomDataQuery> &)> callback,
@@ -83,6 +79,14 @@ void AppData::performCustomCypherQuery(
         std::function<void (bool, const QVector<QJsonObject> &)> callback,
         QPointer<QObject> callbackContext) {
     persistedDataAccess->performCustomCypherQuery(cypher, parameters, callback, callbackContext);
+}
+
+std::optional<QSize> AppData::getMainWindowSize() {
+    return persistedDataAccess->getMainWindowSize();
+}
+
+bool AppData::getIsDarkTheme() {
+    return persistedDataAccess->getIsDarkTheme();
 }
 
 void AppData::createNewCardWithId(
@@ -316,6 +320,14 @@ void AppData::updateMainWindowSize(const EventSource &/*eventSrc*/, const QSize 
     persistedDataAccess->saveMainWindowSize(size);
 
     // 2. update all variables and emit "updated" signals
+}
+
+void AppData::updateIsDarkTheme(const EventSource &/*eventSrc*/, const bool &isDarkTheme) {
+    // 1. persist
+    persistedDataAccess->saveIsDarkTheme(isDarkTheme);
+
+    // 2. update all variables and emit "updated" signals
+    emit isDarkThemeUpdated(isDarkTheme);
 }
 
 int AppData::getSingleHighlightedCardId() const {

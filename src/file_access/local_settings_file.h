@@ -16,6 +16,7 @@ public:
 
     // It's not an error if the value is not found. Return (ok?, result).
 
+    std::pair<bool, std::optional<bool>> readIsDarkTheme();
     std::pair<bool, std::optional<int>> readLastOpenedBoardIdOfWorkspace(const int workspaceId);
     std::pair<bool, std::optional<int>> readLastOpenedWorkspaceId();
     std::pair<bool, std::optional<QPointF>> readTopLeftPosOfBoard(const int boardId);
@@ -23,6 +24,7 @@ public:
 
     // ==== write operations ====
 
+    bool writeIsDarkTheme(const bool isDarkTheme);
     bool writeLastOpenedBoardIdOfWorkspace(const int workspaceId, const int lastOpenedBoardId);
     bool writeLastOpenedWorkspaceId(const int lastOpenedWorkspaceId);
     bool writeTopLeftPosOfBoard(const int boardId, const QPointF &topLeftPos);

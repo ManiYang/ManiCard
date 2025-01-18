@@ -17,6 +17,7 @@
 #include "utilities/margins_util.h"
 #include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
+#include "widgets/app_style_sheet.h"
 #include "widgets/board_view.h"
 #include "widgets/dialogs/dialog_user_card_labels.h"
 #include "widgets/dialogs/dialog_user_relationship_types.h"
@@ -164,15 +165,11 @@ void MainWindow::setUpWidgets() {
         layout->addWidget(rightSidebar);
     }
 
-    //
-    buttonOpenMainMenu->setStyleSheet(
-            "QToolButton {"
-            "  border: none;"
-            "  background: transparent;"
-            "}"
-            "QToolButton:hover {"
-            "  background: #e0e0e0;"
-            "}");
+    // styles
+    setStyleClasses(ui->frameLeftSideBar, {StyleClass::highContrastBackground});
+
+    setStyleClasses(buttonOpenMainMenu, {StyleClass::flatToolButton});
+
     noWorkspaceOpenSign->setStyleSheet(
             "QLabel {"
             "  color: #808080;"
@@ -244,6 +241,15 @@ void MainWindow::setUpMainMenu() {
     {
         auto *submenu = mainMenu->addMenu("View");
         {
+            auto *action = submenu->addAction("Toggle Card Preview", this, [this]() {
+                if (workspaceFrame->isVisible())
+                    workspaceFrame->toggleCardPreview();
+            });
+            action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_E));
+            this->addAction(action); // without this, the shortcut won't work
+        }
+        submenu->addSeparator();
+        {
             auto *action = submenu->addAction("Zoom In", this, [this]() {
                 if (workspaceFrame->isVisible())
                     workspaceFrame->applyZoomAction(ZoomAction::ZoomIn);
@@ -269,14 +275,16 @@ void MainWindow::setUpMainMenu() {
         }
     }
     {
-        auto *submenu = mainMenu->addMenu("Cards");
+        auto *submenu = mainMenu->addMenu("Options");
         {
-            auto *action = submenu->addAction("Toggle Preview", this, [this]() {
-                if (workspaceFrame->isVisible())
-                    workspaceFrame->toggleCardPreview();
+            actionToggleDarkTheme = submenu->addAction("Dark Theme", this, [this](bool checked) {
+                const bool isDarkTheme = checked;
+                qApp->setStyleSheet(
+                        isDarkTheme ? getDarkThemeStyleSheet() : getLightThemeStyleSheet());
+                Services::instance()->getAppData()->updateIsDarkTheme(
+                        EventSource(this), isDarkTheme);
             });
-            action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_E));
-            this->addAction(action); // without this, the shortcut won't work
+            actionToggleDarkTheme->setCheckable(true);
         }
     }
     mainMenu->addSeparator();
@@ -316,6 +324,11 @@ void MainWindow::onStartUp() {
                 = Services::instance()->getAppDataReadonly()->getMainWindowSize();
         if (sizeOpt.has_value())
             resize(sizeOpt.value());
+    }
+    {
+        const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+        qApp->setStyleSheet(isDarkTheme ? getDarkThemeStyleSheet() : getLightThemeStyleSheet());
+        actionToggleDarkTheme->setChecked(isDarkTheme);
     }
 
     workspacesList->setEnabled(false);

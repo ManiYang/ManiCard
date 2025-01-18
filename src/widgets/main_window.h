@@ -44,6 +44,7 @@ private:
 
     // menus and actions
     QMenu *mainMenu;
+    QAction *actionToggleDarkTheme {nullptr};
     QAction *actionQuit {nullptr};
 
     // states & constants
