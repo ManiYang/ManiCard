@@ -55,6 +55,7 @@ private:
 
     QString plainText;
     bool textEditIsPreviewMode {false};
+    int textEditCursorPositionBeforePreviewMode {0};
 
     // content items
     // -- title

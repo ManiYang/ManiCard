@@ -284,6 +284,7 @@ void BoardBoxItem::setUpConnections() {
     connect(moveResizeHelper, &GraphicsItemMoveResize::setTargetItemPosition,
             this, [this](const QPointF &pos) {
         prepareGeometryChange();
+
         borderOuterRect.moveTopLeft(quantize(this->mapFromScene(pos), boardSnapGridSize));
         update();
         adjustGraphicsItems();

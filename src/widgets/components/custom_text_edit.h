@@ -22,16 +22,19 @@ public:
     //!
     explicit CustomTextEdit(QWidget *parent = nullptr);
 
-    void clear();
+    void clear(const bool resetFormat);
+
     void setPlainText(const QString &text);
     void setMarkdown(const QString &text);
+
     void setReadOnly(const bool readonly);
     void enableSetEveryWheelEventAccepted(const bool enable);
+    void obtainFocus();
 
     void setLineHeightPercent(const int percentage);
     void setParagraphSpacing(const double spacing);
 
-    void obtainFocus();
+    void setTextCursorPosition(const int pos);
 
     //!
     //! \param numberOfSpaces: if < 0, won't replace TAB
@@ -43,11 +46,15 @@ public:
     //!
     void setContextMenuPolicy(Qt::ContextMenuPolicy policy);
 
+    //
+
     QString toPlainText() const;
 
     QTextDocument *document() const;
 
     bool isVerticalScrollBarVisible() const;
+
+    int currentTextCursorPosition() const;
 
     //
     bool eventFilter(QObject *watched, QEvent *event) override;

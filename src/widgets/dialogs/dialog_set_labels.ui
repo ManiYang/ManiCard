@@ -77,7 +77,7 @@
      <property name="sizeHint" stdset="0">
       <size>
        <width>20</width>
-       <height>11</height>
+       <height>8</height>
       </size>
      </property>
     </spacer>
@@ -126,7 +126,7 @@
      <property name="sizeHint" stdset="0">
       <size>
        <width>20</width>
-       <height>2</height>
+       <height>5</height>
       </size>
      </property>
     </spacer>
@@ -134,7 +134,7 @@
    <item>
     <widget class="QLabel" name="label">
      <property name="text">
-      <string>Double-click to add to card's labels</string>
+      <string>Double-click on the following to add to card's labels:</string>
      </property>
     </widget>
    </item>

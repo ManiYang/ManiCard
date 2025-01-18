@@ -53,12 +53,17 @@ void NodeRect::togglePreview() {
     textEditIsPreviewMode = !textEditIsPreviewMode;
 
     if (textEditIsPreviewMode) {
+        textEditCursorPositionBeforePreviewMode = textEdit->currentTextCursorPosition();
+
         textEdit->setMarkdown(plainText);
         textEdit->document()->setIndentWidth(20);
         textEdit->setParagraphSpacing(20);
     }
     else {
+        textEdit->clear(true);
         textEdit->setPlainText(plainText);
+
+        textEdit->setTextCursorPosition(textEditCursorPositionBeforePreviewMode);
     }
     textEdit->setLineHeightPercent(textEditLineHeightPercentage);
 

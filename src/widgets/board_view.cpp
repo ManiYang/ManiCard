@@ -616,7 +616,6 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
             edgeArrowData.lineColor = defaultEdgeArrowLineColor;
             edgeArrowData.lineWidth = defaultEdgeArrowLineWidth;
         }
-
         for (auto it = routine->rels.constBegin(); it != routine->rels.constEnd(); ++it) {
             const auto &relId = it.key();
 
@@ -2583,8 +2582,6 @@ void BoardView::RelationshipBundlesCollection::update() {
     bundledRels.clear();
     for (auto it = cardIdToBundledRels.constBegin(); it != cardIdToBundledRels.constEnd(); ++it)
         bundledRels += it.value();
-
-    qInfo().noquote() << QString("%1 relationships bundled").arg(bundledRels.count());
 
     // compute `relBundlesByExternalCardId` & `groupBoxAndCardToBundles`
     QSet<RelationshipsBundle> allBundles;

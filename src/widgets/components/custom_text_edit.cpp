@@ -40,9 +40,15 @@ CustomTextEdit::CustomTextEdit(QWidget *parent)
     });
 }
 
-void CustomTextEdit::clear() {
+void CustomTextEdit::clear(const bool resetFormat) {
     textChangeIsByUser = false;
+
+    //
     textEdit->clear();
+    if (resetFormat)
+        textEdit->setCurrentCharFormat({});
+
+    //
     textChangeIsByUser = true;
 }
 
@@ -64,6 +70,10 @@ void CustomTextEdit::setReadOnly(const bool readonly) {
 
 void CustomTextEdit::enableSetEveryWheelEventAccepted(const bool enable){
     textEdit->enableSetEveryWheelEventAccepted(enable);
+}
+
+void CustomTextEdit::obtainFocus() {
+    textEdit->setFocus();
 }
 
 void CustomTextEdit::setLineHeightPercent(const int percentage) {
@@ -116,8 +126,10 @@ void CustomTextEdit::setParagraphSpacing(const double spacing) {
     textChangeIsByUser = true;
 }
 
-void CustomTextEdit::obtainFocus() {
-    textEdit->setFocus();
+void CustomTextEdit::setTextCursorPosition(const int pos) {
+    auto cursor = textEdit->textCursor();
+    cursor.setPosition(pos);
+    textEdit->setTextCursor(cursor);
 }
 
 void CustomTextEdit::setReplaceTabBySpaces(const int numberOfSpaces) {
@@ -138,6 +150,10 @@ QTextDocument *CustomTextEdit::document() const {
 
 bool CustomTextEdit::isVerticalScrollBarVisible() const {
     return textEdit->verticalScrollBar()->isVisible();
+}
+
+int CustomTextEdit::currentTextCursorPosition() const {
+    return textEdit->textCursor().position();
 }
 
 bool CustomTextEdit::eventFilter(QObject *watched, QEvent *event) {
