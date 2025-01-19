@@ -46,6 +46,8 @@ public:
 
     void setHighlightColor(const QColor &color);
 
+    void setSpacing(const int spacing);
+
     //
 
     int count() const;

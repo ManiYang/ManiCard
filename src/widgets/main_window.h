@@ -1,12 +1,14 @@
 #ifndef MAIN_WINDOW_H
 #define MAIN_WINDOW_H
 
+#include <QAbstractButton>
 #include <QLabel>
 #include <QMainWindow>
 #include <QPointer>
 #include <QScreen>
 #include <QToolButton>
 #include "utilities/periodic_checker.h"
+#include "widgets/icons.h"
 
 namespace Ui {
 class MainWindow;
@@ -59,9 +61,12 @@ private:
 
     const QScreen *currentScreen {nullptr}; // used only in checkIsScreenChanged()
 
+    QHash<QAbstractButton *, Icon> buttonToIcon; // set in setUpWidgets()
+
     //
     void setUpWidgets();
     void setUpConnections();
+    void setUpButtonsWithIcons();
     void setUpMainMenu();
 
     // ==== event handlers ====

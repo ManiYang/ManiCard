@@ -5,12 +5,13 @@
 #include "utilities/lists_vectors_util.h"
 #include "widgets/app_style_sheet.h"
 #include "widgets/components/custom_list_widget.h"
+#include "widgets/icons.h"
 #include "workspaces_list.h"
 
 WorkspacesList::WorkspacesList(QWidget *parent)
         : QFrame(parent) {
     setUpWidgets();
-    setUpBoardContextMenu();
+    setUpButtonsWithIcons();
     setUpConnections();
 }
 
@@ -75,7 +76,8 @@ void WorkspacesList::setUpWidgets() {
         rootVLayout->addLayout(topHLayout);
         topHLayout->setContentsMargins(14, 0, 0, 0);
         {
-            buttonNewWorkspace = new QPushButton(QIcon(":/icons/add_black_24"), "New Workspace");
+            buttonNewWorkspace = new QPushButton("New Workspace");
+            buttonToIcon.insert(buttonNewWorkspace, Icon::Add);
             topHLayout->addWidget(buttonNewWorkspace);
 
             topHLayout->addStretch();
@@ -85,6 +87,7 @@ void WorkspacesList::setUpWidgets() {
         rootVLayout->addWidget(listWidget);
         {
             listWidget->setFrameShape(QFrame::NoFrame);
+            listWidget->setSpacing(2);
 
             const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
             listWidget->setHighlightColor(getListWidgetHighlightedItemColor(isDarkTheme));
@@ -115,8 +118,10 @@ void WorkspacesList::setUpConnections() {
 
     connect(listWidget, &CustomListWidget::itemContextMenuRequested,
             this, [this](int itemId, QPoint screenPos) {
-        workspaceIdOnContextMenuRequest = itemId;
-        workspaceContextMenu->popup(screenPos);
+        workspaceContextMenu.workspaceIdOnContextMenuRequest = itemId;
+        workspaceContextMenu.setActionIcons();
+        workspaceContextMenu.actionDelete->setEnabled(listWidget->selectedItemId() == itemId);
+        workspaceContextMenu.menu->popup(screenPos);
     });
 
     connect(listWidget, &CustomListWidget::itemTextEdited,
@@ -128,7 +133,7 @@ void WorkspacesList::setUpConnections() {
     });
 
     //
-    connect(workspaceContextMenu, &QMenu::aboutToHide, this, [this]() {
+    connect(workspaceContextMenu.menu, &QMenu::aboutToHide, this, [this]() {
         listWidget->onItemContextMenuClosed();
     });
 
@@ -144,24 +149,51 @@ void WorkspacesList::setUpConnections() {
     });
 }
 
-void WorkspacesList::setUpBoardContextMenu() {
-    workspaceContextMenu = new QMenu(this);
-    {
-        auto *action = workspaceContextMenu->addAction(
-                QIcon(":/icons/edit_square_black_24"), "Rename");
-        connect(action, &QAction::triggered, this, [this]() {
-            listWidget->startEditItem(workspaceIdOnContextMenuRequest);
-        });
-    }
-    {
-        auto *action = workspaceContextMenu->addAction(
-                QIcon(":/icons/delete_black_24"), "Delete");
-        connect(action, &QAction::triggered, this, [this]() {
-            emit userToRemoveWorkspace(workspaceIdOnContextMenuRequest);
-        });
-    }
+void WorkspacesList::setUpButtonsWithIcons() {
+    // set the icons with current theme
+    const auto theme = Services::instance()->getAppDataReadonly()->getIsDarkTheme()
+            ? Icons::Theme::Dark : Icons::Theme::Light;
+    for (auto it = buttonToIcon.constBegin(); it != buttonToIcon.constEnd(); ++it)
+        it.key()->setIcon(Icons::getIcon(it.value(), theme));
+
+    // connect to "theme updated" signal
+    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
+            this, [this](const bool isDarkTheme) {
+        const auto theme = isDarkTheme ? Icons::Theme::Dark : Icons::Theme::Light;
+        for (auto it = buttonToIcon.constBegin(); it != buttonToIcon.constEnd(); ++it)
+            it.key()->setIcon(Icons::getIcon(it.value(), theme));
+    });
 }
 
 QColor WorkspacesList::getListWidgetHighlightedItemColor(const bool isDarkTheme) {
     return isDarkTheme ? QColor(72, 72, 72) : QColor(220, 220, 220);
+}
+
+//======
+
+WorkspacesList::ContextMenu::ContextMenu(WorkspacesList *workspacesList_)
+        : workspacesList(workspacesList_) {
+    menu = new QMenu(workspacesList);
+    {
+        actionRename = menu->addAction(
+                QIcon(":/icons/edit_square_black_24"), "Rename");
+        connect(actionRename, &QAction::triggered, workspacesList, [this]() {
+            workspacesList->listWidget->startEditItem(workspaceIdOnContextMenuRequest);
+        });
+    }
+    {
+        actionDelete = menu->addAction(
+                QIcon(":/icons/delete_black_24"), "Delete");
+        connect(actionDelete, &QAction::triggered, workspacesList, [this]() {
+            emit workspacesList->userToRemoveWorkspace(workspaceIdOnContextMenuRequest);
+        });
+    }
+}
+
+void WorkspacesList::ContextMenu::setActionIcons() {
+    const auto theme = Services::instance()->getAppDataReadonly()->getIsDarkTheme()
+            ? Icons::Theme::Dark : Icons::Theme::Light;
+
+    actionRename->setIcon(Icons::getIcon(Icon::EditSquare, theme));
+    actionDelete->setIcon(Icons::getIcon(Icon::Delete, theme));
 }

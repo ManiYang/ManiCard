@@ -34,6 +34,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     setUpWidgets();
     setUpConnections();
+    setUpButtonsWithIcons();
     setUpMainMenu();
 
     //
@@ -123,7 +124,7 @@ void MainWindow::setUpWidgets() {
         hLayout->setContentsMargins(0, 0, 0, 0);
         {
             buttonOpenMainMenu = new QToolButton;
-            buttonOpenMainMenu->setIcon(QIcon(":/icons/menu4_black_24"));
+            buttonToIcon.insert(buttonOpenMainMenu, Icon::Menu4);
             buttonOpenMainMenu->setIconSize({24, 24});
             hLayout->addWidget(buttonOpenMainMenu);
 
@@ -223,6 +224,22 @@ void MainWindow::setUpConnections() {
     connect(rightSidebar, &RightSidebar::closeRightSidebar, this, [this]() {
         ui->frameRightSideBar->setVisible(false);
         workspaceFrame->showButtonRightSidebar();
+    });
+}
+
+void MainWindow::setUpButtonsWithIcons() {
+    // set the icons with current theme
+    const auto theme = Services::instance()->getAppDataReadonly()->getIsDarkTheme()
+            ? Icons::Theme::Dark : Icons::Theme::Light;
+    for (auto it = buttonToIcon.constBegin(); it != buttonToIcon.constEnd(); ++it)
+        it.key()->setIcon(Icons::getIcon(it.value(), theme));
+
+    // connect to "theme updated" signal
+    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
+            this, [this](const bool isDarkTheme) {
+        const auto theme = isDarkTheme ? Icons::Theme::Dark : Icons::Theme::Light;
+        for (auto it = buttonToIcon.constBegin(); it != buttonToIcon.constEnd(); ++it)
+            it.key()->setIcon(Icons::getIcon(it.value(), theme));
     });
 }
 
@@ -575,6 +592,8 @@ void MainWindow::onUserRenamedWorkspace(const int workspaceId, const QString &ne
 void MainWindow::onUserToRemoveWorkspace(const int workspaceIdToRemove) {
     if (workspaceIdToRemove == -1)
         return;
+    if (workspaceIdToRemove != workspaceFrame->getWorkspaceId())
+        return; // can only remove current workspace
 
     // check that workspace is empty
     if (!workspaceFrame->getAllBoardIds().isEmpty()) {

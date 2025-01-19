@@ -6,6 +6,7 @@
 #include <QToolButton>
 #include "widgets/common_types.h"
 #include "widgets/components/simple_toolbar.h"
+#include "widgets/icons.h"
 
 class BoardView;
 class CustomTabBar;
@@ -63,13 +64,24 @@ private:
     CustomTabBar *boardsTabBar {nullptr};
     BoardView *boardView {nullptr};
     NoBoardSign *noBoardSign {nullptr};
-    QMenu *boardTabContextMenu {nullptr};
-    int boardTabContextMenuTargetBoardId {-1};
+
+    struct ContextMenu
+    {
+        explicit ContextMenu(WorkspaceFrame *workspaceFrame);
+        QMenu *menu;
+        QAction *actionRename;
+        QAction *actionDelete;
+        int boardTabContextMenuTargetBoardId {-1};
+
+        void setActionIcons();
+    private:
+        WorkspaceFrame *workspaceFrame;
+    };
+    ContextMenu boardTabContextMenu {this};
 
     //
     void setUpWidgets();
     void setUpConnections();
-    void setUpBoardTabContextMenu();
 
     //
     void onUserToAddBoard();
@@ -111,8 +123,11 @@ private:
     QToolButton *buttonWorkspaceSettings {nullptr};
     QMenu *workspaceSettingsMenu {nullptr};
 
+    QHash<QAbstractButton *, Icon> buttonToIcon;
+
     void setUpWorkspaceSettingsMenu();
     void setUpConnections();
+    void setUpButtonsWithIcons();
 };
 
 //========

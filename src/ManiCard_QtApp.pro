@@ -68,6 +68,7 @@ SOURCES += \
     widgets/dialogs/dialog_user_card_labels.cpp \
     widgets/dialogs/dialog_user_relationship_types.cpp \
     widgets/dialogs/dialog_workspace_card_colors.cpp \
+    widgets/icons.cpp \
     widgets/main_window.cpp \
     widgets/right_sidebar.cpp \
     widgets/right_sidebar_toolbar.cpp \
@@ -150,6 +151,7 @@ HEADERS += \
     widgets/dialogs/dialog_user_card_labels.h \
     widgets/dialogs/dialog_user_relationship_types.h \
     widgets/dialogs/dialog_workspace_card_colors.h \
+    widgets/icons.h \
     widgets/main_window.h \
     widgets/right_sidebar.h \
     widgets/right_sidebar_toolbar.h \

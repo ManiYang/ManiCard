@@ -85,6 +85,10 @@ void CustomListWidget::setHighlightColor(const QColor &color) {
     setHighlightedItem(highlightedItem);
 }
 
+void CustomListWidget::setSpacing(const int spacing){
+    listWidget->setSpacing(spacing);
+}
+
 int CustomListWidget::count() const {
     return listWidget->count();
 }

@@ -24,7 +24,6 @@ WorkspaceFrame::WorkspaceFrame(QWidget *parent)
         : QFrame(parent) {
     setUpWidgets();
     setUpConnections();
-    setUpBoardTabContextMenu();
 }
 
 void WorkspaceFrame::loadWorkspace(
@@ -313,8 +312,9 @@ void WorkspaceFrame::setUpConnections() {
                 : false;
 
         if (isOnCurrentTab) {
-            boardTabContextMenuTargetBoardId = currentBoardId;
-            boardTabContextMenu->popup(globalPos);
+            boardTabContextMenu.boardTabContextMenuTargetBoardId = currentBoardId;
+            boardTabContextMenu.setActionIcons();
+            boardTabContextMenu.menu->popup(globalPos);
         }
     });
 
@@ -331,24 +331,6 @@ void WorkspaceFrame::setUpConnections() {
     connect(noBoardSign, &NoBoardSign::userToAddBoard, this, [this]() {
         onUserToAddBoard();
     });
-}
-
-void WorkspaceFrame::setUpBoardTabContextMenu() {
-    boardTabContextMenu = new QMenu(this);
-    {
-        auto *action = boardTabContextMenu->addAction(
-                QIcon(":/icons/edit_square_black_24"), "Rename");
-        connect(action, &QAction::triggered, this, [this]() {
-            onUserToRenameBoard(boardTabContextMenuTargetBoardId);
-        });
-    }
-    {
-        auto *action = boardTabContextMenu->addAction(
-                QIcon(":/icons/delete_black_24"), "Delete");
-        connect(action, &QAction::triggered, this, [this]() {
-            onUserToRemoveBoard(boardTabContextMenuTargetBoardId);
-        });
-    }
 }
 
 void WorkspaceFrame::onUserToAddBoard() {
@@ -705,7 +687,8 @@ WorkspaceToolBar::WorkspaceToolBar(QWidget *parent)
     }
     hLayout->addStretch();
     {
-        buttonNewBoard = new QPushButton(QIcon(":/icons/add_black_24"), "New Board");
+        buttonNewBoard = new QPushButton("New Board");
+        buttonToIcon.insert(buttonNewBoard, Icon::Add);
         hLayout->addWidget(buttonNewBoard);
 
         connect(buttonNewBoard, &QPushButton::clicked, this, [this]() {
@@ -717,7 +700,7 @@ WorkspaceToolBar::WorkspaceToolBar(QWidget *parent)
         hLayout->addWidget(buttonWorkspaceSettings);
         hLayout->setAlignment(buttonWorkspaceSettings, Qt::AlignVCenter);
 
-        buttonWorkspaceSettings->setIcon(QIcon(":/icons/more_vert_24"));
+        buttonToIcon.insert(buttonWorkspaceSettings, Icon::MoreVert);
         buttonWorkspaceSettings->setIconSize({24, 24});
         buttonWorkspaceSettings->setToolTip("Workspace Settings");
 
@@ -735,7 +718,7 @@ WorkspaceToolBar::WorkspaceToolBar(QWidget *parent)
         hLayout->addWidget(buttonOpenRightSidebar);
         hLayout->setAlignment(buttonOpenRightSidebar, Qt::AlignVCenter);
 
-        buttonOpenRightSidebar->setIcon(QIcon(":/icons/open_right_panel_24"));
+        buttonToIcon.insert(buttonOpenRightSidebar, Icon::OpenRightPanel);
         buttonOpenRightSidebar->setIconSize({24, 24});
         buttonOpenRightSidebar->setToolTip("Open Right Side-Bar");
 
@@ -758,6 +741,10 @@ WorkspaceToolBar::WorkspaceToolBar(QWidget *parent)
     setStyleClasses(buttonWorkspaceSettings, {StyleClass::flatToolButton});
 
     setStyleClasses(buttonOpenRightSidebar, {StyleClass::flatToolButton});
+
+    //
+    setUpConnections();
+    setUpButtonsWithIcons();
 }
 
 void WorkspaceToolBar::setWorkspaceName(const QString &name) {
@@ -786,6 +773,22 @@ void WorkspaceToolBar::setUpConnections() {
     connect(workspaceSettingsMenu, &QMenu::aboutToHide, this, [this]() {
         buttonWorkspaceSettings->update();
                 // without this, the button's appearence stay in hover state
+    });
+}
+
+void WorkspaceToolBar::setUpButtonsWithIcons() {
+    // set the icons with current theme
+    const auto theme = Services::instance()->getAppDataReadonly()->getIsDarkTheme()
+            ? Icons::Theme::Dark : Icons::Theme::Light;
+    for (auto it = buttonToIcon.constBegin(); it != buttonToIcon.constEnd(); ++it)
+        it.key()->setIcon(Icons::getIcon(it.value(), theme));
+
+    // connect to "theme updated" signal
+    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
+            this, [this](const bool isDarkTheme) {
+        const auto theme = isDarkTheme ? Icons::Theme::Dark : Icons::Theme::Light;
+        for (auto it = buttonToIcon.constBegin(); it != buttonToIcon.constEnd(); ++it)
+            it.key()->setIcon(Icons::getIcon(it.value(), theme));
     });
 }
 
@@ -833,4 +836,33 @@ NoBoardSign::NoBoardSign(QWidget *parent)
                 "}");
     }
     vLayout->addStretch();
+}
+
+//======
+
+WorkspaceFrame::ContextMenu::ContextMenu(WorkspaceFrame *workspaceFrame_)
+        : workspaceFrame(workspaceFrame_) {
+    menu = new QMenu(workspaceFrame);
+    {
+        actionRename = menu->addAction(
+                QIcon(":/icons/edit_square_black_24"), "Rename Board");
+        connect(actionRename, &QAction::triggered, workspaceFrame, [this]() {
+            workspaceFrame->onUserToRenameBoard(boardTabContextMenuTargetBoardId);
+        });
+    }
+    {
+        actionDelete = menu->addAction(
+                QIcon(":/icons/delete_black_24"), "Delete Board");
+        connect(actionDelete, &QAction::triggered, workspaceFrame, [this]() {
+            workspaceFrame->onUserToRemoveBoard(boardTabContextMenuTargetBoardId);
+        });
+    }
+}
+
+void WorkspaceFrame::ContextMenu::setActionIcons() {
+    const auto theme = Services::instance()->getAppDataReadonly()->getIsDarkTheme()
+            ? Icons::Theme::Dark : Icons::Theme::Light;
+
+    actionRename->setIcon(Icons::getIcon(Icon::EditSquare, theme));
+    actionDelete->setIcon(Icons::getIcon(Icon::Delete, theme));
 }

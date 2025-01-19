@@ -364,9 +364,6 @@ bool BoardView::eventFilter(QObject *watched, QEvent *event) {
 }
 
 void BoardView::setUpWidgets() {
-    const QColor sceneBackgroundColor(230, 230, 230);
-
-    //
     this->setFrameShape(QFrame::NoFrame);
 
     // set up layout
@@ -375,9 +372,6 @@ void BoardView::setUpWidgets() {
     layout->setSpacing(0);
     this->setLayout(layout);
     {
-//        toolBar = new BoardViewToolBar(this);
-//        layout->addWidget(toolBar);
-
         graphicsView = new QGraphicsView;
         layout->addWidget(graphicsView);
     }
@@ -385,7 +379,9 @@ void BoardView::setUpWidgets() {
     // set up `graphicsScene`, & `canvas`
     graphicsScene = new GraphicsScene(this);
     graphicsScene->setItemIndexMethod(QGraphicsScene::NoIndex);
-    graphicsScene->setBackgroundBrush(sceneBackgroundColor);
+
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+    graphicsScene->setBackgroundBrush(getSceneBackgroundColor(isDarkTheme));
 
     canvas = new QGraphicsRectItem;
     canvas->setFlag(QGraphicsItem::ItemHasNoContents, true);
@@ -484,6 +480,11 @@ void BoardView::setUpConnections() {
 
         graphicsGeometryScaleFactor = factor;
         updateCanvasScale(zoomScale * graphicsGeometryScaleFactor, getViewCenterInScene());
+    });
+
+    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
+            this, [this](const bool isDarkTheme) {
+        graphicsScene->setBackgroundBrush(getSceneBackgroundColor(isDarkTheme));
     });
 }
 
@@ -1583,6 +1584,10 @@ void BoardView::savePositionsOfComovingItems(const ComovingStateData &comovingSt
         Services::instance()->getAppData()->updateNodeRectProperties(
                 EventSource(this), this->boardId, cardId, update);
     }
+}
+
+QColor BoardView::getSceneBackgroundColor(const bool isDarkTheme) {
+    return isDarkTheme ? QColor(64, 64, 64) : QColor(230, 230, 230);
 }
 
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) const {

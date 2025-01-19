@@ -1,6 +1,7 @@
 #include <QDebug>
 #include <QVBoxLayout>
 #include "right_sidebar.h"
+#include "widgets/app_style_sheet.h"
 #include "widgets/card_properties_view.h"
 #include "widgets/right_sidebar_toolbar.h"
 
@@ -33,10 +34,7 @@ void RightSidebar::setUpWidgets() {
     }
 
     //
-    setStyleSheet(
-            "RightSidebar {"
-            "  background: white;"
-            "}");
+    setStyleClasses(this, {StyleClass::highContrastBackground});
 }
 
 void RightSidebar::setUpConnections() {

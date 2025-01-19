@@ -4,6 +4,7 @@
 #include <QFrame>
 #include <QMenu>
 #include <QPushButton>
+#include "widgets/icons.h"
 
 class CustomListWidget;
 
@@ -56,12 +57,26 @@ private:
     QPushButton *buttonNewWorkspace;
     CustomListWidget *listWidget;
 
-    QMenu *workspaceContextMenu;
-    int workspaceIdOnContextMenuRequest {-1};
+    struct ContextMenu
+    {
+        explicit ContextMenu(WorkspacesList *workspacesList);
+        QMenu *menu;
+        QAction *actionRename;
+        QAction *actionDelete;
+        int workspaceIdOnContextMenuRequest {-1};
 
+        void setActionIcons();
+    private:
+        WorkspacesList *workspacesList;
+    };
+    ContextMenu workspaceContextMenu {this};
+
+    QHash<QAbstractButton *, Icon> buttonToIcon;
+
+    //
     void setUpWidgets();
     void setUpConnections();
-    void setUpBoardContextMenu();
+    void setUpButtonsWithIcons();
 
     QColor getListWidgetHighlightedItemColor(const bool isDarkTheme);
 };

@@ -424,6 +424,8 @@ private:
     void savePositionsOfComovingItems(const ComovingStateData &comovingStateData);
 
     // tools
+    static QColor getSceneBackgroundColor(const bool isDarkTheme);
+
     QPoint getScreenPosFromScenePos(const QPointF &scenePos) const;
     QPointF getViewCenterInScene() const;
     void setViewTopLeftPos(const QPointF &canvasPos);

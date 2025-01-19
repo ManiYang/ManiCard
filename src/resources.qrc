@@ -1,22 +1,22 @@
 <RCC>
     <qresource prefix="/icons">
-        <file alias="open_in_new_black_24">resources/icons/open_in_new_black_24.png</file>
-        <file alias="add_box_black_24">resources/icons/add_box_black_24.png</file>
-        <file alias="close_box_black_24">resources/icons/close_box_black_24.png</file>
         <file alias="add_black_24">resources/icons/add_black_24.png</file>
-        <file alias="delete_black_24">resources/icons/delete_black_24.png</file>
+        <file alias="add_box_black_24">resources/icons/add_box_black_24.png</file>
+        <file alias="open_in_new_black_24">resources/icons/open_in_new_black_24.png</file>
         <file alias="edit_square_black_24">resources/icons/edit_square_black_24.png</file>
-        <file alias="arrow_right_black_24">resources/icons/arrow_right_black_24.png</file>
+        <file alias="content_copy_24">resources/icons/content_copy_24.png</file>
+        <file alias="close_box_black_24">resources/icons/close_box_black_24.png</file>
+        <file alias="delete_black_24">resources/icons/delete_black_24.png</file>
+        <file alias="arrow_downward_24">resources/icons/arrow_downward_24.png</file>
         <file alias="arrow_east_24">resources/icons/arrow_east_24.png</file>
+        <file alias="arrow_upward_24">resources/icons/arrow_upward_24.png</file>
         <file alias="arrow_west_24">resources/icons/arrow_west_24.png</file>
+        <file alias="arrow_right_black_24">resources/icons/arrow_right_black_24.png</file>
         <file alias="menu4_black_24">resources/icons/menu4_black_24.png</file>
-        <file alias="label_black_24">resources/icons/label_black_24.png</file>
+        <file alias="more_vert_24">resources/icons/more_vert_24.png</file>
         <file alias="close_right_panel_24">resources/icons/close_right_panel_24.png</file>
         <file alias="open_right_panel_24">resources/icons/open_right_panel_24.png</file>
-        <file alias="more_vert_24">resources/icons/more_vert_24.png</file>
-        <file alias="arrow_upward_24">resources/icons/arrow_upward_24.png</file>
-        <file alias="arrow_downward_24">resources/icons/arrow_downward_24.png</file>
-        <file alias="content_copy_24">resources/icons/content_copy_24.png</file>
+        <file alias="label_black_24">resources/icons/label_black_24.png</file>
         <file alias="play_arrow_24">resources/icons/play_arrow_24.png</file>
     </qresource>
 </RCC>
