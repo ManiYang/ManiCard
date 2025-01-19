@@ -61,13 +61,14 @@ private:
     {
         explicit ContextMenu(WorkspacesList *workspacesList);
         QMenu *menu;
-        QAction *actionRename;
+//        QAction *actionRename;
         QAction *actionDelete;
         int workspaceIdOnContextMenuRequest {-1};
 
         void setActionIcons();
     private:
         WorkspacesList *workspacesList;
+        QHash<QAction *, Icon> actionToIcon;
     };
     ContextMenu workspaceContextMenu {this};
 

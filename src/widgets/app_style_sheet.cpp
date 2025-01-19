@@ -1,4 +1,5 @@
 #include "app_style_sheet.h"
+#include "widgets/widgets_constants.h"
 
 namespace {
 QString getBaseStyleSheet() {
@@ -27,8 +28,8 @@ QString getBaseStyleSheet() {
         "  border-bottom-color: #909090;"
         "}"
         "QTabBar::tab:selected {"
-        "  margin-left: -2px;" // expand/overlap to the left and right by 2px
-        "  margin-right: -2px;"
+        "  margin-left: -1px;" // expand/overlap to the left and right by 2px
+        "  margin-right: -1px;"
         "}"
         "QTabBar::tab:first:selected {"
         "  margin-left: 0;" // the first selected tab has nothing to overlap with on the left
@@ -79,8 +80,12 @@ QString getLightThemeStyleSheet() {
 QString getDarkThemeStyleSheet() {
     return getBaseStyleSheet() +
         "* {"
-        "  color: #e0e0e0;"
-        "  background: #272727;"
+        "  color: " + darkThemeStandardTextColor + ";" +
+        "  background: #0f1114;"
+        "}"
+
+        "QDialog, QDialog QLabel {"
+        "  background: #383838;"
         "}"
 
         "QMenu {"
@@ -92,20 +97,20 @@ QString getDarkThemeStyleSheet() {
         "}"
 
         "QTextEdit, QListView, QLineEdit {"
-        "  background: black;"
+        "  background: " + highContrastDarkBackgroundColor + ";" +
         "}"
 
         "QTabBar::tab {"
         "  border: 1px solid #424242;"
-        "  background: #272727;"
+        "  background: #0f1114;"
         "}"
         "QTabBar::tab:selected {"
-        "  background: #404040;" // same as board background
-        "  border-bottom-color: #404040;" // same as board background
+        "  background: " + darkThemeBoardBackground + ";" +
+        "  border-bottom-color: " + darkThemeBoardBackground + ";" +
         "}"
 
         "*" + styleClassSelector(StyleClass::highContrastBackground) + " {" +
-        "  background: black;"
+        "  background: " + highContrastDarkBackgroundColor + ";" +
         "}"
 
         "QAbstractButton:hover" + styleClassSelector(StyleClass::flatToolButton) + " {" +

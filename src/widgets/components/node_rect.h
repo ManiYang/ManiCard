@@ -77,6 +77,7 @@ private:
     static QString getNodeLabelsString(const QStringList &labels);
     static bool computeTextEditEditable(
             const bool nodeRectIsEditable, const bool textEditIsPreviewMode);
+    static QColor getTitleItemDefaultTextColor(const bool isDarkTheme);
 };
 
 #endif // NODERECT_H

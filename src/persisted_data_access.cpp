@@ -531,10 +531,16 @@ std::optional<QSize> PersistedDataAccess::getMainWindowSize() {
 }
 
 bool PersistedDataAccess::getIsDarkTheme() {
+    // 1. gets the parts that are already cached
+    if (cache.isDarkTheme.has_value())
+        return cache.isDarkTheme.value();
+
+    // 2. reads from file and update the cache.
     const auto [ok, isDarkThemeOpt] = localSettingsFile->readIsDarkTheme();
-    if (!ok)
-        return false;
-    return isDarkThemeOpt.value_or(false);
+
+    bool isDarkTheme = ok ? isDarkThemeOpt.value_or(false) : false;
+    cache.isDarkTheme = isDarkTheme;
+    return isDarkTheme;
 }
 
 void PersistedDataAccess::createNewCardWithId(const int cardId, const Card &card) {
@@ -1066,6 +1072,10 @@ bool PersistedDataAccess::saveMainWindowSize(const QSize &size) {
 }
 
 bool PersistedDataAccess::saveIsDarkTheme(const bool isDarkTheme) {
+    // synchronously updates the cache
+    cache.isDarkTheme = isDarkTheme;
+
+    // write file
     const bool ok = localSettingsFile->writeIsDarkTheme(isDarkTheme);
     if (!ok) {
         const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);

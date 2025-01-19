@@ -69,13 +69,12 @@ private:
     {
         explicit ContextMenu(WorkspaceFrame *workspaceFrame);
         QMenu *menu;
-        QAction *actionRename;
-        QAction *actionDelete;
         int boardTabContextMenuTargetBoardId {-1};
 
         void setActionIcons();
     private:
         WorkspaceFrame *workspaceFrame;
+        QHash<QAction *, Icon> actionToIcon;
     };
     ContextMenu boardTabContextMenu {this};
 

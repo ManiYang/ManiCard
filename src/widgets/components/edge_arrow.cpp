@@ -29,6 +29,10 @@ void EdgeArrow::setLabel(const QString &label_) {
     adjustChildItems();
 }
 
+void EdgeArrow::setLabelColor(const QColor &color) {
+    labelItem->setBrush(color);
+}
+
 void EdgeArrow::setLineWidth(const double width) {
     lineWidth = width;
     adjustChildItems();

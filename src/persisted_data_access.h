@@ -218,6 +218,8 @@ private:
 
         std::optional<QStringList> userLabelsList;
         std::optional<QStringList> userRelTypesList;
+
+        std::optional<bool> isDarkTheme;
     };
     Cache cache;
 

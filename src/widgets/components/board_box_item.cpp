@@ -4,7 +4,9 @@
 #include <QGraphicsSceneContextMenuEvent>
 #include <QGraphicsSceneMouseEvent>
 #include <QPainter>
+#include "app_data_readonly.h"
 #include "board_box_item.h"
+#include "services.h"
 #include "utilities/margins_util.h"
 #include "utilities/numbers_util.h"
 #include "widgets/components/graphics_item_move_resize.h"
@@ -99,7 +101,7 @@ QRectF BoardBoxItem::boundingRect() const {
 QPainterPath BoardBoxItem::shape() const {
     bool transparentContents = false;
     switch (contentsBackgroundType) {
-    case ContentsBackgroundType::White:
+    case ContentsBackgroundType::Opaque:
         transparentContents = false;
         break;
     case ContentsBackgroundType::Transparent:
@@ -343,6 +345,15 @@ void BoardBoxItem::setUpConnections() {
             this, [this]() {
         onMouseLeftPressed(false, Qt::NoModifier);
     });
+
+    //
+
+    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
+            this, [this](const bool isDarkTheme) {
+        const QBrush contentsRectBrush
+                = getContentsRectItemBrush(contentsBackgroundType, isDarkTheme);
+        contentsRectItem->setBrush(contentsRectBrush);
+    });
 }
 
 void BoardBoxItem::installEventFilterOnChildItems() {
@@ -378,22 +389,11 @@ void BoardBoxItem::setUpGraphicsItems() {
     captionBarRightTextItem->setBrush(captionBarTextColor);
 
     // contents rect
-    std::optional<QBrush> contentsRectBrush;
-    switch (contentsBackgroundType) {
-    case ContentsBackgroundType::White:
-        contentsRectBrush = QBrush(Qt::white);
-        break;
-    case ContentsBackgroundType::Transparent:
-        contentsRectBrush = QBrush(Qt::NoBrush);
-        break;
-    }
-    if (!contentsRectBrush.has_value()) {
-        Q_ASSERT(false); // case not implemented
-        contentsRectBrush = QBrush(Qt::NoBrush);
-    }
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+    const QBrush contentsRectBrush = getContentsRectItemBrush(contentsBackgroundType, isDarkTheme);
 
     contentsRectItem->setPen(Qt::NoPen);
-    contentsRectItem->setBrush(contentsRectBrush.value());
+    contentsRectItem->setBrush(contentsRectBrush);
     contentsRectItem->setFlag(QGraphicsItem::ItemClipsChildrenToShape);
 
     //
@@ -480,4 +480,20 @@ void BoardBoxItem::onMouseLeftPressed(
 void BoardBoxItem::onMouseLeftClicked(
         const bool /*isOnCaptionBar*/, const Qt::KeyboardModifiers /*modifiers*/) {
     // do nothing
+}
+
+QBrush BoardBoxItem::getContentsRectItemBrush(
+        const ContentsBackgroundType contentsBackgroundType, const bool isDarkTheme) {
+    switch (contentsBackgroundType) {
+    case ContentsBackgroundType::Opaque:
+        return isDarkTheme
+                ? QBrush(QColor(darkThemeCardBackground))
+                : QBrush(Qt::white);
+
+    case ContentsBackgroundType::Transparent:
+        return QBrush(Qt::NoBrush);
+    }
+
+    Q_ASSERT(false); // case not implemented
+    return QBrush(Qt::NoBrush);
 }

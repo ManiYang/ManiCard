@@ -13,6 +13,7 @@
 #include "models/relationship.h"
 #include "models/relationships_bundle.h"
 #include "widgets/common_types.h"
+#include "widgets/icons.h"
 
 class BoardBoxItem;
 class Card;
@@ -79,7 +80,6 @@ private:
     static inline const QSizeF defaultNewNodeRectSize {200, 120};
     static inline const QSizeF defaultNewDataViewBoxSize {400, 400};
     static inline const QColor defaultNewDataViewBoxColor {170, 170, 170};
-    static inline const QColor defaultEdgeArrowLineColor {100, 100, 100};
     constexpr static double defaultEdgeArrowLineWidth {2.0};
 
     constexpr static double zValueForNodeRects {10.0};
@@ -100,16 +100,21 @@ private:
     GraphicsScene *graphicsScene {nullptr};
     QGraphicsRectItem *canvas {nullptr}; // draw everything on this
 
-    struct ContextMenuData
+    struct ContextMenu
     {
+        explicit ContextMenu(BoardView *boardView);
+        QMenu *menu;
         QPointF requestScenePos;
+
+        void setActionIcons();
+    private:
+        BoardView *boardView;
+        QHash<QAction *, Icon> actionToIcon;
     };
-    QMenu *contextMenu;
-    ContextMenuData contextMenuData;
+    ContextMenu contextMenu {this};
 
     // setup
     void setUpWidgets();
-    void setUpContextMenu();
     void setUpConnections();
     void installEventFiltersOnComponents();
 
@@ -224,6 +229,8 @@ private:
         void removeEdgeArrows(const QSet<RelationshipId> &relIds);
 
         void setAllEdgeArrowsVisible();
+        void setLineColorAndLabelColorOfAllEdgeArrows(
+                const QColor &lineColor, const QColor &labelColor);
         void hideEdgeArrows(const QSet<RelationshipId> &relIds);
 
         QSet<RelationshipId> getAllRelationshipIds() const;
@@ -318,8 +325,13 @@ private:
         void updateBundlesConnectingGroupBox(const int groupBoxId);
         void updateBundlesConnectingNodeRect(const int cardId);
 
+        //
         QSet<RelationshipsBundle> getBundlesOfGroupBox(const int groupBoxId) const;
         QSet<RelationshipId> getBundledRelationships() const;
+
+        //
+        void setLineColorAndLabelColorOfAllEdgeArrows(
+                const QColor &lineColor, const QColor &labelColor);
 
     private:
         BoardView *const boardView;
@@ -425,6 +437,8 @@ private:
 
     // tools
     static QColor getSceneBackgroundColor(const bool isDarkTheme);
+    QColor getEdgeArrowLineColor() const; // calls AppDataReadonly
+    QColor getEdgeArrowLabelColor() const; // calls AppDataReadonly
 
     QPoint getScreenPosFromScenePos(const QPointF &scenePos) const;
     QPointF getViewCenterInScene() const;

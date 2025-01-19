@@ -14,6 +14,7 @@ public:
     //
     void setStartEndPoint(const QPointF &startPoint, const QPointF &endPoint);
     void setLabel(const QString &label);
+    void setLabelColor(const QColor &color);
     void setLineWidth(const double width);
     void setLineColor(const QColor &color);
 

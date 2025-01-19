@@ -30,12 +30,12 @@
 #include "widgets/dialogs/dialog_set_labels.h"
 #include "widgets/widgets_constants.h"
 
+
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 
 BoardView::BoardView(QWidget *parent)
         : QFrame(parent) {
     setUpWidgets();
-    setUpContextMenu();
     setUpConnections();
     installEventFiltersOnComponents();
 }
@@ -210,8 +210,9 @@ void BoardView::loadBoard(
         // EdgeArrow's
         EdgeArrowData edgeArrowData;
         {
-            edgeArrowData.lineColor = defaultEdgeArrowLineColor;
+            edgeArrowData.lineColor = getEdgeArrowLineColor();
             edgeArrowData.lineWidth = defaultEdgeArrowLineWidth;
+            edgeArrowData.labelColor = getEdgeArrowLabelColor();
         }
 
         const auto relIds = keySet(routine->relationshipsData);
@@ -399,47 +400,6 @@ void BoardView::setUpWidgets() {
     graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 }
 
-void BoardView::setUpContextMenu() {
-    contextMenu = new QMenu(this);
-    {
-        QAction *action = contextMenu->addAction(
-                QIcon(":/icons/open_in_new_black_24"), "Open Existing Card...");
-        connect(action, &QAction::triggered, this, [this]() {
-            onUserToOpenExistingCard(contextMenuData.requestScenePos);
-        });
-    }
-    {
-        QAction *action = contextMenu->addAction(
-                QIcon(":/icons/add_box_black_24"), "Create New Card...");
-        connect(action, &QAction::triggered, this, [this]() {
-            onUserToCreateNewCard(contextMenuData.requestScenePos);
-        });
-    }
-    {
-        QAction *action = contextMenu->addAction(
-                QIcon(":/icons/content_copy_24"), "Duplicate Card...");
-        connect(action, &QAction::triggered, this, [this]() {
-            onUserToDuplicateCard(contextMenuData.requestScenePos);
-        });
-    }
-    contextMenu->addSeparator();
-    {
-        QAction *action = contextMenu->addAction(
-                QIcon(":/icons/add_box_black_24"), "Create Group Box");
-        connect(action, &QAction::triggered, this, [this]() {
-            onUserToCreateNewGroup(contextMenuData.requestScenePos);
-        });
-    }
-    contextMenu->addSeparator();
-    {
-        QAction *action = contextMenu->addAction(
-                QIcon(":/icons/add_box_black_24"), "Create New Data Query...");
-        connect(action, &QAction::triggered, this, [this]() {
-            onUserToCreateNewCustomDataQuery(contextMenuData.requestScenePos);
-        });
-    }
-}
-
 void BoardView::setUpConnections() {
     // Connections from newly created NodeRect's are established in
     // NodeRectsCollection::createNodeRect().
@@ -447,8 +407,9 @@ void BoardView::setUpConnections() {
     //
     connect(graphicsScene, &GraphicsScene::contextMenuRequestedOnScene,
             this, [this](const QPointF &scenePos) {
-        contextMenuData.requestScenePos = scenePos;
-        contextMenu->popup(getScreenPosFromScenePos(scenePos));
+        contextMenu.requestScenePos = scenePos;
+        contextMenu.setActionIcons();
+        contextMenu.menu->popup(getScreenPosFromScenePos(scenePos));
     });
 
     connect(graphicsScene, &GraphicsScene::clickedOnBackground, this, [this]() {
@@ -484,7 +445,17 @@ void BoardView::setUpConnections() {
 
     connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
             this, [this](const bool isDarkTheme) {
+        //
         graphicsScene->setBackgroundBrush(getSceneBackgroundColor(isDarkTheme));
+
+        //
+        const QColor edgeArrowLineColor = getEdgeArrowLineColor();
+        const QColor edgeArrowLabelColor = getEdgeArrowLabelColor();
+
+        relationshipsCollection.setLineColorAndLabelColorOfAllEdgeArrows(
+                edgeArrowLineColor, edgeArrowLabelColor);
+        relationshipBundlesCollection.setLineColorAndLabelColorOfAllEdgeArrows(
+                edgeArrowLineColor, edgeArrowLabelColor);
     });
 }
 
@@ -614,8 +585,9 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
         // create EdgeArrow's
         EdgeArrowData edgeArrowData;
         {
-            edgeArrowData.lineColor = defaultEdgeArrowLineColor;
+            edgeArrowData.lineColor = getEdgeArrowLineColor();
             edgeArrowData.lineWidth = defaultEdgeArrowLineWidth;
+            edgeArrowData.labelColor = getEdgeArrowLabelColor();
         }
         for (auto it = routine->rels.constBegin(); it != routine->rels.constEnd(); ++it) {
             const auto &relId = it.key();
@@ -1243,8 +1215,9 @@ void BoardView::onUserToCreateRelationship(const int cardId) {
         // create EdgeArrow
         EdgeArrowData edgeArrowData;
         {
-            edgeArrowData.lineColor = defaultEdgeArrowLineColor;
+            edgeArrowData.lineColor = getEdgeArrowLineColor();
             edgeArrowData.lineWidth = defaultEdgeArrowLineWidth;
+            edgeArrowData.labelColor = getEdgeArrowLabelColor();
         }
         relationshipsCollection.createEdgeArrow(routine->relIdToCreate, edgeArrowData);
 
@@ -1587,7 +1560,17 @@ void BoardView::savePositionsOfComovingItems(const ComovingStateData &comovingSt
 }
 
 QColor BoardView::getSceneBackgroundColor(const bool isDarkTheme) {
-    return isDarkTheme ? QColor(64, 64, 64) : QColor(230, 230, 230);
+    return isDarkTheme ? QColor(darkThemeBoardBackground) : QColor(230, 230, 230);
+}
+
+QColor BoardView::getEdgeArrowLineColor() const {
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+    return isDarkTheme ? QColor(175, 175, 175) : QColor(100, 100, 100);
+}
+
+QColor BoardView::getEdgeArrowLabelColor() const {
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+    return isDarkTheme ? QColor(darkThemeStandardTextColor) : QColor(Qt::black);
 }
 
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) const {
@@ -1970,6 +1953,7 @@ EdgeArrow *BoardView::RelationshipsCollection::createEdgeArrow(
 
     edgeArrow->setLineWidth(edgeArrowData.lineWidth);
     edgeArrow->setLineColor(edgeArrowData.lineColor);
+    edgeArrow->setLabelColor(edgeArrowData.labelColor);
 
     //
     return edgeArrow;
@@ -2011,6 +1995,14 @@ void BoardView::RelationshipsCollection::removeEdgeArrows(const QSet<Relationshi
 void BoardView::RelationshipsCollection::setAllEdgeArrowsVisible() {
     for (auto it = relIdToEdgeArrow.constBegin(); it != relIdToEdgeArrow.constEnd(); ++it)
         it.value()->setVisible(true);
+}
+
+void BoardView::RelationshipsCollection::setLineColorAndLabelColorOfAllEdgeArrows(
+        const QColor &lineColor, const QColor &labelColor) {
+    for (auto it = relIdToEdgeArrow.constBegin(); it != relIdToEdgeArrow.constEnd(); ++it) {
+        it.value()->setLineColor(lineColor);
+        it.value()->setLabelColor(labelColor);
+    }
 }
 
 void BoardView::RelationshipsCollection::hideEdgeArrows(const QSet<RelationshipId> &relIds) {
@@ -2654,6 +2646,15 @@ QSet<RelationshipId> BoardView::RelationshipBundlesCollection::getBundledRelatio
     return bundledRels;
 }
 
+void BoardView::RelationshipBundlesCollection::setLineColorAndLabelColorOfAllEdgeArrows(
+        const QColor &lineColor, const QColor &labelColor) {
+    for (auto it = relBundleToEdgeArrow.constBegin();
+            it != relBundleToEdgeArrow.constEnd(); ++it) {
+        it.value()->setLineColor(lineColor);
+        it.value()->setLabelColor(labelColor);
+    }
+}
+
 void BoardView::RelationshipBundlesCollection::redrawBundleArrows() {
     // remove current edge arrows
     for (auto it = relBundleToEdgeArrow.constBegin(); it != relBundleToEdgeArrow.constEnd(); ++it) {
@@ -2665,7 +2666,8 @@ void BoardView::RelationshipBundlesCollection::redrawBundleArrows() {
 
     //
     constexpr double lineWidth = 4;
-    const QColor lineColor = defaultEdgeArrowLineColor;
+    const QColor lineColor = boardView->getEdgeArrowLineColor();
+    const QColor labelColor = boardView->getEdgeArrowLabelColor();
 
     for (auto it = relBundlesByGroupBoxAndCard.constBegin();
             it != relBundlesByGroupBoxAndCard.constEnd(); ++it) {
@@ -2679,6 +2681,7 @@ void BoardView::RelationshipBundlesCollection::redrawBundleArrows() {
             edgeArrow->setZValue(zValueForEdgeArrows);
             edgeArrow->setLineWidth(lineWidth);
             edgeArrow->setLineColor(lineColor);
+            edgeArrow->setLabelColor(labelColor);
 
             updateEdgeArrow(bundle, index, parallelBundles.count());
 
@@ -2719,4 +2722,55 @@ QLineF BoardView::RelationshipBundlesCollection::computeEdgeArrowLine(
         endRect = nodeRect->getRect();
     }
     return computeArrowLineConnectingRects(startRect, endRect, parallelIndex, parallelCount);
+}
+
+//======
+
+BoardView::ContextMenu::ContextMenu(BoardView *boardView_)
+        : boardView(boardView_) {
+    menu = new QMenu(boardView);
+    {
+        auto *action = menu->addAction("Open Existing Card...");
+        actionToIcon.insert(action, Icon::OpenInNew);
+        connect(action, &QAction::triggered, boardView, [this]() {
+            boardView->onUserToOpenExistingCard(requestScenePos);
+        });
+    }
+    {
+        auto *action = menu->addAction("Create New Card...");
+        actionToIcon.insert(action, Icon::AddBox);
+        connect(action, &QAction::triggered, boardView, [this]() {
+            boardView->onUserToCreateNewCard(requestScenePos);
+        });
+    }
+    {
+        auto *action = menu->addAction("Duplicate Card...");
+        actionToIcon.insert(action, Icon::ContentCopy);
+        connect(action, &QAction::triggered, boardView, [this]() {
+            boardView->onUserToDuplicateCard(requestScenePos);
+        });
+    }
+    menu->addSeparator();
+    {
+        auto *action = menu->addAction("Create Group Box");
+        actionToIcon.insert(action, Icon::AddBox);
+        connect(action, &QAction::triggered, boardView, [this]() {
+            boardView->onUserToCreateNewGroup(requestScenePos);
+        });
+    }
+    menu->addSeparator();
+    {
+        auto *action = menu->addAction("Create New Data Query...");
+        actionToIcon.insert(action, Icon::AddBox);
+        connect(action, &QAction::triggered, boardView, [this]() {
+            boardView->onUserToCreateNewCustomDataQuery(requestScenePos);
+        });
+    }
+}
+
+void BoardView::ContextMenu::setActionIcons() {
+    const auto theme = Services::instance()->getAppDataReadonly()->getIsDarkTheme()
+            ? Icons::Theme::Dark : Icons::Theme::Light;
+    for (auto it = actionToIcon.constBegin(); it != actionToIcon.constEnd(); ++it)
+        it.key()->setIcon(Icons::getIcon(it.value(), theme));
 }

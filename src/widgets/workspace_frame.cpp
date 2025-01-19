@@ -844,16 +844,16 @@ WorkspaceFrame::ContextMenu::ContextMenu(WorkspaceFrame *workspaceFrame_)
         : workspaceFrame(workspaceFrame_) {
     menu = new QMenu(workspaceFrame);
     {
-        actionRename = menu->addAction(
-                QIcon(":/icons/edit_square_black_24"), "Rename Board");
-        connect(actionRename, &QAction::triggered, workspaceFrame, [this]() {
+        auto *action = menu->addAction("Rename Board");
+        actionToIcon.insert(action, Icon::EditSquare);
+        connect(action, &QAction::triggered, workspaceFrame, [this]() {
             workspaceFrame->onUserToRenameBoard(boardTabContextMenuTargetBoardId);
         });
     }
     {
-        actionDelete = menu->addAction(
-                QIcon(":/icons/delete_black_24"), "Delete Board");
-        connect(actionDelete, &QAction::triggered, workspaceFrame, [this]() {
+        auto *action = menu->addAction("Delete Board");
+        actionToIcon.insert(action, Icon::Delete);
+        connect(action, &QAction::triggered, workspaceFrame, [this]() {
             workspaceFrame->onUserToRemoveBoard(boardTabContextMenuTargetBoardId);
         });
     }
@@ -862,7 +862,6 @@ WorkspaceFrame::ContextMenu::ContextMenu(WorkspaceFrame *workspaceFrame_)
 void WorkspaceFrame::ContextMenu::setActionIcons() {
     const auto theme = Services::instance()->getAppDataReadonly()->getIsDarkTheme()
             ? Icons::Theme::Dark : Icons::Theme::Light;
-
-    actionRename->setIcon(Icons::getIcon(Icon::EditSquare, theme));
-    actionDelete->setIcon(Icons::getIcon(Icon::Delete, theme));
+    for (auto it = actionToIcon.constBegin(); it != actionToIcon.constEnd(); ++it)
+        it.key()->setIcon(Icons::getIcon(it.value(), theme));
 }

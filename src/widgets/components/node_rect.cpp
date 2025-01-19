@@ -1,10 +1,13 @@
 #include <QDebug>
 #include <QGraphicsScene>
 #include <QMessageBox>
+#include "app_data_readonly.h"
 #include "node_rect.h"
+#include "services.h"
 #include "utilities/margins_util.h"
 #include "widgets/components/custom_graphics_text_item.h"
 #include "widgets/components/custom_text_edit.h"
+#include "widgets/widgets_constants.h"
 
 constexpr double textEditLineHeightPercentage = 120;
 
@@ -155,7 +158,7 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     constexpr int textEditFontPixelSize = 16;
     textEdit->setStyleSheet(
             "QTextEdit {"
-            "  font-size: " + QString::number(textEditFontPixelSize) + "px;"
+            "  font-size: " + QString::number(textEditFontPixelSize) + "px;" +
             "}"
             "QScrollBar:vertical {"
             "  width: 12px;"
@@ -212,6 +215,13 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     connect(textEdit, &CustomTextEdit::focusedOut, this, [this]() {
         textEditFocusIndicator->setVisible(false);
     });
+
+    //
+    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
+            this, [this](const bool isDarkTheme) {
+        const QColor textColor = getTitleItemDefaultTextColor(isDarkTheme);
+        titleItem->setDefaultTextColor(textColor);
+    });
 }
 
 void NodeRect::adjustContents() {
@@ -227,7 +237,9 @@ void NodeRect::adjustContents() {
     {
         constexpr int padding = 3;
         constexpr int fontPixelSize = 20;
-        const QColor textColor(Qt::black);
+
+        const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+        const QColor textColor = getTitleItemDefaultTextColor(isDarkTheme);
 
         //
         QFont font = fontOfView;
@@ -299,4 +311,8 @@ QString NodeRect::getNodeLabelsString(const QStringList &labels) {
 bool NodeRect::computeTextEditEditable(
         const bool nodeRectIsEditable, const bool textEditIsPreviewMode) {
     return !textEditIsPreviewMode && nodeRectIsEditable;
+}
+
+QColor NodeRect::getTitleItemDefaultTextColor(const bool isDarkTheme) {
+    return isDarkTheme ? QColor(darkThemeStandardTextColor) : QColor(Qt::black);
 }

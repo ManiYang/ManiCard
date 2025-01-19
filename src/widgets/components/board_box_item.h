@@ -14,7 +14,7 @@ class BoardBoxItem : public QGraphicsObject
     Q_OBJECT
 public:
     enum class ContentsBackgroundType {
-        White,
+        Opaque,
         Transparent //!< the contents rect will be transparent and will not intercept mouse events
     };
 
@@ -22,7 +22,7 @@ public:
 
     struct CreationParameters
     {
-        ContentsBackgroundType contentsBackgroundType {ContentsBackgroundType::White};
+        ContentsBackgroundType contentsBackgroundType {ContentsBackgroundType::Opaque};
         BorderShape borderShape {BorderShape::Solid};
         QColor highlightFrameColor {36, 128, 220};
     };
@@ -138,6 +138,12 @@ private:
 
     virtual void onMouseLeftPressed(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers);
     virtual void onMouseLeftClicked(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers);
+
+    // ==== tools ====
+
+    static QBrush getContentsRectItemBrush(
+            const ContentsBackgroundType contentsBackgroundType, const bool isDarkTheme);
+
 };
 
 #endif // BOARDBOXITEM_H
