@@ -188,6 +188,10 @@ void BoardView::loadBoard(
         // 5. create NodeRect's, EdgeArrow's, DataViewBox's, GroupBox's
         ContinuationContext context(routine);
 
+        const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+        const bool autoAdjustCardColorsForDarkTheme
+                = Services::instance()->getAppDataReadonly()->getAutoAdjustCardColorsForDarkTheme();
+
         // NodeRect's
         for (auto it = routine->cardsData.constBegin();
                 it != routine->cardsData.constEnd(); ++it) {
@@ -198,7 +202,8 @@ void BoardView::loadBoard(
 
             const QColor displayColor = computeNodeRectDisplayColor(
                     nodeRectData.ownColor, cardData.getLabels(),
-                    cardLabelsAndAssociatedColors, defaultNodeRectColor);
+                    cardLabelsAndAssociatedColors, defaultNodeRectColor,
+                    autoAdjustCardColorsForDarkTheme && isDarkTheme);
 
             NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
                     cardId, cardData, nodeRectData.rect,
@@ -449,6 +454,9 @@ void BoardView::setUpConnections() {
         graphicsScene->setBackgroundBrush(getSceneBackgroundColor(isDarkTheme));
 
         //
+        nodeRectsCollection.updateAllNodeRectColors();
+
+        //
         const QColor edgeArrowLineColor = getEdgeArrowLineColor();
         const QColor edgeArrowLabelColor = getEdgeArrowLabelColor();
 
@@ -459,6 +467,12 @@ void BoardView::setUpConnections() {
 
         //
         groupBoxesCollection.setColorOfAllGroupBoxes(computeGroupBoxColor(isDarkTheme));
+    });
+
+    connect(Services::instance()->getAppDataReadonly(),
+            &AppDataReadonly::autoAdjustCardColorsForDarkThemeUpdated,
+            this, [this](const bool /*autoAdjust*/) {
+         nodeRectsCollection.updateAllNodeRectColors();
     });
 }
 
@@ -539,6 +553,11 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
         // create NodeRect
         ContinuationContext context(routine);
 
+        const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+        const bool autoAdjustCardColorsForDarkTheme
+                = Services::instance()->getAppDataReadonly()->getAutoAdjustCardColorsForDarkTheme();
+
+        //
         routine->nodeRectData.rect = QRectF(
                 quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
                 quantize(defaultNewNodeRectSize, boardSnapGridSize)
@@ -547,7 +566,8 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
 
         const QColor displayColor = computeNodeRectDisplayColor(
                 routine->nodeRectData.ownColor, routine->cardData.getLabels(),
-                cardLabelsAndAssociatedColors, defaultNodeRectColor);
+                cardLabelsAndAssociatedColors, defaultNodeRectColor,
+                autoAdjustCardColorsForDarkTheme && isDarkTheme);
 
         auto *nodeRect = nodeRectsCollection.createNodeRect(
                 cardId, routine->cardData, routine->nodeRectData.rect,
@@ -673,12 +693,18 @@ void BoardView::onUserToCreateNewCard(const QPointF &scenePos) {
 
     routine->addStep([this, routine, scenePos]() {
         // 2. create new NodeRect
+        ContinuationContext context(routine);
+
         routine->card.title = "New Card";
         routine->card.text = "";
         const QSet<QString> cardLabels {};
 
-        ContinuationContext context(routine);
+        //
+        const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+        const bool autoAdjustCardColorsForDarkTheme
+                = Services::instance()->getAppDataReadonly()->getAutoAdjustCardColorsForDarkTheme();
 
+        //
         routine->nodeRectData.rect = QRectF(
                 quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
                 quantize(defaultNewNodeRectSize, boardSnapGridSize)
@@ -687,7 +713,7 @@ void BoardView::onUserToCreateNewCard(const QPointF &scenePos) {
 
         const QColor displayColor = computeNodeRectDisplayColor(
                 routine->nodeRectData.ownColor, cardLabels, cardLabelsAndAssociatedColors,
-                defaultNodeRectColor);
+                defaultNodeRectColor, autoAdjustCardColorsForDarkTheme && isDarkTheme);
 
         NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
                 routine->newCardId, routine->card, routine->nodeRectData.rect,
@@ -810,6 +836,11 @@ void BoardView::onUserToDuplicateCard(const QPointF &scenePos) {
         // create new NodeRect
         ContinuationContext context(routine);
 
+        const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+        const bool autoAdjustCardColorsForDarkTheme
+                = Services::instance()->getAppDataReadonly()->getAutoAdjustCardColorsForDarkTheme();
+
+        //
         QSizeF newNodeRectSize = nodeRectsCollection.contains(cardIdToDuplicate)
                 ? nodeRectsCollection.get(cardIdToDuplicate)->getRect().size()
                 : quantize(defaultNewNodeRectSize, boardSnapGridSize);
@@ -821,7 +852,8 @@ void BoardView::onUserToDuplicateCard(const QPointF &scenePos) {
 
         const QColor displayColor = computeNodeRectDisplayColor(
                 routine->nodeRectData.ownColor, routine->cardData.getLabels(),
-                cardLabelsAndAssociatedColors, defaultNodeRectColor);
+                cardLabelsAndAssociatedColors, defaultNodeRectColor,
+                autoAdjustCardColorsForDarkTheme && isDarkTheme);
 
         NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
                 routine->newCardId, routine->cardData, routine->nodeRectData.rect,
@@ -1053,6 +1085,11 @@ void BoardView::onUserToSetLabels(const int cardId) {
         // update labels and color of node rect
         ContinuationContext context(routine);
 
+        const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+        const bool autoAdjustCardColorsForDarkTheme
+                = Services::instance()->getAppDataReadonly()->getAutoAdjustCardColorsForDarkTheme();
+
+        //
         Q_ASSERT(routine->updatedLabels.has_value());
         const QStringList updatedLabels = routine->updatedLabels.value();
 
@@ -1061,7 +1098,8 @@ void BoardView::onUserToSetLabels(const int cardId) {
         const QColor nodeRectColor = computeNodeRectDisplayColor(
                 nodeRectsCollection.getNodeRectOwnColor(cardId),
                 QSet<QString>(updatedLabels.cbegin(), updatedLabels.cend()),
-                cardLabelsAndAssociatedColors, defaultNodeRectColor);
+                cardLabelsAndAssociatedColors, defaultNodeRectColor,
+                autoAdjustCardColorsForDarkTheme && isDarkTheme);
 
         nodeRect->setNodeLabels(updatedLabels);
         nodeRect->setColor(nodeRectColor);
@@ -1607,23 +1645,40 @@ void BoardView::moveSceneRelativeToView(const QPointF &displacement) {
 QColor BoardView::computeNodeRectDisplayColor(
         const QColor &nodeRectOwnColor, const QSet<QString> &cardLabels,
         const QVector<LabelAndColor> &cardLabelsAndAssociatedColors,
-        const QColor &boardDefaultColorForNodeRect) {
-    // 1. NodeRect's own color
-    if (nodeRectOwnColor.isValid())
-        return nodeRectOwnColor;
+        const QColor &boardDefaultColorForNodeRect, const bool invertLightness) {
+    std::function<QColor ()> funcGetColor1 = [&]() {
+        // 1. NodeRect's own color
+        if (nodeRectOwnColor.isValid())
+            return nodeRectOwnColor;
 
-    // 2. card labels & board's `cardLabelsAndAssociatedColors`
-    for (const auto &labelAndColor: cardLabelsAndAssociatedColors) {
-        if (cardLabels.contains(labelAndColor.first))
-            return labelAndColor.second;
-    }
+        // 2. card labels & board's `cardLabelsAndAssociatedColors`
+        for (const auto &labelAndColor: cardLabelsAndAssociatedColors) {
+            if (cardLabels.contains(labelAndColor.first))
+                return labelAndColor.second;
+        }
 
-    // 3. board's default
-    if (boardDefaultColorForNodeRect.isValid())
-        return boardDefaultColorForNodeRect;
+        // 3. board's default
+        if (boardDefaultColorForNodeRect.isValid())
+            return boardDefaultColorForNodeRect;
+
+        //
+        return QColor(170, 170, 170);
+    };
+
+    QColor color = funcGetColor1();
 
     //
-    return QColor(170, 170, 170);
+    if (invertLightness) {
+        double h;
+        double s;
+        double l;
+        color.getHslF(&h, &s, &l);
+
+        color = QColor::fromHslF(h, s, 1.0 - l);
+    }
+
+    //
+    return color;
 }
 
 QColor BoardView::computeDataViewBoxDisplayColor(
@@ -1897,6 +1952,10 @@ QSet<int> BoardView::NodeRectsCollection::addToHighlightedCards(const QSet<int> 
 }
 
 void BoardView::NodeRectsCollection::updateAllNodeRectColors() {
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+    const bool autoAdjustCardColorsForDarkTheme
+            = Services::instance()->getAppDataReadonly()->getAutoAdjustCardColorsForDarkTheme();
+
     for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it) {
         const int cardId = it.key();
         NodeRect *nodeRect = it.value();
@@ -1904,7 +1963,8 @@ void BoardView::NodeRectsCollection::updateAllNodeRectColors() {
         const QColor color = computeNodeRectDisplayColor(
                 cardIdToNodeRectOwnColor.value(cardId, QColor()),
                 nodeRect->getNodeLabels(),
-                boardView->cardLabelsAndAssociatedColors, boardView->defaultNodeRectColor);
+                boardView->cardLabelsAndAssociatedColors, boardView->defaultNodeRectColor,
+                autoAdjustCardColorsForDarkTheme && isDarkTheme);
         nodeRect->setColor(color);
     }
 }

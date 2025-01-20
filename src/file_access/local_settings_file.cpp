@@ -10,9 +10,10 @@
 /* example:
  *
  * {
- *   "theme": {
- *     "isDark": true
- *   },
+ *   "appearance": {
+ *     "isDarkTheme": false,
+ *     "autoAdjustCardColorsForDarkTheme: false
+ *   }
  *   "mainWindow": {
  *     "size": [1000, 800]
  *   },
@@ -38,7 +39,7 @@
 
 constexpr char fileName[] = "user_settings.json";
 
-constexpr char sectionTheme[] = "theme";
+constexpr char sectionAppearance[] = "appearance";
 constexpr char sectionMainWindow[] = "mainWindow";
 constexpr char sectionWorkspaces[] = "workspaces";
 constexpr char sectionBoards[] = "boards";
@@ -47,7 +48,8 @@ constexpr char keySize[] = "size";
 constexpr char keyLastOpenedBoardId[] = "lastOpenedBoardId";
 constexpr char keyLastOpenedWorkspaceId[] = "lastOpenedWorkspaceId";
 constexpr char keyTopLeftPos[] = "topLeftPos";
-constexpr char keyIsDark[] = "isDark";
+constexpr char keyIsDarkTheme[] = "isDarkTheme";
+constexpr char keyAutoAdjustCardColorsForDarkTheme[] = "autoAdjustCardColorsForDarkTheme";
 
 LocalSettingsFile::LocalSettingsFile(const QString &appLocalDataDir)
         : filePath(QDir(appLocalDataDir).filePath(fileName)) {
@@ -56,7 +58,17 @@ LocalSettingsFile::LocalSettingsFile(const QString &appLocalDataDir)
 
 std::pair<bool, std::optional<bool> > LocalSettingsFile::readIsDarkTheme() {
     const QJsonObject obj = read();
-    const QJsonValue v = JsonReader(obj)[sectionTheme][keyIsDark].get();
+    const QJsonValue v = JsonReader(obj)[sectionAppearance][keyIsDarkTheme].get();
+    if (v.isUndefined())
+        return {true, std::nullopt};
+    else
+        return {true, v.toBool()};
+}
+
+std::pair<bool, std::optional<bool> > LocalSettingsFile::readAutoAdjustCardColorForDarkTheme() {
+    const QJsonObject obj = read();
+    const QJsonValue v
+            = JsonReader(obj)[sectionAppearance][keyAutoAdjustCardColorsForDarkTheme].get();
     if (v.isUndefined())
         return {true, std::nullopt};
     else
@@ -133,11 +145,25 @@ std::pair<bool, std::optional<QSize> > LocalSettingsFile::readMainWindowSize() {
 bool LocalSettingsFile::writeIsDarkTheme(const bool isDarkTheme) {
     QJsonObject obj = read();
 
-    // set obj[sectionTheme][keyIsDark] = isDarkTheme
-    QJsonObject themeObj = obj[sectionTheme].toObject();
-    themeObj[keyIsDark] = isDarkTheme;
+    // set obj[sectionAppearance][keyIsDark] = isDarkTheme
+    QJsonObject appearanceObj = obj[sectionAppearance].toObject();
+    appearanceObj[keyIsDarkTheme] = isDarkTheme;
 
-    obj[sectionTheme] = themeObj;
+    obj[sectionAppearance] = appearanceObj;
+
+    //
+    const bool ok = write(obj);
+    return ok;
+}
+
+bool LocalSettingsFile::writeAutoAdjustCardColorForDarkTheme(const bool autoAdjust) {
+    QJsonObject obj = read();
+
+    // set obj[sectionAppearance][keyAutoAdjustCardColorsForDarkTheme] = autoAdjust
+    QJsonObject appearanceObj = obj[sectionAppearance].toObject();
+    appearanceObj[keyAutoAdjustCardColorsForDarkTheme] = autoAdjust;
+
+    obj[sectionAppearance] = appearanceObj;
 
     //
     const bool ok = write(obj);

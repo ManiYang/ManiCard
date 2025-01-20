@@ -93,6 +93,8 @@ public:
 
     bool getIsDarkTheme() override;
 
+    bool getAutoAdjustCardColorsForDarkTheme() override;
+
     // ---- persisted data: update ----
 
     // If persistence fails, a record of unsaved update is added and a message box is shown.
@@ -203,7 +205,9 @@ public:
 
     void updateMainWindowSize(const EventSource &eventSrc, const QSize &size);
 
-    void updateIsDarkTheme(const EventSource &eventSrc, const bool &isDarkTheme);
+    void updateIsDarkTheme(const EventSource &eventSrc, const bool isDarkTheme);
+
+    void updateAutoAdjustCardColorsForDarkTheme(const EventSource &eventSrc, const bool autoAdjust);
 
     // ==== non-persisted independent data ====
 

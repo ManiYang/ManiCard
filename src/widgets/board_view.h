@@ -452,7 +452,8 @@ private:
             const QColor &nodeRectOwnColor,
             const QSet<QString> &cardLabels,
             const QVector<LabelAndColor> &cardLabelsAndAssociatedColors,
-            const QColor &boardDefaultColorForNodeRect);
+            const QColor &boardDefaultColorForNodeRect,
+            const bool invertLightness);
     static QColor computeDataViewBoxDisplayColor(
             const QColor &dataViewBoxOwnColor, const QColor &boardDefaultColorForDataViewBox);
 

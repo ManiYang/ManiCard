@@ -543,6 +543,19 @@ bool PersistedDataAccess::getIsDarkTheme() {
     return isDarkTheme;
 }
 
+bool PersistedDataAccess::getAutoAdjustCardColorsForDarkTheme() {
+    // 1. gets the parts that are already cached
+    if (cache.autoAdjustCardColorsForDarkTheme.has_value())
+        return cache.autoAdjustCardColorsForDarkTheme.value();
+
+    // 2. reads from file and update the cache.
+    const auto [ok, autoAdjustOpt] = localSettingsFile->readAutoAdjustCardColorForDarkTheme();
+
+    bool autoAdjust = ok ? autoAdjustOpt.value_or(false) : false;
+    cache.autoAdjustCardColorsForDarkTheme = autoAdjust;
+    return autoAdjust;
+}
+
 void PersistedDataAccess::createNewCardWithId(const int cardId, const Card &card) {
     // 1. update cache synchronously
     if (cache.cards.contains(cardId)) {
@@ -1056,7 +1069,7 @@ void PersistedDataAccess::reparentGroupBox(const int groupBoxId, const int newPa
     debouncedDbAccess->reparentGroupBox(groupBoxId, newParentGroupBoxId);
 }
 
-bool PersistedDataAccess::saveMainWindowSize(const QSize &size) {
+void PersistedDataAccess::saveMainWindowSize(const QSize &size) {
     const bool ok = localSettingsFile->writeMainWindowSize(size);
     if (!ok) {
         const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
@@ -1068,10 +1081,9 @@ bool PersistedDataAccess::saveMainWindowSize(const QSize &size) {
 
         showMsgOnFailedToSaveToFile("main-window size");
     }
-    return ok;
 }
 
-bool PersistedDataAccess::saveIsDarkTheme(const bool isDarkTheme) {
+void PersistedDataAccess::saveIsDarkTheme(const bool isDarkTheme) {
     // synchronously updates the cache
     cache.isDarkTheme = isDarkTheme;
 
@@ -1087,7 +1099,24 @@ bool PersistedDataAccess::saveIsDarkTheme(const bool isDarkTheme) {
 
         showMsgOnFailedToSaveToFile("theme option");
     }
-    return ok;
+}
+
+void PersistedDataAccess::saveAutoAdjustCardColorsForDarkTheme(const bool autoAdjust) {
+    // synchronously updates the cache
+    cache.autoAdjustCardColorsForDarkTheme = autoAdjust;
+
+    // write file
+    const bool ok = localSettingsFile->writeAutoAdjustCardColorForDarkTheme(autoAdjust);
+    if (!ok) {
+        const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+        const QString updateTitle = "saveAutoAdjustCardColorsForDarkTheme";
+        const QString updateDetails = printJson(QJsonObject {
+            {"autoAdjust", autoAdjust},
+        }, false);
+        unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+        showMsgOnFailedToSaveToFile("appearance option");
+    }
 }
 
 void PersistedDataAccess::showMsgOnFailedToSaveToFile(const QString &dataName) {

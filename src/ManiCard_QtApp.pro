@@ -11,6 +11,7 @@ CONFIG += c++17
 SOURCES += \
     app_data.cpp \
     app_data_readonly.cpp \
+    app_setup.cpp \
     db_access/abstract_boards_data_access.cpp \
     db_access/abstract_cards_data_access.cpp \
     db_access/boards_data_access.cpp \
@@ -64,6 +65,7 @@ SOURCES += \
     widgets/components/property_value_editor.cpp \
     widgets/components/simple_toolbar.cpp \
     widgets/dialogs/dialog_create_relationship.cpp \
+    widgets/dialogs/dialog_options.cpp \
     widgets/dialogs/dialog_set_labels.cpp \
     widgets/dialogs/dialog_user_card_labels.cpp \
     widgets/dialogs/dialog_user_relationship_types.cpp \
@@ -79,6 +81,7 @@ HEADERS += \
     app_data.h \
     app_data_readonly.h \
     app_event_source.h \
+    app_setup.h \
     db_access/abstract_boards_data_access.h \
     db_access/abstract_cards_data_access.h \
     db_access/boards_data_access.h \
@@ -147,6 +150,7 @@ HEADERS += \
     widgets/components/property_value_editor.h \
     widgets/components/simple_toolbar.h \
     widgets/dialogs/dialog_create_relationship.h \
+    widgets/dialogs/dialog_options.h \
     widgets/dialogs/dialog_set_labels.h \
     widgets/dialogs/dialog_user_card_labels.h \
     widgets/dialogs/dialog_user_relationship_types.h \
@@ -161,6 +165,7 @@ HEADERS += \
 
 FORMS += \
     widgets/dialogs/dialog_create_relationship.ui \
+    widgets/dialogs/dialog_options.ui \
     widgets/dialogs/dialog_set_labels.ui \
     widgets/dialogs/dialog_user_card_labels.ui \
     widgets/dialogs/dialog_user_relationship_types.ui \

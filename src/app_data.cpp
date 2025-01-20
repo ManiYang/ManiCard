@@ -89,6 +89,10 @@ bool AppData::getIsDarkTheme() {
     return persistedDataAccess->getIsDarkTheme();
 }
 
+bool AppData::getAutoAdjustCardColorsForDarkTheme() {
+    return persistedDataAccess->getAutoAdjustCardColorsForDarkTheme();
+}
+
 void AppData::createNewCardWithId(
         const EventSource &/*eventSrc*/, const int cardId, const Card &card) {
     // 1. persist
@@ -322,12 +326,21 @@ void AppData::updateMainWindowSize(const EventSource &/*eventSrc*/, const QSize 
     // 2. update all variables and emit "updated" signals
 }
 
-void AppData::updateIsDarkTheme(const EventSource &/*eventSrc*/, const bool &isDarkTheme) {
+void AppData::updateIsDarkTheme(const EventSource &/*eventSrc*/, const bool isDarkTheme) {
     // 1. persist
     persistedDataAccess->saveIsDarkTheme(isDarkTheme);
 
     // 2. update all variables and emit "updated" signals
     emit isDarkThemeUpdated(isDarkTheme);
+}
+
+void AppData::updateAutoAdjustCardColorsForDarkTheme(
+        const EventSource &/*eventSrc*/, const bool autoAdjust) {
+    // 1. persist
+    persistedDataAccess->saveAutoAdjustCardColorsForDarkTheme(autoAdjust);
+
+    // 2. update all variables and emit "updated" signals
+    emit autoAdjustCardColorsForDarkThemeUpdated(autoAdjust);
 }
 
 int AppData::getSingleHighlightedCardId() const {

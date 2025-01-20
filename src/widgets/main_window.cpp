@@ -19,6 +19,7 @@
 #include "utilities/periodic_checker.h"
 #include "widgets/app_style_sheet.h"
 #include "widgets/board_view.h"
+#include "widgets/dialogs/dialog_options.h"
 #include "widgets/dialogs/dialog_user_card_labels.h"
 #include "widgets/dialogs/dialog_user_relationship_types.h"
 #include "widgets/right_sidebar.h"
@@ -48,7 +49,7 @@ MainWindow::MainWindow(QWidget *parent)
     );
 
     //
-    onStartUp();
+    load();
 }
 
 MainWindow::~MainWindow() {
@@ -292,17 +293,11 @@ void MainWindow::setUpMainMenu() {
         }
     }
     {
-        auto *submenu = mainMenu->addMenu("Options");
-        {
-            actionToggleDarkTheme = submenu->addAction("Dark Theme", this, [this](bool checked) {
-                const bool isDarkTheme = checked;
-                qApp->setStyleSheet(
-                        isDarkTheme ? getDarkThemeStyleSheet() : getLightThemeStyleSheet());
-                Services::instance()->getAppData()->updateIsDarkTheme(
-                        EventSource(this), isDarkTheme);
-            });
-            actionToggleDarkTheme->setCheckable(true);
-        }
+        auto *action = mainMenu->addAction("Options...", this, [this]() {
+            openOptionsDialog();
+        });
+        action->setShortcut(QKeySequence(Qt::CTRL + Qt::ALT + Qt::Key_S));
+        this->addAction(action); // without this, the shortcut won't work
     }
     mainMenu->addSeparator();
     {
@@ -314,38 +309,12 @@ void MainWindow::setUpMainMenu() {
     }
 }
 
-void MainWindow::onShownForFirstTime() {
-    {
-        // set initial widths of left sidebar & central area, assuming right sidebar is hidden
-        const QList<int> sizes = ui->splitter->sizes();
-                // [0]: left sidebar, [1]: central area, [2]: right sidebar (hidden)
-        if (sizes.count() == 3) {
-            const int totalWidth = sizes.at(0) + sizes.at(1);
-            if (totalWidth >= leftSideBarWidthDefault * 2) {
-                ui->splitter->setSizes({
-                    leftSideBarWidthDefault,
-                    totalWidth - leftSideBarWidthDefault,
-                    rightSideBarWidthDefault // right sidebar will have this size when first shown
-                });
-            }
-        }
-        else {
-            Q_ASSERT(false);
-        }
-    }
-}
-
-void MainWindow::onStartUp() {
+void MainWindow::load() {
     {
         const auto sizeOpt
                 = Services::instance()->getAppDataReadonly()->getMainWindowSize();
         if (sizeOpt.has_value())
             resize(sizeOpt.value());
-    }
-    {
-        const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
-        qApp->setStyleSheet(isDarkTheme ? getDarkThemeStyleSheet() : getLightThemeStyleSheet());
-        actionToggleDarkTheme->setChecked(isDarkTheme);
     }
 
     workspacesList->setEnabled(false);
@@ -466,6 +435,27 @@ void MainWindow::onStartUp() {
     }, this);
 
     routine->start();
+}
+
+void MainWindow::onShownForFirstTime() {
+    {
+        // set initial widths of left sidebar & central area, assuming right sidebar is hidden
+        const QList<int> sizes = ui->splitter->sizes();
+                // [0]: left sidebar, [1]: central area, [2]: right sidebar (hidden)
+        if (sizes.count() == 3) {
+            const int totalWidth = sizes.at(0) + sizes.at(1);
+            if (totalWidth >= leftSideBarWidthDefault * 2) {
+                ui->splitter->setSizes({
+                    leftSideBarWidthDefault,
+                    totalWidth - leftSideBarWidthDefault,
+                    rightSideBarWidthDefault // right sidebar will have this size when first shown
+                });
+            }
+        }
+        else {
+            Q_ASSERT(false);
+        }
+    }
 }
 
 void MainWindow::onWorkspaceSelectedByUser(const int workspaceId) {
@@ -923,6 +913,14 @@ void MainWindow::onUserCloseWindow() {
     }, this);
 
     routine->start();
+}
+
+void MainWindow::openOptionsDialog() {
+    auto *dialog = new DialogOptions(this);
+    connect(dialog, &QDialog::finished, this, [dialog](int /*result*/) {
+        dialog->deleteLater();
+    });
+    dialog->open();
 }
 
 void MainWindow::saveTopLeftPosAndZoomRatioOfCurrentBoard() {

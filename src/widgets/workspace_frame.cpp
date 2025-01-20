@@ -805,9 +805,10 @@ NoBoardSign::NoBoardSign(QWidget *parent)
     {
         auto *label = new QLabel("This workspace has no board");
         vLayout->addWidget(label, 0, Qt::AlignHCenter);
+
+        setStyleClasses(label, {StyleClass::mediumContrastTextColor});
         label->setStyleSheet(
                 "QLabel {"
-                "  color: #808080;"
                 "  font-size: 14pt;"
                 "  font-weight: bold;"
                 "}");
@@ -820,20 +821,12 @@ NoBoardSign::NoBoardSign(QWidget *parent)
             emit userToAddBoard();
         });
 
+        setStyleClasses(button, {StyleClass::flatPushButton, StyleClass::mediumContrastTextColor});
         button->setStyleSheet(
                 "QPushButton {"
                 "  font-size: 12pt;"
-                "  color: #808080;"
-                "  border: none;"
-                "  border-radius: 4px;"
-                "  padding: 4px 8px 4px 8px;"
-                "  background: #dddddd;"
-                "}"
-                "QPushButton:hover {"
-                "  background: #e8e8e8;"
-                "}"
-                "QPushButton:pressed {"
-                "  background: #c0c0c0;"
+                "  border: 1px solid #888888;"
+                "  padding: 4px 12px"
                 "}");
     }
     vLayout->addStretch();

@@ -101,6 +101,8 @@ public:
 
     bool getIsDarkTheme();
 
+    bool getAutoAdjustCardColorsForDarkTheme();
+
     // ==== write ====
 
     // A write operation fails if data cannot be saved to DB or file. In this case, a record of
@@ -198,9 +200,11 @@ public:
     //!
     void reparentGroupBox(const int groupBoxId, const int newParentGroupBoxId);
 
-    bool saveMainWindowSize(const QSize &size);
+    void saveMainWindowSize(const QSize &size);
 
-    bool saveIsDarkTheme(const bool isDarkTheme);
+    void saveIsDarkTheme(const bool isDarkTheme);
+
+    void saveAutoAdjustCardColorsForDarkTheme(const bool autoAdjust);
 
 private:
     DebouncedDbAccess *debouncedDbAccess;
@@ -220,6 +224,7 @@ private:
         std::optional<QStringList> userRelTypesList;
 
         std::optional<bool> isDarkTheme;
+        std::optional<bool> autoAdjustCardColorsForDarkTheme;
     };
     Cache cache;
 

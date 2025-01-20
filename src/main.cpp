@@ -4,6 +4,7 @@
 #include <QMessageBox>
 #include <QPointer>
 #include <QTimer>
+#include "app_setup.h"
 #include "global_constants.h"
 #include "services.h"
 #include "utilities/app_instances_shared_memory.h"
@@ -116,6 +117,9 @@ int main(int argc, char *argv[]) {
             app.quit();
             return;
         }
+
+        //
+        setUpApp();
 
         //
         mainWindow = new MainWindow;

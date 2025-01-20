@@ -80,6 +80,8 @@ public:
 
     virtual bool getIsDarkTheme() = 0;
 
+    virtual bool getAutoAdjustCardColorsForDarkTheme() = 0;
+
     // ==== non-persisted independent data ====
 
     //!
@@ -97,6 +99,7 @@ signals:
     void highlightedCardIdUpdated(EventSource eventSrc);
     void fontSizeScaleFactorChanged(const QWidget *window, const double factor);
     void isDarkThemeUpdated(const bool isDarkTheme);
+    void autoAdjustCardColorsForDarkThemeUpdated(const bool autoAdjust);
 };
 
 #endif // APP_DATA_READONLY_H

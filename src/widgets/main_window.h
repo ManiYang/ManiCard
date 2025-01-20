@@ -46,7 +46,7 @@ private:
 
     // menus and actions
     QMenu *mainMenu;
-    QAction *actionToggleDarkTheme {nullptr};
+//    QAction *actionToggleDarkTheme {nullptr};
     QAction *actionQuit {nullptr};
 
     // states & constants
@@ -68,11 +68,11 @@ private:
     void setUpConnections();
     void setUpButtonsWithIcons();
     void setUpMainMenu();
+    void load();
 
     // ==== event handlers ====
 
     void onShownForFirstTime();
-    void onStartUp();
 
     void onWorkspaceSelectedByUser(const int workspaceId);
     void onUserToCreateNewWorkspace();
@@ -83,6 +83,8 @@ private:
     void onUserToSetRelationshipTypesList();
 
     void onUserCloseWindow();
+
+    void openOptionsDialog();
 
     // -- event handling tools
     ActionDebouncer *saveWindowSizeDebounced;
