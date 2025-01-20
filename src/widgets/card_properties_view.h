@@ -11,6 +11,7 @@
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include "models/card.h"
+#include "widgets/icons.h"
 
 class PropertyValueEditor;
 
@@ -59,8 +60,11 @@ private:
     QLabel *labelLoadingMsg {nullptr};
     CustomPropertiesArea customPropertiesArea {this};
 
+    QHash<QAbstractButton *, Icon> buttonToIcon;
+
     void setUpWidgets();
     void setUpConnections();
+    void setUpButtonsWithIcons();
 
     // event handlers
     void onPropertyUpdated(const QString &propertyName, const QJsonValue &updatedValue);

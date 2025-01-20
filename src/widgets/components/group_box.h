@@ -2,6 +2,7 @@
 #define GROUPBOX_H
 
 #include "widgets/components/board_box_item.h"
+#include "widgets/icons.h"
 
 class GroupBox : public BoardBoxItem
 {
@@ -27,8 +28,11 @@ private:
 
     QString title;
 
+    QHash<QAction *, Icon> contextMenuActionToIcon;
+
     //
     QMenu *createCaptionBarContextMenu() override;
+    void adjustCaptionBarContextMenuBeforePopup(QMenu *contextMenu) override;
     void setUpContents(QGraphicsItem *contentsContainer) override;
     void adjustContents() override;
     void onMouseLeftPressed(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) override;

@@ -51,6 +51,15 @@ QString getLightThemeStyleSheet() {
         "  background: white;"
         "}"
 
+        "QTableWidget::item:selected {"
+        "  color: black;"
+        "  background-color: #d0d0d0;"
+        "}"
+        "QHeaderView::section {"
+        "  background-color: #f0f0f0;"
+        "  border: 1px solid #e0e0e0;"
+        "}"
+
         "QTabBar::tab {"
         "  border: 1px solid #d9d9d9;"
         "  background: #f0f0f0;"
@@ -60,13 +69,14 @@ QString getLightThemeStyleSheet() {
         "  border-bottom-color: #e6e6e6;" // same as board background
         "}"
 
+        "*" + styleClassSelector(StyleClass::mediumContrastTextColor) + " {" +
+        "  color: #606060;"
+        "}"
+
         "QAbstractButton:hover" + styleClassSelector(StyleClass::flatToolButton) + " {"  +
         "  background: #e0e0e0;"
         "}"
 
-        "QAbstractButton" + styleClassSelector(StyleClass::flatPushButton) + " {" +
-        "  color: #606060;"
-        "}"
         "QAbstractButton:hover" + styleClassSelector(StyleClass::flatPushButton) + " {" +
         "  background: #e0e0e0;"
         "}"
@@ -83,9 +93,22 @@ QString getDarkThemeStyleSheet() {
         "  color: " + darkThemeStandardTextColor + ";" +
         "  background: #0f1114;"
         "}"
+        "QLabel, QCheckBox, QRadioButton {"
+        "   background: transparent;"
+        "}"
+        "QToolTip {"
+        "  border: 1px solid #c0c0c0;"
+        "  background-color: #0f1114;"
+        "}"
 
-        "QDialog, QDialog QLabel {"
+        "QDialog {"
         "  background: #383838;"
+        "}"
+        "QDialog QPushButton {"
+        "  background: #606060;"
+        "}"
+        "QDialog QPushButton:hover {"
+        "  background: #808080;"
         "}"
 
         "QMenu {"
@@ -98,6 +121,42 @@ QString getDarkThemeStyleSheet() {
 
         "QTextEdit, QListView, QLineEdit {"
         "  background: " + highContrastDarkBackgroundColor + ";" +
+        "}"
+        "QLineEdit, QComboBox {"
+        "  border: 1px solid #828790;"
+        "}"
+        "QLineEdit:focus {"
+        "  border: 1px solid #aeb1b7;"
+        "}"
+
+        "QComboBox:!editable {"
+        "  background: #373f49;"
+        "}"
+
+        "QTableView {"
+        "  gridline-color: #505050;"
+        "}"
+        "QTableWidget::item:selected {"
+        "  color: white;"
+        "  background-color: #505050;"
+        "}"
+        "QHeaderView::section {"
+        "  background-color: #383838;"
+        "  border: 1px solid #505050;"
+        "}"
+
+        "QScrollBar {"
+        "  border: 1px solid #2c323a;"
+        "  background: #2c323a;"
+        "}"
+        "QScrollBar::handle, QScrollBar::add-page, QScrollBar::sub-page {"
+        "  background: none;"
+        "}"
+        "QScrollBar::handle, QScrollBar::add-line, QScrollBar::sub-line {"
+        "  border: none;"
+        "}"
+        "QScrollBar::handle {"
+        "  background: #424a57;"
         "}"
 
         "QTabBar::tab {"
@@ -113,13 +172,14 @@ QString getDarkThemeStyleSheet() {
         "  background: " + highContrastDarkBackgroundColor + ";" +
         "}"
 
+        "*" + styleClassSelector(StyleClass::mediumContrastTextColor) + " {" +
+        "  color: #b0b0b0;"
+        "}"
+
         "QAbstractButton:hover" + styleClassSelector(StyleClass::flatToolButton) + " {" +
         "  background: #484848;"
         "}"
 
-        "QAbstractButton" + styleClassSelector(StyleClass::flatPushButton) + " {" +
-        "  color: #c0c0c0;"
-        "}"
         "QAbstractButton:hover" + styleClassSelector(StyleClass::flatPushButton) + " {" +
         "  background: #484848;"
         "}"

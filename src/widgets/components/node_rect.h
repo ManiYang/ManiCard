@@ -6,6 +6,7 @@
 #include <QGraphicsView>
 #include <QSet>
 #include "widgets/components/board_box_item.h"
+#include "widgets/icons.h"
 
 class CustomGraphicsTextItem;
 class CustomTextEdit;
@@ -47,6 +48,8 @@ protected:
     bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) override;
 
 private:
+    static BoardBoxItem::CreationParameters getCreationParameters();
+
     const int cardId;
     const double textEditFocusIndicatorLineWidth {2.0};
     QStringList nodeLabels;
@@ -56,6 +59,8 @@ private:
     QString plainText;
     bool textEditIsPreviewMode {false};
     int textEditCursorPositionBeforePreviewMode {0};
+
+    QHash<QAction *, Icon> contextMenuActionToIcon;
 
     // content items
     // -- title
@@ -68,6 +73,7 @@ private:
 
     // override
     QMenu *createCaptionBarContextMenu() override;
+    void adjustCaptionBarContextMenuBeforePopup(QMenu *contextMenu) override;
     void setUpContents(QGraphicsItem *contentsContainer) override;
     void adjustContents() override;
     void onMouseLeftPressed(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) override;
@@ -78,6 +84,7 @@ private:
     static bool computeTextEditEditable(
             const bool nodeRectIsEditable, const bool textEditIsPreviewMode);
     static QColor getTitleItemDefaultTextColor(const bool isDarkTheme);
+    static QPen getTextEditFocusIndicator(const bool isDarkTheme, const double indicatorLineWidth);
 };
 
 #endif // NODERECT_H

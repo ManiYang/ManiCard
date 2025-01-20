@@ -18,7 +18,7 @@ BoardBoxItem::BoardBoxItem(const CreationParameters &parameters, QGraphicsItem *
             : QGraphicsObject(parent)
             , borderShape(parameters.borderShape)
             , contentsBackgroundType(parameters.contentsBackgroundType)
-            , highlightFrameColor(parameters.highlightFrameColor)
+            , highlightFrameColors(parameters.highlightFrameColors)
             , captionBarMatItem(new QGraphicsRectItem(this))
             , captionBarItem(new QGraphicsRectItem(this))
             , captionBarLeftTextItem(new QGraphicsSimpleTextItem(captionBarItem))
@@ -164,8 +164,12 @@ void BoardBoxItem::paint(
 
     // draw highlight box
     if (isHighlighted) {
+        const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+        const QColor penColor
+                = isDarkTheme ? highlightFrameColors.second : highlightFrameColors.first;
+
         painter->setBrush(Qt::NoBrush);
-        painter->setPen(QPen(highlightFrameColor, highlightBoxWidth));
+        painter->setPen(QPen(penColor, highlightBoxWidth));
         const double radius = borderWidth;
         painter->drawRoundedRect(
                 borderOuterRect.marginsAdded(uniformMarginsF(marginWidth))
@@ -228,8 +232,10 @@ bool BoardBoxItem::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
         if (event->type() == QEvent::GraphicsSceneContextMenu) {
             auto *e = dynamic_cast<QGraphicsSceneContextMenuEvent *>(event);
             const auto pos = e->screenPos();
-            if (captionBarContextMenu != nullptr)
+            if (captionBarContextMenu != nullptr) {
+                adjustCaptionBarContextMenuBeforePopup(captionBarContextMenu);
                 captionBarContextMenu->popup(pos);
+            }
             return true;
         }
         else if (event->type() == QEvent::GraphicsSceneMousePress) {
@@ -350,9 +356,19 @@ void BoardBoxItem::setUpConnections() {
 
     connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
             this, [this](const bool isDarkTheme) {
+        //
         const QBrush contentsRectBrush
                 = getContentsRectItemBrush(contentsBackgroundType, isDarkTheme);
         contentsRectItem->setBrush(contentsRectBrush);
+
+        //
+        const QColor captionBarTextColor = getCaptionBarTextColor(isDarkTheme);
+        captionBarLeftTextItem->setBrush(captionBarTextColor);
+        captionBarRightTextItem->setBrush(captionBarTextColor);
+
+        //
+        if (isHighlighted)
+            update(); // highlight frame color needs update
     });
 }
 
@@ -366,8 +382,6 @@ void BoardBoxItem::setUpGraphicsItems() {
     setAcceptHoverEvents(true);
 
     // caption bar
-    const QColor captionBarTextColor(Qt::white);
-
     QFont captionBarFontNormal;
     {
         constexpr int captionBarFontPixelSize = 13;
@@ -381,6 +395,9 @@ void BoardBoxItem::setUpGraphicsItems() {
     }
 
     // caption bar left text
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+    const QColor captionBarTextColor = getCaptionBarTextColor(isDarkTheme);
+
     captionBarLeftTextItem->setFont(captionBarFontNormal);
     captionBarLeftTextItem->setBrush(captionBarTextColor);
 
@@ -389,7 +406,6 @@ void BoardBoxItem::setUpGraphicsItems() {
     captionBarRightTextItem->setBrush(captionBarTextColor);
 
     // contents rect
-    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
     const QBrush contentsRectBrush = getContentsRectItemBrush(contentsBackgroundType, isDarkTheme);
 
     contentsRectItem->setPen(Qt::NoPen);
@@ -446,22 +462,12 @@ void BoardBoxItem::setCaptionBarRightTextItemPos(
     captionBarRightTextItem->setPos(x, captionBarRect.top() + captionBarPadding);
 }
 
-//QColor BoardBoxItem::getHighlightBoxColor(const QColor &color) {
-//    int h, s, v;
-//    color.getHsv(&h, &s, &v);
-
-//    if (h >= 180 && h <= 240
-//            && s >= 50
-//            && v >= 60) {
-//        return QColor(90, 90, 90);
-//    }
-//    else {
-//        return QColor(36, 128, 220); // hue = 210
-//    }
-//}
-
 QMenu *BoardBoxItem::createCaptionBarContextMenu() {
     return nullptr;
+}
+
+void BoardBoxItem::adjustCaptionBarContextMenuBeforePopup(QMenu */*contextMenu*/) {
+    // do nothing
 }
 
 void BoardBoxItem::setUpContents(QGraphicsItem */*contentsContainer*/) {
@@ -496,4 +502,8 @@ QBrush BoardBoxItem::getContentsRectItemBrush(
 
     Q_ASSERT(false); // case not implemented
     return QBrush(Qt::NoBrush);
+}
+
+QColor BoardBoxItem::getCaptionBarTextColor(const bool isDarkTheme) {
+    return isDarkTheme ? QColor(230, 230, 230) : QColor(Qt::white);
 }

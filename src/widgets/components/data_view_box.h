@@ -5,6 +5,7 @@
 #include "widgets/components/board_box_item.h"
 #include "widgets/components/custom_graphics_text_item.h"
 #include "widgets/components/custom_text_edit.h"
+#include "widgets/icons.h"
 
 class DataViewBox : public BoardBoxItem
 {
@@ -37,6 +38,8 @@ private:
     const int customDataQueryId;
     bool textEditIgnoreWheelEvent {false};
 
+    QHash<QAction *, Icon> contextMenuActionToIcon;
+
     // content items
     // -- title
     CustomGraphicsTextItem *titleItem;
@@ -60,6 +63,7 @@ private:
 
     // override
     QMenu *createCaptionBarContextMenu() override;
+    void adjustCaptionBarContextMenuBeforePopup(QMenu *contextMenu) override;
     void setUpContents(QGraphicsItem *contentsContainer) override;
     void adjustContents() override;
     void onMouseLeftPressed(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) override;
@@ -78,6 +82,8 @@ private:
     std::pair<bool, bool> validateQueryParameters();
 
     void runQuery();
+
+    static QColor getTitleItemDefaultTextColor(const bool isDarkTheme);
 };
 
 #endif // DATAVIEWBOX_H

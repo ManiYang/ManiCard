@@ -736,7 +736,8 @@ WorkspaceToolBar::WorkspaceToolBar(QWidget *parent)
             "  background: transparent;"
             "}");
 
-    setStyleClasses(buttonNewBoard, {StyleClass::flatPushButton});
+    setStyleClasses(
+            buttonNewBoard, {StyleClass::flatPushButton, StyleClass::mediumContrastTextColor});
 
     setStyleClasses(buttonWorkspaceSettings, {StyleClass::flatToolButton});
 

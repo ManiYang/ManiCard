@@ -4,10 +4,14 @@
 #include <QRegularExpression>
 #include <QTextDocument>
 #include <QTimer>
+#include "app_data_readonly.h"
 #include "property_value_editor.h"
+#include "services.h"
 #include "utilities/json_util.h"
 #include "utilities/numbers_util.h"
+#include "widgets/app_style_sheet.h"
 #include "widgets/components/custom_text_edit.h"
+#include "widgets/widgets_constants.h"
 
 PropertyValueEditor::PropertyValueEditor(const QJsonValue &initialValue_, QWidget *parent)
         : QFrame(parent) {
@@ -26,7 +30,9 @@ void PropertyValueEditor::setReadonly(const bool readonly_) {
 
     dataTypeView.setReadonly(readonly);
     setTextEditReadonly(readonly, dataTypeView.getCurrentType());
-    setStyleSheetForTextEdit(readonly, isValid);
+
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+    setStyleSheetForTextEdit(readonly, isValid, isDarkTheme);
 }
 
 QJsonValue PropertyValueEditor::getValue() const {
@@ -59,14 +65,20 @@ void PropertyValueEditor::setUpWidgets(const QJsonValue &initialValue) {
     }
 
     //
-    setStyleSheetForTextEdit = [this](const bool readonly, const bool valid) {
+    setStyleSheetForTextEdit = [this](const bool readonly, const bool valid, const bool isDarkTheme) {
+        const QString textEditBorderColor = isDarkTheme
+                ? (readonly ? "#484b51" : "#828790")
+                : (readonly ? "#ddd" : "#aaa");
+        const QString textEditBackgroundColor = isDarkTheme
+                ? (valid ? highContrastDarkBackgroundColor : "#745858")
+                : (valid ? "white" : "#ffe8e8");
         textEdit->setStyleSheet(
                 "CustomTextEdit {"
-                "  border: 1px solid " + QString(readonly ? "#ddd" : "#aaa") + ";"
+                "  border: 1px solid " + textEditBorderColor + ";"
                 "}"
                 "CustomTextEdit > QTextEdit {"
                 "  font-size: 11pt;"
-                "  background-color: " + (valid ? "white" : "#ffe8e8") + ";"
+                "  background-color: " + textEditBackgroundColor + ";"
                 "}");
     };
 
@@ -86,16 +98,25 @@ void PropertyValueEditor::setUpConnections() {
         });
 
         validateAndSetInvalidMsgVisible();
-        setStyleSheetForTextEdit(readonly, isValid);
+
+        const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+        setStyleSheetForTextEdit(readonly, isValid, isDarkTheme);
 
         if (isValid)
             emit edited();
+    });
+
+    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
+            this, [this](const bool isDarkTheme) {
+        setStyleSheetForTextEdit(readonly, isValid, isDarkTheme);
     });
 }
 
 void PropertyValueEditor::onDataTypeSelectedByUser() {
     validateAndSetInvalidMsgVisible();
-    setStyleSheetForTextEdit(readonly, isValid);
+
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+    setStyleSheetForTextEdit(readonly, isValid, isDarkTheme);
 
     if (isValid)
         emit edited();
@@ -110,7 +131,9 @@ void PropertyValueEditor::loadValue(const QJsonValue &value) {
 
     validateAndSetInvalidMsgVisible(); // sets `isValid`
     Q_ASSERT(isValid);
-    setStyleSheetForTextEdit(readonly, isValid);
+
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+    setStyleSheetForTextEdit(readonly, isValid, isDarkTheme);
 }
 
 void PropertyValueEditor::setTextEditReadonly(
@@ -340,16 +363,16 @@ PropertyValueEditor::DataTypeView::DataTypeView(PropertyValueEditor *propertyVal
     // (the visibility of widgets is set in addToLayout())
 
     //
+    setStyleClasses(labelDataType, {StyleClass::mediumContrastTextColor});
     labelDataType->setStyleSheet(
-            "color: #777;"
             "font-size: 10pt;"
             "font-weight: bold;"
             "margin: 3px 1px;"); //^>
 
+    setStyleClasses(comboBoxDataType, {StyleClass::mediumContrastTextColor});
     comboBoxDataType->setStyleSheet(
             "QComboBox {"
             "  font-size: 10pt;"
-            "  color: #666;"
             "  font-weight: bold;"
             "}");
 

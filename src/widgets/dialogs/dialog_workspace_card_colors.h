@@ -1,9 +1,11 @@
 #ifndef DIALOG_WORKSPACE_CARD_COLORS_H
 #define DIALOG_WORKSPACE_CARD_COLORS_H
 
+#include <QAbstractButton>
 #include <QBoxLayout>
 #include <QDialog>
 #include <QLabel>
+#include "widgets/icons.h"
 
 namespace Ui {
 class DialogWorkspaceCardColors;
@@ -29,6 +31,8 @@ public:
 
 private:
     Ui::DialogWorkspaceCardColors *ui;
+
+    QHash<QAbstractButton *, Icon> buttonToIcon;
 
     void setUpWidgets(
             const QString &workspaceName,

@@ -456,6 +456,9 @@ void BoardView::setUpConnections() {
                 edgeArrowLineColor, edgeArrowLabelColor);
         relationshipBundlesCollection.setLineColorAndLabelColorOfAllEdgeArrows(
                 edgeArrowLineColor, edgeArrowLabelColor);
+
+        //
+        groupBoxesCollection.setColorOfAllGroupBoxes(computeGroupBoxColor(isDarkTheme));
     });
 }
 
@@ -1573,6 +1576,10 @@ QColor BoardView::getEdgeArrowLabelColor() const {
     return isDarkTheme ? QColor(darkThemeStandardTextColor) : QColor(Qt::black);
 }
 
+QColor BoardView::computeGroupBoxColor(const bool isDarkTheme) {
+    return isDarkTheme ? QColor(75, 79, 83) : QColor(170, 170, 170);
+}
+
 QPoint BoardView::getScreenPosFromScenePos(const QPointF &scenePos) const {
     QPoint posInViewport = graphicsView->mapFromScene(scenePos);
     return graphicsView->viewport()->mapToGlobal(posInViewport);
@@ -2191,7 +2198,9 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
     groupBox->setTitle(groupBoxData.title);
     groupBox->setRect(groupBoxData.rect);
     groupBox->setBorderWidth(3);
-    groupBox->setColor(QColor(170, 170, 170));
+
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+    groupBox->setColor(computeGroupBoxColor(isDarkTheme));
 
     // set up connections
     QPointer<GroupBox> groupBoxPtr(groupBox);
@@ -2409,6 +2418,11 @@ void BoardView::GroupBoxesCollection::unhighlightGroupBoxes(const QSet<int> &gro
         if (groupBoxIds.contains(it.key()))
             it.value()->setIsHighlighted(false);
     }
+}
+
+void BoardView::GroupBoxesCollection::setColorOfAllGroupBoxes(const QColor &color) {
+    for (auto it = groupBoxes.constBegin(); it != groupBoxes.constEnd(); ++it)
+        it.value()->setColor(color);
 }
 
 GroupBox *BoardView::GroupBoxesCollection::get(const int groupBoxId) {

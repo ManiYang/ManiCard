@@ -1,5 +1,6 @@
+#include "app_data_readonly.h"
 #include "group_box.h"
-
+#include "services.h"
 #include <QMessageBox>
 
 GroupBox::GroupBox(QGraphicsItem *parent)
@@ -22,7 +23,7 @@ BoardBoxItem::CreationParameters GroupBox::getCreationParameters() {
 
     parameters.contentsBackgroundType = ContentsBackgroundType::Transparent;
     parameters.borderShape = BorderShape::Dashed;
-    parameters.highlightFrameColor = QColor(186, 204, 222);
+    parameters.highlightFrameColors = std::make_pair(QColor(186, 204, 222), QColor(58, 91, 120));
 
     return parameters;
 }
@@ -30,21 +31,31 @@ BoardBoxItem::CreationParameters GroupBox::getCreationParameters() {
 QMenu *GroupBox::createCaptionBarContextMenu(){
     auto *contextMenu = new QMenu;
     {
-        auto *action = contextMenu->addAction(
-                QIcon(":/icons/edit_square_black_24"), "Rename");
+        auto *action = contextMenu->addAction("Rename");
+        contextMenuActionToIcon.insert(action, Icon::EditSquare);
         connect(action, &QAction::triggered, this, [this]() {
             emit userToRenameGroupBox();
         });
     }
     contextMenu->addSeparator();
     {
-        auto *action = contextMenu->addAction(
-                QIcon(":/icons/delete_black_24"), "Remove Group Box");
+        auto *action = contextMenu->addAction("Remove Group Box");
+        contextMenuActionToIcon.insert(action, Icon::Delete);
         connect(action, &QAction::triggered, this, [this]() {
             emit userToRemoveGroupBox();
         });
     }
     return contextMenu;
+}
+
+void GroupBox::adjustCaptionBarContextMenuBeforePopup(QMenu */*contextMenu*/) {
+    // set action icons
+    const auto theme = Services::instance()->getAppDataReadonly()->getIsDarkTheme()
+            ? Icons::Theme::Dark : Icons::Theme::Light;
+    for (auto it = contextMenuActionToIcon.constBegin();
+            it != contextMenuActionToIcon.constEnd(); ++it) {
+        it.key()->setIcon(Icons::getIcon(it.value(), theme));
+    }
 }
 
 void GroupBox::setUpContents(QGraphicsItem */*contentsContainer*/) {

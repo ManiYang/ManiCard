@@ -5,7 +5,9 @@
 #include <QPainter>
 #include <QRegularExpression>
 #include <QTableWidgetItem>
+#include "app_data_readonly.h"
 #include "dialog_workspace_card_colors.h"
+#include "services.h"
 #include "ui_dialog_workspace_card_colors.h"
 #include "utilities/naming_rules.h"
 
@@ -87,11 +89,11 @@ void DialogWorkspaceCardColors::setUpWidgets(
 
     // buttons
     ui->buttonUp->setToolTip("Raise precedence");
-    ui->buttonUp->setIcon(QIcon(":/icons/arrow_upward_24"));
+    buttonToIcon.insert(ui->buttonUp, Icon::ArrowNorth);
     ui->buttonUp->setIconSize({24, 24});
 
     ui->buttonDown->setToolTip("Lower precedence");
-    ui->buttonDown->setIcon(QIcon(":/icons/arrow_downward_24"));
+    buttonToIcon.insert(ui->buttonDown, Icon::ArrowSouth);
     ui->buttonDown->setIconSize({24, 24});
 
     ui->buttonPickColor->setEnabled(false);
@@ -99,18 +101,18 @@ void DialogWorkspaceCardColors::setUpWidgets(
     ui->buttonUp->setEnabled(false);
     ui->buttonDown->setEnabled(false);
 
+    // button icons
+    const auto theme = Services::instance()->getAppDataReadonly()->getIsDarkTheme()
+            ? Icons::Theme::Dark : Icons::Theme::Light;
+    for (auto it = buttonToIcon.constBegin(); it != buttonToIcon.constEnd(); ++it)
+        it.key()->setIcon(Icons::getIcon(it.value(), theme));
+
     //
     ui->labelWarningMsg->setStyleSheet("color: red;");
 
     ui->tableWidget->setStyleSheet(
             "QHeaderView::section {"
             "  font-weight: bold;"
-            "  background-color: #f0f0f0;"
-            "  border: 1px solid #e0e0e0;"
-            "}"
-            "QTableWidget::item:selected {"
-            "  color: black;"
-            "  background-color: #d0d0d0;"
             "}");
 }
 
@@ -392,7 +394,7 @@ ColorDisplayWidget::ColorDisplayWidget(QWidget *parent)
 
 void ColorDisplayWidget::setColor(const QColor &color) {
     labelColorSample->setPixmap(drawColorSamplePixmap(color));
-    labelColorHex->setText(color.name());
+    labelColorHex->setText(color.name(QColor::HexRgb));
 }
 
 QColor ColorDisplayWidget::getColor() const {

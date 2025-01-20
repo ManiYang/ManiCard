@@ -289,6 +289,8 @@ private:
         void addToHighlightedGroupBoxes(const QSet<int> &groupBoxIds);
         void unhighlightGroupBoxes(const QSet<int> &groupBoxIds);
 
+        void setColorOfAllGroupBoxes(const QColor &color);
+
         GroupBox *get(const int groupBoxId); // returns nullptr if not found
         QSet<int> getAllGroupBoxIds() const;
 
@@ -439,6 +441,7 @@ private:
     static QColor getSceneBackgroundColor(const bool isDarkTheme);
     QColor getEdgeArrowLineColor() const; // calls AppDataReadonly
     QColor getEdgeArrowLabelColor() const; // calls AppDataReadonly
+    static QColor computeGroupBoxColor(const bool isDarkTheme);
 
     QPoint getScreenPosFromScenePos(const QPointF &scenePos) const;
     QPointF getViewCenterInScene() const;

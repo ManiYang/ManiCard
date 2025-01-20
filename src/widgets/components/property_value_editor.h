@@ -89,7 +89,8 @@ private:
     bool readonly {false};
     bool isValid {true};
 
-    std::function<void (const bool readonly, const bool valid)> setStyleSheetForTextEdit;
+    std::function<void (const bool, const bool, const bool)> setStyleSheetForTextEdit;
+            // parameters: (readonly, valid, isDarkTheme)
 
     void setUpWidgets(const QJsonValue &initialValue);
     void setUpConnections();

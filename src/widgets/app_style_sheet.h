@@ -6,6 +6,7 @@
 
 namespace StyleClass {
 constexpr char highContrastBackground[] = "highContrastBackground";
+constexpr char mediumContrastTextColor[] = "mediumContrastTextColor";
 constexpr char flatToolButton[] = "flatToolButton";
 constexpr char flatPushButton[] = "flatPushButton";
 } // namespace StyleClass

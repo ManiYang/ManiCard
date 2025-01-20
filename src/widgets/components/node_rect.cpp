@@ -38,6 +38,8 @@ void NodeRect::setText(const QString &text) {
     textEdit->setPlainText(text);
     textEdit->setLineHeightPercent(textEditLineHeightPercentage);
     adjustContents();
+
+    textEdit->setTextCursorPosition(0);
 }
 
 void NodeRect::setEditable(const bool editable) {
@@ -107,25 +109,35 @@ bool NodeRect::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
     return BoardBoxItem::sceneEventFilter(watched, event);
 }
 
+BoardBoxItem::CreationParameters NodeRect::getCreationParameters() {
+    CreationParameters parameters;
+    parameters.contentsBackgroundType = ContentsBackgroundType::Opaque;
+    parameters.borderShape = BorderShape::Solid;
+    parameters.highlightFrameColors = std::make_pair(QColor(36, 128, 220), QColor(123, 179, 234));
+
+    return parameters;
+}
+
 QMenu *NodeRect::createCaptionBarContextMenu() {
     auto *contextMenu = new QMenu;
     {
-        auto *action = contextMenu->addAction(
-                QIcon(":/icons/label_black_24"), "Set Labels...");
+        auto *action = contextMenu->addAction("Set Labels...");
+        contextMenuActionToIcon.insert(action, Icon::Label);
         connect(action, &QAction::triggered, this, [this]() {
             emit userToSetLabels();
         });
     }
     {
-        auto *action = contextMenu->addAction(
-                QIcon(":/icons/arrow_right_black_24"), "Create Relationship...");
+        auto *action = contextMenu->addAction("Create Relationship...");
+        contextMenuActionToIcon.insert(action, Icon::ArrowRight);
         connect(action, &QAction::triggered, this, [this]() {
             emit userToCreateRelationship();
         });
     }
     contextMenu->addSeparator();
     {
-        auto *action = contextMenu->addAction(QIcon(":/icons/close_box_black_24"), "Close");
+        auto *action = contextMenu->addAction("Close");
+        contextMenuActionToIcon.insert(action, Icon::CloseBox);
         connect(action, &QAction::triggered, this, [this]() {
             const auto r = QMessageBox::question(getView(), " ", "Close the card?");
             if (r == QMessageBox::Yes)
@@ -134,6 +146,16 @@ QMenu *NodeRect::createCaptionBarContextMenu() {
     }
 
     return contextMenu;
+}
+
+void NodeRect::adjustCaptionBarContextMenuBeforePopup(QMenu */*contextMenu*/) {
+    // set action icons
+    const auto theme = Services::instance()->getAppDataReadonly()->getIsDarkTheme()
+            ? Icons::Theme::Dark : Icons::Theme::Light;
+    for (auto it = contextMenuActionToIcon.constBegin();
+            it != contextMenuActionToIcon.constEnd(); ++it) {
+        it.key()->setIcon(Icons::getIcon(it.value(), theme));
+    }
 }
 
 void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
@@ -166,9 +188,11 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     );
 
     //
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+
     textEditFocusIndicator->setBrush(Qt::NoBrush);
     textEditFocusIndicator->setPen(
-            QPen(QBrush(QColor(195, 225, 255)), textEditFocusIndicatorLineWidth));
+            getTextEditFocusIndicator(isDarkTheme, textEditFocusIndicatorLineWidth));
     textEditFocusIndicator->setVisible(false);
 
     //
@@ -219,8 +243,9 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     //
     connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
             this, [this](const bool isDarkTheme) {
-        const QColor textColor = getTitleItemDefaultTextColor(isDarkTheme);
-        titleItem->setDefaultTextColor(textColor);
+        titleItem->setDefaultTextColor(getTitleItemDefaultTextColor(isDarkTheme));
+        textEditFocusIndicator->setPen(
+                getTextEditFocusIndicator(isDarkTheme, textEditFocusIndicatorLineWidth));
     });
 }
 
@@ -283,7 +308,7 @@ void NodeRect::adjustContents() {
             QRectF(contentsRect.left(), yTitleBottom - 2.0,
                    contentsRect.width(), textEditHeight + 2.0)
                 .marginsRemoved(uniformMarginsF(textEditFocusIndicatorLineWidth / 2.0))
-                );
+    );
 }
 
 void NodeRect::onMouseLeftPressed(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) {
@@ -315,4 +340,9 @@ bool NodeRect::computeTextEditEditable(
 
 QColor NodeRect::getTitleItemDefaultTextColor(const bool isDarkTheme) {
     return isDarkTheme ? QColor(darkThemeStandardTextColor) : QColor(Qt::black);
+}
+
+QPen NodeRect::getTextEditFocusIndicator(const bool isDarkTheme, const double indicatorLineWidth) {
+    const QColor color = isDarkTheme ? QColor(0, 89, 179) : QColor(195, 225, 255);
+    return QPen(QBrush(color), indicatorLineWidth);
 }

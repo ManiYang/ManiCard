@@ -10,12 +10,14 @@
 #include "services.h"
 #include "utilities/json_util.h"
 #include "utilities/naming_rules.h"
+#include "widgets/app_style_sheet.h"
 #include "widgets/components/property_value_editor.h"
 
 CardPropertiesView::CardPropertiesView(QWidget *parent)
         : QFrame(parent) {
     setUpWidgets();
     setUpConnections();
+    setUpButtonsWithIcons();
 }
 
 void CardPropertiesView::setUpWidgets() {
@@ -43,7 +45,8 @@ void CardPropertiesView::setUpWidgets() {
         layout->addWidget(labelTitle);
         labelTitle->setWordWrap(true);
 
-        buttonNewProperty = new QPushButton(QIcon(":/icons/add_black_24"), "New Property");
+        buttonNewProperty = new QPushButton("New Property");
+        buttonToIcon.insert(buttonNewProperty, Icon::Add);
         layout->addWidget(buttonNewProperty, 0, Qt::AlignLeft);
         buttonNewProperty->setVisible(false);
 
@@ -61,34 +64,29 @@ void CardPropertiesView::setUpWidgets() {
             "  width: 12px;"
             "}");
 
+    setStyleClasses(labelCardId, {StyleClass::mediumContrastTextColor});
     labelCardId->setStyleSheet(
-            "color: #444;"
-            "font-size: 11pt;"
-            "font-weight: bold;");
+            "QLabel {"
+            "  font-size: 11pt;"
+            "  font-weight: bold; "
+            "}");
 
+    setStyleClasses(checkBoxEdit, {StyleClass::mediumContrastTextColor});
     checkBoxEdit->setStyleSheet(
-            "color: #444;"
-            "font-size: 11pt;"
-            "font-weight: bold;");
+            "QCheckBox {"
+            "  font-size: 11pt;"
+            "  font-weight: bold;"
+            "}");
 
     labelTitle->setStyleSheet(
             "font-size: 13pt;"
             "font-weight: bold;");
 
+    setStyleClasses(
+            buttonNewProperty, {StyleClass::flatPushButton, StyleClass::mediumContrastTextColor});
     buttonNewProperty->setStyleSheet(
             "QPushButton {"
-            "  color: #606060;"
-            "  border: none;"
-            "  border-radius: 4px;"
-            "  padding: 2px 4px 2px 2px;"
-            "  background: transparent;"
             "  margin-left: 14px;"
-            "}"
-            "QPushButton:hover {"
-            "  background: #e0e0e0;"
-            "}"
-            "QPushButton:pressed {"
-            "  background: #c0c0c0;"
             "}");
 }
 
@@ -157,6 +155,22 @@ void CardPropertiesView::setUpConnections() {
             return;
 
         updateCardProperties(cardPropertiesUpdate);
+    });
+}
+
+void CardPropertiesView::setUpButtonsWithIcons() {
+    // set the icons with current theme
+    const auto theme = Services::instance()->getAppDataReadonly()->getIsDarkTheme()
+            ? Icons::Theme::Dark : Icons::Theme::Light;
+    for (auto it = buttonToIcon.constBegin(); it != buttonToIcon.constEnd(); ++it)
+        it.key()->setIcon(Icons::getIcon(it.value(), theme));
+
+    // connect to "theme updated" signal
+    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
+            this, [this](const bool isDarkTheme) {
+        const auto theme = isDarkTheme ? Icons::Theme::Dark : Icons::Theme::Light;
+        for (auto it = buttonToIcon.constBegin(); it != buttonToIcon.constEnd(); ++it)
+            it.key()->setIcon(Icons::getIcon(it.value(), theme));
     });
 }
 
@@ -344,10 +358,8 @@ CardPropertiesView::CustomPropertiesArea::CustomPropertiesArea(
     auto *frame = new QFrame;
     frame->setLayout(vBoxLayout);
     frame->setFrameShape(QFrame::NoFrame);
+    setStyleClasses(frame, {StyleClass::highContrastBackground});
     frame->setStyleSheet(
-            ".QFrame {"
-            "  background-color: white;"
-            "}"
             "QFrame > QLabel {"
             "  font-size: 11pt;"
             "  font-weight: bold;"

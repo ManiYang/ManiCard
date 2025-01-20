@@ -8,6 +8,7 @@
 #include "models/custom_data_query.h"
 #include "services.h"
 #include "utilities/json_util.h"
+#include "widgets/widgets_constants.h"
 
 DataViewBox::DataViewBox(const int customDataQueryId, QGraphicsItem *parent)
         : BoardBoxItem(BoardBoxItem::CreationParameters {}, parent)
@@ -69,14 +70,16 @@ bool DataViewBox::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
 QMenu *DataViewBox::createCaptionBarContextMenu() {
     auto *contextMenu = new QMenu;
     {
-        auto *action = contextMenu->addAction(QIcon(":/icons/play_arrow_24"), "Run");
+        auto *action = contextMenu->addAction("Run");
+        contextMenuActionToIcon.insert(action, Icon::PlayArrow);
         connect(action, &QAction::triggered, this, [this]() {
             runQuery();
         });
     }
     contextMenu->addSeparator();
     {
-        auto *action = contextMenu->addAction(QIcon(":/icons/close_box_black_24"), "Close");
+        auto *action = contextMenu->addAction("Close");
+        contextMenuActionToIcon.insert(action, Icon::CloseBox);
         connect(action, &QAction::triggered, this, [this]() {
             const auto r = QMessageBox::question(getView(), " ", "Close the data query?");
             if (r == QMessageBox::Yes)
@@ -85,6 +88,16 @@ QMenu *DataViewBox::createCaptionBarContextMenu() {
     }
 
     return contextMenu;
+}
+
+void DataViewBox::adjustCaptionBarContextMenuBeforePopup(QMenu */*contextMenu*/) {
+    // set action icons
+    const auto theme = Services::instance()->getAppDataReadonly()->getIsDarkTheme()
+            ? Icons::Theme::Dark : Icons::Theme::Light;
+    for (auto it = contextMenuActionToIcon.constBegin();
+            it != contextMenuActionToIcon.constEnd(); ++it) {
+        it.key()->setIcon(Icons::getIcon(it.value(), theme));
+    }
 }
 
 void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
@@ -103,6 +116,10 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     if (QGraphicsView *view = getView(); view != nullptr)
         fontOfView = view->font();
 
+    //
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+    const QColor titleTextColor = getTitleItemDefaultTextColor(isDarkTheme);
+
     // titleItem
     {
         QFont font = fontOfView;
@@ -110,7 +127,7 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
         font.setBold(true);
 
         titleItem->setFont(font);
-        titleItem->setDefaultTextColor(Qt::black);
+        titleItem->setDefaultTextColor(titleTextColor);
     }
 
     // labelCypher, labelParameters, & labelQueryResult
@@ -136,17 +153,15 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
 
     // queryCypherItem & queryParametersItem
     {
-        const QColor textColor(Qt::black);
-
         QFont font = fontOfView;
         font.setFamily(qApp->property("monospaceFontFamily").toString());
         font.setPixelSize(16);
 
         queryCypherItem->setFont(font);
-        queryCypherItem->setDefaultTextColor(textColor);
+        queryCypherItem->setDefaultTextColor(titleTextColor);
 
         queryParametersItem->setFont(font);
-        queryParametersItem->setDefaultTextColor(textColor);
+        queryParametersItem->setDefaultTextColor(titleTextColor);
     }
 
     // queryCypherErrorMsg & queryParamsErrorMsg
@@ -253,6 +268,15 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
 
     connect(queryParametersItem, &CustomGraphicsTextItem::clicked, this, [this]() {
         emit leftButtonPressedOrClicked();
+    });
+
+    //
+    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
+            this, [this](const bool isDarkTheme) {
+        const QColor textColor = getTitleItemDefaultTextColor(isDarkTheme);
+        titleItem->setDefaultTextColor(textColor);
+        queryCypherItem->setDefaultTextColor(textColor);
+        queryParametersItem->setDefaultTextColor(textColor);
     });
 }
 
@@ -461,4 +485,8 @@ void DataViewBox::runQuery() {
             },
             this
     );
+}
+
+QColor DataViewBox::getTitleItemDefaultTextColor(const bool isDarkTheme) {
+    return isDarkTheme ? QColor(darkThemeStandardTextColor) : QColor(Qt::black);
 }

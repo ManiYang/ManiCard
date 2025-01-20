@@ -102,7 +102,8 @@ void WorkspacesList::setUpWidgets() {
             "  font-size: 11pt;"
             "}");
 
-    setStyleClasses(buttonNewWorkspace, {StyleClass::flatPushButton});
+    setStyleClasses(
+            buttonNewWorkspace, {StyleClass::flatPushButton, StyleClass::mediumContrastTextColor});
 }
 
 void WorkspacesList::setUpConnections() {

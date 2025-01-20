@@ -24,7 +24,8 @@ public:
     {
         ContentsBackgroundType contentsBackgroundType {ContentsBackgroundType::Opaque};
         BorderShape borderShape {BorderShape::Solid};
-        QColor highlightFrameColor {36, 128, 220};
+        std::pair<QColor, QColor> highlightFrameColors {{36, 128, 220}, {36, 128, 220}};
+                // light theme, dark theme
     };
 
 public:
@@ -82,7 +83,7 @@ private:
     // state variables
     const BorderShape borderShape;
     const ContentsBackgroundType contentsBackgroundType;
-    const QColor highlightFrameColor;
+    const std::pair<QColor, QColor> highlightFrameColors; // light theme, dark theme
 
     QRectF borderOuterRect {0.0, 0.0, 100.0, 100.0};
     double marginWidth {2.0};
@@ -107,7 +108,7 @@ private:
     QGraphicsRectItem *contentsRectItem;
 
     GraphicsItemMoveResize *moveResizeHelper;
-    QMenu *captionBarContextMenu {nullptr};
+    QMenu *captionBarContextMenu {nullptr}; // can be nullptr
 
     //
     void setUpConnections();
@@ -123,15 +124,14 @@ private:
     //!
     void setCaptionBarRightTextItemPos(const QRectF captionBarRect, const double captionBarPadding);
 
-    //
-//    static QColor getHighlightBoxColor(const QColor &color);
-
     // ==== private virtual methods ====
 
     //!
     //! The returned \c QMenu can have no parent. Return \c nullptr if a context menu is not needed.
     //!
     virtual QMenu *createCaptionBarContextMenu();
+
+    virtual void adjustCaptionBarContextMenuBeforePopup(QMenu *contextMenu);
 
     virtual void setUpContents(QGraphicsItem *contentsContainer);
     virtual void adjustContents();
@@ -143,7 +143,7 @@ private:
 
     static QBrush getContentsRectItemBrush(
             const ContentsBackgroundType contentsBackgroundType, const bool isDarkTheme);
-
+    static QColor getCaptionBarTextColor(const bool isDarkTheme);
 };
 
 #endif // BOARDBOXITEM_H
