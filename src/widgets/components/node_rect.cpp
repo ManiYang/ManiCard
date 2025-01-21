@@ -12,7 +12,7 @@
 constexpr double textEditLineHeightPercentage = 120;
 
 NodeRect::NodeRect(const int cardId, QGraphicsItem *parent)
-    : BoardBoxItem(BoardBoxItem::CreationParameters {}, parent)
+    : BoardBoxItem(getCreationParameters(), parent)
     , cardId(cardId)
     , titleItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
     , textEdit(new CustomTextEdit(nullptr))
@@ -113,7 +113,7 @@ BoardBoxItem::CreationParameters NodeRect::getCreationParameters() {
     CreationParameters parameters;
     parameters.contentsBackgroundType = ContentsBackgroundType::Opaque;
     parameters.borderShape = BorderShape::Solid;
-    parameters.highlightFrameColors = std::make_pair(QColor(36, 128, 220), QColor(123, 179, 234));
+    parameters.highlightFrameColors = std::make_pair(QColor(36, 128, 220), QColor(46, 115, 184));
 
     return parameters;
 }
@@ -343,6 +343,6 @@ QColor NodeRect::getTitleItemDefaultTextColor(const bool isDarkTheme) {
 }
 
 QPen NodeRect::getTextEditFocusIndicator(const bool isDarkTheme, const double indicatorLineWidth) {
-    const QColor color = isDarkTheme ? QColor(0, 89, 179) : QColor(195, 225, 255);
+    const QColor color = isDarkTheme ? QColor(0, 51, 102) : QColor(195, 225, 255);
     return QPen(QBrush(color), indicatorLineWidth);
 }

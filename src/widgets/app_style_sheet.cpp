@@ -118,6 +118,9 @@ QString getDarkThemeStyleSheet() {
         "QMenu::item:selected, QListWidget::item:hover {"
         "  background: #235c96;"
         "}"
+        "QListWidget::item:selected {"
+        "  background: #4b739b;"
+        "}"
 
         "QTextEdit, QListView, QLineEdit {"
         "  background: " + highContrastDarkBackgroundColor + ";" +

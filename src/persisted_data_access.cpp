@@ -25,6 +25,10 @@ PersistedDataAccess::PersistedDataAccess(
             , unsavedUpdateRecordsFile(unsavedUpdateRecordsFile_) {
 }
 
+void PersistedDataAccess::clearCache() {
+    cache.clear();
+}
+
 void PersistedDataAccess::queryCards(
         const QSet<int> &cardIds,
         std::function<void (bool, const QHash<int, Card> &)> callback,

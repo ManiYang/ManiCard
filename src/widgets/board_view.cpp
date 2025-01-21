@@ -1668,13 +1668,20 @@ QColor BoardView::computeNodeRectDisplayColor(
     QColor color = funcGetColor1();
 
     //
+    constexpr double m = 0.4;
+    constexpr double a = -4.0 * m + 2.0;
+    constexpr double b = 4.0 * m - 3.0;
+    constexpr double c = 1.0;
+
     if (invertLightness) {
         double h;
         double s;
         double l;
         color.getHslF(&h, &s, &l);
 
-        color = QColor::fromHslF(h, s, 1.0 - l);
+        const double ll = (a * l + b) * l + c;
+
+        color = QColor::fromHslF(h, s, ll);
     }
 
     //

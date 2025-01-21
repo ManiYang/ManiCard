@@ -245,6 +245,13 @@ void MainWindow::setUpButtonsWithIcons() {
 }
 
 void MainWindow::setUpMainMenu() {
+//    {
+//        auto *action = mainMenu->addAction("Reload", this, [this]() {
+//            onUserToReload();
+//        });
+//        action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_R));
+//        this->addAction(action); // without this, the shortcut won't work
+//    }
     {
         auto *submenu = mainMenu->addMenu("Graph");
         {
@@ -313,7 +320,7 @@ void MainWindow::load() {
     {
         const auto sizeOpt
                 = Services::instance()->getAppDataReadonly()->getMainWindowSize();
-        if (sizeOpt.has_value())
+        if (sizeOpt.has_value() && (this->size() != sizeOpt.value()))
             resize(sizeOpt.value());
     }
 
@@ -853,18 +860,12 @@ void MainWindow::onUserToSetRelationshipTypesList() {
 }
 
 void MainWindow::onUserCloseWindow() {
-    saveWindowSizeDebounced->actNow();
-
-    //
     auto *routine = new AsyncRoutineWithErrorFlag;
 
     routine->addStep([this, routine]() {
         // save
         ContinuationContext context(routine);
-
-        saveTopLeftPosAndZoomRatioOfCurrentBoard();
-        saveLastOpenedBoardOfCurrentWorkspace();
-        saveLastOpenedWorkspace();
+        saveBeforeClose();
     }, this);
 
     routine->addStep([this, routine]() {
@@ -915,12 +916,32 @@ void MainWindow::onUserCloseWindow() {
     routine->start();
 }
 
+void MainWindow::onUserToReload() {
+    // confirmation
+
+    // disable mainWindow
+    // prepare to reload
+    //   save current data (saveBeforeClose())
+    //   let workspaceFrame prepare to close and wait canClose()
+    // clear cache
+    // let app reload
+    // let mainWindow reload (load() --> reload())
+    // enable mainWindow
+}
+
 void MainWindow::openOptionsDialog() {
     auto *dialog = new DialogOptions(this);
     connect(dialog, &QDialog::finished, this, [dialog](int /*result*/) {
         dialog->deleteLater();
     });
     dialog->open();
+}
+
+void MainWindow::saveBeforeClose() {
+    saveWindowSizeDebounced->actNow();
+    saveTopLeftPosAndZoomRatioOfCurrentBoard();
+    saveLastOpenedBoardOfCurrentWorkspace();
+    saveLastOpenedWorkspace();
 }
 
 void MainWindow::saveTopLeftPosAndZoomRatioOfCurrentBoard() {

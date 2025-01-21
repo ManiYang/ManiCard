@@ -26,6 +26,9 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+signals:
+    void userToReloadApp();
+
 protected:
     void showEvent(QShowEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
@@ -46,7 +49,6 @@ private:
 
     // menus and actions
     QMenu *mainMenu;
-//    QAction *actionToggleDarkTheme {nullptr};
     QAction *actionQuit {nullptr};
 
     // states & constants
@@ -68,6 +70,7 @@ private:
     void setUpConnections();
     void setUpButtonsWithIcons();
     void setUpMainMenu();
+
     void load();
 
     // ==== event handlers ====
@@ -83,11 +86,13 @@ private:
     void onUserToSetRelationshipTypesList();
 
     void onUserCloseWindow();
-
+    void onUserToReload();
     void openOptionsDialog();
 
     // -- event handling tools
     ActionDebouncer *saveWindowSizeDebounced;
+
+    void saveBeforeClose();
 
     void saveTopLeftPosAndZoomRatioOfCurrentBoard();
 

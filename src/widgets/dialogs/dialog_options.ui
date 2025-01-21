@@ -60,7 +60,7 @@
       <item>
        <widget class="QCheckBox" name="checkBoxAutoAdjustCardColors">
         <property name="text">
-         <string>Auto adjust card colors for dark theme</string>
+         <string>Automatically adjust card colors for dark theme</string>
         </property>
        </widget>
       </item>

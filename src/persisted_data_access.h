@@ -37,6 +37,8 @@ public:
             std::shared_ptr<UnsavedUpdateRecordsFile> unsavedUpdateRecordsFile_,
             QObject *parent = nullptr);
 
+    void clearCache();
+
     // ==== read ====
 
     void queryCards(
@@ -214,6 +216,7 @@ private:
     // data cache
     struct Cache
     {
+        // Note. Remember to modify clear() after adding items here.
         std::optional<QHash<int, Workspace>> allWorkspaces;
         QHash<int, Board> boards;
         QHash<int, Card> cards;
@@ -225,6 +228,21 @@ private:
 
         std::optional<bool> isDarkTheme;
         std::optional<bool> autoAdjustCardColorsForDarkTheme;
+
+        //
+        void clear() {
+            allWorkspaces.reset();
+            boards.clear();
+            cards.clear();
+            relationships.clear();
+            customDataQueries.clear();
+
+            userLabelsList.reset();
+            userRelTypesList.reset();
+
+            isDarkTheme.reset();
+            autoAdjustCardColorsForDarkTheme.reset();
+        }
     };
     Cache cache;
 
