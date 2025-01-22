@@ -16,6 +16,7 @@ class NodeRect : public BoardBoxItem
     Q_OBJECT
 public:
     explicit NodeRect(const int cardId, QGraphicsItem *parent = nullptr);
+    ~NodeRect();
 
     // Call these "set" methods only after this item is initialized:
     void setNodeLabels(const QStringList &labels);

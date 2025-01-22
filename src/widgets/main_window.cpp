@@ -17,6 +17,7 @@
 #include "utilities/margins_util.h"
 #include "utilities/message_box.h"
 #include "utilities/periodic_checker.h"
+#include "utilities/screens_utils.h"
 #include "widgets/app_style_sheet.h"
 #include "widgets/board_view.h"
 #include "widgets/dialogs/dialog_options.h"
@@ -39,11 +40,11 @@ MainWindow::MainWindow(QWidget *parent)
     setUpMainMenu();
 
     //
-    saveWindowSizeDebounced = new ActionDebouncer(
+    saveWindowSizePosDebounced = new ActionDebouncer(
             1000, ActionDebouncer::Option::Delay,
             [this]() {
-                Services::instance()->getAppData()
-                        ->updateMainWindowSize(EventSource(this), this->size());
+                Services::instance()->getAppData()->updateMainWindowSizePos(
+                        EventSource(this), QRect {this->pos(), this->size()});
             },
             this
     );
@@ -55,10 +56,24 @@ MainWindow::~MainWindow() {
 
 void MainWindow::load(std::function<void (bool)> callback) {
     {
-        const auto sizeOpt
-                = Services::instance()->getAppDataReadonly()->getMainWindowSize();
-        if (sizeOpt.has_value() && (this->size() != sizeOpt.value()))
-            resize(sizeOpt.value());
+        const auto rectOpt
+                = Services::instance()->getAppDataReadonly()->getMainWindowSizePos();
+        if (rectOpt.has_value()) {
+            resize(rectOpt.value().size());
+
+            //
+            QPoint targetPos = rectOpt.value().topLeft();
+            if (getScreenContaining(targetPos) == nullptr) { // `targetPos` is outside every screen
+                QScreen *screen = getScreenIntersectingMostPart(this->frameGeometry());
+                if (screen != nullptr)
+                    move(screen->availableGeometry().topLeft() + QPoint(50, 50));
+                else
+                    move(50, 50);
+            }
+            else {
+                move(targetPos);
+            }
+        }
     }
 
     workspacesList->setEnabled(false);
@@ -234,8 +249,8 @@ void MainWindow::showEvent(QShowEvent *event) {
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
-    if (event->spontaneous())
-        saveWindowSizeDebounced->tryAct();
+    if (event->spontaneous() && isEverShown)
+        saveWindowSizePosDebounced->tryAct();
 
     QMainWindow::resizeEvent(event);
 }
@@ -265,6 +280,9 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 }
 
 void MainWindow::moveEvent(QMoveEvent *event) {
+    if (event->spontaneous() && isEverShown)
+        saveWindowSizePosDebounced->tryAct();
+
     QMainWindow::moveEvent(event);
     checkIsScreenChanged();
 }
@@ -971,7 +989,7 @@ void MainWindow::openOptionsDialog() {
 }
 
 void MainWindow::saveBeforeClose() {
-    saveWindowSizeDebounced->actNow();
+    saveWindowSizePosDebounced->actNow();
     saveTopLeftPosAndZoomRatioOfCurrentBoard();
     saveLastOpenedBoardOfCurrentWorkspace();
     saveLastOpenedWorkspace();

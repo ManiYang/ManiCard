@@ -46,6 +46,7 @@ SOURCES += \
     utilities/message_box.cpp \
     utilities/periodic_checker.cpp \
     utilities/periodic_timer.cpp \
+    utilities/screens_utils.cpp \
     utilities/strings_util.cpp \
     widgets/app_style_sheet.cpp \
     widgets/board_view.cpp \
@@ -127,6 +128,7 @@ HEADERS += \
     utilities/numbers_util.h \
     utilities/periodic_checker.h \
     utilities/periodic_timer.h \
+    utilities/screens_utils.h \
     utilities/sets_util.h \
     utilities/strings_util.h \
     utilities/style_sheet_util.h \

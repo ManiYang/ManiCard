@@ -4,6 +4,7 @@
 #include <optional>
 #include <QJsonObject>
 #include <QPointF>
+#include <QRect>
 #include <QSize>
 #include <QString>
 
@@ -21,7 +22,7 @@ public:
     std::pair<bool, std::optional<int>> readLastOpenedBoardIdOfWorkspace(const int workspaceId);
     std::pair<bool, std::optional<int>> readLastOpenedWorkspaceId();
     std::pair<bool, std::optional<QPointF>> readTopLeftPosOfBoard(const int boardId);
-    std::pair<bool, std::optional<QSize>> readMainWindowSize();
+    std::pair<bool, std::optional<QRect>> readMainWindowSizePos();
 
     // ==== write operations ====
 
@@ -31,7 +32,7 @@ public:
     bool writeLastOpenedWorkspaceId(const int lastOpenedWorkspaceId);
     bool writeTopLeftPosOfBoard(const int boardId, const QPointF &topLeftPos);
     bool removeBoard(const int boardId);
-    bool writeMainWindowSize(const QSize &size);
+    bool writeMainWindowSizePos(const QRect &rect);
 
 private:
     QString filePath;

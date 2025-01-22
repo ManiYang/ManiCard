@@ -20,6 +20,18 @@ NodeRect::NodeRect(const int cardId, QGraphicsItem *parent)
     , textEditFocusIndicator(new QGraphicsRectItem(this)){
 }
 
+NodeRect::~NodeRect() {
+    // Handle the TextEdit embeded in `textEditProxyWidget` exclusively. Without this, the program
+    // crashes for unknown reason.
+    auto *textEdit = textEditProxyWidget->widget();
+    if (textEdit != nullptr) {
+        textEditProxyWidget->setWidget(nullptr);
+        textEdit->deleteLater();
+        // Using `delete textEdit;` also makes the program crash. It seems that `textEdit` is still
+        // accessed later.
+    }
+}
+
 void NodeRect::setNodeLabels(const QStringList &labels) {
     nodeLabels = labels;
 

@@ -99,7 +99,7 @@ public:
             std::function<void (bool, const QVector<QJsonObject> &)> callback,
             QPointer<QObject> callbackContext);
 
-    std::optional<QSize> getMainWindowSize();
+    std::optional<QRect> getMainWindowSizePos();
 
     bool getIsDarkTheme();
 
@@ -202,7 +202,7 @@ public:
     //!
     void reparentGroupBox(const int groupBoxId, const int newParentGroupBoxId);
 
-    void saveMainWindowSize(const QSize &size);
+    void saveMainWindowSizePos(const QRect &rect);
 
     void saveIsDarkTheme(const bool isDarkTheme);
 

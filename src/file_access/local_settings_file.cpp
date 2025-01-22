@@ -15,7 +15,8 @@
  *     "autoAdjustCardColorsForDarkTheme: false
  *   }
  *   "mainWindow": {
- *     "size": [1000, 800]
+ *     "size": [1000, 800],
+ *     "pos: [200, 100]
  *   },
  *   "workspaces": {
  *     "lastOpenedWorkspaceId": 10,
@@ -45,6 +46,7 @@ constexpr char sectionWorkspaces[] = "workspaces";
 constexpr char sectionBoards[] = "boards";
 
 constexpr char keySize[] = "size";
+constexpr char keyPos[] = "pos";
 constexpr char keyLastOpenedBoardId[] = "lastOpenedBoardId";
 constexpr char keyLastOpenedWorkspaceId[] = "lastOpenedWorkspaceId";
 constexpr char keyTopLeftPos[] = "topLeftPos";
@@ -126,20 +128,23 @@ LocalSettingsFile::readTopLeftPosOfBoard(const int boardId) {
     return {true, QPointF(v[0].toDouble(), v[1].toDouble())};
 }
 
-std::pair<bool, std::optional<QSize> > LocalSettingsFile::readMainWindowSize() {
+std::pair<bool, std::optional<QRect> > LocalSettingsFile::readMainWindowSizePos() {
     const QJsonObject obj = read();
-    const QJsonValue v = JsonReader(obj)[sectionMainWindow][keySize].get();
-    if (v.isUndefined())
+    const QJsonValue sizeValue = JsonReader(obj)[sectionMainWindow][keySize].get();
+    const QJsonValue posValue = JsonReader(obj)[sectionMainWindow][keyPos].get();
+
+    std::optional<QSize> sizeOpt;
+    if (jsonValueIsArrayOfSize(sizeValue, 2))
+        sizeOpt = QSize(sizeValue[0].toInt(), sizeValue[1].toInt());
+
+    std::optional<QPoint> posOpt;
+    if (jsonValueIsArrayOfSize(posValue, 2))
+        posOpt = QPoint(posValue[0].toInt(), posValue[1].toInt());
+
+    if (sizeOpt.has_value() && posOpt.has_value())
+        return {true, QRect(posOpt.value(), sizeOpt.value())};
+    else
         return {true, std::nullopt};
-
-    if (!jsonValueIsArrayOfSize(v, 2)) {
-        qWarning().noquote()
-                << QString("value of %1.%2 is not an array of size 2")
-                   .arg(sectionMainWindow, keySize);
-        return {false, std::nullopt};
-    }
-
-    return {true, QSize(v[0].toInt(), v[1].toInt())};
 }
 
 bool LocalSettingsFile::writeIsDarkTheme(const bool isDarkTheme) {
@@ -230,12 +235,14 @@ bool LocalSettingsFile::removeBoard(const int boardId) {
     return ok;
 }
 
-bool LocalSettingsFile::writeMainWindowSize(const QSize &size) {
+bool LocalSettingsFile::writeMainWindowSizePos(const QRect &rect) {
     QJsonObject obj = read();
 
-    // set obj[sectionMainWindow][keySize] = size
+    // set obj[sectionMainWindow][keySize] = rect.size() and
+    // obj[sectionMainWindow][keyPos] = rect.topLeft()
     QJsonObject mainWindowObj = obj[sectionMainWindow].toObject();
-    mainWindowObj[keySize] = QJsonArray {size.width(), size.height()};
+    mainWindowObj[keySize] = QJsonArray {rect.width(), rect.height()};
+    mainWindowObj[keyPos] = QJsonArray {rect.x(), rect.y()};
 
     obj[sectionMainWindow] = mainWindowObj;
 

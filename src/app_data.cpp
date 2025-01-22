@@ -81,8 +81,8 @@ void AppData::performCustomCypherQuery(
     persistedDataAccess->performCustomCypherQuery(cypher, parameters, callback, callbackContext);
 }
 
-std::optional<QSize> AppData::getMainWindowSize() {
-    return persistedDataAccess->getMainWindowSize();
+std::optional<QRect> AppData::getMainWindowSizePos() {
+    return persistedDataAccess->getMainWindowSizePos();
 }
 
 bool AppData::getIsDarkTheme() {
@@ -319,9 +319,9 @@ void AppData::reparentGroupBox(
     // 2. update all variables and emit "updated" signals
 }
 
-void AppData::updateMainWindowSize(const EventSource &/*eventSrc*/, const QSize &size) {
+void AppData::updateMainWindowSizePos(const EventSource &/*eventSrc*/, const QRect &rect) {
     // 1. persist
-    persistedDataAccess->saveMainWindowSize(size);
+    persistedDataAccess->saveMainWindowSizePos(rect);
 
     // 2. update all variables and emit "updated" signals
 }

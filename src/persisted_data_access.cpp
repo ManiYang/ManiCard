@@ -527,11 +527,11 @@ void PersistedDataAccess::performCustomCypherQuery(
     debouncedDbAccess->performCustomCypherQuery(cypher, parameters, callback, callbackContext);
 }
 
-std::optional<QSize> PersistedDataAccess::getMainWindowSize() {
-    const auto [ok, sizeOpt] = localSettingsFile->readMainWindowSize();
+std::optional<QRect> PersistedDataAccess::getMainWindowSizePos() {
+    const auto [ok, rectOpt] = localSettingsFile->readMainWindowSizePos();
     if (!ok)
         return std::nullopt;
-    return sizeOpt;
+    return rectOpt;
 }
 
 bool PersistedDataAccess::getIsDarkTheme() {
@@ -1073,17 +1073,18 @@ void PersistedDataAccess::reparentGroupBox(const int groupBoxId, const int newPa
     debouncedDbAccess->reparentGroupBox(groupBoxId, newParentGroupBoxId);
 }
 
-void PersistedDataAccess::saveMainWindowSize(const QSize &size) {
-    const bool ok = localSettingsFile->writeMainWindowSize(size);
+void PersistedDataAccess::saveMainWindowSizePos(const QRect &rect) {
+    const bool ok = localSettingsFile->writeMainWindowSizePos(rect);
     if (!ok) {
         const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
-        const QString updateTitle = "saveMainWindowSize";
+        const QString updateTitle = "saveMainWindowSizePos";
         const QString updateDetails = printJson(QJsonObject {
-            {"size", QJsonArray {size.width(), size.height()}},
+            {"rectTopLeft", QJsonArray {rect.x(), rect.y()}},
+            {"rectSize", QJsonArray {rect.width(), rect.height()}},
         }, false);
         unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
 
-        showMsgOnFailedToSaveToFile("main-window size");
+        showMsgOnFailedToSaveToFile("main-window size and position");
     }
 }
 

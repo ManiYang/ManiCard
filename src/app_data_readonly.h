@@ -76,7 +76,7 @@ public:
             std::function<void (bool ok, const QVector<QJsonObject> &result)> callback,
             QPointer<QObject> callbackContext) = 0;
 
-    virtual std::optional<QSize> getMainWindowSize() = 0;
+    virtual std::optional<QRect> getMainWindowSizePos() = 0;
 
     virtual bool getIsDarkTheme() = 0;
 

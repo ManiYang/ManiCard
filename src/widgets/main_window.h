@@ -98,7 +98,7 @@ private:
     void openOptionsDialog();
 
     // -- event handling tools
-    ActionDebouncer *saveWindowSizeDebounced;
+    ActionDebouncer *saveWindowSizePosDebounced;
 
     void saveBeforeClose();
 
