@@ -11,7 +11,7 @@ CONFIG += c++17
 SOURCES += \
     app_data.cpp \
     app_data_readonly.cpp \
-    app_setup.cpp \
+    application.cpp \
     db_access/abstract_boards_data_access.cpp \
     db_access/abstract_cards_data_access.cpp \
     db_access/boards_data_access.cpp \
@@ -38,7 +38,7 @@ SOURCES += \
     utilities/action_debouncer.cpp \
     utilities/app_instances_shared_memory.cpp \
     utilities/async_routine.cpp \
-    utilities/directed_graph.cpp \
+#    utilities/directed_graph.cpp \
     utilities/fonts_util.cpp \
     utilities/geometry_util.cpp \
     utilities/json_util.cpp \
@@ -81,7 +81,7 @@ HEADERS += \
     app_data.h \
     app_data_readonly.h \
     app_event_source.h \
-    app_setup.h \
+    application.h \
     db_access/abstract_boards_data_access.h \
     db_access/abstract_cards_data_access.h \
     db_access/boards_data_access.h \
@@ -112,7 +112,7 @@ HEADERS += \
     utilities/app_instances_shared_memory.h \
     utilities/async_routine.h \
     utilities/binary_search.h \
-    utilities/directed_graph.h \
+#    utilities/directed_graph.h \
     utilities/fonts_util.h \
     utilities/functor.h \
     utilities/geometry_util.h \
@@ -187,4 +187,4 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 DEFINES += QT_MESSAGELOGCONTEXT
 
-include(boost_dependency.pri)
+#include(boost_dependency.pri)

@@ -26,6 +26,16 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+    //!
+    //! Before calling this method:
+    //!   + \c this must be visible
+    //!   + \c canReload() must return true
+    //!
+    void load(std::function<void (bool ok)> callback);
+
+    void prepareToReload();
+    bool canReload();
+
 signals:
     void userToReloadApp();
 
@@ -70,8 +80,6 @@ private:
     void setUpConnections();
     void setUpButtonsWithIcons();
     void setUpMainMenu();
-
-    void load();
 
     // ==== event handlers ====
 

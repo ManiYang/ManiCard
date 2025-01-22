@@ -102,6 +102,11 @@ AppDataReadonly *Services::getAppDataReadonly() const {
     return appData;
 }
 
+void Services::clearPersistedDataAccessCache(){
+    Q_ASSERT(persistedDataAccess != nullptr);
+    persistedDataAccess->clearCache();
+}
+
 void Services::finalize(
         const int timeoutMSec, std::function<void (bool)> callback,
         QPointer<QObject> callbackContext) {

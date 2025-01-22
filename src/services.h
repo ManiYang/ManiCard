@@ -36,6 +36,9 @@ public:
     AppDataReadonly *getAppDataReadonly() const;
 
     //
+    void clearPersistedDataAccessCache();
+
+    //
     void finalize(
             const int timeoutMSec, std::function<void (bool timedOut)> callback,
             QPointer<QObject> callbackContext);

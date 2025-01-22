@@ -47,13 +47,179 @@ MainWindow::MainWindow(QWidget *parent)
             },
             this
     );
-
-    //
-    load();
 }
 
 MainWindow::~MainWindow() {
     delete ui;
+}
+
+void MainWindow::load(std::function<void (bool)> callback) {
+    {
+        const auto sizeOpt
+                = Services::instance()->getAppDataReadonly()->getMainWindowSize();
+        if (sizeOpt.has_value() && (this->size() != sizeOpt.value()))
+            resize(sizeOpt.value());
+    }
+
+    workspacesList->setEnabled(false);
+    workspaceFrame->setEnabled(false);
+
+    //
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        WorkspacesListProperties workspacesListProperties;
+        QHash<int, Workspace> workspaces;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // close `workspaceFrame`
+        workspaceFrame->loadWorkspace(
+                -1,
+                // callback
+                [this, routine](bool loadOk, bool highlightedCardIdChanged) {
+                    ContinuationContext context(routine);
+
+                    if (loadOk) {
+                        workspacesList->setSelectedWorkspaceId(-1);
+                    }
+                    else {
+                        routine->errorMsg
+                                = QString("Could not close workspace.");
+                        context.setErrorFlag();
+                    }
+
+                    if (highlightedCardIdChanged) {
+                        // call AppData
+                        Services::instance()->getAppData()
+                                ->setSingleHighlightedCardId(EventSource(this), -1);
+                    }
+                }
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // get workspaces-list properties
+        Services::instance()->getAppDataReadonly()->getWorkspacesListProperties(
+                [routine](bool ok, WorkspacesListProperties properties) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        routine->errorMsg
+                                = "Could not get workspaces list properties. See logs for details.";
+                        context.setErrorFlag();
+                    }
+                    else {
+                        routine->workspacesListProperties = properties;
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // get workspaces
+        Services::instance()->getAppDataReadonly()->getWorkspaces(
+                [routine](bool ok, const QHash<int, Workspace> &workspaces) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        routine->errorMsg
+                                = "Could not get data of workspaces. See logs for details.";
+                        context.setErrorFlag();
+                    }
+                    else {
+                        routine->workspaces = workspaces;
+                    }
+                },
+                this
+        );
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // populate `workspacesList`
+        ContinuationContext context(routine);
+
+        QHash<int, QString> workspacesIdToName;
+        for (auto it = routine->workspaces.constBegin(); it != routine->workspaces.constEnd(); ++it)
+            workspacesIdToName.insert(it.key(), it.value().name);
+
+        workspacesList->resetWorkspaces(
+                workspacesIdToName, routine->workspacesListProperties.workspacesOrdering);
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // load last-opened workspace
+        const int lastOpenedWorkspaceId
+                = routine->workspacesListProperties.lastOpenedWorkspace; // can be -1
+
+        if (routine->workspaces.contains(lastOpenedWorkspaceId)) {
+            workspaceFrame->setVisible(true);
+            noWorkspaceOpenSign->setVisible(false);
+
+            workspaceFrame->loadWorkspace(
+                    lastOpenedWorkspaceId,
+                    // callback
+                    [this, routine, lastOpenedWorkspaceId](bool loadOk, bool highlightedCardIdChanged) {
+                        ContinuationContext context(routine);
+
+                        if (loadOk) {
+                            workspacesList->setSelectedWorkspaceId(lastOpenedWorkspaceId);
+                        }
+                        else {
+                            routine->errorMsg
+                                    = QString("Could not load workspace %1").arg(lastOpenedWorkspaceId);
+                            context.setErrorFlag();
+                        }
+
+                        if (highlightedCardIdChanged) {
+                            // call AppData
+                            Services::instance()->getAppData()
+                                    ->setSingleHighlightedCardId(EventSource(this), -1);
+                        }
+                    }
+            );
+        }
+        else {
+            if (lastOpenedWorkspaceId != -1) {
+                qWarning().noquote()
+                        << QString("last-opened workspace (ID=%1) does not exist")
+                           .arg(lastOpenedWorkspaceId);
+            }
+            routine->nextStep();
+        }
+    }, this);
+
+    routine->addStep([this, routine, callback]() {
+        // final step
+        ContinuationContext context(routine);
+
+        workspacesList->setEnabled(true);
+        workspaceFrame->setEnabled(true);
+
+        if (routine->errorFlag) {
+            showWarningMessageBox(this, " ", routine->errorMsg);
+            callback(false);
+        }
+        else {
+            callback(true);
+        }
+    }, this);
+
+    routine->start();
+}
+
+void MainWindow::prepareToReload() {
+    if (isVisible())
+        saveBeforeClose();
+    workspaceFrame->prepareToClose();
+}
+
+bool MainWindow::canReload() {
+    return workspaceFrame->canClose();
 }
 
 void MainWindow::showEvent(QShowEvent *event) {
@@ -245,13 +411,13 @@ void MainWindow::setUpButtonsWithIcons() {
 }
 
 void MainWindow::setUpMainMenu() {
-//    {
-//        auto *action = mainMenu->addAction("Reload", this, [this]() {
-//            onUserToReload();
-//        });
-//        action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_R));
-//        this->addAction(action); // without this, the shortcut won't work
-//    }
+    {
+        auto *action = mainMenu->addAction("Reload", this, [this]() {
+            onUserToReload();
+        });
+        action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_R));
+        this->addAction(action); // without this, the shortcut won't work
+    }
     {
         auto *submenu = mainMenu->addMenu("Graph");
         {
@@ -314,134 +480,6 @@ void MainWindow::setUpMainMenu() {
         action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q));
         this->addAction(action); // without this, the shortcut won't work
     }
-}
-
-void MainWindow::load() {
-    {
-        const auto sizeOpt
-                = Services::instance()->getAppDataReadonly()->getMainWindowSize();
-        if (sizeOpt.has_value() && (this->size() != sizeOpt.value()))
-            resize(sizeOpt.value());
-    }
-
-    workspacesList->setEnabled(false);
-    workspaceFrame->setEnabled(false);
-
-    //
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        WorkspacesListProperties workspacesListProperties;
-        QHash<int, Workspace> workspaces;
-        QString errorMsg;
-    };
-    auto *routine = new AsyncRoutineWithVars;
-
-    //
-    routine->addStep([this, routine]() {
-        // get workspaces-list properties
-        Services::instance()->getAppDataReadonly()->getWorkspacesListProperties(
-                [routine](bool ok, WorkspacesListProperties properties) {
-                    ContinuationContext context(routine);
-
-                    if (!ok) {
-                        routine->errorMsg
-                                = "Could not get workspaces list properties. See logs for details.";
-                        context.setErrorFlag();
-                    }
-                    else {
-                        routine->workspacesListProperties = properties;
-                    }
-                },
-                this
-        );
-    }, this);
-
-    routine->addStep([this, routine]() {
-        // get workspaces
-        Services::instance()->getAppDataReadonly()->getWorkspaces(
-                [routine](bool ok, const QHash<int, Workspace> &workspaces) {
-                    ContinuationContext context(routine);
-
-                    if (!ok) {
-                        routine->errorMsg
-                                = "Could not get data of workspaces. See logs for details.";
-                        context.setErrorFlag();
-                    }
-                    else {
-                        routine->workspaces = workspaces;
-                    }
-                },
-                this
-        );
-    }, this);
-
-    routine->addStep([this, routine]() {
-        // populate `workspacesList`
-        ContinuationContext context(routine);
-
-        QHash<int, QString> workspacesIdToName;
-        for (auto it = routine->workspaces.constBegin(); it != routine->workspaces.constEnd(); ++it)
-            workspacesIdToName.insert(it.key(), it.value().name);
-
-        workspacesList->resetWorkspaces(
-                workspacesIdToName, routine->workspacesListProperties.workspacesOrdering);
-    }, this);
-
-    routine->addStep([this, routine]() {
-        // load last-opened workspace
-        const int lastOpenedWorkspaceId
-                = routine->workspacesListProperties.lastOpenedWorkspace; // can be -1
-
-        if (routine->workspaces.contains(lastOpenedWorkspaceId)) {
-            workspaceFrame->setVisible(true);
-            noWorkspaceOpenSign->setVisible(false);
-
-            workspaceFrame->loadWorkspace(
-                    lastOpenedWorkspaceId,
-                    // callback
-                    [this, routine, lastOpenedWorkspaceId](bool loadOk, bool highlightedCardIdChanged) {
-                        ContinuationContext context(routine);
-
-                        if (loadOk) {
-                            workspacesList->setSelectedWorkspaceId(lastOpenedWorkspaceId);
-                        }
-                        else {
-                            routine->errorMsg
-                                    = QString("Could not load workspace %1").arg(lastOpenedWorkspaceId);
-                            context.setErrorFlag();
-                        }
-
-                        if (highlightedCardIdChanged) {
-                            // call AppData
-                            Services::instance()->getAppData()
-                                    ->setSingleHighlightedCardId(EventSource(this), -1);
-                        }
-                    }
-            );
-        }
-        else {
-            if (lastOpenedWorkspaceId != -1) {
-                qWarning().noquote()
-                        << QString("last-opened workspace (ID=%1) does not exist")
-                           .arg(lastOpenedWorkspaceId);
-            }
-            routine->nextStep();
-        }
-    }, this);
-
-    routine->addStep([this, routine]() {
-        // (final step)
-        ContinuationContext context(routine);
-
-        workspacesList->setEnabled(true);
-        workspaceFrame->setEnabled(true);
-
-        if (routine->errorFlag)
-            showWarningMessageBox(this, " ", routine->errorMsg);
-    }, this);
-
-    routine->start();
 }
 
 void MainWindow::onShownForFirstTime() {
@@ -917,16 +955,11 @@ void MainWindow::onUserCloseWindow() {
 }
 
 void MainWindow::onUserToReload() {
-    // confirmation
+    const auto r = QMessageBox::question(this, " ", "Reload data?");
+    if (r != QMessageBox::Yes)
+        return;
 
-    // disable mainWindow
-    // prepare to reload
-    //   save current data (saveBeforeClose())
-    //   let workspaceFrame prepare to close and wait canClose()
-    // clear cache
-    // let app reload
-    // let mainWindow reload (load() --> reload())
-    // enable mainWindow
+    emit userToReloadApp();
 }
 
 void MainWindow::openOptionsDialog() {

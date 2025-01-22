@@ -4,7 +4,7 @@
 #include <QMessageBox>
 #include <QPointer>
 #include <QTimer>
-#include "app_setup.h"
+#include "application.h"
 #include "global_constants.h"
 #include "services.h"
 #include "utilities/app_instances_shared_memory.h"
@@ -76,8 +76,6 @@ int main(int argc, char *argv[]) {
     }
 
     //
-    QPointer<MainWindow> mainWindow;
-
     auto *sharedMemActivateFlag = new AppInstancesSharedMemory(
             "semaphore.activateFlag.ManiCard.Ca4NHCmSoHUc4urL", // semaphoreKey
             "sharedMemory.activateFlag.ManiCard.Ca4NHCmSoHUc4urL" // sharedMemoryKey
@@ -86,7 +84,7 @@ int main(int argc, char *argv[]) {
 
     QTimer::singleShot(
                 0, &app,
-                [&app, &mainWindow, sharedMemActivateFlag, timerReadSharedMemActivateFlag]() {
+                [&app, sharedMemActivateFlag, timerReadSharedMemActivateFlag]() {
         const bool sharedMemoryCreated = sharedMemActivateFlag->tryCreateSharedMemory();
         if (!sharedMemoryCreated) {
             std::cout << "another process of this app is already running" << std::endl;
@@ -96,15 +94,16 @@ int main(int argc, char *argv[]) {
             return;
         }
 
+        //
+        auto *application = new Application(&app);
+
         // start polling against "activate-main-window" flag
         QObject::connect(
                 timerReadSharedMemActivateFlag, &QTimer::timeout,
-                &app, [&mainWindow, sharedMemActivateFlag]() {
+                &app, [application, sharedMemActivateFlag]() {
             const qint16 v = sharedMemActivateFlag->readAndClearData();
-            if (v != 0) {
-                if (!mainWindow.isNull())
-                    mainWindow->activateWindow();
-            }
+            if (v != 0)
+                application->activateMainWindow();
         });
         timerReadSharedMemActivateFlag->start(1000);
 
@@ -119,11 +118,8 @@ int main(int argc, char *argv[]) {
         }
 
         //
-        setUpApp();
-
-        //
-        mainWindow = new MainWindow;
-        mainWindow->show();
+        application->initialize();
+        application->loadOnStart();
     });
 
     //
@@ -131,9 +127,6 @@ int main(int argc, char *argv[]) {
     qInfo().noquote() << QString("app exited with code %1").arg(returnCode);
 
     // clean up
-    if (!mainWindow.isNull())
-        delete mainWindow.data();
-
     delete sharedMemActivateFlag;
     delete timerReadSharedMemActivateFlag;
 

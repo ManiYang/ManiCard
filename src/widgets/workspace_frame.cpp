@@ -45,26 +45,7 @@ void WorkspaceFrame::loadWorkspace(
     auto *routine = new AsyncRoutineWithVars;
 
     routine->addStep([this, routine]() {
-        // 1. prepare to close `boardView`
-        boardView->prepareToClose();
-
-        // wait until boardView->canClose() returns true
-        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
-            ->setPredicate([this]() {
-                return boardView->canClose();
-            })
-            ->onPredicateReturnsTrue([routine]() {
-                routine->nextStep();
-            })
-            ->onTimeOut([routine]() {
-                qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
-                routine->nextStep();
-            })
-            ->setAutoDelete()->start();
-    }, this);
-
-    routine->addStep([this, routine]() {
-        // 2. close `boardView`
+        // close `boardView`
         boardView->setVisible(true);
         boardView->loadBoard(-1, [routine](bool loadOk, bool highlightedCardIdChanged) {
             ContinuationContext context(routine);
@@ -77,7 +58,7 @@ void WorkspaceFrame::loadWorkspace(
     }, this);
 
     routine->addStep([this, routine]() {
-        // 3. clear `boardsTabBar`
+        // clear `boardsTabBar`
         ContinuationContext context(routine);
 
         boardsTabBar->removeAllTabs();
@@ -89,7 +70,7 @@ void WorkspaceFrame::loadWorkspace(
     }, this);
 
     routine->addStep([this, routine, workspaceIdToLoad]() {
-        // 4. get workspace data
+        // get workspace data
         if (workspaceIdToLoad == -1) {
             routine->nextStep();
             return;
@@ -119,7 +100,7 @@ void WorkspaceFrame::loadWorkspace(
     }, this);
 
     routine->addStep([this, routine, workspaceIdToLoad]() {
-        // 5. get board names
+        // get board names
         if (workspaceIdToLoad == -1) {
             routine->nextStep();
             return;
@@ -149,7 +130,7 @@ void WorkspaceFrame::loadWorkspace(
     }, this);
 
     routine->addStep([this, routine]() {
-        // 6. populate `boardsTabBar` and determine `routine->boardIdToOpen`
+        // populate `boardsTabBar` and determine `routine->boardIdToOpen`
         ContinuationContext context(routine);
 
         const QVector<int> sortedBoardIds = sortByOrdering(
@@ -172,7 +153,7 @@ void WorkspaceFrame::loadWorkspace(
     }, this);
 
     routine->addStep([this, routine]() {
-        // 7. open board
+        // open board
         if (routine->boardIdToOpen == -1) {
             noBoardSign->setVisible(true);
             boardView->setVisible(false);

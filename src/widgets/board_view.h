@@ -34,7 +34,7 @@ public:
     //!
     //! Before calling this method:
     //!   + \c this must be visible
-    //!   + \c canClose() must returns true
+    //!   + \c canClose() must return true
     //! \param boardIdToLoad: if = -1, will only close the board
     //! \param callback: parameter \e highlightedCardIdChanged will be true if highlighted Card ID
     //!                  changed to -1

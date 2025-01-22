@@ -22,7 +22,7 @@ public:
     //!
     //! Before calling this method:
     //!   + \c this must be visible
-    //!   + \c canClose() must returns true
+    //!   + \c canClose() must return true
     //! \param workspaceId: if is -1, will only close the workspace
     //! \param callback
     //!
