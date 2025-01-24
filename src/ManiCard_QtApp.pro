@@ -30,6 +30,9 @@ SOURCES += \
     models/node_rect_data.cpp \
     models/relationship.cpp \
     models/relationships_bundle.cpp \
+    models/settings/abstract_setting.cpp \
+    models/settings/card_label_color_mapping.cpp \
+    models/settings/settings.cpp \
     models/workspace.cpp \
     models/workspaces_list_properties.cpp \
     neo4j_http_api_client.cpp \
@@ -104,6 +107,9 @@ HEADERS += \
     models/node_rect_data.h \
     models/relationship.h \
     models/relationships_bundle.h \
+    models/settings/abstract_setting.h \
+    models/settings/card_label_color_mapping.h \
+    models/settings/settings.h \
     models/workspace.h \
     models/workspaces_list_properties.h \
     neo4j_http_api_client.h \

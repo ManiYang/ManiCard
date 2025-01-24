@@ -525,6 +525,8 @@ void MainWindow::onWorkspaceSelectedByUser(const int workspaceId) {
     auto *routine = new AsyncRoutine;
 
     routine->addStep([this, routine]() {
+        workspacesList->setEnabled(false);
+
         saveTopLeftPosAndZoomRatioOfCurrentBoard();
         saveLastOpenedBoardOfCurrentWorkspace();
         workspaceFrame->prepareToClose();
@@ -562,6 +564,8 @@ void MainWindow::onWorkspaceSelectedByUser(const int workspaceId) {
                         Services::instance()->getAppData()
                                 ->setSingleHighlightedCardId(EventSource(this), -1);
                     }
+
+                    workspacesList->setEnabled(true);
                     routine->nextStep();
                 });
     }, this);
@@ -674,6 +678,8 @@ void MainWindow::onUserToRemoveWorkspace(const int workspaceIdToRemove) {
 
     routine->addStep([this, routine, workspaceIdToRemove]() {
         // get the boards of `workspaceIdToRemove`
+        workspacesList->setEnabled(false);
+
         Services::instance()->getAppDataReadonly()->getWorkspaces(
                 [routine, workspaceIdToRemove](bool ok, const QHash<int, Workspace> &workspacesData) {
                     ContinuationContext context(routine);
@@ -783,6 +789,8 @@ void MainWindow::onUserToRemoveWorkspace(const int workspaceIdToRemove) {
         ContinuationContext context(routine);
         if (routine->errorFlag && !routine->errorMsg.isEmpty())
             showWarningMessageBox(this, " ", routine->errorMsg);
+
+        workspacesList->setEnabled(true);
     }, this);
 
     routine->start();

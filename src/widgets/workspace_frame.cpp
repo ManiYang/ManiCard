@@ -186,9 +186,11 @@ void WorkspaceFrame::loadWorkspace(
             workspaceId = workspaceIdToLoad;
             workspaceName = routine->workspaceData.name;
             workspaceToolBar->setWorkspaceName(routine->workspaceData.name);
+            cardLabelToColorMappingSetting = routine->workspaceData.cardLabelToColorMappingSetting;
+
             boardView->setColorsAssociatedWithLabels(
-                    routine->workspaceData.cardLabelsAndAssociatedColors,
-                    routine->workspaceData.defaultNodeRectColor);
+                    routine->workspaceData.cardLabelToColorMappingSetting.cardLabelsAndAssociatedColors,
+                    routine->workspaceData.cardLabelToColorMappingSetting.defaultNodeRectColor);
         }
 
         callback(!routine->errorFlag, routine->highlightedCardIdChanged);
@@ -327,6 +329,8 @@ void WorkspaceFrame::onUserToAddBoard() {
     //
     routine->addStep([this, routine]() {
         // request new Board ID
+        boardsTabBar->setEnabled(false);
+
         Services::instance()->getAppData()->requestNewBoardId(
                 [routine](std::optional<int> newId) {
                     ContinuationContext context(routine);
@@ -410,6 +414,8 @@ void WorkspaceFrame::onUserToAddBoard() {
 
         if (routine->errorFlag && !routine->errorMsg.isEmpty())
             showWarningMessageBox(this, " ", routine->errorMsg);
+
+        boardsTabBar->setEnabled(true);
     }, this);
 
     routine->start();
@@ -454,6 +460,8 @@ void WorkspaceFrame::onUserSelectedBoard(const int boardId) {
     //
     routine->addStep([this, routine]() {
         // prepare to close `boardView`
+        boardsTabBar->setEnabled(false);
+
         saveTopLeftPosAndZoomRatioOfCurrentBoard();
 
         boardView->setVisible(true);
@@ -501,6 +509,8 @@ void WorkspaceFrame::onUserSelectedBoard(const int boardId) {
 
         if (routine->errorFlag && !routine->errorMsg.isEmpty())
             showWarningMessageBox(this, " ", routine->errorMsg);
+
+        boardsTabBar->setEnabled(true);
     }, this);
 
     routine->start();
@@ -540,6 +550,8 @@ void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
 
     routine->addStep([this, routine]() {
         // prepare to close `boardView`
+        boardsTabBar->setEnabled(false);
+
         boardView->setVisible(true);
         noBoardSign->setVisible(false);
         boardView->prepareToClose();
@@ -593,6 +605,8 @@ void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
         ContinuationContext context(routine);
         if (routine->errorFlag && !routine->errorMsg.isEmpty())
             showWarningMessageBox(this, " ", routine->errorMsg);
+
+        boardsTabBar->setEnabled(true);
     }, this);
 
     routine->start();
@@ -622,8 +636,12 @@ void WorkspaceFrame::onUserToSetCardColors() {
         // call AppData
         WorkspaceNodePropertiesUpdate propertiesUpdate;
         {
-            propertiesUpdate.defaultNodeRectColor = dialog->getDefaultColor();
-            propertiesUpdate.cardLabelsAndAssociatedColors = dialog->getCardLabelsAndAssociatedColors();
+            CardLabelToColorMapping newSetting;
+            {
+                newSetting.defaultNodeRectColor = dialog->getDefaultColor();
+                newSetting.cardLabelsAndAssociatedColors = dialog->getCardLabelsAndAssociatedColors();
+            }
+            propertiesUpdate.cardLabelToColorMappingSetting = newSetting;
         }
         Services::instance()->getAppData()->updateWorkspaceNodeProperties(
                 EventSource(this), workspaceId, propertiesUpdate);

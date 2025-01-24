@@ -6,20 +6,17 @@
 #include <QSet>
 #include <QString>
 #include <QVector>
+#include "models/workspace_board_settings/card_label_color_mapping_setting.h"
 
 struct WorkspaceNodePropertiesUpdate;
 
 struct Workspace {
-    Workspace() : defaultNodeRectColor(defaultNodeRectColorFallback) {}
-
     // properties of `Workspace` node
     QString name;
     QVector<int> boardsOrdering;
     int lastOpenedBoardId {-1};
 
-    QColor defaultNodeRectColor;
-    using LabelAndColor = std::pair<QString, QColor>;
-    QVector<LabelAndColor> cardLabelsAndAssociatedColors; // in the order of precedence (high to low)
+    CardLabelToColorMapping cardLabelToColorMappingSetting;
 
     //
     QSet<int> boardIds;
@@ -29,9 +26,6 @@ struct Workspace {
 
     void updateNodeProperties(const QJsonObject &obj);
     void updateNodeProperties(const WorkspaceNodePropertiesUpdate &update);
-
-private:
-    inline static const QColor defaultNodeRectColorFallback {170, 170, 170};
 };
 
 
@@ -39,8 +33,7 @@ struct WorkspaceNodePropertiesUpdate {
     std::optional<QString> name;
     std::optional<QVector<int>> boardsOrdering;
     std::optional<int> lastOpenedBoardId;
-    std::optional<QColor> defaultNodeRectColor;
-    std::optional<QVector<Workspace::LabelAndColor>> cardLabelsAndAssociatedColors;
+    std::optional<CardLabelToColorMapping> cardLabelToColorMappingSetting;
 
     QJsonObject toJson() const;
 };

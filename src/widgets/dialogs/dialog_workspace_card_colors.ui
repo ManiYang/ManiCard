@@ -218,7 +218,7 @@
    <item>
     <widget class="QLabel" name="label_6">
      <property name="text">
-      <string>• The actual displayed color can be auto-adjusted in dark theme.</string>
+      <string>• The actual displayed color can be adjusted in dark theme.</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>

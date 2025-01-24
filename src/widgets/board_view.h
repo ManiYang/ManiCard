@@ -1,6 +1,7 @@
 #ifndef BOARDVIEW_H
 #define BOARDVIEW_H
 
+#include <memory>
 #include <QFrame>
 #include <QGraphicsView>
 #include <QMenu>
@@ -12,11 +13,13 @@
 #include "models/node_rect_data.h"
 #include "models/relationship.h"
 #include "models/relationships_bundle.h"
+#include "models/settings/abstract_setting.h"
 #include "widgets/common_types.h"
 #include "widgets/icons.h"
 
 class BoardBoxItem;
 class Card;
+struct CardLabelToColorMapping;
 class CardPropertiesUpdate;
 class DataViewBox;
 class EdgeArrow;
@@ -24,6 +27,7 @@ struct EdgeArrowData;
 class GraphicsScene;
 class GroupBox;
 class NodeRect;
+class SettingBox;
 
 class BoardView : public QFrame
 {
@@ -76,6 +80,10 @@ public:
     //
     bool eventFilter(QObject *watched, QEvent *event) override;
 
+signals:
+    void getWorkspaceCardLabelToColorMappingSetting(
+            CardLabelToColorMapping *cardLabelToColorMapping);
+
 private:
     static inline const QSizeF defaultNewNodeRectSize {200, 120};
     static inline const QSizeF defaultNewDataViewBoxSize {400, 400};
@@ -124,6 +132,7 @@ private:
     void onUserToDuplicateCard(const QPointF &scenePos);
     void onUserToCreateNewGroup(const QPointF &scenePos);
     void onUserToCreateNewCustomDataQuery(const QPointF &scenePos);
+    void onUserToOpenSettings(const QPointF &scenePos);
     void onUserToSetLabels(const int cardId);
     void onUserToCreateRelationship(const int cardId);
     void onUserToCloseNodeRect(const int cardId);
@@ -364,6 +373,34 @@ private:
     RelationshipBundlesCollection relationshipBundlesCollection {this};
 
     void updateRelationshipBundles();
+
+    //
+    class SettingBoxesCollection
+    {
+    public:
+        explicit SettingBoxesCollection(BoardView *boardView);
+
+        //!
+        //! The setting box for (targetType, category) must not already exist.
+        //! \return Returns nullptr if failed.
+        //!
+        SettingBox *createSettingBox(
+                const SettingTargetType targetType, const SettingCategory category);
+
+        bool containsWorkspaceSettingCategory(const SettingCategory category);
+        bool containsBoardSettingCategory(const SettingCategory category);
+
+    private:
+        BoardView *const boardView;
+        struct SettingsBoxAndData
+        {
+            SettingBox *box;
+            std::shared_ptr<AbstractWorkspaceOrBoardSetting> data;
+        };
+        QHash<SettingCategory, SettingsBoxAndData> workspaceSettingCategoryToBox;
+        QHash<SettingCategory, SettingsBoxAndData> boardSettingCategoryToBox;
+    };
+    SettingBoxesCollection settingBoxesCollection {this};
 
     // item moving/resizing state
     struct ItemMovingResizingStateData

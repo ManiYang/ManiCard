@@ -3,8 +3,9 @@
 #include "services.h"
 #include <QMessageBox>
 
-GroupBox::GroupBox(QGraphicsItem *parent)
-        : BoardBoxItem(getCreationParameters(), parent) {
+GroupBox::GroupBox(const int groupBoxId_, QGraphicsItem *parent)
+        : BoardBoxItem(getCreationParameters(), parent)
+        , groupBoxId(groupBoxId_) {
 }
 
 void GroupBox::setTitle(const QString &title) {
@@ -59,7 +60,8 @@ void GroupBox::adjustCaptionBarContextMenuBeforePopup(QMenu */*contextMenu*/) {
 }
 
 void GroupBox::setUpContents(QGraphicsItem */*contentsContainer*/) {
-    // do nothing
+    constexpr bool bold = false;
+    setCaptionBarRightText(QString("Group %1").arg(groupBoxId), bold);
 }
 
 void GroupBox::adjustContents() {

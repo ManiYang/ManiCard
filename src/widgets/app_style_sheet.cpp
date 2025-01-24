@@ -111,6 +111,10 @@ QString getDarkThemeStyleSheet() {
         "  background: #808080;"
         "}"
 
+        "QSplitter::handle {"
+        "  background: #2b323b;"
+        "}"
+
         "QMenu {"
         "  color: white;"
         "  background: #383838;"

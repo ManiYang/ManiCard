@@ -8,7 +8,7 @@ class GroupBox : public BoardBoxItem
 {
     Q_OBJECT
 public:
-    explicit GroupBox(QGraphicsItem *parent = nullptr);
+    explicit GroupBox(const int groupBoxId, QGraphicsItem *parent = nullptr);
 
     // Call these "set" methods only after this item is initialized:
     void setTitle(const QString &title);
@@ -26,6 +26,7 @@ signals:
 private:
     static BoardBoxItem::CreationParameters getCreationParameters();
 
+    const int groupBoxId;
     QString title;
 
     QHash<QAction *, Icon> contextMenuActionToIcon;

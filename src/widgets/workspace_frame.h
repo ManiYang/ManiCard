@@ -4,6 +4,7 @@
 #include <QFrame>
 #include <QLabel>
 #include <QToolButton>
+#include "models/workspace_board_settings/card_label_color_mapping_setting.h"
 #include "widgets/common_types.h"
 #include "widgets/components/simple_toolbar.h"
 #include "widgets/icons.h"
@@ -59,6 +60,7 @@ signals:
 private:
     int workspaceId {-1};
     QString workspaceName;
+    CardLabelToColorMapping cardLabelToColorMappingSetting;
 
     WorkspaceToolBar *workspaceToolBar {nullptr};
     CustomTabBar *boardsTabBar {nullptr};

@@ -9,6 +9,7 @@
 #include "board_view.h"
 #include "models/custom_data_query.h"
 #include "models/data_view_box_data.h"
+#include "models/settings/card_label_color_mapping.h"
 #include "persisted_data_access.h"
 #include "services.h"
 #include "utilities/async_routine.h"
@@ -1032,6 +1033,60 @@ void BoardView::onUserToCreateNewCustomDataQuery(const QPointF &scenePos) {
     }, this);
 
     routine->start();
+}
+
+void BoardView::onUserToOpenSettings(const QPointF &scenePos) {
+    // let user select settings target and category
+    SettingTargetType selectedTargetType;
+    SettingCategory selectedCategory;
+    {
+        const auto [targetTypeAndCategoryPairs, optionNames]
+                = getTargetTypeAndCategoryDisplayNames();
+        if (targetTypeAndCategoryPairs.isEmpty())
+            return;
+
+        bool ok;
+        const QString selectedOptionName = QInputDialog::getItem(
+                this, "Open Settings", "Select the settings to open:",
+                optionNames,
+                0, // initial index
+                false, // editable
+                &ok);
+        if (!ok)
+            return;
+
+        const int index = optionNames.indexOf(selectedOptionName);
+        Q_ASSERT(index != -1);
+        std::tie(selectedTargetType, selectedCategory) = targetTypeAndCategoryPairs.at(index);
+    }
+
+    // check whether the selected one is already opened
+    std::optional<bool> alreadyOpened;
+    switch (selectedTargetType) {
+    case SettingTargetType::Workspace:
+        alreadyOpened = settingBoxesCollection.containsWorkspaceSettingCategory(selectedCategory);
+        break;
+    case SettingTargetType::Board:
+        alreadyOpened = settingBoxesCollection.containsBoardSettingCategory(selectedCategory);
+        break;
+    }
+    if (!alreadyOpened.has_value()) {
+        Q_ASSERT(false); // case not implemented
+        return;
+    }
+
+    if (alreadyOpened.value()) {
+        QMessageBox::information(this, "Info", "The selected settings category is already opened.");
+        return;
+    }
+
+    // create SettingsBox
+    settingBoxesCollection.createSettingBox(selectedTargetType, selectedCategory);
+
+
+
+
+
 }
 
 void BoardView::onUserToSetLabels(const int cardId) {
@@ -2257,7 +2312,7 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
     Q_ASSERT(groupBoxId != -1);
     Q_ASSERT(!groupBoxes.contains(groupBoxId));
 
-    auto *groupBox = new GroupBox(boardView->canvas);
+    auto *groupBox = new GroupBox(groupBoxId, boardView->canvas);
     groupBoxes.insert(groupBoxId, groupBox);
     groupBox->setZValue(zValueForNodeRects);
     groupBox->initialize();
@@ -2593,7 +2648,6 @@ void BoardView::RelationshipBundlesCollection::update() {
 
         for (auto it = cardsWithin.constBegin(); it != cardsWithin.constEnd(); ++it) {
             const int cardId = *it;
-
             // get all possible bundles as if the group contains only this card, not considering
             // the already-bundled relationships
             QSet<RelationshipsBundle> possibleBundles1;
@@ -2818,7 +2872,7 @@ BoardView::ContextMenu::ContextMenu(BoardView *boardView_)
         });
     }
     {
-        auto *action = menu->addAction("Create New Card...");
+        auto *action = menu->addAction("Create New Card");
         actionToIcon.insert(action, Icon::AddBox);
         connect(action, &QAction::triggered, boardView, [this]() {
             boardView->onUserToCreateNewCard(requestScenePos);
@@ -2834,17 +2888,21 @@ BoardView::ContextMenu::ContextMenu(BoardView *boardView_)
     menu->addSeparator();
     {
         auto *action = menu->addAction("Create Group Box");
-        actionToIcon.insert(action, Icon::AddBox);
         connect(action, &QAction::triggered, boardView, [this]() {
             boardView->onUserToCreateNewGroup(requestScenePos);
         });
     }
-    menu->addSeparator();
     {
-        auto *action = menu->addAction("Create New Data Query...");
-        actionToIcon.insert(action, Icon::AddBox);
+        auto *action = menu->addAction("Create New Data Query");
         connect(action, &QAction::triggered, boardView, [this]() {
             boardView->onUserToCreateNewCustomDataQuery(requestScenePos);
+        });
+    }
+    menu->addSeparator();
+    {
+        auto *action = menu->addAction("Open Settings...");
+        connect(action, &QAction::triggered, boardView, [this]() {
+            boardView->onUserToOpenSettings(requestScenePos);
         });
     }
 }
@@ -2854,4 +2912,92 @@ void BoardView::ContextMenu::setActionIcons() {
             ? Icons::Theme::Dark : Icons::Theme::Light;
     for (auto it = actionToIcon.constBegin(); it != actionToIcon.constEnd(); ++it)
         it.key()->setIcon(Icons::getIcon(it.value(), theme));
+}
+
+//======
+
+BoardView::SettingBoxesCollection::SettingBoxesCollection(BoardView *boardView)
+        : boardView(boardView) {
+}
+
+SettingBox *BoardView::SettingBoxesCollection::createSettingBox(
+        const SettingTargetType targetType, const SettingCategory category) {
+    // check whether already exists
+    std::optional<bool> alreadyExists;
+    switch (targetType) {
+    case SettingTargetType::Workspace:
+        alreadyExists = workspaceSettingCategoryToBox.contains(category);
+        break;
+    case SettingTargetType::Board:
+        alreadyExists = boardSettingCategoryToBox.contains(category);
+        break;
+    }
+    if (alreadyExists.has_value()) {
+        Q_ASSERT(false); // case not implemented
+        return nullptr;
+    }
+
+    // get settings data
+    std::shared_ptr<AbstractWorkspaceOrBoardSetting> settingsData;
+
+    switch (category) {
+    case SettingCategory::CardLabelToColorMapping:
+    {
+        auto *cardLabelToColorMapping = new CardLabelToColorMapping;
+        emit boardView->getWorkspaceCardLabelToColorMappingSetting(cardLabelToColorMapping);
+
+        settingsData = std::shared_ptr<AbstractWorkspaceOrBoardSetting>(cardLabelToColorMapping);
+        break;
+    }
+    case SettingCategory::CardPropertiesToShow:
+        return nullptr; // [temp]
+        break;
+
+    case SettingCategory::WorkspaceSchema:
+        return nullptr; // [temp]
+        break;
+    }
+    if (settingsData == nullptr) {
+        Q_ASSERT(false); // case not implemented
+        return nullptr;
+    }
+
+    // create SettingBox
+    SettingBox *settingBox;
+
+//    SettingsBoxData settingsBoxData(selectedTargetType, selectedCategory);
+//    settingsBoxData.settingsJson = settings->toJson();
+
+
+
+
+    //
+    SettingsBoxAndData boxAndData {settingBox, settingsData};
+
+    bool caseConsidered = false;
+    switch (targetType) {
+    case SettingTargetType::Workspace:
+        workspaceSettingCategoryToBox.insert(category, boxAndData);
+        caseConsidered = true;
+        break;
+    case SettingTargetType::Board:
+        boardSettingCategoryToBox.insert(category, boxAndData);
+        caseConsidered = true;
+        break;
+    }
+    if (!caseConsidered)
+        Q_ASSERT(false); // case not implemented
+
+    //
+    return settingBox;
+}
+
+bool BoardView::SettingBoxesCollection::containsWorkspaceSettingCategory(
+        const SettingCategory category) {
+    return workspaceSettingCategoryToBox.contains(category);
+}
+
+bool BoardView::SettingBoxesCollection::containsBoardSettingCategory(
+        const SettingCategory category) {
+    return boardSettingCategoryToBox.contains(category);
 }
