@@ -4,6 +4,10 @@
 namespace {
 QString getBaseStyleSheet() {
     return
+        "* {"
+        "  font-size: 10pt;"
+        "}"
+
         "QAbstractButton" + styleClassSelector(StyleClass::flatToolButton) + " {"  +
         "  border: none;"
         "  background: transparent;"

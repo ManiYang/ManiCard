@@ -23,7 +23,8 @@ QString getDisplayNameOfTargetType(const SettingTargetType targetType);
 
 QString getDisplayNameOfCategory(const SettingCategory category);
 
-QString getDescriptionOfCategory(const SettingCategory category);
+QString getDescriptionForTargetTypeAndCategory(
+        const SettingTargetType targetType, const SettingCategory category);
 
 //!
 //! \return (targetTypeAndCategoryPairs, displayNames), where displayNames[i] corresponds to

@@ -25,6 +25,18 @@ DataViewBox::DataViewBox(const int customDataQueryId, QGraphicsItem *parent)
         , textEditProxyWidget(new QGraphicsProxyWidget) { //
 }
 
+DataViewBox::~DataViewBox() {
+    // Handle the TextEdit embeded in `textEditProxyWidget` exclusively. Without this, the program
+    // crashes for unknown reason.
+    auto *textEdit = textEditProxyWidget->widget();
+    if (textEdit != nullptr) {
+        textEditProxyWidget->setWidget(nullptr);
+        textEdit->deleteLater();
+        // Using `delete textEdit;` also makes the program crash. It seems that `textEdit` is still
+        // accessed later.
+    }
+}
+
 void DataViewBox::setTitle(const QString &title) {
     titleItem->setPlainText(title);
     adjustContents();
@@ -123,7 +135,7 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     // titleItem
     {
         QFont font = fontOfView;
-        font.setPixelSize(24);
+        font.setPixelSize(20);
         font.setBold(true);
 
         titleItem->setFont(font);
@@ -282,11 +294,6 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
 
 void DataViewBox::adjustContents() {
     const QRectF contentsRect = getContentsRect();
-
-    // get view's font
-    QFont fontOfView;
-    if (QGraphicsView *view = getView(); view != nullptr)
-        fontOfView = view->font();
 
     // title
     double yBottom = contentsRect.top();

@@ -6,7 +6,7 @@
 #include <QSet>
 #include <QString>
 #include <QVector>
-#include "models/workspace_board_settings/card_label_color_mapping_setting.h"
+#include "models/settings/card_label_color_mapping.h"
 
 struct WorkspaceNodePropertiesUpdate;
 
@@ -16,7 +16,7 @@ struct Workspace {
     QVector<int> boardsOrdering;
     int lastOpenedBoardId {-1};
 
-    CardLabelToColorMapping cardLabelToColorMappingSetting;
+    CardLabelToColorMapping cardLabelToColorMapping;
 
     //
     QSet<int> boardIds;
@@ -33,7 +33,7 @@ struct WorkspaceNodePropertiesUpdate {
     std::optional<QString> name;
     std::optional<QVector<int>> boardsOrdering;
     std::optional<int> lastOpenedBoardId;
-    std::optional<CardLabelToColorMapping> cardLabelToColorMappingSetting;
+    std::optional<CardLabelToColorMapping> cardLabelToColorMapping;
 
     QJsonObject toJson() const;
 };

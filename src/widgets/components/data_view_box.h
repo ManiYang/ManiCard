@@ -12,6 +12,7 @@ class DataViewBox : public BoardBoxItem
     Q_OBJECT
 public:
     explicit DataViewBox(const int customDataQueryId, QGraphicsItem *parent = nullptr);
+    ~DataViewBox();
 
     // Call these "set" methods only after this item is initialized:
     void setTitle(const QString &title);

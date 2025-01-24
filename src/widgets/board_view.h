@@ -87,6 +87,7 @@ signals:
 private:
     static inline const QSizeF defaultNewNodeRectSize {200, 120};
     static inline const QSizeF defaultNewDataViewBoxSize {400, 400};
+    static inline const QSizeF defaultNewSettingBoxSize {450, 600};
     static inline const QColor defaultNewDataViewBoxColor {170, 170, 170};
     constexpr static double defaultEdgeArrowLineWidth {2.0};
 
@@ -150,7 +151,7 @@ private:
     //
 
     //!
-    //! Remove all NodeRect's, EdgeArrow's, DataViewBox's, GroupBox's. Does not check canClose().
+    //! Remove all NodeRect's, EdgeArrow's, DataViewBox's, GroupBox's, etc. Does not check canClose().
     //!
     void closeAll(bool *highlightedCardIdChanged);
 
@@ -382,13 +383,19 @@ private:
 
         //!
         //! The setting box for (targetType, category) must not already exist.
+        //! The returned SettingBox is already added to canvas.
         //! \return Returns nullptr if failed.
         //!
         SettingBox *createSettingBox(
-                const SettingTargetType targetType, const SettingCategory category);
+                const SettingTargetType targetType, const SettingCategory category,
+                const QRectF &rect);
 
-        bool containsWorkspaceSettingCategory(const SettingCategory category);
-        bool containsBoardSettingCategory(const SettingCategory category);
+        void closeSettingBox(const SettingTargetType targetType, const SettingCategory category);
+
+        QVector<std::pair<SettingTargetType, SettingCategory>> getAllSettingBoxes() const;
+
+        bool containsWorkspaceSettingCategory(const SettingCategory category) const;
+        bool containsBoardSettingCategory(const SettingCategory category) const;
 
     private:
         BoardView *const boardView;
@@ -399,6 +406,11 @@ private:
         };
         QHash<SettingCategory, SettingsBoxAndData> workspaceSettingCategoryToBox;
         QHash<SettingCategory, SettingsBoxAndData> boardSettingCategoryToBox;
+
+        std::shared_ptr<AbstractWorkspaceOrBoardSetting> createSettingDataForWorkspace(
+                const SettingCategory category);
+        std::shared_ptr<AbstractWorkspaceOrBoardSetting> createSettingDataForBoard(
+                const SettingCategory category);
     };
     SettingBoxesCollection settingBoxesCollection {this};
 

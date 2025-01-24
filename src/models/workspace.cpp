@@ -6,7 +6,7 @@ QJsonObject Workspace::getNodePropertiesJson() const {
         {"name", name},
         {"boardsOrdering", toJsonArray(boardsOrdering)},
         {"lastOpenedBoardId", lastOpenedBoardId},
-        {"cardLabelToColorMappingSetting", printJson(cardLabelToColorMappingSetting.toJson())}
+        {"cardLabelToColorMapping", printJson(cardLabelToColorMapping.toJson())}
     };
 }
 
@@ -17,8 +17,8 @@ void Workspace::updateNodeProperties(const QJsonObject &obj) {
         boardsOrdering = toIntVector(v.toArray(), -1);
     if (const QJsonValue v = obj.value("lastOpenedBoardId"); !v.isUndefined())
         lastOpenedBoardId = v.toInt();
-    if (const QJsonValue v = obj.value("cardLabelToColorMappingSetting"); v.isString())
-        cardLabelToColorMappingSetting.setFromJson(parseAsJsonObject(v.toString()));
+    if (const QJsonValue v = obj.value("cardLabelToColorMapping"); v.isString())
+        cardLabelToColorMapping.setFromJson(parseAsJsonObject(v.toString()));
 }
 
 void Workspace::updateNodeProperties(const WorkspaceNodePropertiesUpdate &update) {
@@ -29,7 +29,7 @@ void Workspace::updateNodeProperties(const WorkspaceNodePropertiesUpdate &update
     UPDATE_PROPERTY(name);
     UPDATE_PROPERTY(boardsOrdering);
     UPDATE_PROPERTY(lastOpenedBoardId);
-    UPDATE_PROPERTY(cardLabelToColorMappingSetting);
+    UPDATE_PROPERTY(cardLabelToColorMapping);
 
 #undef UPDATE_PROPERTY
 }
@@ -46,10 +46,10 @@ QJsonObject WorkspaceNodePropertiesUpdate::toJson() const {
     if (lastOpenedBoardId.has_value())
         obj.insert("lastOpenedBoardId", lastOpenedBoardId.value());
 
-    if (cardLabelToColorMappingSetting.has_value()) {
+    if (cardLabelToColorMapping.has_value()) {
         obj.insert(
-                "cardLabelToColorMappingSetting",
-                printJson(cardLabelToColorMappingSetting.value().toJson()));
+                "cardLabelToColorMapping",
+                printJson(cardLabelToColorMapping.value().toJson()));
     }
 
     return obj;

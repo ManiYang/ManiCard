@@ -186,11 +186,11 @@ void WorkspaceFrame::loadWorkspace(
             workspaceId = workspaceIdToLoad;
             workspaceName = routine->workspaceData.name;
             workspaceToolBar->setWorkspaceName(routine->workspaceData.name);
-            cardLabelToColorMappingSetting = routine->workspaceData.cardLabelToColorMappingSetting;
+            cardLabelToColorMapping = routine->workspaceData.cardLabelToColorMapping;
 
             boardView->setColorsAssociatedWithLabels(
-                    routine->workspaceData.cardLabelToColorMappingSetting.cardLabelsAndAssociatedColors,
-                    routine->workspaceData.cardLabelToColorMappingSetting.defaultNodeRectColor);
+                    routine->workspaceData.cardLabelToColorMapping.cardLabelsAndAssociatedColors,
+                    routine->workspaceData.cardLabelToColorMapping.defaultNodeRectColor);
         }
 
         callback(!routine->errorFlag, routine->highlightedCardIdChanged);
@@ -309,6 +309,12 @@ void WorkspaceFrame::setUpConnections() {
             this, [this](const QVector<int> &/*boardIdsOrdering*/) {
         saveBoardsOrdering();
     });
+
+    // `boardView`
+    connect(boardView, &BoardView::getWorkspaceCardLabelToColorMappingSetting,
+            this, [this](CardLabelToColorMapping *cardLabelToColorMapping) {
+        *cardLabelToColorMapping = this->cardLabelToColorMapping;
+    }, Qt::DirectConnection);
 
     // `noBoardSign`
     connect(noBoardSign, &NoBoardSign::userToAddBoard, this, [this]() {
@@ -641,7 +647,7 @@ void WorkspaceFrame::onUserToSetCardColors() {
                 newSetting.defaultNodeRectColor = dialog->getDefaultColor();
                 newSetting.cardLabelsAndAssociatedColors = dialog->getCardLabelsAndAssociatedColors();
             }
-            propertiesUpdate.cardLabelToColorMappingSetting = newSetting;
+            propertiesUpdate.cardLabelToColorMapping = newSetting;
         }
         Services::instance()->getAppData()->updateWorkspaceNodeProperties(
                 EventSource(this), workspaceId, propertiesUpdate);

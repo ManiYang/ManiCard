@@ -67,6 +67,7 @@ SOURCES += \
     widgets/components/group_box.cpp \
     widgets/components/node_rect.cpp \
     widgets/components/property_value_editor.cpp \
+    widgets/components/setting_box.cpp \
     widgets/components/simple_toolbar.cpp \
     widgets/dialogs/dialog_create_relationship.cpp \
     widgets/dialogs/dialog_options.cpp \
@@ -156,6 +157,7 @@ HEADERS += \
     widgets/components/group_box.h \
     widgets/components/node_rect.h \
     widgets/components/property_value_editor.h \
+    widgets/components/setting_box.h \
     widgets/components/simple_toolbar.h \
     widgets/dialogs/dialog_create_relationship.h \
     widgets/dialogs/dialog_options.h \

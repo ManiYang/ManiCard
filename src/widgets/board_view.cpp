@@ -27,6 +27,7 @@
 #include "widgets/components/graphics_scene.h"
 #include "widgets/components/group_box.h"
 #include "widgets/components/node_rect.h"
+#include "widgets/components/setting_box.h"
 #include "widgets/dialogs/dialog_create_relationship.h"
 #include "widgets/dialogs/dialog_set_labels.h"
 #include "widgets/widgets_constants.h"
@@ -1081,12 +1082,18 @@ void BoardView::onUserToOpenSettings(const QPointF &scenePos) {
     }
 
     // create SettingsBox
-    settingBoxesCollection.createSettingBox(selectedTargetType, selectedCategory);
+    QRectF rect(
+            quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
+            quantize(defaultNewSettingBoxSize, boardSnapGridSize)
+    );
+
+    auto *settingBox = settingBoxesCollection.createSettingBox(
+            selectedTargetType, selectedCategory, rect); // can be nullptr
+    if (settingBox != nullptr) {
 
 
 
-
-
+    }
 }
 
 void BoardView::onUserToSetLabels(const int cardId) {
@@ -1486,6 +1493,12 @@ void BoardView::closeAll(bool *highlightedCardIdChanged_) {
     const QSet<int> groupBoxIds = groupBoxesCollection.getAllGroupBoxIds();
     for (const int id: groupBoxIds)
         groupBoxesCollection.removeGroupBox(id);
+
+    //
+    const QVector<std::pair<SettingTargetType, SettingCategory>> settings
+            = settingBoxesCollection.getAllSettingBoxes();
+    for (const auto &[targetType, category]: settings)
+        settingBoxesCollection.closeSettingBox(targetType, category);
 
     //
     groupBoxTree.clear();
@@ -2921,7 +2934,7 @@ BoardView::SettingBoxesCollection::SettingBoxesCollection(BoardView *boardView)
 }
 
 SettingBox *BoardView::SettingBoxesCollection::createSettingBox(
-        const SettingTargetType targetType, const SettingCategory category) {
+        const SettingTargetType targetType, const SettingCategory category, const QRectF &rect) {
     // check whether already exists
     std::optional<bool> alreadyExists;
     switch (targetType) {
@@ -2932,7 +2945,7 @@ SettingBox *BoardView::SettingBoxesCollection::createSettingBox(
         alreadyExists = boardSettingCategoryToBox.contains(category);
         break;
     }
-    if (alreadyExists.has_value()) {
+    if (!alreadyExists.has_value()) {
         Q_ASSERT(false); // case not implemented
         return nullptr;
     }
@@ -2940,38 +2953,35 @@ SettingBox *BoardView::SettingBoxesCollection::createSettingBox(
     // get settings data
     std::shared_ptr<AbstractWorkspaceOrBoardSetting> settingsData;
 
-    switch (category) {
-    case SettingCategory::CardLabelToColorMapping:
-    {
-        auto *cardLabelToColorMapping = new CardLabelToColorMapping;
-        emit boardView->getWorkspaceCardLabelToColorMappingSetting(cardLabelToColorMapping);
-
-        settingsData = std::shared_ptr<AbstractWorkspaceOrBoardSetting>(cardLabelToColorMapping);
+    switch (targetType) {
+    case SettingTargetType::Workspace:
+        settingsData = createSettingDataForWorkspace(category);
+        break;
+    case SettingTargetType::Board:
+        settingsData = createSettingDataForBoard(category);
         break;
     }
-    case SettingCategory::CardPropertiesToShow:
-        return nullptr; // [temp]
-        break;
 
-    case SettingCategory::WorkspaceSchema:
-        return nullptr; // [temp]
-        break;
-    }
-    if (settingsData == nullptr) {
-        Q_ASSERT(false); // case not implemented
+    if (settingsData == nullptr)
         return nullptr;
-    }
 
     // create SettingBox
-    SettingBox *settingBox;
+    const QString title
+            = QString("%1 Setting: %2")
+              .arg(getDisplayNameOfTargetType(targetType), getDisplayNameOfCategory(category));
+    const QString description = getDescriptionForTargetTypeAndCategory(targetType, category);
+    const QJsonObject settingJson = settingsData->toJson();
 
-//    SettingsBoxData settingsBoxData(selectedTargetType, selectedCategory);
-//    settingsBoxData.settingsJson = settings->toJson();
+    SettingBox *settingBox = new SettingBox(boardView->canvas);
+    settingBox->setZValue(zValueForNodeRects);
+    settingBox->initialize();
 
+    settingBox->setTitle(title);
+    settingBox->setDescription(description);
+    settingBox->setSettingJson(settingJson);
+    settingBox->setRect(rect);
 
-
-
-    //
+    // add to `workspaceSettingCategoryToBox` or `boardSettingCategoryToBox`
     SettingsBoxAndData boxAndData {settingBox, settingsData};
 
     bool caseConsidered = false;
@@ -2988,16 +2998,100 @@ SettingBox *BoardView::SettingBoxesCollection::createSettingBox(
     if (!caseConsidered)
         Q_ASSERT(false); // case not implemented
 
+    // set up connections
+
+
+
+
+
     //
     return settingBox;
 }
 
+void BoardView::SettingBoxesCollection::closeSettingBox(
+        const SettingTargetType targetType, const SettingCategory category) {
+    std::optional<SettingsBoxAndData> boxAndData;
+    switch (targetType) {
+    case SettingTargetType::Workspace:
+        if (workspaceSettingCategoryToBox.contains(category))
+            boxAndData = workspaceSettingCategoryToBox.take(category);
+        break;
+
+    case SettingTargetType::Board:
+        if (boardSettingCategoryToBox.contains(category))
+            boxAndData = boardSettingCategoryToBox.take(category);
+        break;
+    }
+
+    if (!boxAndData.has_value())
+        return;
+
+    //
+    boardView->graphicsScene->removeItem(boxAndData.value().box);
+    boxAndData.value().box->deleteLater();
+
+    //
+    boardView->graphicsScene->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
+    // This is to deal with the QGraphicsView problem
+    // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
+}
+
+QVector<std::pair<SettingTargetType, SettingCategory> >
+BoardView::SettingBoxesCollection::getAllSettingBoxes() const {
+    const auto categoriesForWorkspace = keySet(workspaceSettingCategoryToBox);
+    const auto categoriesForBoard = keySet(boardSettingCategoryToBox);
+
+    QVector<std::pair<SettingTargetType, SettingCategory> > result;
+    for (const auto category: categoriesForWorkspace)
+        result << std::make_pair(SettingTargetType::Workspace, category);
+    for (const auto category: categoriesForBoard)
+        result << std::make_pair(SettingTargetType::Board, category);
+
+    return result;
+}
+
 bool BoardView::SettingBoxesCollection::containsWorkspaceSettingCategory(
-        const SettingCategory category) {
+        const SettingCategory category) const {
     return workspaceSettingCategoryToBox.contains(category);
 }
 
 bool BoardView::SettingBoxesCollection::containsBoardSettingCategory(
-        const SettingCategory category) {
+        const SettingCategory category) const {
     return boardSettingCategoryToBox.contains(category);
+}
+
+std::shared_ptr<AbstractWorkspaceOrBoardSetting>
+BoardView::SettingBoxesCollection::createSettingDataForWorkspace(const SettingCategory category) {
+    switch (category) {
+    case SettingCategory::CardLabelToColorMapping:
+    {
+        auto *cardLabelToColorMapping = new CardLabelToColorMapping;
+        emit boardView->getWorkspaceCardLabelToColorMappingSetting(cardLabelToColorMapping);
+
+        return std::shared_ptr<AbstractWorkspaceOrBoardSetting>(cardLabelToColorMapping);
+    }
+    case SettingCategory::CardPropertiesToShow:
+        return nullptr; // [temp]
+
+    case SettingCategory::WorkspaceSchema:
+        return nullptr; // [temp]
+    }
+    Q_ASSERT(false); // case not implemented
+    return nullptr;
+}
+
+std::shared_ptr<AbstractWorkspaceOrBoardSetting>
+BoardView::SettingBoxesCollection::createSettingDataForBoard(const SettingCategory category) {
+    switch (category) {
+    case SettingCategory::CardLabelToColorMapping:
+        return nullptr; // not for board
+
+    case SettingCategory::CardPropertiesToShow:
+        return nullptr; // [temp]
+
+    case SettingCategory::WorkspaceSchema:
+        return nullptr; // not for board
+    }
+    Q_ASSERT(false); // case not implemented
+    return nullptr;
 }
