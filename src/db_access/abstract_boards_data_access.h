@@ -8,6 +8,7 @@
 #include "models/board.h"
 #include "models/data_view_box_data.h"
 #include "models/node_rect_data.h"
+#include "models/setting_box_data.h"
 #include "models/workspace.h"
 #include "models/workspaces_list_properties.h"
 
@@ -116,7 +117,8 @@ public:
     // ==== NodeRect ====
 
     //!
-    //! The board and card must already exist, and the NodeRect must not already exist.
+    //! The board and card must already exist, and the NodeRect for \e cardId must not already
+    //! exist in \e boardId.
     //! The operation is atomic.
     //!
     virtual void createNodeRect(
@@ -217,6 +219,32 @@ public:
     //!
     virtual void removeNodeRectFromGroupBox(
             const int cardId,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    // ==== SettingBox ====
+    //!
+    //! The board must already exist, and the SettingBox for (target-type, category) in
+    //! \e settingBoxData must not already exist in \e boardId.
+    //! The operation is atomic.
+    //!
+    virtual void createSettingBox(
+            const int boardId, const SettingBoxData &settingBoxData,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    //!
+    //! The SettingBox must exist. This operation is atomic.
+    //!
+    virtual void updateSettingBoxProperties(
+            const int boardId, const SettingTargetType targetType,
+            const SettingCategory category, const SettingBoxDataUpdate &update,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
+
+    //!
+    //! This operation is atomic and idempotent.
+    //!
+    virtual void removeSettingBox(
+            const int boardId, const SettingTargetType targetType,
+            const SettingCategory category,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) = 0;
 };
 

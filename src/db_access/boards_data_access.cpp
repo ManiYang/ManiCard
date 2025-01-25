@@ -182,6 +182,12 @@ void BoardsDataAccess::getBoardData(
                             (()-[:GROUP_ITEM]->(:GroupBox)) {1,}
                             (g:GroupBox)
                         RETURN g.id AS id, g AS data, 'groupBox' AS what
+
+                        UNION
+
+                        MATCH (b:Board {id: $boardId})
+                        MATCH (b)-[:HAS]->(s:SettingBox)
+                        RETURN 0 AS id, s AS data, 'settingBox' AS what
                     )!",
                     QJsonObject {{"boardId", boardId}}
                 },
@@ -249,6 +255,15 @@ void BoardsDataAccess::getBoardData(
                             }
 
                             board.groupBoxIdToData.insert(groupBoxId, groupBoxData);
+                        }
+                        else if (whatOpt.value() == "settingBox") {
+                            const auto settingBoxDataOpt
+                                    = SettingBoxData::fromJson(dataOpt.value());
+                            if (!settingBoxDataOpt.has_value()) {
+                                hasError = true;
+                                break;
+                            }
+                            board.settingBoxesData << settingBoxDataOpt.value();
                         }
                         else {
                             Q_ASSERT(false); // case not implemented
@@ -1704,6 +1719,201 @@ void BoardsDataAccess::removeNodeRectFromGroupBox(
                     return;
                 }
                 qInfo().noquote() << QString("removed NodeRect from GroupBox");
+                callback(true);
+            },
+            callbackContext
+    );
+}
+
+void BoardsDataAccess::createSettingBox(
+        const int boardId, const SettingBoxData &settingBoxData,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        Neo4jTransaction *transaction {nullptr};
+        int boardId {-1};
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine, boardId, settingBoxData]() {
+        // check whether the SettingBox already exists
+        neo4jHttpApiClient->queryDb(
+                QueryStatement {
+                    R"!(
+                        MATCH (b:Board {id: $boardId})-[:HAS]
+                            ->(s:SettingBox {targetType: $targetType, category: $category})
+                        RETURN s
+                    )!",
+                    QJsonObject {
+                        {"boardId", boardId},
+                        {"targetType", settingBoxData.getTargetTypeId()},
+                        {"category", settingBoxData.getCategoryId()},
+                    }
+                },
+                // callback
+                [routine, boardId, settingBoxData](const QueryResponseSingleResult &queryResponse) {
+                    ContinuationContext context(routine);
+
+                    if (!queryResponse.getResult().has_value()) {
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    const auto result = queryResponse.getResult().value();
+                    if (!result.isEmpty()) {
+                        qWarning().noquote()
+                                << QString("Board %1 already has a SettingBox for "
+                                           "target-type %2 & category %3")
+                                   .arg(boardId).arg(
+                                       settingBoxData.getTargetTypeId(),
+                                       settingBoxData.getCategoryId());
+                        context.setErrorFlag();
+                        return;
+                    }
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([this, routine, boardId, settingBoxData]() {
+        // create SettingBox
+        neo4jHttpApiClient->queryDb(
+                QueryStatement {
+                    R"!(
+                        MATCH (b:Board {id: $boardId})
+                        CREATE (s:SettingBox)
+                        SET s = $propertiesMap
+                        CREATE (b)-[:HAS]->(s)
+                        RETURN s
+                    )!",
+                    QJsonObject {
+                        {"boardId", boardId},
+                        {"propertiesMap", settingBoxData.toJson()},
+                    }
+                },
+                // callback
+                [routine, boardId](const QueryResponseSingleResult &queryResponse) {
+                    ContinuationContext context(routine);
+
+                    if (!queryResponse.getResult().has_value()) {
+                        context.setErrorFlag();
+                        return;
+                    }
+
+                    const auto result = queryResponse.getResult().value();
+                    if (result.isEmpty()) {
+                        qWarning().noquote()
+                                << QString("Board %1 does not exist or the properties of SettingBox "
+                                           "could not be set.")
+                                   .arg(boardId);
+                        context.setErrorFlag();
+                        return;
+                    }
+                },
+                routine
+        );
+    }, routine);
+
+    routine->addStep([routine, callback, boardId, settingBoxData]() {
+        // final step
+        ContinuationContext context(routine);
+        if (!routine->errorFlag) {
+            qInfo().noquote()
+                    << QString("created SettingBox for (%1, %2) in Board %3")
+                       .arg(settingBoxData.getTargetTypeId(), settingBoxData.getCategoryId())
+                       .arg(boardId);
+            callback(true);
+        }
+        else {
+            callback(false);
+        }
+    }, callbackContext);
+
+    //
+    routine->start();
+}
+
+void BoardsDataAccess::updateSettingBoxProperties(
+        const int boardId, const SettingTargetType targetType, const SettingCategory category,
+        const SettingBoxDataUpdate &update,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    const QString targetTypeId = SettingBoxData::getSettingTargetTypeIdForDb(targetType);
+    const QString categoryId = SettingBoxData::getSettingCategoryIdForDb(category);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (:Board {id: $boardId})-[:HAS]
+                        ->(s:SettingBox {targetType: $targetType, category: $category})
+                    SET s += $propertiesMap
+                    RETURN s
+                )!",
+                QJsonObject {
+                    {"boardId", boardId},
+                    {"targetType", targetTypeId},
+                    {"category", categoryId},
+                    {"propertiesMap", update.toJson()}
+                }
+            },
+            // callback
+            [=](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                if (result.isEmpty()) {
+                    qWarning().noquote()
+                            << QString("SettingBox for (%1, %2) & Board %3 is not found, or the "
+                                       "properties cannot be written")
+                               .arg(targetTypeId, categoryId).arg(boardId);
+                    callback(false);
+                    return;
+                }
+
+                qInfo().noquote() << QString("updated SettingBox properties");
+                callback(true);
+            },
+            callbackContext
+    );
+}
+
+void BoardsDataAccess::removeSettingBox(
+        const int boardId, const SettingTargetType targetType, const SettingCategory category,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    const QString targetTypeId = SettingBoxData::getSettingTargetTypeIdForDb(targetType);
+    const QString categoryId = SettingBoxData::getSettingCategoryIdForDb(category);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (:Board {id: $boardId})-[:HAS]
+                        ->(s:SettingBox {targetType: $targetType, category: $category})
+                    DETACH DELETE s
+                )!",
+                QJsonObject {
+                    {"boardId", boardId},
+                    {"targetType", targetTypeId},
+                    {"category", categoryId},
+                }
+            },
+            // callback
+            [=](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false);
+                    return;
+                }
+
+                qInfo().noquote() << "removed SettingBox";
                 callback(true);
             },
             callbackContext

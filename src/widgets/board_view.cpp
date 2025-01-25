@@ -14,6 +14,7 @@
 #include "services.h"
 #include "utilities/async_routine.h"
 #include "utilities/binary_search.h"
+#include "utilities/colors_util.h"
 #include "utilities/geometry_util.h"
 #include "utilities/lists_vectors_util.h"
 #include "utilities/maps_util.h"
@@ -32,7 +33,6 @@
 #include "widgets/dialogs/dialog_set_labels.h"
 #include "widgets/widgets_constants.h"
 
-
 using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 
 BoardView::BoardView(QWidget *parent)
@@ -50,7 +50,7 @@ void BoardView::loadBoard(
         return;
     }
 
-    // close all cards
+    // close all items
     bool highlightedCardIdChanged = false; // to -1
 
     if (boardId != -1) {
@@ -80,6 +80,8 @@ void BoardView::loadBoard(
     };
     auto *routine = new AsyncRoutineWithVars;
     routine->setName("BoardView::loadBoard");
+
+    boardId = boardIdToLoad; // will be set to -1 (in final step) if failed to load
 
     routine->addStep([this, routine]() {
         // 0. get the list of user-defined labels
@@ -187,7 +189,7 @@ void BoardView::loadBoard(
     }, this);
 
     routine->addStep([this, routine]() {
-        // 5. create NodeRect's, EdgeArrow's, DataViewBox's, GroupBox's
+        // 5. create NodeRect's, EdgeArrow's, DataViewBox's, GroupBox's, RelationshipsBundle's
         ContinuationContext context(routine);
 
         const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
@@ -296,25 +298,65 @@ void BoardView::loadBoard(
             context.setErrorFlag();
         }
 
-        //
+        // RelationshipsBundle's
         updateRelationshipBundles();
+    }, this);
+
+    routine->addStep([this, routine, callback]() {
+        // 6. create SettingBox's
+        const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+        const bool autoAdjustCardColorsForDarkTheme
+                = Services::instance()->getAppDataReadonly()->getAutoAdjustCardColorsForDarkTheme();
+        const QColor settingBoxDisplayColor = computeSettingBoxDisplayColor(
+                defaultNewSettingBoxColor, autoAdjustCardColorsForDarkTheme && isDarkTheme);
 
         //
+        auto *innerRoutine = new AsyncRoutine;
+
+        const auto settingBoxesData = routine->board.settingBoxesData;
+        for (const SettingBoxData &settingBoxData: settingBoxesData) {
+            innerRoutine->addStep([this, innerRoutine, settingBoxData, settingBoxDisplayColor]() {
+                settingBoxesCollection.createSettingBox(
+                        settingBoxData.targetType, settingBoxData.category,
+                        settingBoxData.rect, settingBoxDisplayColor,
+                        // callback
+                        [innerRoutine](SettingBox */*settingBox*/) {
+                            innerRoutine->nextStep();
+                        }
+                );
+            }, this);
+        }
+
+        innerRoutine->addStep([innerRoutine, routine]() {
+            // final step of `innerRoutine`
+            innerRoutine->nextStep();
+            routine->nextStep();
+        }, this);
+
+        innerRoutine->start();
+    }, this);
+
+    routine->addStep([this, routine, callback, highlightedCardIdChanged]() {
+        // final step
+        ContinuationContext context(routine);
+
         zoomScale = routine->board.zoomRatio;
         canvas->setScale(zoomScale * graphicsGeometryScaleFactor); // (1)
         adjustSceneRect(); // (2)
         setViewTopLeftPos(routine->board.topLeftPos); // (3)
-    }, this);
 
-    routine->addStep([this, routine, callback, boardIdToLoad, highlightedCardIdChanged]() {
-        // final step
-        ContinuationContext context(routine);
+        //
+        bool highlightedCardIdChanged1 = highlightedCardIdChanged;
+        if (routine->errorFlag) {
+            boardId = -1;
 
-        if (!routine->errorFlag) {
-            boardId = boardIdToLoad;
+            bool highlightedCardIdChanged2;
+            closeAll(&highlightedCardIdChanged2);
+
+            highlightedCardIdChanged1 |= highlightedCardIdChanged2;
         }
 
-        callback(!routine->errorFlag, highlightedCardIdChanged);
+        callback(!routine->errorFlag, highlightedCardIdChanged1);
     }, this);
 
     routine->start();
@@ -432,10 +474,14 @@ void BoardView::setUpConnections() {
 
     connect(graphicsScene, &GraphicsScene::viewScrollingStarted, this, [this]() {
         nodeRectsCollection.setAllNodeRectsTextEditorIgnoreWheelEvent(true);
+        dataViewBoxesCollection.setAllDataViewBoxesTextEditorIgnoreWheelEvent(true);
+        settingBoxesCollection.setAllSettingBoxesTextEditorIgnoreWheelEvent(true);
     });
 
     connect(graphicsScene, &GraphicsScene::viewScrollingFinished, this, [this]() {
         nodeRectsCollection.setAllNodeRectsTextEditorIgnoreWheelEvent(false);
+        dataViewBoxesCollection.setAllDataViewBoxesTextEditorIgnoreWheelEvent(false);
+        settingBoxesCollection.setAllSettingBoxesTextEditorIgnoreWheelEvent(false);
     });
 
     //
@@ -452,6 +498,7 @@ void BoardView::setUpConnections() {
 
     connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
             this, [this](const bool isDarkTheme) {
+
         //
         graphicsScene->setBackgroundBrush(getSceneBackgroundColor(isDarkTheme));
 
@@ -469,12 +516,16 @@ void BoardView::setUpConnections() {
 
         //
         groupBoxesCollection.setColorOfAllGroupBoxes(computeGroupBoxColor(isDarkTheme));
+
+        //
+        settingBoxesCollection.updateAllSettingBoxesColors();
     });
 
     connect(Services::instance()->getAppDataReadonly(),
             &AppDataReadonly::autoAdjustCardColorsForDarkThemeUpdated,
             this, [this](const bool /*autoAdjust*/) {
          nodeRectsCollection.updateAllNodeRectColors();
+         settingBoxesCollection.updateAllSettingBoxesColors();
     });
 }
 
@@ -1036,7 +1087,7 @@ void BoardView::onUserToCreateNewCustomDataQuery(const QPointF &scenePos) {
     routine->start();
 }
 
-void BoardView::onUserToOpenSettings(const QPointF &scenePos) {
+void BoardView::onUserToCreateSettingBox(const QPointF &scenePos) {
     // let user select settings target and category
     SettingTargetType selectedTargetType;
     SettingCategory selectedCategory;
@@ -1081,19 +1132,68 @@ void BoardView::onUserToOpenSettings(const QPointF &scenePos) {
         return;
     }
 
-    // create SettingsBox
-    QRectF rect(
-            quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
-            quantize(defaultNewSettingBoxSize, boardSnapGridSize)
-    );
+    //
+    class AsyncRoutineWithVars : public AsyncRoutine
+    {
+    public:
+        bool settingBoxCreated {false};
+        QRectF rect;
+    };
+    auto *routine = new AsyncRoutineWithVars;
 
-    auto *settingBox = settingBoxesCollection.createSettingBox(
-            selectedTargetType, selectedCategory, rect); // can be nullptr
-    if (settingBox != nullptr) {
+    routine->addStep([this, routine, scenePos, selectedTargetType, selectedCategory]() {
+        // create SettingsBox
+        QRectF rect(
+                quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
+                quantize(defaultNewSettingBoxSize, boardSnapGridSize)
+        );
+        routine->rect = rect;
 
+        QColor displayColor;
+        {
+            const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+            const bool autoAdjustCardColorsForDarkTheme
+                    = Services::instance()->getAppDataReadonly()->getAutoAdjustCardColorsForDarkTheme();
+            displayColor = computeSettingBoxDisplayColor(
+                    defaultNewSettingBoxColor, autoAdjustCardColorsForDarkTheme && isDarkTheme);
+        }
 
+        settingBoxesCollection.createSettingBox(
+                selectedTargetType, selectedCategory, rect, displayColor,
+                // callback
+                [routine](SettingBox *settingBox) {
+                    if (settingBox != nullptr)
+                        routine->settingBoxCreated = true;
+                    routine->nextStep();
+                }
+        );
+    }, this);
 
-    }
+    routine->addStep([this, routine, selectedTargetType, selectedCategory]() {
+        // call AppData
+        if (routine->settingBoxCreated) {
+            SettingBoxData settingBoxData;
+            {
+                settingBoxData.targetType = selectedTargetType;
+                settingBoxData.category = selectedCategory;
+                settingBoxData.rect = routine->rect;
+            }
+            Services::instance()->getAppData()->createSettingBox(
+                    EventSource(this), boardId, settingBoxData);
+        }
+        routine->nextStep();
+    }, this);
+
+    routine->start();
+}
+
+void BoardView::onUserToCloseSettingBox(
+        const SettingTargetType targetType, const SettingCategory category) {
+    settingBoxesCollection.closeSettingBox(targetType, category);
+
+    //
+    Services::instance()->getAppData()->removeSettingBox(
+            EventSource(this), boardId, targetType, category);
 }
 
 void BoardView::onUserToSetLabels(const int cardId) {
@@ -1735,22 +1835,8 @@ QColor BoardView::computeNodeRectDisplayColor(
 
     QColor color = funcGetColor1();
 
-    //
-    constexpr double m = 0.4;
-    constexpr double a = -4.0 * m + 2.0;
-    constexpr double b = 4.0 * m - 3.0;
-    constexpr double c = 1.0;
-
-    if (invertLightness) {
-        double h;
-        double s;
-        double l;
-        color.getHslF(&h, &s, &l);
-
-        const double ll = (a * l + b) * l + c;
-
-        color = QColor::fromHslF(h, s, ll);
-    }
+    if (invertLightness)
+        color = invertHslLightness(color);
 
     //
     return color;
@@ -1765,6 +1851,16 @@ QColor BoardView::computeDataViewBoxDisplayColor(
         return boardDefaultColorForDataViewBox;
 
     return QColor(170, 170, 170);
+}
+
+QColor BoardView::computeSettingBoxDisplayColor(
+        const QColor &boardDefaultColorForSettingBox, const bool invertLightness) {
+    QColor color = boardDefaultColorForSettingBox;
+
+    if (invertLightness)
+        color = invertHslLightness(color);
+
+    return color;
 }
 
 QSet<RelationshipId> BoardView::getEdgeArrowsConnectingNodeRect(const int cardId) {
@@ -2296,6 +2392,14 @@ void BoardView::DataViewBoxesCollection::closeDataViewBox(const int customDataQu
     boardView->graphicsScene->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
     // This is to deal with the QGraphicsView problem
     // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
+}
+
+void BoardView::DataViewBoxesCollection::setAllDataViewBoxesTextEditorIgnoreWheelEvent(
+        const bool ignoreWheelEvent) {
+    for (auto it = customDataQueryIdToDataViewBox.begin();
+            it != customDataQueryIdToDataViewBox.end(); ++it) {
+         it.value()->setTextEditorIgnoreWheelEvent(ignoreWheelEvent);
+    }
 }
 
 bool BoardView::DataViewBoxesCollection::contains(const int customDataQueryId) const {
@@ -2915,7 +3019,7 @@ BoardView::ContextMenu::ContextMenu(BoardView *boardView_)
     {
         auto *action = menu->addAction("Open Settings...");
         connect(action, &QAction::triggered, boardView, [this]() {
-            boardView->onUserToOpenSettings(requestScenePos);
+            boardView->onUserToCreateSettingBox(requestScenePos);
         });
     }
 }
@@ -2933,8 +3037,12 @@ BoardView::SettingBoxesCollection::SettingBoxesCollection(BoardView *boardView)
         : boardView(boardView) {
 }
 
-SettingBox *BoardView::SettingBoxesCollection::createSettingBox(
-        const SettingTargetType targetType, const SettingCategory category, const QRectF &rect) {
+void BoardView::SettingBoxesCollection::createSettingBox(
+        const SettingTargetType targetType, const SettingCategory category,
+        const QRectF &rect, const QColor &displayColor,
+        std::function<void (SettingBox *)> callback) {
+    Q_ASSERT(callback);
+
     // check whether already exists
     std::optional<bool> alreadyExists;
     switch (targetType) {
@@ -2947,65 +3055,131 @@ SettingBox *BoardView::SettingBoxesCollection::createSettingBox(
     }
     if (!alreadyExists.has_value()) {
         Q_ASSERT(false); // case not implemented
-        return nullptr;
+        callback(nullptr);
+        return;
     }
-
-    // get settings data
-    std::shared_ptr<AbstractWorkspaceOrBoardSetting> settingsData;
-
-    switch (targetType) {
-    case SettingTargetType::Workspace:
-        settingsData = createSettingDataForWorkspace(category);
-        break;
-    case SettingTargetType::Board:
-        settingsData = createSettingDataForBoard(category);
-        break;
-    }
-
-    if (settingsData == nullptr)
-        return nullptr;
-
-    // create SettingBox
-    const QString title
-            = QString("%1 Setting: %2")
-              .arg(getDisplayNameOfTargetType(targetType), getDisplayNameOfCategory(category));
-    const QString description = getDescriptionForTargetTypeAndCategory(targetType, category);
-    const QJsonObject settingJson = settingsData->toJson();
-
-    SettingBox *settingBox = new SettingBox(boardView->canvas);
-    settingBox->setZValue(zValueForNodeRects);
-    settingBox->initialize();
-
-    settingBox->setTitle(title);
-    settingBox->setDescription(description);
-    settingBox->setSettingJson(settingJson);
-    settingBox->setRect(rect);
-
-    // add to `workspaceSettingCategoryToBox` or `boardSettingCategoryToBox`
-    SettingsBoxAndData boxAndData {settingBox, settingsData};
-
-    bool caseConsidered = false;
-    switch (targetType) {
-    case SettingTargetType::Workspace:
-        workspaceSettingCategoryToBox.insert(category, boxAndData);
-        caseConsidered = true;
-        break;
-    case SettingTargetType::Board:
-        boardSettingCategoryToBox.insert(category, boxAndData);
-        caseConsidered = true;
-        break;
-    }
-    if (!caseConsidered)
-        Q_ASSERT(false); // case not implemented
-
-    // set up connections
-
-
-
-
 
     //
-    return settingBox;
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        std::shared_ptr<AbstractWorkspaceOrBoardSetting> settingData;
+        SettingBox *settingBox {nullptr};
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    routine->addStep([this, routine, targetType, category]() {
+        // get settings data
+        switch (targetType) {
+        case SettingTargetType::Workspace:
+        {
+            createSettingDataForWorkspace(
+                    category,
+                    // callback:
+                    [routine](AbstractWorkspaceOrBoardSetting *settingData) {
+                        ContinuationContext context(routine);
+                        if (settingData != nullptr) {
+                            routine->settingData
+                                    = std::shared_ptr<AbstractWorkspaceOrBoardSetting>(settingData);
+                        }
+                    }
+            );
+            return;
+        }
+        case SettingTargetType::Board:
+        {
+            ContinuationContext context(routine);
+            auto *settingData = createSettingDataForBoard(category);
+            routine->settingData = std::shared_ptr<AbstractWorkspaceOrBoardSetting>(settingData);;
+            return;
+        }
+        }
+    }, boardView);
+
+    routine->addStep([this, routine, targetType, category, rect, displayColor]() {
+        // create SettingBox
+        ContinuationContext context(routine);
+
+        if (routine->settingData == nullptr)
+            return;
+
+        //
+        const QString title
+                = QString("%1 Setting: %2")
+                  .arg(getDisplayNameOfTargetType(targetType), getDisplayNameOfCategory(category));
+        const QString description = getDescriptionForTargetTypeAndCategory(targetType, category);
+        const QJsonObject settingJson = routine->settingData->toJson();
+
+        SettingBox *settingBox = new SettingBox(boardView->canvas);
+        routine->settingBox = settingBox;
+
+        settingBox->setZValue(zValueForNodeRects);
+        settingBox->initialize();
+
+        settingBox->setTitle(title);
+        settingBox->setDescription(description);
+        settingBox->setSettingJson(settingJson);
+        settingBox->setRect(rect);
+        settingBox->setColor(displayColor);
+
+        // add to `workspaceSettingCategoryToBox` or `boardSettingCategoryToBox`
+        SettingsBoxAndData boxAndData {settingBox, routine->settingData};
+
+        switch (targetType) {
+        case SettingTargetType::Workspace:
+            workspaceSettingCategoryToBox.insert(category, boxAndData);
+            return;
+
+        case SettingTargetType::Board:
+            boardSettingCategoryToBox.insert(category, boxAndData);
+            return;
+        }
+        Q_ASSERT(false); // case not implemented
+    }, boardView);
+
+    routine->addStep([this, routine, targetType, category]() {
+        // set up connections
+        ContinuationContext context(routine);
+
+        if (routine->settingBox == nullptr)
+            return;
+
+        //
+        QPointer<SettingBox> settingBoxPtr(routine->settingBox);
+
+        QObject::connect(
+                routine->settingBox, &SettingBox::finishedMovingOrResizing,
+                boardView, [this, settingBoxPtr, targetType, category]() {
+            if (!settingBoxPtr)
+                return;
+
+            //
+            boardView->adjustSceneRect();
+
+            // call AppData
+            SettingBoxDataUpdate update;
+            update.rect = settingBoxPtr->getRect();
+
+            Services::instance()->getAppData()->updateSettingBoxProperties(
+                    EventSource(boardView), boardView->boardId, targetType, category, update);
+        });
+
+        QObject::connect(
+                routine->settingBox, &SettingBox::closeByUser,
+                boardView, [this, settingBoxPtr, targetType, category]() {
+            if (!settingBoxPtr)
+                return;
+            boardView->onUserToCloseSettingBox(targetType, category);
+        });
+    }, boardView);
+
+    routine->addStep([routine, callback]() {
+        // final step
+        ContinuationContext context(routine);
+        callback(routine->settingBox);
+    }, boardView);
+
+    routine->start();
 }
 
 void BoardView::SettingBoxesCollection::closeSettingBox(
@@ -3036,6 +3210,35 @@ void BoardView::SettingBoxesCollection::closeSettingBox(
     // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
 }
 
+void BoardView::SettingBoxesCollection::updateAllSettingBoxesColors() {
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+    const bool autoAdjustCardColorsForDarkTheme
+            = Services::instance()->getAppDataReadonly()->getAutoAdjustCardColorsForDarkTheme();
+    const QColor displayColor = computeSettingBoxDisplayColor(
+            defaultNewSettingBoxColor, autoAdjustCardColorsForDarkTheme && isDarkTheme);
+
+    //
+    for (auto it = workspaceSettingCategoryToBox.constBegin();
+            it != workspaceSettingCategoryToBox.constEnd(); ++it) {
+        it.value().box->setColor(displayColor);
+    }
+    for (auto it = boardSettingCategoryToBox.constBegin();
+            it != boardSettingCategoryToBox.constEnd(); ++it) {
+        it.value().box->setColor(displayColor);
+    }
+}
+
+void BoardView::SettingBoxesCollection::setAllSettingBoxesTextEditorIgnoreWheelEvent(const bool b) {
+    for (auto it = workspaceSettingCategoryToBox.begin();
+            it != workspaceSettingCategoryToBox.end(); ++it) {
+        it.value().box->setTextEditorIgnoreWheelEvent(b);
+    }
+
+    for (auto it = boardSettingCategoryToBox.begin(); it != boardSettingCategoryToBox.end(); ++it) {
+        it.value().box->setTextEditorIgnoreWheelEvent(b);
+    }
+}
+
 QVector<std::pair<SettingTargetType, SettingCategory> >
 BoardView::SettingBoxesCollection::getAllSettingBoxes() const {
     const auto categoriesForWorkspace = keySet(workspaceSettingCategoryToBox);
@@ -3060,28 +3263,58 @@ bool BoardView::SettingBoxesCollection::containsBoardSettingCategory(
     return boardSettingCategoryToBox.contains(category);
 }
 
-std::shared_ptr<AbstractWorkspaceOrBoardSetting>
-BoardView::SettingBoxesCollection::createSettingDataForWorkspace(const SettingCategory category) {
+void BoardView::SettingBoxesCollection::createSettingDataForWorkspace(
+        const SettingCategory category,
+        std::function<void (AbstractWorkspaceOrBoardSetting *)> callback) {
     switch (category) {
     case SettingCategory::CardLabelToColorMapping:
     {
-        auto *cardLabelToColorMapping = new CardLabelToColorMapping;
-        emit boardView->getWorkspaceCardLabelToColorMappingSetting(cardLabelToColorMapping);
+        Services::instance()->getAppDataReadonly()->getWorkspaces(
+                // callback
+                [this, callback](bool ok, const QHash<int, Workspace> &workspaces) {
+                    if (!ok) {
+                        callback(nullptr);
+                        return;
+                    }
 
-        return std::shared_ptr<AbstractWorkspaceOrBoardSetting>(cardLabelToColorMapping);
+                    // find workspace containing `boardView->boardId`
+                    std::optional<Workspace> workspaceData;
+                    for (auto it = workspaces.constBegin(); it != workspaces.constEnd(); ++it) {
+                        if (it.value().boardIds.contains(boardView->boardId)) {
+                            workspaceData = it.value();
+                            break;
+                        }
+                    }
+
+                    if (!workspaceData.has_value()) {
+                        callback(nullptr);
+                        return;
+                    }
+
+                    //
+                    auto *cardLabelToColorMapping = new CardLabelToColorMapping;
+                    *cardLabelToColorMapping = workspaceData.value().cardLabelToColorMapping;
+                    callback(cardLabelToColorMapping);
+                },
+                boardView
+        );
+        return;
     }
     case SettingCategory::CardPropertiesToShow:
-        return nullptr; // [temp]
+        callback(nullptr); // [temp]
+        return;
 
     case SettingCategory::WorkspaceSchema:
-        return nullptr; // [temp]
+        callback(nullptr); // [temp]
+        return;
     }
+
     Q_ASSERT(false); // case not implemented
-    return nullptr;
+    callback(nullptr);
 }
 
-std::shared_ptr<AbstractWorkspaceOrBoardSetting>
-BoardView::SettingBoxesCollection::createSettingDataForBoard(const SettingCategory category) {
+AbstractWorkspaceOrBoardSetting *BoardView::SettingBoxesCollection::createSettingDataForBoard(
+        const SettingCategory category) {
     switch (category) {
     case SettingCategory::CardLabelToColorMapping:
         return nullptr; // not for board

@@ -832,6 +832,81 @@ void DebouncedDbAccess::removeNodeRectFromGroupBox(const int cardId) {
     );
 }
 
+void DebouncedDbAccess::createSettingBox(const int boardId, const SettingBoxData &settingBoxData) {
+    closeDebounceSession();
+
+    boardsDataAccess->createSettingBox(
+            boardId, settingBoxData,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "createSettingBox";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"boardId", boardId},
+                        {"settingBoxData", settingBoxData.toJson()}
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("created SettingBox");
+                }
+            },
+            this
+    );
+}
+
+void DebouncedDbAccess::updateSettingBoxProperties(
+        const int boardId, const SettingTargetType targetType,
+        const SettingCategory category, const SettingBoxDataUpdate &update) {
+    closeDebounceSession();
+
+    boardsDataAccess->updateSettingBoxProperties(
+            boardId, targetType, category, update,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "updateSettingBoxProperties";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"boardId", boardId},
+                        {"targetType", SettingBoxData::getSettingTargetTypeIdForDb(targetType)},
+                        {"category", SettingBoxData::getSettingCategoryIdForDb(category)},
+                        {"update", update.toJson()},
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("update of SettingBox");
+                }
+            },
+            this
+    );
+}
+
+void DebouncedDbAccess::removeSettingBox(
+        const int boardId, const SettingTargetType targetType, const SettingCategory category) {
+    closeDebounceSession();
+
+    boardsDataAccess->removeSettingBox(
+            boardId, targetType, category,
+            // callback
+            [=](bool ok) {
+                if (!ok) {
+                    const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+                    const QString updateTitle = "removeSettingBox";
+                    const QString updateDetails = printJson(QJsonObject {
+                        {"boardId", boardId},
+                        {"targetType", SettingBoxData::getSettingTargetTypeIdForDb(targetType)},
+                        {"category", SettingBoxData::getSettingCategoryIdForDb(category)},
+                    }, false);
+                    unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+                    showMsgOnDbWriteFailed("removal of SettingBox");
+                }
+            },
+            this
+    );
+}
+
 QString DebouncedDbAccess::debounceDataCategoryName(const DebounceDataCategory category) {
     switch (category) {
     case DebounceDataCategory::CardProperties: return "CardProperties";

@@ -8,6 +8,7 @@
 #include "models/board.h"
 #include "models/card.h"
 #include "models/custom_data_query.h"
+#include "models/setting_box_data.h"
 #include "models/workspace.h"
 #include "models/workspaces_list_properties.h"
 
@@ -190,10 +191,6 @@ public:
     void addOrReparentNodeRectToGroupBox(const int cardId, const int newParentGroupBox);
 
     //!
-    //! The group-boxes `groupBoxId` & `newParentGroupBoxId` must be on the same board.
-    //! `newParentGroupBoxId`
-
-    //!
     //! \param groupBoxId: must exist
     //! \param newParentGroupBoxId:
     //!           + if = -1: `groupBoxId` will be reparented to the board
@@ -201,6 +198,15 @@ public:
     //!                       or its descendant
     //!
     void reparentGroupBox(const int groupBoxId, const int newParentGroupBoxId);
+
+    void createSettingBox(const int boardId, const SettingBoxData &settingBoxData);
+
+    void updateSettingBoxProperties(
+            const int boardId, const SettingTargetType targetType,
+            const SettingCategory category, const SettingBoxDataUpdate &update);
+
+    void removeSettingBox(
+            const int boardId, const SettingTargetType targetType, const SettingCategory category);
 
     void saveMainWindowSizePos(const QRect &rect);
 

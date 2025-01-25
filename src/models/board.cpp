@@ -55,7 +55,7 @@ int Board::findParentGroupBoxOfCard(const int cardId) const {
     return -1;
 }
 
-bool Board::isGroupBoxADescendantOfGroupBox(const int groupBoxId1, const int groupBoxId2) {
+bool Board::isGroupBoxADescendantOfGroupBox(const int groupBoxId1, const int groupBoxId2) const {
     Q_ASSERT(groupBoxId1 != -1 && groupBoxId2 != -1);
 
     if (groupBoxId1 == groupBoxId2)
@@ -69,6 +69,38 @@ bool Board::isGroupBoxADescendantOfGroupBox(const int groupBoxId1, const int gro
         else if (parent == groupBoxId2)
             return true;
         id = parent;
+    }
+}
+
+bool Board::hasSettingBoxFor(
+        const SettingTargetType targetType, const SettingCategory category) const {
+    for (const SettingBoxData data: qAsConst(settingBoxesData)) {
+        if (data.targetType == targetType && data.category == category)
+            return true;
+    }
+    return false;
+}
+
+void Board::updateSettingBoxData(
+        const SettingTargetType targetType, const SettingCategory category,
+        const SettingBoxDataUpdate &update) {
+    for (auto it = settingBoxesData.begin(); it != settingBoxesData.end(); ++it) {
+        SettingBoxData &data = *it;
+        if (data.targetType == targetType && data.category == category) {
+            data.update(update);
+            return;
+        }
+    }
+}
+
+void Board::removeSettingBoxData(
+        const SettingTargetType targetType, const SettingCategory category) {
+    for (auto it = settingBoxesData.begin(); it != settingBoxesData.end(); /*nothing*/) {
+        SettingBoxData &data = *it;
+        if (data.targetType == targetType && data.category == category)
+            it = settingBoxesData.erase(it);
+        else
+            ++it;
     }
 }
 

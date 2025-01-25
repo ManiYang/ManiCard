@@ -199,6 +199,15 @@ public:
 
     void removeNodeRectFromGroupBox(const int cardId);
 
+    void createSettingBox(const int boardId, const SettingBoxData &settingBoxData);
+
+    void updateSettingBoxProperties(
+            const int boardId, const SettingTargetType targetType,
+            const SettingCategory category, const SettingBoxDataUpdate &update);
+
+    void removeSettingBox(
+            const int boardId, const SettingTargetType targetType, const SettingCategory category);
+
 private:
     AbstractBoardsDataAccess *boardsDataAccess;
     AbstractCardsDataAccess *cardsDataAccess;

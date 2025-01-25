@@ -310,12 +310,6 @@ void WorkspaceFrame::setUpConnections() {
         saveBoardsOrdering();
     });
 
-    // `boardView`
-    connect(boardView, &BoardView::getWorkspaceCardLabelToColorMappingSetting,
-            this, [this](CardLabelToColorMapping *cardLabelToColorMapping) {
-        *cardLabelToColorMapping = this->cardLabelToColorMapping;
-    }, Qt::DirectConnection);
-
     // `noBoardSign`
     connect(noBoardSign, &NoBoardSign::userToAddBoard, this, [this]() {
         onUserToAddBoard();

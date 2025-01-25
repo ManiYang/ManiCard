@@ -30,6 +30,7 @@ SOURCES += \
     models/node_rect_data.cpp \
     models/relationship.cpp \
     models/relationships_bundle.cpp \
+    models/setting_box_data.cpp \
     models/settings/abstract_setting.cpp \
     models/settings/card_label_color_mapping.cpp \
     models/settings/settings.cpp \
@@ -108,6 +109,7 @@ HEADERS += \
     models/node_rect_data.h \
     models/relationship.h \
     models/relationships_bundle.h \
+    models/setting_box_data.h \
     models/settings/abstract_setting.h \
     models/settings/card_label_color_mapping.h \
     models/settings/settings.h \
@@ -121,6 +123,7 @@ HEADERS += \
     utilities/async_routine.h \
     utilities/binary_search.h \
 #    utilities/directed_graph.h \
+    utilities/colors_util.h \
     utilities/fonts_util.h \
     utilities/functor.h \
     utilities/geometry_util.h \

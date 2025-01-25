@@ -3,6 +3,7 @@
 
 #include <QGraphicsProxyWidget>
 #include "widgets/components/board_box_item.h"
+#include "widgets/icons.h"
 
 class CustomGraphicsTextItem;
 class CustomTextEdit;
@@ -21,6 +22,7 @@ public:
     void setTextEditorIgnoreWheelEvent(const bool b);
 
 signals:
+    void closeByUser();
     void leftButtonPressedOrClicked();
 
 protected:
@@ -35,6 +37,9 @@ private:
 
     CustomTextEdit *textEdit;
     QGraphicsProxyWidget *textEditProxyWidget;
+
+    //
+    QHash<QAction *, Icon> contextMenuActionToIcon;
 
     //
     QMenu *createCaptionBarContextMenu() override;

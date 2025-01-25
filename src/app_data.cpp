@@ -319,6 +319,32 @@ void AppData::reparentGroupBox(
     // 2. update all variables and emit "updated" signals
 }
 
+void AppData::createSettingBox(
+        const EventSource &/*eventSrc*/, const int boardId, const SettingBoxData &settingBoxData) {
+    // 1. persist
+    persistedDataAccess->createSettingBox(boardId, settingBoxData);
+
+    // 2. update all variables and emit "updated" signals
+}
+
+void AppData::updateSettingBoxProperties(
+        const EventSource &/*eventSrc*/, const int boardId, const SettingTargetType targetType,
+        const SettingCategory category, const SettingBoxDataUpdate &update) {
+    // 1. persist
+    persistedDataAccess->updateSettingBoxProperties(boardId, targetType, category, update);
+
+    // 2. update all variables and emit "updated" signals
+}
+
+void AppData::removeSettingBox(
+        const EventSource &/*eventSrc*/, const int boardId, const SettingTargetType targetType,
+        const SettingCategory category) {
+    // 1. persist
+    persistedDataAccess->removeSettingBox(boardId, targetType, category);
+
+    // 2. update all variables and emit "updated" signals
+}
+
 void AppData::updateMainWindowSizePos(const EventSource &/*eventSrc*/, const QRect &rect) {
     // 1. persist
     persistedDataAccess->saveMainWindowSizePos(rect);

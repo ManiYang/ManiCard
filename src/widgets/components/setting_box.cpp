@@ -1,3 +1,4 @@
+#include <QMessageBox>
 #include "app_data_readonly.h"
 #include "services.h"
 #include "setting_box.h"
@@ -58,11 +59,27 @@ bool SettingBox::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
 }
 
 QMenu *SettingBox::createCaptionBarContextMenu() {
-    return nullptr;
+    QMenu *menu = new QMenu;
+    {
+        auto *action = menu->addAction("Close");
+        contextMenuActionToIcon.insert(action, Icon::CloseBox);
+        connect(action, &QAction::triggered, this, [this]() {
+            const auto r = QMessageBox::question(getView(), " ", "Close the setting?");
+            if (r == QMessageBox::Yes)
+                emit closeByUser();
+        });
+    }
+    return menu;
 }
 
 void SettingBox::adjustCaptionBarContextMenuBeforePopup(QMenu */*contextMenu*/) {
-    // do nothing
+    // set action icons
+    const auto theme = Services::instance()->getAppDataReadonly()->getIsDarkTheme()
+            ? Icons::Theme::Dark : Icons::Theme::Light;
+    for (auto it = contextMenuActionToIcon.constBegin();
+            it != contextMenuActionToIcon.constEnd(); ++it) {
+        it.key()->setIcon(Icons::getIcon(it.value(), theme));
+    }
 }
 
 void SettingBox::setUpContents(QGraphicsItem *contentsContainer) {

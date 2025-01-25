@@ -12,9 +12,15 @@ enum class SettingCategory {
     WorkspaceSchema // for workspace only
 };
 
+inline uint qHash(const SettingTargetType &targetType, uint seed) {
+    return qHash(static_cast<int>(targetType), seed);
+}
+
 inline uint qHash(const SettingCategory &category, uint seed) {
     return qHash(static_cast<int>(category), seed);
 }
+
+//
 
 using SettingTargetTypeAndCategory = std::pair<SettingTargetType, SettingCategory>;
 QVector<SettingTargetTypeAndCategory> getValidTargetTypeAndCategoryPairs();

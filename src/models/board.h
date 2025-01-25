@@ -8,6 +8,7 @@
 #include "models/data_view_box_data.h"
 #include "models/group_box_data.h"
 #include "models/node_rect_data.h"
+#include "models/setting_box_data.h"
 #include "relationship.h"
 
 struct BoardNodePropertiesUpdate;
@@ -24,6 +25,7 @@ struct Board {
     QHash<int, DataViewBoxData> customDataQueryIdToDataViewBoxData;
     QHash<int, GroupBoxData> groupBoxIdToData;
             // includes all group-boxes the board has (directly or indirectly)
+    QVector<SettingBoxData> settingBoxesData;
 
     //
     QJsonObject getNodePropertiesJson() const;
@@ -34,9 +36,16 @@ struct Board {
     // tools
     int findParentGroupBoxOfGroupBox(const int groupBoxId) const; // returns -1 if not found
     int findParentGroupBoxOfCard(const int cardId) const; // returns -1 if not found
-    bool isGroupBoxADescendantOfGroupBox(const int groupBoxId1, const int groupBoxId2);
+    bool isGroupBoxADescendantOfGroupBox(const int groupBoxId1, const int groupBoxId2) const;
             // + returns false if either group box is not found
             // + returns false if `groupBoxId1` = `groupBoxId2`
+
+    bool hasSettingBoxFor(const SettingTargetType targetType, const SettingCategory category) const;
+    void updateSettingBoxData(
+            const SettingTargetType targetType, const SettingCategory category,
+            const SettingBoxDataUpdate &update); // ignored if not found
+    void removeSettingBoxData(const SettingTargetType targetType, const SettingCategory category);
+            // ignored if not found
 };
 
 

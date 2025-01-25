@@ -209,6 +209,20 @@ public:
             const int cardId,
             std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
 
+    void createSettingBox(
+            const int boardId, const SettingBoxData &settingBoxData,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+    void updateSettingBoxProperties(
+            const int boardId, const SettingTargetType targetType,
+            const SettingCategory category, const SettingBoxDataUpdate &update,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
+    void removeSettingBox(
+            const int boardId, const SettingTargetType targetType,
+            const SettingCategory category,
+            std::function<void (bool ok)> callback, QPointer<QObject> callbackContext) override;
+
 private:
     std::shared_ptr<AbstractBoardsDataAccess> boardsDataAccess;
     std::shared_ptr<AbstractCardsDataAccess> cardsDataAccess;

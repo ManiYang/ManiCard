@@ -80,15 +80,12 @@ public:
     //
     bool eventFilter(QObject *watched, QEvent *event) override;
 
-signals:
-    void getWorkspaceCardLabelToColorMappingSetting(
-            CardLabelToColorMapping *cardLabelToColorMapping);
-
 private:
     static inline const QSizeF defaultNewNodeRectSize {200, 120};
     static inline const QSizeF defaultNewDataViewBoxSize {400, 400};
     static inline const QSizeF defaultNewSettingBoxSize {450, 600};
     static inline const QColor defaultNewDataViewBoxColor {170, 170, 170};
+    static inline const QColor defaultNewSettingBoxColor {170, 170, 170};
     constexpr static double defaultEdgeArrowLineWidth {2.0};
 
     constexpr static double zValueForNodeRects {10.0};
@@ -133,7 +130,8 @@ private:
     void onUserToDuplicateCard(const QPointF &scenePos);
     void onUserToCreateNewGroup(const QPointF &scenePos);
     void onUserToCreateNewCustomDataQuery(const QPointF &scenePos);
-    void onUserToOpenSettings(const QPointF &scenePos);
+    void onUserToCreateSettingBox(const QPointF &scenePos);
+    void onUserToCloseSettingBox(const SettingTargetType targetType, const SettingCategory category);
     void onUserToSetLabels(const int cardId);
     void onUserToCreateRelationship(const int cardId);
     void onUserToCloseNodeRect(const int cardId);
@@ -274,6 +272,8 @@ private:
 
         void closeDataViewBox(const int customDataQueryId);
 
+        void setAllDataViewBoxesTextEditorIgnoreWheelEvent(const bool ignoreWheelEvent);
+
         bool contains(const int customDataQueryId) const;
         QSet<int> getAllCustomDataQueryIds() const;
         QRectF getBoundingRectOfAllDataViewBoxes() const;
@@ -383,17 +383,18 @@ private:
 
         //!
         //! The setting box for (targetType, category) must not already exist.
-        //! The returned SettingBox is already added to canvas.
-        //! \return Returns nullptr if failed.
+        //! The resulting SettingBox is already added to canvas.
+        //! The result will be \c nullptr if failed.
         //!
-        SettingBox *createSettingBox(
+        void createSettingBox(
                 const SettingTargetType targetType, const SettingCategory category,
-                const QRectF &rect);
-
+                const QRectF &rect, const QColor &displayColor,
+                std::function<void (SettingBox *result)> callback);
         void closeSettingBox(const SettingTargetType targetType, const SettingCategory category);
+        void updateAllSettingBoxesColors();
+        void setAllSettingBoxesTextEditorIgnoreWheelEvent(const bool b);
 
         QVector<std::pair<SettingTargetType, SettingCategory>> getAllSettingBoxes() const;
-
         bool containsWorkspaceSettingCategory(const SettingCategory category) const;
         bool containsBoardSettingCategory(const SettingCategory category) const;
 
@@ -407,10 +408,12 @@ private:
         QHash<SettingCategory, SettingsBoxAndData> workspaceSettingCategoryToBox;
         QHash<SettingCategory, SettingsBoxAndData> boardSettingCategoryToBox;
 
-        std::shared_ptr<AbstractWorkspaceOrBoardSetting> createSettingDataForWorkspace(
-                const SettingCategory category);
-        std::shared_ptr<AbstractWorkspaceOrBoardSetting> createSettingDataForBoard(
-                const SettingCategory category);
+        void createSettingDataForWorkspace(
+                const SettingCategory category,
+                std::function<void (AbstractWorkspaceOrBoardSetting *result)> callback);
+                // `result` can be nullptr
+        AbstractWorkspaceOrBoardSetting *createSettingDataForBoard(const SettingCategory category);
+                // can return nullptr
     };
     SettingBoxesCollection settingBoxesCollection {this};
 
@@ -505,6 +508,8 @@ private:
             const bool invertLightness);
     static QColor computeDataViewBoxDisplayColor(
             const QColor &dataViewBoxOwnColor, const QColor &boardDefaultColorForDataViewBox);
+    static QColor computeSettingBoxDisplayColor(
+            const QColor &boardDefaultColorForSettingBox, const bool invertLightness);
 
     QSet<RelationshipId> getEdgeArrowsConnectingNodeRect(const int cardId);
 

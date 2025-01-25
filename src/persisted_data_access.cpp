@@ -1073,6 +1073,50 @@ void PersistedDataAccess::reparentGroupBox(const int groupBoxId, const int newPa
     debouncedDbAccess->reparentGroupBox(groupBoxId, newParentGroupBoxId);
 }
 
+void PersistedDataAccess::createSettingBox(const int boardId, const SettingBoxData &settingBoxData) {
+    // 1. update cache synchronously
+    if (cache.boards.contains(boardId)) {
+        Board &board = cache.boards[boardId];
+        if (board.hasSettingBoxFor(settingBoxData.targetType, settingBoxData.category)) {
+            qWarning().noquote()
+                    << QString("setting-box for (%1, %2) & Board %3 already exists in cache")
+                       .arg(settingBoxData.getTargetTypeId(), settingBoxData.getCategoryId())
+                       .arg(boardId);
+            return;
+        }
+
+        board.settingBoxesData << settingBoxData;
+    }
+
+    // 2. write DB
+    debouncedDbAccess->createSettingBox(boardId, settingBoxData);
+}
+
+void PersistedDataAccess::updateSettingBoxProperties(
+        const int boardId, const SettingTargetType targetType,
+        const SettingCategory category, const SettingBoxDataUpdate &update) {
+    // 1. update cache synchronously
+    if (cache.boards.contains(boardId)) {
+        Board &board = cache.boards[boardId];
+        board.updateSettingBoxData(targetType, category, update);
+    }
+
+    // 2. write DB
+    debouncedDbAccess->updateSettingBoxProperties(boardId, targetType, category, update);
+}
+
+void PersistedDataAccess::removeSettingBox(
+        const int boardId, const SettingTargetType targetType, const SettingCategory category) {
+    // 1. update cache synchronously
+    if (cache.boards.contains(boardId)) {
+        Board &board = cache.boards[boardId];
+        board.removeSettingBoxData(targetType, category);
+    }
+
+    // 2. write DB
+    debouncedDbAccess->removeSettingBox(boardId, targetType, category);
+}
+
 void PersistedDataAccess::saveMainWindowSizePos(const QRect &rect) {
     const bool ok = localSettingsFile->writeMainWindowSizePos(rect);
     if (!ok) {

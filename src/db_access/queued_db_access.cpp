@@ -824,6 +824,68 @@ void QueuedDbAccess::removeNodeRectFromGroupBox(
     addToQueue(func);
 }
 
+void QueuedDbAccess::createSettingBox(
+        const int boardId, const SettingBoxData &settingBoxData,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(boardId), decltype(settingBoxData) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->createSettingBox(args...); // method
+            },
+            boardId, settingBoxData, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
+void QueuedDbAccess::updateSettingBoxProperties(
+        const int boardId, const SettingTargetType targetType,
+        const SettingCategory category, const SettingBoxDataUpdate &update,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(boardId), decltype(targetType)
+                        , decltype(category), decltype(update) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->updateSettingBoxProperties(args...); // method
+            },
+            boardId, targetType, category, update, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
+void QueuedDbAccess::removeSettingBox(
+        const int boardId, const SettingTargetType targetType, const SettingCategory category,
+        std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    false // is readonly?
+                    , Void // result type (`Void` if no result argument)
+                    , decltype(boardId), decltype(targetType), decltype(category) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->removeSettingBox(args...); // method
+            },
+            boardId, targetType, category, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
 void QueuedDbAccess::addToQueue(std::function<void (const bool)> func) {
     const bool failDirectly = errorFlag;
     queue << Task {func, failDirectly};

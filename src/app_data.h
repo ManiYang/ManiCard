@@ -203,6 +203,17 @@ public:
     void reparentGroupBox(
             const EventSource &eventSrc, const int groupBoxId, const int newParentGroupBoxId);
 
+    void createSettingBox(
+            const EventSource &eventSrc, const int boardId, const SettingBoxData &settingBoxData);
+
+    void updateSettingBoxProperties(
+            const EventSource &eventSrc, const int boardId, const SettingTargetType targetType,
+            const SettingCategory category, const SettingBoxDataUpdate &update);
+
+    void removeSettingBox(
+            const EventSource &eventSrc, const int boardId,
+            const SettingTargetType targetType, const SettingCategory category);
+
     void updateMainWindowSizePos(const EventSource &eventSrc, const QRect &rect);
 
     void updateIsDarkTheme(const EventSource &eventSrc, const bool isDarkTheme);
