@@ -21,15 +21,15 @@ QString CardLabelToColorMapping::toJsonStr(const QJsonDocument::JsonFormat forma
 }
 
 QString CardLabelToColorMapping::schema() const {
-    return QString(R"%(
-    {
-      ("cardLabelsAndAssociatedColors"): [
-        ["<LabelName>", "<labelColor>"],
-        ...
-      ],
-      ("defaultNodeRectColor"): "<defaultColor>"
-    }
-    )%").trimmed();
+    return removeCommonIndentation(R"%(
+        {
+            ("cardLabelsAndAssociatedColors"): [
+                ["<LabelName>", "<labelColor>"],
+                ...
+            ],
+            ("defaultColor"): "<defaultColor>"
+        }
+    )%");
 }
 
 bool CardLabelToColorMapping::validate(const QString &s, QString *errorMsg) {

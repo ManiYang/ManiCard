@@ -13,6 +13,9 @@ CustomGraphicsTextItem::CustomGraphicsTextItem(QGraphicsItem *parent)
     graphicsTextItem->setPos(0, 0);
     height = graphicsTextItem->boundingRect().height();
 
+    graphicsTextItem->setTextInteractionFlags(Qt::NoTextInteraction);
+
+    //
     connect(graphicsTextItem->document(), &QTextDocument::contentsChanged, this, [this]() {
         if (!textChangeIsByUser)
             return;
@@ -45,9 +48,23 @@ void CustomGraphicsTextItem::setPlainText(const QString &text) {
 }
 
 void CustomGraphicsTextItem::setEditable(const bool editable) {
-    graphicsTextItem->setTextInteractionFlags(
-            editable ? Qt::TextEditorInteraction : Qt::NoTextInteraction);
-    graphicsTextItem->setCursor(editable ? Qt::IBeamCursor : Qt::ArrowCursor);
+    auto flags = graphicsTextItem->textInteractionFlags();
+    flags.setFlag(Qt::TextEditable, editable);
+    graphicsTextItem->setTextInteractionFlags(flags);
+
+    const bool iBeamCursor
+            = flags.testFlag(Qt::TextEditable) || flags.testFlag(Qt::TextSelectableByMouse);
+    graphicsTextItem->setCursor(iBeamCursor ? Qt::IBeamCursor : Qt::ArrowCursor);
+}
+
+void CustomGraphicsTextItem::setTextSelectable(const bool selectable) {
+    auto flags = graphicsTextItem->textInteractionFlags();
+    flags.setFlag(Qt::TextSelectableByMouse, selectable);
+    graphicsTextItem->setTextInteractionFlags(flags);
+
+    const bool iBeamCursor
+            = flags.testFlag(Qt::TextEditable) || flags.testFlag(Qt::TextSelectableByMouse);
+    graphicsTextItem->setCursor(iBeamCursor ? Qt::IBeamCursor : Qt::ArrowCursor);
 }
 
 void CustomGraphicsTextItem::setTextWidth(const double width) {

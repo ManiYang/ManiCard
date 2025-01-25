@@ -17,6 +17,7 @@ public:
 
     void setPlainText(const QString &text);
     void setEditable(const bool editable);
+    void setTextSelectable(const bool selectable);
     void setTextWidth(const double width);
     void setFont(const QFont &font);
     void setDefaultTextColor(const QColor &color);

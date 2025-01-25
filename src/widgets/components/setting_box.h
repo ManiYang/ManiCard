@@ -17,6 +17,7 @@ public:
 
     void setTitle(const QString &title);
     void setDescription(const QString &description);
+    void setSchema(const QString &schema);
     void setSettingJson(const QString &jsonStr);
 
     void setTextEditorIgnoreWheelEvent(const bool b);
@@ -32,11 +33,19 @@ private:
     bool textEditIgnoreWheelEvent {false};
 
     // content items
+    // -- title & description
     CustomGraphicsTextItem *titleItem {nullptr};
     CustomGraphicsTextItem *descriptionItem {nullptr};
-
-    CustomTextEdit *textEdit;
-    QGraphicsProxyWidget *textEditProxyWidget;
+    // -- schema
+    QGraphicsSimpleTextItem *labelSchema {nullptr};
+    CustomGraphicsTextItem *schemaItem {nullptr};
+    // -- setting
+    QGraphicsSimpleTextItem *labelSetting {nullptr};
+    CustomTextEdit *textEdit {nullptr};
+            // (Use QTextEdit rather than QGraphicsTextItem. The latter does not have scrolling
+            // functionality.)
+    QGraphicsProxyWidget *textEditProxyWidget {nullptr};
+    CustomGraphicsTextItem *settingErrorMsgItem {nullptr};
 
     //
     QHash<QAction *, Icon> contextMenuActionToIcon;

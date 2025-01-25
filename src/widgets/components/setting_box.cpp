@@ -33,6 +33,12 @@ void SettingBox::setDescription(const QString &description) {
     adjustContents();
 }
 
+void SettingBox::setSchema(const QString &schema)
+{
+    schemaItem->setPlainText(schema);
+    adjustContents();
+}
+
 void SettingBox::setSettingJson(const QString &jsonStr) {
     textEdit->setPlainText(jsonStr);
     textEdit->setTextCursorPosition(0);
@@ -84,15 +90,21 @@ void SettingBox::adjustCaptionBarContextMenuBeforePopup(QMenu */*contextMenu*/) 
 void SettingBox::setUpContents(QGraphicsItem *contentsContainer) {
     titleItem = new CustomGraphicsTextItem(contentsContainer);
     descriptionItem = new CustomGraphicsTextItem(contentsContainer);
+    labelSchema = new QGraphicsSimpleTextItem(contentsContainer);
+    schemaItem = new CustomGraphicsTextItem(contentsContainer);
+    labelSetting = new QGraphicsSimpleTextItem(contentsContainer);
 
     textEdit = new CustomTextEdit(nullptr);
     textEditProxyWidget = new QGraphicsProxyWidget(contentsContainer);
     textEdit->setVisible(false);
     textEditProxyWidget->setWidget(textEdit);
 
+    settingErrorMsgItem = new CustomGraphicsTextItem(contentsContainer);
+
     //
     titleItem->setEditable(false);
     descriptionItem->setEditable(false);
+    schemaItem->setTextSelectable(true);
     textEdit->setReadOnly(false);
 
     // get view's font
@@ -104,7 +116,7 @@ void SettingBox::setUpContents(QGraphicsItem *contentsContainer) {
     const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
     const QColor titleTextColor = getTitleItemDefaultTextColor(isDarkTheme);
 
-    // categoryNameItem
+    // titleItem
     {
         QFont font = fontOfView;
         font.setPixelSize(18);
@@ -121,6 +133,34 @@ void SettingBox::setUpContents(QGraphicsItem *contentsContainer) {
 
         descriptionItem->setFont(font);
         descriptionItem->setDefaultTextColor(titleTextColor);
+    }
+
+    // labels
+    {
+        QFont font = fontOfView;
+        font.setPixelSize(13);
+        font.setBold(true);
+
+        const QColor textColor(127, 127, 127);
+
+
+        labelSchema->setText("Schema:");
+        labelSchema->setFont(font);
+        labelSchema->setBrush(textColor);
+
+        labelSetting->setText("Setting:");
+        labelSetting->setFont(font);
+        labelSetting->setBrush(textColor);
+    }
+
+    // schemaItem
+    {
+        QFont font = fontOfView;
+        font.setPixelSize(13);
+        font.setFamily(qApp->property("monospaceFontFamily").toString());
+
+        schemaItem->setFont(font);
+        schemaItem->setDefaultTextColor(titleTextColor);
     }
 
     // textEdit
@@ -140,6 +180,17 @@ void SettingBox::setUpContents(QGraphicsItem *contentsContainer) {
             "  width: 12px;"
             "}"
     );
+
+    // settingErrorMsgItem
+    {
+        QFont font = fontOfView;
+        font.setPixelSize(13);
+
+        const QColor textColor(Qt::red);
+
+        settingErrorMsgItem->setFont(font);
+        settingErrorMsgItem->setDefaultTextColor(textColor);
+    }
 
     //
     constexpr bool bold = true;
@@ -164,8 +215,10 @@ void SettingBox::setUpContents(QGraphicsItem *contentsContainer) {
     //
     connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
             this, [this](const bool isDarkTheme) {
-        titleItem->setDefaultTextColor(getTitleItemDefaultTextColor(isDarkTheme));
-        descriptionItem->setDefaultTextColor(getTitleItemDefaultTextColor(isDarkTheme));
+        const auto color = getTitleItemDefaultTextColor(isDarkTheme);
+        titleItem->setDefaultTextColor(color);
+        descriptionItem->setDefaultTextColor(color);
+        schemaItem->setDefaultTextColor(color);
     });
 }
 
@@ -175,16 +228,18 @@ void SettingBox::adjustContents() {
     // categoryNameItem
     double yBottom = contentsRect.top();
     {
-        constexpr double padding = 3;
+        constexpr double topPadding = 3;
+        constexpr double bottomPadding = 1;
+        constexpr double xPadding = 3;
         const double minHeight = QFontMetrics(titleItem->font()).height();
 
         //
         titleItem->setTextWidth(
-                std::max(contentsRect.width() - padding * 2, 0.0));
-        titleItem->setPos(contentsRect.topLeft() + QPointF(padding, padding));
+                std::max(contentsRect.width() - xPadding * 2, 0.0));
+        titleItem->setPos(contentsRect.topLeft() + QPointF(xPadding, topPadding));
 
         yBottom += std::max(titleItem->boundingRect().height(), minHeight)
-                   + padding * 2;
+                   + topPadding + bottomPadding;
     }
 
     // descriptionItem
@@ -204,11 +259,61 @@ void SettingBox::adjustContents() {
         yBottom += descriptionItem->boundingRect().height() + padding;
     }
 
-    // text (settings JSON)
+    // labelSchema
+    {
+        constexpr int xPadding = 3;
+        labelSchema->setPos(contentsRect.left() + xPadding, yBottom);
+
+        yBottom += labelSchema->boundingRect().height();
+    }
+
+    // schemaItem
+    {
+        constexpr int padding = 3;
+        const double minHeight = QFontMetrics(schemaItem->font()).height();
+
+        schemaItem->setTextWidth(
+                std::max(contentsRect.width() - padding * 2, 0.0));
+        schemaItem->setPos(contentsRect.left() + padding, yBottom + padding);
+
+        yBottom += std::max(schemaItem->boundingRect().height(), minHeight)
+                   + padding * 2;
+    }
+
+    // labelSetting
+    {
+        constexpr int padding = 3;
+        labelSetting->setPos(contentsRect.left() + padding, yBottom);
+
+        yBottom += labelSetting->boundingRect().height() + padding;
+    }
+
+    // settingErrorMsgItem (bottom-most)
+    double yTop = contentsRect.bottom();
+    if (settingErrorMsgItem->toPlainText().trimmed().isEmpty()) {
+        settingErrorMsgItem->setVisible(false);
+    }
+    else {
+        settingErrorMsgItem->setVisible(true);
+
+        //
+        constexpr int padding = 3;
+
+        settingErrorMsgItem->setTextWidth(
+                    std::max(contentsRect.width() - padding * 2, 0.0));
+        const int itemHeight = settingErrorMsgItem->boundingRect().height();
+        settingErrorMsgItem->setPos(
+                contentsRect.left() + padding,
+                std::max(contentsRect.bottom() - itemHeight, yBottom));
+
+        yTop = settingErrorMsgItem->pos().y();
+    }
+
+    // text (setting)
     {
         constexpr double leftPadding = 3;
 
-        const double textEditHeight = contentsRect.bottom() - yBottom;
+        const double textEditHeight = yTop - yBottom;
         if (textEditHeight < 0.1) {
             textEditProxyWidget->setVisible(false);
         }
