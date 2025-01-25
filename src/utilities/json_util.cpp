@@ -73,7 +73,7 @@ QJsonObject parseAsJsonObject(const QString &json, QString *errorMsg) {
     const auto doc = QJsonDocument::fromJson(json.toUtf8(), &err);
     if (err.error != QJsonParseError::NoError) {
         if (errorMsg)
-            *errorMsg = err.errorString();
+            *errorMsg = QString("not valid JSON -- %1").arg(err.errorString());
         return {};
     }
     if (!doc.isObject()) {
@@ -92,7 +92,7 @@ QJsonArray parseAsJsonArray(const QString &json, QString *errorMsg) {
     const auto doc = QJsonDocument::fromJson(json.toUtf8(), &err);
     if (err.error != QJsonParseError::NoError) {
         if (errorMsg)
-            *errorMsg = err.errorString();
+            *errorMsg = QString("not valid JSON -- %1").arg(err.errorString());
         return {};
     }
     if (!doc.isArray()) {

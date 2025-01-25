@@ -14,8 +14,15 @@ struct CardLabelToColorMapping : public AbstractWorkspaceOrBoardSetting
     QColor defaultNodeRectColor {defaultNodeRectColorFallback};
 
     //
-    QJsonObject toJson() const override;
-    void setFromJson(const QJsonObject &obj) override;
+    QString toJsonStr(const QJsonDocument::JsonFormat format) const override;
+    QString schema() const override;
+    bool validate(const QString &s, QString *errorMsg = nullptr) override;
+
+    //!
+    //! \return \c nullopt if failed
+    //!
+    static std::optional<CardLabelToColorMapping> fromJsonStr(
+            const QString &jsonStr, QString *errorMsg = nullptr);
 
     CardLabelToColorMapping &operator = (const CardLabelToColorMapping &other);
 

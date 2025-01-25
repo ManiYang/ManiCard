@@ -3107,8 +3107,14 @@ void BoardView::SettingBoxesCollection::createSettingBox(
         const QString title
                 = QString("%1 Setting: %2")
                   .arg(getDisplayNameOfTargetType(targetType), getDisplayNameOfCategory(category));
-        const QString description = getDescriptionForTargetTypeAndCategory(targetType, category);
-        const QJsonObject settingJson = routine->settingData->toJson();
+
+        QString description = getDescriptionForTargetTypeAndCategory(targetType, category);
+        if (!description.isEmpty())
+            description += "\n\n";
+        description += "Schema:\n";
+        description += routine->settingData->schema();
+
+        const QString settingJson = routine->settingData->toJsonStr(QJsonDocument::Indented);
 
         SettingBox *settingBox = new SettingBox(boardView->canvas);
         routine->settingBox = settingBox;

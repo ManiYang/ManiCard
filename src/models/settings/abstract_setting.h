@@ -1,7 +1,8 @@
 #ifndef ABSTRACT_SETTING_H
 #define ABSTRACT_SETTING_H
 
-#include <QJsonObject>
+#include <QJsonDocument>
+#include <QString>
 #include "models/settings/settings.h"
 
 struct AbstractWorkspaceOrBoardSetting
@@ -12,8 +13,9 @@ struct AbstractWorkspaceOrBoardSetting
 
     const SettingCategory category;
 
-    virtual QJsonObject toJson() const = 0;
-    virtual void setFromJson(const QJsonObject &obj) = 0;
+    virtual QString toJsonStr(const QJsonDocument::JsonFormat format) const = 0;
+    virtual QString schema() const = 0;
+    virtual bool validate(const QString &s, QString *errorMsg = nullptr) = 0;
 };
 
 #endif // ABSTRACT_SETTING_H

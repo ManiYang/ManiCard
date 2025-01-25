@@ -1,3 +1,4 @@
+#include <QDebug>
 #include "utilities/json_util.h"
 #include "workspace.h"
 
@@ -6,7 +7,7 @@ QJsonObject Workspace::getNodePropertiesJson() const {
         {"name", name},
         {"boardsOrdering", toJsonArray(boardsOrdering)},
         {"lastOpenedBoardId", lastOpenedBoardId},
-        {"cardLabelToColorMapping", printJson(cardLabelToColorMapping.toJson())}
+        {"cardLabelToColorMapping", cardLabelToColorMapping.toJsonStr(QJsonDocument::Compact)}
     };
 }
 
@@ -17,8 +18,20 @@ void Workspace::updateNodeProperties(const QJsonObject &obj) {
         boardsOrdering = toIntVector(v.toArray(), -1);
     if (const QJsonValue v = obj.value("lastOpenedBoardId"); !v.isUndefined())
         lastOpenedBoardId = v.toInt();
-    if (const QJsonValue v = obj.value("cardLabelToColorMapping"); v.isString())
-        cardLabelToColorMapping.setFromJson(parseAsJsonObject(v.toString()));
+    if (const QJsonValue v = obj.value("cardLabelToColorMapping"); v.isString()) {
+        QString errorMsg;
+        const auto mappingOpt = CardLabelToColorMapping::fromJsonStr(v.toString(), &errorMsg);
+        if (mappingOpt.has_value()) {
+            cardLabelToColorMapping = mappingOpt.value();
+        }
+        else {
+            qWarning().noquote()
+                    << QString("could not parse the string as a CardLabelToColorMapping");
+            qWarning().noquote() << QString("  | string -- %1").arg(v.toString());
+            qWarning().noquote() << QString("  | error msg -- %1").arg(errorMsg);
+            cardLabelToColorMapping = CardLabelToColorMapping();
+        }
+    }
 }
 
 void Workspace::updateNodeProperties(const WorkspaceNodePropertiesUpdate &update) {
@@ -49,7 +62,7 @@ QJsonObject WorkspaceNodePropertiesUpdate::toJson() const {
     if (cardLabelToColorMapping.has_value()) {
         obj.insert(
                 "cardLabelToColorMapping",
-                printJson(cardLabelToColorMapping.value().toJson()));
+                cardLabelToColorMapping.value().toJsonStr(QJsonDocument::Compact));
     }
 
     return obj;

@@ -33,9 +33,8 @@ void SettingBox::setDescription(const QString &description) {
     adjustContents();
 }
 
-void SettingBox::setSettingJson(const QJsonObject &json) {
-    constexpr bool compact = false;
-    textEdit->setPlainText(printJson(json, compact));
+void SettingBox::setSettingJson(const QString &jsonStr) {
+    textEdit->setPlainText(jsonStr);
     textEdit->setTextCursorPosition(0);
     adjustContents();
 }

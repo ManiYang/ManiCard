@@ -33,6 +33,7 @@ SOURCES += \
     models/setting_box_data.cpp \
     models/settings/abstract_setting.cpp \
     models/settings/card_label_color_mapping.cpp \
+    models/settings/card_properties_to_show.cpp \
     models/settings/settings.cpp \
     models/workspace.cpp \
     models/workspaces_list_properties.cpp \
@@ -112,6 +113,7 @@ HEADERS += \
     models/setting_box_data.h \
     models/settings/abstract_setting.h \
     models/settings/card_label_color_mapping.h \
+    models/settings/card_properties_to_show.h \
     models/settings/settings.h \
     models/workspace.h \
     models/workspaces_list_properties.h \

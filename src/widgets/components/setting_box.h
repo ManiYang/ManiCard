@@ -17,7 +17,7 @@ public:
 
     void setTitle(const QString &title);
     void setDescription(const QString &description);
-    void setSettingJson(const QJsonObject &json);
+    void setSettingJson(const QString &jsonStr);
 
     void setTextEditorIgnoreWheelEvent(const bool b);
 
