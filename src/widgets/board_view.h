@@ -17,6 +17,7 @@
 #include "widgets/common_types.h"
 #include "widgets/icons.h"
 
+class ActionDebouncer;
 class BoardBoxItem;
 class Card;
 struct CardLabelToColorMapping;
@@ -63,6 +64,8 @@ public:
             const QVector<LabelAndColor> &cardLabelsAndAssociatedColors,
             const QColor &defaultNodeRectColor);
 
+    void updateSettingBoxOnWorkspaceSetting(const int workspaceId, const SettingCategory category);
+
     //
     int getBoardId() const; // can be -1
     QPointF getViewTopLeftPos() const; // in canvas coordinates
@@ -79,6 +82,11 @@ public:
 
     //
     bool eventFilter(QObject *watched, QEvent *event) override;
+
+signals:
+    void workspaceCardLabelToColorMappingUpdatedViaSettingBox(
+            const int workspaceId, const CardLabelToColorMapping &cardLabelToColorMapping);
+    void hasWorkspaceSettingsPendingUpdateChanged(bool hasWorkspaceSettingsPendingUpdate);
 
 private:
     static inline const QSizeF defaultNewNodeRectSize {200, 120};
@@ -119,6 +127,8 @@ private:
     };
     ContextMenu contextMenu {this};
 
+    ActionDebouncer *handleSettingsEditedDebouncer {nullptr};
+
     // setup
     void setUpWidgets();
     void setUpConnections();
@@ -131,7 +141,7 @@ private:
     void onUserToCreateNewGroup(const QPointF &scenePos);
     void onUserToCreateNewCustomDataQuery(const QPointF &scenePos);
     void onUserToCreateSettingBox(const QPointF &scenePos);
-    void onUserToCloseSettingBox(const SettingTargetType targetType, const SettingCategory category);
+    void onUserToCloseSettingBox(const SettingTargetTypeAndCategory &targetTypeAndCategory);
     void onUserToSetLabels(const int cardId);
     void onUserToCreateRelationship(const int cardId);
     void onUserToCloseNodeRect(const int cardId);
@@ -145,6 +155,8 @@ private:
             // - `newParentGroupBox` = -1: remove it from tree
     void reparentGroupBoxInGroupBoxTree(const int groupBoxId, const int newParentGroupBox);
             //  - `newParentGroupBox` = -1: reparent it to the Board
+
+    void handleSettingsEdited();
 
     //
 
@@ -387,33 +399,42 @@ private:
         //! The result will be \c nullptr if failed.
         //!
         void createSettingBox(
-                const SettingTargetType targetType, const SettingCategory category,
+                const SettingTargetTypeAndCategory targetTypeAndCategory,
                 const QRectF &rect, const QColor &displayColor,
                 std::function<void (SettingBox *result)> callback);
-        void closeSettingBox(const SettingTargetType targetType, const SettingCategory category);
+        void closeSettingBox(const SettingTargetTypeAndCategory targetTypeAndCategory);
+        void updateSettingBoxIfExists(
+                const SettingTargetTypeAndCategory targetTypeAndCategory,
+                const int targetId);
         void updateAllSettingBoxesColors();
         void setAllSettingBoxesTextEditorIgnoreWheelEvent(const bool b);
+        void handleEditedSettings(); // consumes `editedSettings`
 
-        QVector<std::pair<SettingTargetType, SettingCategory>> getAllSettingBoxes() const;
-        bool containsWorkspaceSettingCategory(const SettingCategory category) const;
-        bool containsBoardSettingCategory(const SettingCategory category) const;
+        QSet<SettingTargetTypeAndCategory> getAllSettingBoxes() const;
+        bool containsSetting(const SettingTargetTypeAndCategory targetTypeAndCategory) const;
 
     private:
         BoardView *const boardView;
+        using AbstractSetting = AbstractWorkspaceOrBoardSetting;
         struct SettingsBoxAndData
         {
             SettingBox *box;
-            std::shared_ptr<AbstractWorkspaceOrBoardSetting> data;
+            std::shared_ptr<AbstractSetting> data;
+            int targetId;
         };
-        QHash<SettingCategory, SettingsBoxAndData> workspaceSettingCategoryToBox;
-        QHash<SettingCategory, SettingsBoxAndData> boardSettingCategoryToBox;
+        QHash<SettingTargetTypeAndCategory, SettingsBoxAndData> settingBoxes;
+        QSet<SettingTargetTypeAndCategory> editedSettings;
 
         void createSettingDataForWorkspace(
-                const SettingCategory category,
-                std::function<void (AbstractWorkspaceOrBoardSetting *result)> callback);
-                // `result` can be nullptr
-        AbstractWorkspaceOrBoardSetting *createSettingDataForBoard(const SettingCategory category);
-                // can return nullptr
+                const int workspaceId, const SettingCategory category,
+                std::function<void (AbstractSetting *setting)> callback); // `setting` be nullptr
+        AbstractSetting *createSettingDataForBoard(
+                const SettingCategory category); // can return nullptr
+
+        void applyWorkspaceSetting(
+                const int workspaceId, std::shared_ptr<AbstractSetting> settingData);
+        void applyBoardSetting(
+                const int boardId, std::shared_ptr<AbstractSetting> settingData);
     };
     SettingBoxesCollection settingBoxesCollection {this};
 
@@ -490,6 +511,9 @@ private:
     void savePositionsOfComovingItems(const ComovingStateData &comovingStateData);
 
     // tools
+    void getWorkspaceId(std::function<void (const int workspaceId)> callback);
+            // `workspaceId` can be -1
+
     static QColor getSceneBackgroundColor(const bool isDarkTheme);
     QColor getEdgeArrowLineColor() const; // calls AppDataReadonly
     QColor getEdgeArrowLabelColor() const; // calls AppDataReadonly

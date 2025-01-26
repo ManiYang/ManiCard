@@ -12,6 +12,7 @@
 #include "models/settings/card_label_color_mapping.h"
 #include "persisted_data_access.h"
 #include "services.h"
+#include "utilities/action_debouncer.h"
 #include "utilities/async_routine.h"
 #include "utilities/binary_search.h"
 #include "utilities/colors_util.h"
@@ -37,6 +38,11 @@ using ContinuationContext = AsyncRoutineWithErrorFlag::ContinuationContext;
 
 BoardView::BoardView(QWidget *parent)
         : QFrame(parent) {
+    handleSettingsEditedDebouncer = new ActionDebouncer(
+            1000, ActionDebouncer::Option::Delay,
+            [this]() { settingBoxesCollection.handleEditedSettings(); }, this);
+
+    //
     setUpWidgets();
     setUpConnections();
     installEventFiltersOnComponents();
@@ -317,7 +323,7 @@ void BoardView::loadBoard(
         for (const SettingBoxData &settingBoxData: settingBoxesData) {
             innerRoutine->addStep([this, innerRoutine, settingBoxData, settingBoxDisplayColor]() {
                 settingBoxesCollection.createSettingBox(
-                        settingBoxData.targetType, settingBoxData.category,
+                        {settingBoxData.targetType, settingBoxData.category},
                         settingBoxData.rect, settingBoxDisplayColor,
                         // callback
                         [innerRoutine](SettingBox */*settingBox*/) {
@@ -363,7 +369,7 @@ void BoardView::loadBoard(
 }
 
 void BoardView::prepareToClose() {
-    // do nothing
+    handleSettingsEditedDebouncer->actNow();
 }
 
 void BoardView::applyZoomAction(const ZoomAction zoomAction) {
@@ -386,6 +392,12 @@ void BoardView::setColorsAssociatedWithLabels(
     this->defaultNodeRectColor = defaultNodeRectColor;
 
     nodeRectsCollection.updateAllNodeRectColors();
+}
+
+void BoardView::updateSettingBoxOnWorkspaceSetting(
+        const int workspaceId, const SettingCategory category) {
+    settingBoxesCollection.updateSettingBoxIfExists(
+            {SettingTargetType::Workspace, category}, workspaceId);
 }
 
 int BoardView::getBoardId() const {
@@ -1089,8 +1101,7 @@ void BoardView::onUserToCreateNewCustomDataQuery(const QPointF &scenePos) {
 
 void BoardView::onUserToCreateSettingBox(const QPointF &scenePos) {
     // let user select settings target and category
-    SettingTargetType selectedTargetType;
-    SettingCategory selectedCategory;
+    SettingTargetTypeAndCategory selectedTargetTypeAndCategory;
     {
         const auto [targetTypeAndCategoryPairs, optionNames]
                 = getTargetTypeAndCategoryDisplayNames();
@@ -1109,25 +1120,11 @@ void BoardView::onUserToCreateSettingBox(const QPointF &scenePos) {
 
         const int index = optionNames.indexOf(selectedOptionName);
         Q_ASSERT(index != -1);
-        std::tie(selectedTargetType, selectedCategory) = targetTypeAndCategoryPairs.at(index);
+        selectedTargetTypeAndCategory = targetTypeAndCategoryPairs.at(index);
     }
 
     // check whether the selected one is already opened
-    std::optional<bool> alreadyOpened;
-    switch (selectedTargetType) {
-    case SettingTargetType::Workspace:
-        alreadyOpened = settingBoxesCollection.containsWorkspaceSettingCategory(selectedCategory);
-        break;
-    case SettingTargetType::Board:
-        alreadyOpened = settingBoxesCollection.containsBoardSettingCategory(selectedCategory);
-        break;
-    }
-    if (!alreadyOpened.has_value()) {
-        Q_ASSERT(false); // case not implemented
-        return;
-    }
-
-    if (alreadyOpened.value()) {
+    if (settingBoxesCollection.containsSetting(selectedTargetTypeAndCategory)) {
         QMessageBox::information(this, "Info", "The selected settings category is already opened.");
         return;
     }
@@ -1141,7 +1138,7 @@ void BoardView::onUserToCreateSettingBox(const QPointF &scenePos) {
     };
     auto *routine = new AsyncRoutineWithVars;
 
-    routine->addStep([this, routine, scenePos, selectedTargetType, selectedCategory]() {
+    routine->addStep([this, routine, scenePos, selectedTargetTypeAndCategory]() {
         // create SettingsBox
         QRectF rect(
                 quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
@@ -1159,7 +1156,7 @@ void BoardView::onUserToCreateSettingBox(const QPointF &scenePos) {
         }
 
         settingBoxesCollection.createSettingBox(
-                selectedTargetType, selectedCategory, rect, displayColor,
+                selectedTargetTypeAndCategory, rect, displayColor,
                 // callback
                 [routine](SettingBox *settingBox) {
                     if (settingBox != nullptr)
@@ -1169,13 +1166,13 @@ void BoardView::onUserToCreateSettingBox(const QPointF &scenePos) {
         );
     }, this);
 
-    routine->addStep([this, routine, selectedTargetType, selectedCategory]() {
+    routine->addStep([this, routine, selectedTargetTypeAndCategory]() {
         // call AppData
         if (routine->settingBoxCreated) {
             SettingBoxData settingBoxData;
             {
-                settingBoxData.targetType = selectedTargetType;
-                settingBoxData.category = selectedCategory;
+                settingBoxData.targetType = selectedTargetTypeAndCategory.first;
+                settingBoxData.category = selectedTargetTypeAndCategory.second;
                 settingBoxData.rect = routine->rect;
             }
             Services::instance()->getAppData()->createSettingBox(
@@ -1187,13 +1184,12 @@ void BoardView::onUserToCreateSettingBox(const QPointF &scenePos) {
     routine->start();
 }
 
-void BoardView::onUserToCloseSettingBox(
-        const SettingTargetType targetType, const SettingCategory category) {
-    settingBoxesCollection.closeSettingBox(targetType, category);
+void BoardView::onUserToCloseSettingBox(const SettingTargetTypeAndCategory &targetTypeAndCategory) {
+    settingBoxesCollection.closeSettingBox(targetTypeAndCategory);
 
     //
     Services::instance()->getAppData()->removeSettingBox(
-            EventSource(this), boardId, targetType, category);
+            EventSource(this), boardId, targetTypeAndCategory.first, targetTypeAndCategory.second);
 }
 
 void BoardView::onUserToSetLabels(const int cardId) {
@@ -1595,10 +1591,9 @@ void BoardView::closeAll(bool *highlightedCardIdChanged_) {
         groupBoxesCollection.removeGroupBox(id);
 
     //
-    const QVector<std::pair<SettingTargetType, SettingCategory>> settings
-            = settingBoxesCollection.getAllSettingBoxes();
-    for (const auto &[targetType, category]: settings)
-        settingBoxesCollection.closeSettingBox(targetType, category);
+    const auto settings = settingBoxesCollection.getAllSettingBoxes();
+    for (const auto &setting: settings)
+        settingBoxesCollection.closeSettingBox(setting);
 
     //
     groupBoxTree.clear();
@@ -1766,6 +1761,30 @@ void BoardView::savePositionsOfComovingItems(const ComovingStateData &comovingSt
         Services::instance()->getAppData()->updateNodeRectProperties(
                 EventSource(this), this->boardId, cardId, update);
     }
+}
+
+void BoardView::getWorkspaceId(std::function<void (const int workspaceId)> callback) {
+    Services::instance()->getAppDataReadonly()->getWorkspaces(
+            // callback
+            [this, callback](bool ok, const QHash<int, Workspace> &workspaces) {
+                if (!ok) {
+                    callback(-1);
+                    return;
+                }
+
+                // find workspace containing this->boardId
+                int workspaceId = -1;
+                for (auto it = workspaces.constBegin(); it != workspaces.constEnd(); ++it) {
+                    if (it.value().boardIds.contains(boardId)) {
+                        workspaceId = it.key();
+                        break;
+                    }
+                }
+
+                callback(workspaceId);
+            },
+            this
+    );
 }
 
 QColor BoardView::getSceneBackgroundColor(const bool isDarkTheme) {
@@ -3038,76 +3057,91 @@ BoardView::SettingBoxesCollection::SettingBoxesCollection(BoardView *boardView)
 }
 
 void BoardView::SettingBoxesCollection::createSettingBox(
-        const SettingTargetType targetType, const SettingCategory category,
+        const SettingTargetTypeAndCategory targetTypeAndCategory,
         const QRectF &rect, const QColor &displayColor,
         std::function<void (SettingBox *)> callback) {
     Q_ASSERT(callback);
-
-    // check whether already exists
-    std::optional<bool> alreadyExists;
-    switch (targetType) {
-    case SettingTargetType::Workspace:
-        alreadyExists = workspaceSettingCategoryToBox.contains(category);
-        break;
-    case SettingTargetType::Board:
-        alreadyExists = boardSettingCategoryToBox.contains(category);
-        break;
-    }
-    if (!alreadyExists.has_value()) {
-        Q_ASSERT(false); // case not implemented
-        callback(nullptr);
-        return;
-    }
+    Q_ASSERT(!settingBoxes.contains(targetTypeAndCategory));
 
     //
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
     public:
+        int targetId {-1};
         std::shared_ptr<AbstractWorkspaceOrBoardSetting> settingData;
         SettingBox *settingBox {nullptr};
     };
     auto *routine = new AsyncRoutineWithVars;
 
-    routine->addStep([this, routine, targetType, category]() {
+    routine->addStep([this, routine, targetTypeAndCategory]() {
+        if (targetTypeAndCategory.first == SettingTargetType::Workspace) {
+            // set routine->targetId as the workspace ID containing current boardId
+            boardView->getWorkspaceId([routine](const int workspaceId) {
+                ContinuationContext context(routine);
+                if (workspaceId == -1) {
+                    context.setErrorFlag();
+                    return;
+                }
+                routine->targetId = workspaceId;
+            });
+        }
+        else {
+            // set routine->targetId as the current boardId
+            ContinuationContext context(routine);
+            routine->targetId = boardView->boardId;
+        }
+    }, boardView);
+
+    routine->addStep([this, routine, targetTypeAndCategory]() {
         // get settings data
-        switch (targetType) {
+        switch (targetTypeAndCategory.first) {
         case SettingTargetType::Workspace:
         {
             createSettingDataForWorkspace(
-                    category,
+                    routine->targetId,
+                    targetTypeAndCategory.second,
                     // callback:
                     [routine](AbstractWorkspaceOrBoardSetting *settingData) {
                         ContinuationContext context(routine);
-                        if (settingData != nullptr) {
-                            routine->settingData
-                                    = std::shared_ptr<AbstractWorkspaceOrBoardSetting>(settingData);
+
+                        if (settingData == nullptr) {
+                            context.setErrorFlag();
+                            return;
                         }
+                        routine->settingData
+                                = std::shared_ptr<AbstractWorkspaceOrBoardSetting>(settingData);
                     }
             );
-            return;
+            break;
         }
         case SettingTargetType::Board:
         {
             ContinuationContext context(routine);
-            auto *settingData = createSettingDataForBoard(category);
-            routine->settingData = std::shared_ptr<AbstractWorkspaceOrBoardSetting>(settingData);;
-            return;
+
+            AbstractWorkspaceOrBoardSetting *settingData
+                    = createSettingDataForBoard(targetTypeAndCategory.second);
+            if (settingData == nullptr) {
+                context.setErrorFlag();
+            }
+            else {
+                routine->settingData
+                        = std::shared_ptr<AbstractWorkspaceOrBoardSetting>(settingData);
+            }
+            break;
         }
         }
     }, boardView);
 
-    routine->addStep([this, routine, targetType, category, rect, displayColor]() {
+    routine->addStep([this, routine, targetTypeAndCategory, rect, displayColor]() {
         // create SettingBox
+        Q_ASSERT(routine->settingData != nullptr && routine->targetId != -1);
         ContinuationContext context(routine);
 
-        if (routine->settingData == nullptr)
-            return;
-
-        //
         const QString title
                 = QString("%1 Setting: %2")
-                  .arg(getDisplayNameOfTargetType(targetType), getDisplayNameOfCategory(category));
-        const QString description = getDescriptionForTargetTypeAndCategory(targetType, category);
+                  .arg(getDisplayNameOfTargetType(targetTypeAndCategory.first),
+                       getDisplayNameOfCategory(targetTypeAndCategory.second));
+        const QString description = getDescriptionForTargetTypeAndCategory(targetTypeAndCategory);
         const QString schema = routine->settingData->schema();
         const QString settingJson = routine->settingData->toJsonStr(QJsonDocument::Indented);
 
@@ -3124,34 +3158,33 @@ void BoardView::SettingBoxesCollection::createSettingBox(
         settingBox->setRect(rect);
         settingBox->setColor(displayColor);
 
-        // add to `workspaceSettingCategoryToBox` or `boardSettingCategoryToBox`
-        SettingsBoxAndData boxAndData {settingBox, routine->settingData};
-
-        switch (targetType) {
-        case SettingTargetType::Workspace:
-            workspaceSettingCategoryToBox.insert(category, boxAndData);
-            return;
-
-        case SettingTargetType::Board:
-            boardSettingCategoryToBox.insert(category, boxAndData);
-            return;
-        }
-        Q_ASSERT(false); // case not implemented
+        // add to `settingBoxes`
+        SettingsBoxAndData boxAndData {settingBox, routine->settingData, routine->targetId};
+        settingBoxes.insert(targetTypeAndCategory, boxAndData);
     }, boardView);
 
-    routine->addStep([this, routine, targetType, category]() {
+    routine->addStep([this, routine, targetTypeAndCategory]() {
         // set up connections
+        Q_ASSERT(routine->settingData != nullptr && routine->targetId != -1);
         ContinuationContext context(routine);
 
-        if (routine->settingBox == nullptr)
-            return;
-
-        //
         QPointer<SettingBox> settingBoxPtr(routine->settingBox);
 
         QObject::connect(
+                routine->settingBox, &SettingBox::settingEdited,
+                boardView, [this, settingBoxPtr, targetTypeAndCategory]() {
+            if (!settingBoxPtr)
+                return;
+
+            editedSettings << targetTypeAndCategory;
+            boardView->handleSettingsEditedDebouncer->tryAct();
+            emit boardView->hasWorkspaceSettingsPendingUpdateChanged(
+                    boardView->handleSettingsEditedDebouncer->hasDelayed());
+        });
+
+        QObject::connect(
                 routine->settingBox, &SettingBox::finishedMovingOrResizing,
-                boardView, [this, settingBoxPtr, targetType, category]() {
+                boardView, [this, settingBoxPtr, targetTypeAndCategory]() {
             if (!settingBoxPtr)
                 return;
 
@@ -3163,15 +3196,16 @@ void BoardView::SettingBoxesCollection::createSettingBox(
             update.rect = settingBoxPtr->getRect();
 
             Services::instance()->getAppData()->updateSettingBoxProperties(
-                    EventSource(boardView), boardView->boardId, targetType, category, update);
+                    EventSource(boardView), boardView->boardId,
+                    targetTypeAndCategory.first, targetTypeAndCategory.second, update);
         });
 
         QObject::connect(
                 routine->settingBox, &SettingBox::closeByUser,
-                boardView, [this, settingBoxPtr, targetType, category]() {
+                boardView, [this, settingBoxPtr, targetTypeAndCategory]() {
             if (!settingBoxPtr)
                 return;
-            boardView->onUserToCloseSettingBox(targetType, category);
+            boardView->onUserToCloseSettingBox(targetTypeAndCategory);
         });
     }, boardView);
 
@@ -3185,31 +3219,96 @@ void BoardView::SettingBoxesCollection::createSettingBox(
 }
 
 void BoardView::SettingBoxesCollection::closeSettingBox(
-        const SettingTargetType targetType, const SettingCategory category) {
-    std::optional<SettingsBoxAndData> boxAndData;
-    switch (targetType) {
-    case SettingTargetType::Workspace:
-        if (workspaceSettingCategoryToBox.contains(category))
-            boxAndData = workspaceSettingCategoryToBox.take(category);
-        break;
-
-    case SettingTargetType::Board:
-        if (boardSettingCategoryToBox.contains(category))
-            boxAndData = boardSettingCategoryToBox.take(category);
-        break;
-    }
-
-    if (!boxAndData.has_value())
+        const SettingTargetTypeAndCategory targetTypeAndCategory) {
+    if (!settingBoxes.contains(targetTypeAndCategory))
         return;
+    const SettingsBoxAndData boxAndData = settingBoxes.take(targetTypeAndCategory);
 
     //
-    boardView->graphicsScene->removeItem(boxAndData.value().box);
-    boxAndData.value().box->deleteLater();
+    boardView->graphicsScene->removeItem(boxAndData.box);
+    boxAndData.box->deleteLater();
 
     //
     boardView->graphicsScene->invalidate(QRectF(), QGraphicsScene::BackgroundLayer);
     // This is to deal with the QGraphicsView problem
     // https://forum.qt.io/topic/157478/qgraphicsscene-incorrect-artifacts-on-scrolling-bug
+}
+
+void BoardView::SettingBoxesCollection::updateSettingBoxIfExists(
+        const SettingTargetTypeAndCategory targetTypeAndCategory, const int targetId) {
+    if (!settingBoxes.contains(targetTypeAndCategory))
+        return;
+    if (settingBoxes.value(targetTypeAndCategory).targetId != targetId)
+        return;
+
+    //
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        std::shared_ptr<AbstractSetting> settingData;
+    };
+
+    auto *routine = new AsyncRoutineWithVars;
+
+    routine->addStep([this, routine, targetTypeAndCategory, targetId]() {
+        // get settings data
+        switch (targetTypeAndCategory.first) {
+        case SettingTargetType::Workspace:
+        {
+            createSettingDataForWorkspace(
+                    targetId,
+                    targetTypeAndCategory.second,
+                    // callback:
+                    [routine](AbstractWorkspaceOrBoardSetting *settingData) {
+                        ContinuationContext context(routine);
+
+                        if (settingData == nullptr) {
+                            context.setErrorFlag();
+                            return;
+                        }
+                        routine->settingData
+                                = std::shared_ptr<AbstractWorkspaceOrBoardSetting>(settingData);
+                    }
+            );
+            break;
+        }
+        case SettingTargetType::Board:
+        {
+            ContinuationContext context(routine);
+
+            AbstractWorkspaceOrBoardSetting *settingData
+                    = createSettingDataForBoard(targetTypeAndCategory.second);
+            if (settingData == nullptr) {
+                context.setErrorFlag();
+            }
+            else {
+                routine->settingData
+                        = std::shared_ptr<AbstractWorkspaceOrBoardSetting>(settingData);
+            }
+            break;
+        }
+        }
+
+    }, boardView);
+
+    routine->addStep([this, routine, targetTypeAndCategory]() {
+        ContinuationContext context(routine);
+
+        //
+        settingBoxes[targetTypeAndCategory].data = routine->settingData;
+
+        // reload SettingBox
+        settingBoxes[targetTypeAndCategory].box->setSettingJson(
+                routine->settingData->toJsonStr(QJsonDocument::Indented));
+        settingBoxes[targetTypeAndCategory].box->setErrorMsg("");
+    }, boardView);
+
+    routine->addStep([routine]() {
+        // final step
+        ContinuationContext context(routine);
+    }, boardView);
+
+    routine->start();
 }
 
 void BoardView::SettingBoxesCollection::updateAllSettingBoxesColors() {
@@ -3219,83 +3318,86 @@ void BoardView::SettingBoxesCollection::updateAllSettingBoxesColors() {
     const QColor displayColor = computeSettingBoxDisplayColor(
             defaultNewSettingBoxColor, autoAdjustCardColorsForDarkTheme && isDarkTheme);
 
-    //
-    for (auto it = workspaceSettingCategoryToBox.constBegin();
-            it != workspaceSettingCategoryToBox.constEnd(); ++it) {
+    for (auto it = settingBoxes.constBegin(); it != settingBoxes.constEnd(); ++it)
         it.value().box->setColor(displayColor);
-    }
-    for (auto it = boardSettingCategoryToBox.constBegin();
-            it != boardSettingCategoryToBox.constEnd(); ++it) {
-        it.value().box->setColor(displayColor);
-    }
 }
 
 void BoardView::SettingBoxesCollection::setAllSettingBoxesTextEditorIgnoreWheelEvent(const bool b) {
-    for (auto it = workspaceSettingCategoryToBox.begin();
-            it != workspaceSettingCategoryToBox.end(); ++it) {
+    for (auto it = settingBoxes.begin(); it != settingBoxes.end(); ++it)
         it.value().box->setTextEditorIgnoreWheelEvent(b);
+}
+
+void BoardView::SettingBoxesCollection::handleEditedSettings() {
+    for (const auto &targetTypeAndCategory: qAsConst(editedSettings)) {
+        if (!settingBoxes.contains(targetTypeAndCategory))
+            continue;
+
+        const SettingsBoxAndData boxAndData = settingBoxes.value(targetTypeAndCategory);
+        const QString settingText = boxAndData.box->getSettingText();
+
+        // validate
+        QString errorMsg;
+        const bool ok = boxAndData.data->validate(settingText, &errorMsg);
+        if (!ok) {
+            if (errorMsg.isEmpty())
+                errorMsg = "Invalid setting.";
+            boxAndData.box->setErrorMsg(errorMsg);
+        }
+        else {
+            // validation OK, apply the setting
+            boxAndData.box->setErrorMsg("");
+            const bool ok1 = boxAndData.data->setFromJsonStr(settingText);
+            Q_ASSERT(ok1);
+
+            switch (targetTypeAndCategory.first) {
+            case SettingTargetType::Workspace:
+                applyWorkspaceSetting(boxAndData.targetId, boxAndData.data);
+                break;
+
+            case SettingTargetType::Board:
+                applyBoardSetting(boxAndData.targetId, boxAndData.data);
+                break;
+            }
+        }
     }
 
-    for (auto it = boardSettingCategoryToBox.begin(); it != boardSettingCategoryToBox.end(); ++it) {
-        it.value().box->setTextEditorIgnoreWheelEvent(b);
-    }
+    //
+    editedSettings.clear();
+    emit boardView->hasWorkspaceSettingsPendingUpdateChanged(false);
 }
 
-QVector<std::pair<SettingTargetType, SettingCategory> >
-BoardView::SettingBoxesCollection::getAllSettingBoxes() const {
-    const auto categoriesForWorkspace = keySet(workspaceSettingCategoryToBox);
-    const auto categoriesForBoard = keySet(boardSettingCategoryToBox);
-
-    QVector<std::pair<SettingTargetType, SettingCategory> > result;
-    for (const auto category: categoriesForWorkspace)
-        result << std::make_pair(SettingTargetType::Workspace, category);
-    for (const auto category: categoriesForBoard)
-        result << std::make_pair(SettingTargetType::Board, category);
-
-    return result;
+QSet<SettingTargetTypeAndCategory> BoardView::SettingBoxesCollection::getAllSettingBoxes() const {
+    return keySet(settingBoxes);
 }
 
-bool BoardView::SettingBoxesCollection::containsWorkspaceSettingCategory(
-        const SettingCategory category) const {
-    return workspaceSettingCategoryToBox.contains(category);
-}
-
-bool BoardView::SettingBoxesCollection::containsBoardSettingCategory(
-        const SettingCategory category) const {
-    return boardSettingCategoryToBox.contains(category);
+bool BoardView::SettingBoxesCollection::containsSetting(
+        const SettingTargetTypeAndCategory targetTypeAndCategory) const {
+    return settingBoxes.contains(targetTypeAndCategory);
 }
 
 void BoardView::SettingBoxesCollection::createSettingDataForWorkspace(
-        const SettingCategory category,
-        std::function<void (AbstractWorkspaceOrBoardSetting *)> callback) {
+        const int workspaceId, const SettingCategory category,
+        std::function<void (AbstractSetting *setting)> callback) {
+    // Get the setting data (value) of `category` for `workspaceId`
     switch (category) {
     case SettingCategory::CardLabelToColorMapping:
     {
         Services::instance()->getAppDataReadonly()->getWorkspaces(
                 // callback
-                [this, callback](bool ok, const QHash<int, Workspace> &workspaces) {
+                [workspaceId, callback](bool ok, const QHash<int, Workspace> &workspaces) {
                     if (!ok) {
                         callback(nullptr);
                         return;
                     }
-
-                    // find workspace containing `boardView->boardId`
-                    std::optional<Workspace> workspaceData;
-                    for (auto it = workspaces.constBegin(); it != workspaces.constEnd(); ++it) {
-                        if (it.value().boardIds.contains(boardView->boardId)) {
-                            workspaceData = it.value();
-                            break;
-                        }
-                    }
-
-                    if (!workspaceData.has_value()) {
+                    if (!workspaces.contains(workspaceId)) {
                         callback(nullptr);
                         return;
                     }
 
                     //
                     auto *cardLabelToColorMapping = new CardLabelToColorMapping;
-                    *cardLabelToColorMapping = workspaceData.value().cardLabelToColorMapping;
+                    *cardLabelToColorMapping
+                            = workspaces.value(workspaceId).cardLabelToColorMapping;
                     callback(cardLabelToColorMapping);
                 },
                 boardView
@@ -3319,14 +3421,40 @@ AbstractWorkspaceOrBoardSetting *BoardView::SettingBoxesCollection::createSettin
         const SettingCategory category) {
     switch (category) {
     case SettingCategory::CardLabelToColorMapping:
-        return nullptr; // not for board
+        Q_ASSERT(false); // category is not for boards
+        return nullptr;
 
     case SettingCategory::CardPropertiesToShow:
         return nullptr; // [temp]
 
     case SettingCategory::WorkspaceSchema:
-        return nullptr; // not for board
+        Q_ASSERT(false); // category is not for boards
+        return nullptr;
     }
     Q_ASSERT(false); // case not implemented
     return nullptr;
+}
+
+void BoardView::SettingBoxesCollection::applyWorkspaceSetting(
+        const int workspaceId, std::shared_ptr<AbstractSetting> settingData) {
+    switch (settingData->category) {
+    case SettingCategory::CardLabelToColorMapping:
+    {
+        auto *cardLabelToColorMapping = dynamic_cast<CardLabelToColorMapping *>(settingData.get());
+        Q_ASSERT(cardLabelToColorMapping != nullptr);
+        emit boardView->workspaceCardLabelToColorMappingUpdatedViaSettingBox(
+                workspaceId, *cardLabelToColorMapping);
+        break;
+    }
+
+    case SettingCategory::CardPropertiesToShow:
+        break;
+
+    case SettingCategory::WorkspaceSchema:
+        break;
+    }
+}
+
+void BoardView::SettingBoxesCollection::applyBoardSetting(
+        const int /*boardId*/, std::shared_ptr<AbstractSetting> /*settingData*/) {
 }

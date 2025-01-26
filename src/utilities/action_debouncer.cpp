@@ -24,8 +24,8 @@ bool ActionDebouncer::tryAct() {
         return false;
     }
     else {
-        action();
         delayed = false;
+        action();
         timer->start();
         return true;
     }

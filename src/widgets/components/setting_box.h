@@ -19,10 +19,14 @@ public:
     void setDescription(const QString &description);
     void setSchema(const QString &schema);
     void setSettingJson(const QString &jsonStr);
-
     void setTextEditorIgnoreWheelEvent(const bool b);
+    void setErrorMsg(const QString &msg);
+
+    //
+    QString getSettingText() const;
 
 signals:
+    void settingEdited();
     void closeByUser();
     void leftButtonPressedOrClicked();
 

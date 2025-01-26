@@ -33,8 +33,7 @@ void SettingBox::setDescription(const QString &description) {
     adjustContents();
 }
 
-void SettingBox::setSchema(const QString &schema)
-{
+void SettingBox::setSchema(const QString &schema) {
     schemaItem->setPlainText(schema);
     adjustContents();
 }
@@ -47,6 +46,15 @@ void SettingBox::setSettingJson(const QString &jsonStr) {
 
 void SettingBox::setTextEditorIgnoreWheelEvent(const bool b) {
     textEditIgnoreWheelEvent = b;
+}
+
+void SettingBox::setErrorMsg(const QString &msg) {
+    settingErrorMsgItem->setPlainText(msg);
+    adjustContents();
+}
+
+QString SettingBox::getSettingText() const {
+    return textEdit->toPlainText();
 }
 
 bool SettingBox::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
@@ -106,6 +114,7 @@ void SettingBox::setUpContents(QGraphicsItem *contentsContainer) {
     descriptionItem->setEditable(false);
     schemaItem->setTextSelectable(true);
     textEdit->setReadOnly(false);
+    textEdit->setReplaceTabBySpaces(4);
 
     // get view's font
     QFont fontOfView;
@@ -204,8 +213,7 @@ void SettingBox::setUpContents(QGraphicsItem *contentsContainer) {
 
     // textEdit
     connect(textEdit, &CustomTextEdit::textEdited, this, [this]() {
-            const QString plainText = textEdit->toPlainText();
-//            emit titleTextUpdated(std::nullopt, plainText);
+        emit settingEdited();
     });
 
     connect(textEdit, &CustomTextEdit::clicked, this, [this]() {
@@ -225,7 +233,7 @@ void SettingBox::setUpContents(QGraphicsItem *contentsContainer) {
 void SettingBox::adjustContents() {
     const QRectF contentsRect = getContentsRect();
 
-    // categoryNameItem
+    // `categoryNameItem`
     double yBottom = contentsRect.top();
     {
         constexpr double topPadding = 3;
@@ -242,7 +250,7 @@ void SettingBox::adjustContents() {
                    + topPadding + bottomPadding;
     }
 
-    // descriptionItem
+    // `descriptionItem`
     if (descriptionItem->toPlainText().trimmed().isEmpty()) {
         descriptionItem->setVisible(false);
     }
@@ -259,7 +267,7 @@ void SettingBox::adjustContents() {
         yBottom += descriptionItem->boundingRect().height() + padding;
     }
 
-    // labelSchema
+    // `labelSchema`
     {
         constexpr int xPadding = 3;
         labelSchema->setPos(contentsRect.left() + xPadding, yBottom);
@@ -267,7 +275,7 @@ void SettingBox::adjustContents() {
         yBottom += labelSchema->boundingRect().height();
     }
 
-    // schemaItem
+    // `schemaItem`
     {
         constexpr int padding = 3;
         const double minHeight = QFontMetrics(schemaItem->font()).height();
@@ -280,7 +288,7 @@ void SettingBox::adjustContents() {
                    + padding * 2;
     }
 
-    // labelSetting
+    // `labelSetting`
     {
         constexpr int padding = 3;
         labelSetting->setPos(contentsRect.left() + padding, yBottom);
@@ -288,10 +296,11 @@ void SettingBox::adjustContents() {
         yBottom += labelSetting->boundingRect().height() + padding;
     }
 
-    // settingErrorMsgItem (bottom-most)
-    double yTop = contentsRect.bottom();
+    // `settingErrorMsgItem` (its position is set later) (`yBottom` is not modified)
+    double heightForSettingErrorMsgItem;
     if (settingErrorMsgItem->toPlainText().trimmed().isEmpty()) {
         settingErrorMsgItem->setVisible(false);
+        heightForSettingErrorMsgItem = 0.0;
     }
     else {
         settingErrorMsgItem->setVisible(true);
@@ -301,28 +310,60 @@ void SettingBox::adjustContents() {
 
         settingErrorMsgItem->setTextWidth(
                     std::max(contentsRect.width() - padding * 2, 0.0));
-        const int itemHeight = settingErrorMsgItem->boundingRect().height();
-        settingErrorMsgItem->setPos(
-                contentsRect.left() + padding,
-                std::max(contentsRect.bottom() - itemHeight, yBottom));
-
-        yTop = settingErrorMsgItem->pos().y();
+        heightForSettingErrorMsgItem = settingErrorMsgItem->boundingRect().height();
     }
 
-    // text (setting)
+    // `textEditProxyWidget`, also set position of `settingErrorMsgItem`
     {
         constexpr double leftPadding = 3;
+        textEditProxyWidget->setPos(contentsRect.left() + leftPadding, yBottom);
+        textEditProxyWidget->setVisible(true);
 
-        const double textEditHeight = yTop - yBottom;
-        if (textEditHeight < 0.1) {
-            textEditProxyWidget->setVisible(false);
+        //
+        constexpr double marginBeforeMsgItem = 3;
+        constexpr double textEditMinHeight = 30;
+        const double idealHeight = textEdit->document()->size().height() + 3.0;
+
+        const double height2
+                = textEditMinHeight
+                  + ((heightForSettingErrorMsgItem >= 1e-6)
+                      ? (heightForSettingErrorMsgItem + marginBeforeMsgItem)
+                      : 0.0);
+        const double height3
+                = std::max(textEditMinHeight, idealHeight)
+                  + ((heightForSettingErrorMsgItem >= 1e-6)
+                      ? (heightForSettingErrorMsgItem + marginBeforeMsgItem)
+                      : 0.0);
+
+        const double yRoomLeft = std::max(contentsRect.bottom() - yBottom, 0.0);
+        if (yRoomLeft <= textEditMinHeight) {
+            // show `textEdit`, hide `settingErrorMsgItem`
+            textEditProxyWidget->resize(contentsRect.width() - leftPadding, yRoomLeft);
+            settingErrorMsgItem->setVisible(false);
+        }
+        else if (yRoomLeft <= height2) {
+            // `textEdit` has height `textEditMinHeight`, & show `settingErrorMsgItem` below
+            textEditProxyWidget->resize(contentsRect.width() - leftPadding, textEditMinHeight);
+            settingErrorMsgItem->setPos(
+                    contentsRect.left() + leftPadding,
+                    yBottom + textEditMinHeight + marginBeforeMsgItem);
+        }
+        else if (yRoomLeft <= height3) {
+            // `textEdit` expands its height, & show `settingErrorMsgItem` at bottom
+            textEditProxyWidget->resize(
+                    contentsRect.width() - leftPadding,
+                    yRoomLeft - heightForSettingErrorMsgItem - marginBeforeMsgItem);
+            settingErrorMsgItem->setPos(
+                    contentsRect.left() + leftPadding,
+                    contentsRect.bottom() - heightForSettingErrorMsgItem);
         }
         else {
-            textEditProxyWidget->resize(contentsRect.width() - leftPadding, textEditHeight);
-            textEditProxyWidget->setVisible(true);
+            // `textEdit` has height `idealHeight`, & show `settingErrorMsgItem` below
+            textEditProxyWidget->resize(contentsRect.width() - leftPadding, idealHeight);
+            settingErrorMsgItem->setPos(
+                    contentsRect.left() + leftPadding,
+                    yBottom + idealHeight + marginBeforeMsgItem);
         }
-
-        textEditProxyWidget->setPos(contentsRect.left() + leftPadding, yBottom);
     }
 }
 

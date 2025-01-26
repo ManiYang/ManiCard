@@ -17,6 +17,7 @@ struct CardLabelToColorMapping : public AbstractWorkspaceOrBoardSetting
     QString toJsonStr(const QJsonDocument::JsonFormat format) const override;
     QString schema() const override;
     bool validate(const QString &s, QString *errorMsg = nullptr) override;
+    bool setFromJsonStr(const QString &jsonStr) override;
 
     //!
     //! \return \c nullopt if failed

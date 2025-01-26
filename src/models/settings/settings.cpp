@@ -34,9 +34,9 @@ QString getDisplayNameOfCategory(const SettingCategory category) {
 }
 
 QString getDescriptionForTargetTypeAndCategory(
-        const SettingTargetType targetType, const SettingCategory category) {
+        const SettingTargetTypeAndCategory &targetTypeAndCategory) {
     QString targetTypeName;
-    switch (targetType) {
+    switch (targetTypeAndCategory.first) {
     case SettingTargetType::Workspace:
         targetTypeName = "workspace";
         break;
@@ -48,7 +48,7 @@ QString getDescriptionForTargetTypeAndCategory(
         Q_ASSERT(false); // case not implemented
 
     //
-    switch (category) {
+    switch (targetTypeAndCategory.second) {
     case SettingCategory::CardLabelToColorMapping:
         return QString("You can also set the mapping from the %1 menu.").arg(targetTypeName);
     case SettingCategory::CardPropertiesToShow:

@@ -30,3 +30,7 @@ QString CardPropertiesToShow::schema() const {
 bool CardPropertiesToShow::validate(const QString &s, QString *errorMsg) {
     return false; // [temp]
 }
+
+bool CardPropertiesToShow::setFromJsonStr(const QString &jsonStr) {
+    return false; // [temp]
+}

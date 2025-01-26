@@ -4,6 +4,7 @@
 #include <QFrame>
 #include <QLabel>
 #include <QToolButton>
+#include "app_event_source.h"
 #include "models/settings/card_label_color_mapping.h"
 #include "widgets/common_types.h"
 #include "widgets/components/simple_toolbar.h"
@@ -90,6 +91,7 @@ private:
     void onUserSelectedBoard(const int boardId);
     void onUserToRemoveBoard(const int boardIdToRemove);
     void onUserToSetCardColors();
+    void onCardLabelToColorMappingUpdated(const CardLabelToColorMapping &cardLabelToColorMapping);
 
     //!
     //! save the data for the board currently shown in `boardView`
@@ -112,6 +114,7 @@ public:
 
     void setWorkspaceName(const QString &name);
     void showButtonOpenRightSidebar();
+    void setWorkspaceSettingsMenuEnabled(const bool enabled);
 
 signals:
     void userToAddNewBoard();

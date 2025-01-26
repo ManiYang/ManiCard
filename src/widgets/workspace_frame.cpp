@@ -188,9 +188,10 @@ void WorkspaceFrame::loadWorkspace(
             workspaceToolBar->setWorkspaceName(routine->workspaceData.name);
             cardLabelToColorMapping = routine->workspaceData.cardLabelToColorMapping;
 
+            // set `boardView`'s card color mapping to the same as this->cardLabelToColorMapping
             boardView->setColorsAssociatedWithLabels(
-                    routine->workspaceData.cardLabelToColorMapping.cardLabelsAndAssociatedColors,
-                    routine->workspaceData.cardLabelToColorMapping.defaultNodeRectColor);
+                    cardLabelToColorMapping.cardLabelsAndAssociatedColors,
+                    cardLabelToColorMapping.defaultNodeRectColor);
         }
 
         callback(!routine->errorFlag, routine->highlightedCardIdChanged);
@@ -308,6 +309,24 @@ void WorkspaceFrame::setUpConnections() {
     connect(boardsTabBar, &CustomTabBar::tabsReorderedByUser,
             this, [this](const QVector<int> &/*boardIdsOrdering*/) {
         saveBoardsOrdering();
+    });
+
+    // `boardView`
+    connect(boardView, &BoardView::workspaceCardLabelToColorMappingUpdatedViaSettingBox,
+            this,
+            [this](const int workspaceId, const CardLabelToColorMapping &cardLabelToColorMapping) {
+        if (this->workspaceId != workspaceId) {
+            qWarning().noquote()
+                    << QString("SettingBox edits setting of a workspace other than the current one");
+            return;
+        }
+
+        onCardLabelToColorMappingUpdated(cardLabelToColorMapping);
+    });
+
+    connect(boardView, &BoardView::hasWorkspaceSettingsPendingUpdateChanged,
+            this, [this](bool hasWorkspaceSettingsPendingUpdate) {
+        workspaceToolBar->setWorkspaceSettingsMenuEnabled(!hasWorkspaceSettingsPendingUpdate);
     });
 
     // `noBoardSign`
@@ -623,30 +642,43 @@ void WorkspaceFrame::onUserToSetCardColors() {
             boardView->getDefaultNodeRectColor(),
             this
     );
+
     connect(dialog, &QDialog::finished, this, [this, dialog](int result) {
         dialog->deleteLater();
 
         if (result != QDialog::Accepted)
             return;
 
-        //
-        boardView->setColorsAssociatedWithLabels(
-                dialog->getCardLabelsAndAssociatedColors(), dialog->getDefaultColor());
-
-        // call AppData
-        WorkspaceNodePropertiesUpdate propertiesUpdate;
+        CardLabelToColorMapping newSetting;
         {
-            CardLabelToColorMapping newSetting;
-            {
-                newSetting.defaultNodeRectColor = dialog->getDefaultColor();
-                newSetting.cardLabelsAndAssociatedColors = dialog->getCardLabelsAndAssociatedColors();
-            }
-            propertiesUpdate.cardLabelToColorMapping = newSetting;
+            newSetting.defaultNodeRectColor = dialog->getDefaultColor();
+            newSetting.cardLabelsAndAssociatedColors = dialog->getCardLabelsAndAssociatedColors();
         }
-        Services::instance()->getAppData()->updateWorkspaceNodeProperties(
-                EventSource(this), workspaceId, propertiesUpdate);
+        onCardLabelToColorMappingUpdated(newSetting); // saves to AppData
+
+        // inform `boardView` to update the corresponding SettingBox that is shown in it
+        boardView->updateSettingBoxOnWorkspaceSetting(
+                workspaceId, SettingCategory::CardLabelToColorMapping);
     });
+
     dialog->open();
+}
+
+void WorkspaceFrame::onCardLabelToColorMappingUpdated(
+        const CardLabelToColorMapping &cardLabelToColorMapping_) {
+    cardLabelToColorMapping = cardLabelToColorMapping_;
+
+    // set `boardView`'s card color mapping to the same as this->cardLabelToColorMapping
+    boardView->setColorsAssociatedWithLabels(
+            cardLabelToColorMapping.cardLabelsAndAssociatedColors,
+            cardLabelToColorMapping.defaultNodeRectColor);
+
+    //
+    WorkspaceNodePropertiesUpdate update;
+    update.cardLabelToColorMapping = cardLabelToColorMapping_;
+
+    Services::instance()->getAppData()->updateWorkspaceNodeProperties(
+            EventSource(this), workspaceId, update);
 }
 
 void WorkspaceFrame::saveTopLeftPosAndZoomRatioOfCurrentBoard() {
@@ -757,6 +789,12 @@ void WorkspaceToolBar::setWorkspaceName(const QString &name) {
 
 void WorkspaceToolBar::showButtonOpenRightSidebar() {
     buttonOpenRightSidebar->setVisible(true);
+}
+
+void WorkspaceToolBar::setWorkspaceSettingsMenuEnabled(const bool enabled) {
+    const auto menuActions = workspaceSettingsMenu->actions();
+    for (QAction *action: menuActions)
+        action->setEnabled(enabled);
 }
 
 void WorkspaceToolBar::setUpWorkspaceSettingsMenu() {

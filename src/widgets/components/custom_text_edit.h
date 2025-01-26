@@ -15,11 +15,6 @@ class CustomTextEdit : public QFrame
 {
     Q_OBJECT
 public:
-    //!
-    //! \param acceptEveryWheelEvent: If true, every QWheelEvent is accepted after calling the
-    //!             base implementation, so that the event is never passed to parent widget.
-    //! \param parent
-    //!
     explicit CustomTextEdit(QWidget *parent = nullptr);
 
     void clear(const bool resetFormat);

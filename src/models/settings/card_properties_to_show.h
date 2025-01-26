@@ -12,6 +12,7 @@ public:
     QString toJsonStr(const QJsonDocument::JsonFormat format) const override;
     QString schema() const override;
     bool validate(const QString &s, QString *errorMsg = nullptr) override;
+    bool setFromJsonStr(const QString &jsonStr) override;
 };
 
 #endif // CARD_PROPERTIES_TO_SHOW_H

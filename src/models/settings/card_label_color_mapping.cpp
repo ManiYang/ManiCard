@@ -17,7 +17,7 @@ QString CardLabelToColorMapping::toJsonStr(const QJsonDocument::JsonFormat forma
         {"cardLabelsAndAssociatedColors", labelsAndColorsArray},
         {"defaultColor", defaultNodeRectColor.name()}
     };
-    return QJsonDocument(obj).toJson(format);
+    return QJsonDocument(obj).toJson(format).trimmed();
 }
 
 QString CardLabelToColorMapping::schema() const {
@@ -34,6 +34,17 @@ QString CardLabelToColorMapping::schema() const {
 
 bool CardLabelToColorMapping::validate(const QString &s, QString *errorMsg) {
     return fromJsonStr(s, errorMsg).has_value();
+}
+
+bool CardLabelToColorMapping::setFromJsonStr(const QString &jsonStr) {
+    const auto other = fromJsonStr(jsonStr);
+    if (!other.has_value())
+        return false;
+
+    cardLabelsAndAssociatedColors = other.value().cardLabelsAndAssociatedColors;
+    defaultNodeRectColor = other.value().defaultNodeRectColor;
+
+    return true;
 }
 
 std::optional<CardLabelToColorMapping> CardLabelToColorMapping::fromJsonStr(
@@ -81,15 +92,11 @@ std::optional<CardLabelToColorMapping> CardLabelToColorMapping::fromJsonStr(
         }
     }
     if (obj.contains("defaultColor")) {
-        const QJsonValue v = obj.value("defaultColor");
-        if (!v.isString()) {
+        const QColor color(obj.value("defaultColor").toString());
+        if (!color.isValid()) {
             APPEND_ERROR_MSG("<defaultColor> must be a valid color");
             return std::nullopt;
         }
-
-        QColor color(v.toString());
-        if (!color.isValid())
-            return std::nullopt;
 
         data.defaultNodeRectColor = color;
     }
