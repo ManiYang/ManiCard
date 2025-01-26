@@ -56,7 +56,7 @@ std::optional<CardLabelToColorMapping> CardLabelToColorMapping::fromJsonStr(
     QString errMsg1;
     const QJsonObject obj = parseAsJsonObject(jsonStr, &errMsg1);
     if (!errMsg1.isEmpty()) {
-        APPEND_ERROR_MSG("not valid JSON object");
+        APPEND_ERROR_MSG("not a valid JSON object");
         return std::nullopt;
     }
 
