@@ -9,6 +9,7 @@
 #include "models/group_box_data.h"
 #include "models/node_rect_data.h"
 #include "models/setting_box_data.h"
+#include "models/settings/card_properties_to_show.h"
 #include "relationship.h"
 
 struct BoardNodePropertiesUpdate;
@@ -19,6 +20,8 @@ struct Board {
 
     QPointF topLeftPos {0, 0}; // view's top-left corner
     double zoomRatio {1.0};
+
+    CardPropertiesToShow cardPropertiesToShow;
 
     //
     QHash<int, NodeRectData> cardIdToNodeRectData;
@@ -54,6 +57,7 @@ struct BoardNodePropertiesUpdate
     std::optional<QString> name;
     std::optional<QPointF> topLeftPos;
     std::optional<double> zoomRatio;
+    std::optional<CardPropertiesToShow> cardPropertiesToShow;
 
     QJsonObject toJson() const;
     QSet<QString> keys() const;

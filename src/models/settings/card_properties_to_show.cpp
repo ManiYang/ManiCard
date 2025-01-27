@@ -104,39 +104,104 @@ std::optional<ValueDisplayFormat> ValueDisplayFormat::fromJson(
     return std::nullopt;
 }
 
-//====
+//======
 
 CardPropertiesToShow::CardPropertiesToShow()
     : AbstractWorkspaceOrBoardSetting(SettingCategory::CardPropertiesToShow) {
 }
 
-QString CardPropertiesToShow::toJsonStr(const QJsonDocument::JsonFormat jsonPrintFormat) const {
-    QJsonArray array;
-    for (const auto &[propertyName, format]: qAsConst(propertyNamesAndDisplayFormats))
-        array << QJsonObject {{propertyName, format.toJson()}};
+CardPropertiesToShow::PropertiesAndDisplayFormats CardPropertiesToShow::getSetting(
+        const QSet<QString> &cardLabels) const {
+    // find first label in `cardLabelsOrdering` that `cardLabels` contains
+    auto it = std::find_if(
+            cardLabelsOrdering.constBegin(), cardLabelsOrdering.constEnd(),
+            [cardLabels](const QString &label) {
+                return cardLabels.contains(label);
+            }
+    );
 
-    return QJsonDocument(array).toJson(jsonPrintFormat);
+    //
+    if (it == cardLabelsOrdering.constEnd())
+        return {};
+    else
+        return cardLabelToSetting.value(*it);
+}
+
+void CardPropertiesToShow::updateWith(const CardPropertiesToShow &other) {
+    const QHash<QString, PropertiesAndDisplayFormats> originalCardLabelToSetting
+            = cardLabelToSetting;
+
+    //
+    QVector<QString> labelsInNewSetting;
+    QHash<QString, PropertiesAndDisplayFormats> newCardLabelToSetting;
+
+    for (const QString &label: other.cardLabelsOrdering) {
+        const auto propertiesAndDisplayFormatsUpdate = other.cardLabelToSetting.value(label);
+
+        PropertiesAndDisplayFormats newPropertiesAndDisplayFormats;
+        if (originalCardLabelToSetting.contains(label)) {
+            // `label` is in both the original and the update
+            newPropertiesAndDisplayFormats = merge(
+                    originalCardLabelToSetting.value(label), propertiesAndDisplayFormatsUpdate);
+        }
+        else {
+            // `label` is only in the update
+            newPropertiesAndDisplayFormats = propertiesAndDisplayFormatsUpdate;
+        }
+
+        newCardLabelToSetting.insert(label, newPropertiesAndDisplayFormats);
+        labelsInNewSetting << label;
+    }
+
+    // add the labels that are only in the original (to the end)
+    for (const QString &label: cardLabelsOrdering) {
+        if (!newCardLabelToSetting.contains(label)) {
+            labelsInNewSetting << label;
+            newCardLabelToSetting.insert(label, originalCardLabelToSetting.value(label));
+        }
+    }
+
+    //
+    cardLabelToSetting = newCardLabelToSetting;
+    cardLabelsOrdering = labelsInNewSetting;
+}
+
+QString CardPropertiesToShow::toJsonStr(const QJsonDocument::JsonFormat jsonPrintFormat) const {
+    QJsonArray labelsArray;
+
+    for (const QString &labelName: qAsConst(cardLabelsOrdering)) {
+        const auto propertiesAndFormats = cardLabelToSetting.value(labelName);
+
+        QJsonArray propertiesArray;
+        for (const auto &[propertyName, format]: propertiesAndFormats)
+            propertiesArray << QJsonObject {{propertyName, format.toJson()}};
+
+        labelsArray << QJsonObject {{labelName, propertiesArray}};
+    }
+
+    return QJsonDocument(labelsArray).toJson(jsonPrintFormat).trimmed();
 }
 
 QString CardPropertiesToShow::schema() const {
-    return QString(R"%(
+    return removeCommonIndentation(R"%(
     [
-      {
-        "<propertyName>": "<defaultStringWhenExists>~The value is $"
-      },
-      {
-        "<propertyName>": {
-          ("case <value>"): "<displayStringForSpecificValue>",
-          ...,
-          ("default"): "<defaultStringWhenExists>~The value is $",
-          ("ifNotExists"): "<displayStringWhenNotExists>",
-          ("hideLabel"): <hideLabel?>,
-          ("addQuotesForString"): <addQuotesForString?>
-        }
-      }
+      { "<LabelName>" : [
+          {
+            "<propertyName>": "<defaultStringWhenExists>~The value is $"
+          },
+          { "<propertyName>": {
+              ("case <value>"): "<displayStringForSpecificValue>",
+              ...,
+              ("default"): "<defaultStringWhenExists>~The value is $",
+              ("ifNotExists"): "<displayStringWhenNotExists>",
+              ("hideLabel"): <hideLabel?>,
+              ("addQuotesForString"): <addQuotesForString?>
+          }}
+          ...
+      ]},
       ...
     ]
-    )%").trimmed();
+    )%");
 }
 
 bool CardPropertiesToShow::validate(const QString &s, QString *errorMsg) {
@@ -148,7 +213,7 @@ bool CardPropertiesToShow::setFromJsonStr(const QString &jsonStr) {
     if (!other.has_value())
         return false;
 
-    propertyNamesAndDisplayFormats = other.value().propertyNamesAndDisplayFormats;
+    (*this) = other.value();
     return true;
 }
 
@@ -158,36 +223,89 @@ std::optional<CardPropertiesToShow> CardPropertiesToShow::fromJsonStr(
     SET_ERROR_MSG("");
 
     QString errMsg1;
-    const QJsonArray array = parseAsJsonArray(jsonStr, &errMsg1);
+    const QJsonArray labelsArray = parseAsJsonArray(jsonStr, &errMsg1);
     if (!errMsg1.isEmpty()) {
         SET_ERROR_MSG("not a valid JSON array");
         return std::nullopt;
     }
 
-    for (const QJsonValue &v: array) {
-        if (!v.isObject()) {
+    for (const QJsonValue &labelValue: labelsArray) {
+        if (!labelValue.isObject()) {
             SET_ERROR_MSG("setting[i] must be an object");
             return std::nullopt;
         }
-        const auto propertyObj = v.toObject();
+        const QJsonObject labelObj = labelValue.toObject();
 
-        if (propertyObj.count() != 1) {
-            SET_ERROR_MSG("setting[i] must be an object with exactly one key (the property name)");
+        if (labelObj.count() != 1) {
+            SET_ERROR_MSG("setting[i] must be an object with exactly one key (the label name)");
             return std::nullopt;
         }
-        const QString propertyName = propertyObj.constBegin().key();
+        const QString labelName = labelObj.constBegin().key();
 
-        QString errMsg1;
-        const auto formatOpt = ValueDisplayFormat::fromJson(
-                propertyObj.constBegin().value(), &errMsg1);
-        if (!formatOpt.has_value()) {
-            SET_ERROR_MSG(errMsg1);
+        if (!labelObj.constBegin().value().isArray()) {
+            SET_ERROR_MSG("value of key <LabelName> must be an array");
             return std::nullopt;
         }
+        const auto propertiesArray = labelObj.constBegin().value().toArray();
 
-        result.propertyNamesAndDisplayFormats.append({propertyName, formatOpt.value()});
+        PropertiesAndDisplayFormats propertiesAndDisplayFormats;
+        for (const QJsonValue &propertyValue: propertiesArray) {
+            if (!propertyValue.isObject()) {
+                SET_ERROR_MSG("setting[i][<LabelName>][j] must be an object");
+                return std::nullopt;
+            }
+            const auto propertyObj = propertyValue.toObject();
+
+            if (propertyObj.count() != 1) {
+                SET_ERROR_MSG("setting[i][<LabelName>][j] must be an object with "
+                              "exactly one key (the property name)");
+                return std::nullopt;
+            }
+            const QString propertyName = propertyObj.constBegin().key();
+
+            QString errMsg1;
+            const auto formatOpt = ValueDisplayFormat::fromJson(
+                    propertyObj.constBegin().value(), &errMsg1);
+            if (!formatOpt.has_value()) {
+                SET_ERROR_MSG(errMsg1);
+                return std::nullopt;
+            }
+
+            propertiesAndDisplayFormats.append({propertyName, formatOpt.value()});
+        }
+
+        result.cardLabelToSetting.insert(labelName, propertiesAndDisplayFormats);
+        result.cardLabelsOrdering << labelName;
     }
 
+    return result;
+}
+
+CardPropertiesToShow &CardPropertiesToShow::operator =(const CardPropertiesToShow &other) {
+    cardLabelToSetting = other.cardLabelToSetting;
+    cardLabelsOrdering = other.cardLabelsOrdering;
+    return *this;
+}
+
+CardPropertiesToShow::PropertiesAndDisplayFormats CardPropertiesToShow::merge(
+        const PropertiesAndDisplayFormats &vec1, const PropertiesAndDisplayFormats &vec2) {
+    PropertiesAndDisplayFormats result;
+    QSet<QString> propertiesInResult;
+
+    // add properties that are in `vec2`
+    for (const auto &[property, format2]: vec2) {
+        result.append({property, format2});
+        propertiesInResult << property;
+    }
+
+    // add properties that are only in `vec1`
+    for (const auto &[property, format1]: vec1) {
+        if (!propertiesInResult.contains(property)) {
+            result.append({property, format1});
+        }
+    }
+
+    //
     return result;
 }
 

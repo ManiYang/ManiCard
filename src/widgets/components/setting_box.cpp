@@ -213,6 +213,7 @@ void SettingBox::setUpContents(QGraphicsItem *contentsContainer) {
 
     // textEdit
     connect(textEdit, &CustomTextEdit::textEdited, this, [this]() {
+        adjustContents();
         emit settingEdited();
     });
 

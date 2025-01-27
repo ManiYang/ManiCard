@@ -7,6 +7,7 @@ QJsonObject Board::getNodePropertiesJson() const {
         {"name", name},
         {"topLeftPos", QJsonArray {topLeftPos.x(), topLeftPos.y()}},
         {"zoomRatio", zoomRatio},
+        {"cardPropertiesToShow", cardPropertiesToShow.toJsonStr(QJsonDocument::Compact)},
     };
 }
 
@@ -25,6 +26,21 @@ void Board::updateNodeProperties(const QJsonObject &obj) {
     if (const auto v = obj.value("zoomRatio"); !v.isUndefined()) {
         zoomRatio = v.toDouble(1.0);
     }
+
+    if (const QJsonValue v = obj.value("cardPropertiesToShow"); v.isString()) {
+        QString errorMsg;
+        const auto dataOpt = CardPropertiesToShow::fromJsonStr(v.toString(), &errorMsg);
+        if (dataOpt.has_value()) {
+            cardPropertiesToShow = dataOpt.value();
+        }
+        else {
+            qWarning().noquote()
+                    << QString("could not parse the string as a CardPropertiesToShow");
+            qWarning().noquote() << QString("  | string -- %1").arg(v.toString());
+            qWarning().noquote() << QString("  | error msg -- %1").arg(errorMsg);
+            cardPropertiesToShow = CardPropertiesToShow();
+        }
+    }
 }
 
 void Board::updateNodeProperties(const BoardNodePropertiesUpdate &update) {
@@ -35,6 +51,7 @@ void Board::updateNodeProperties(const BoardNodePropertiesUpdate &update) {
     UPDATE_PROPERTY(name);
     UPDATE_PROPERTY(topLeftPos);
     UPDATE_PROPERTY(zoomRatio);
+    UPDATE_PROPERTY(cardPropertiesToShow);
 
 #undef UPDATE_PROPERTY
 }
@@ -117,6 +134,12 @@ QJsonObject BoardNodePropertiesUpdate::toJson() const {
 
     if (zoomRatio.has_value())
         obj.insert("zoomRatio", zoomRatio.value());
+
+    if (cardPropertiesToShow.has_value()) {
+        obj.insert(
+                "cardPropertiesToShow",
+                cardPropertiesToShow.value().toJsonStr(QJsonDocument::Compact));
+    }
 
     return obj;
 }

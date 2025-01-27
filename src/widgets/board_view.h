@@ -21,6 +21,7 @@ class ActionDebouncer;
 class BoardBoxItem;
 class Card;
 struct CardLabelToColorMapping;
+struct CardPropertiesToShow;
 class CardPropertiesUpdate;
 class DataViewBox;
 class EdgeArrow;
@@ -56,13 +57,15 @@ public:
     using LabelAndColor = std::pair<QString, QColor>;
 
     //!
-    //! This can be called even if no board is loaded.
     //! \param cardLabelsAndAssociatedColors: in the order of precedence (high to low)
     //! \param defaultNodeRectColor
     //!
     void setColorsAssociatedWithLabels(
             const QVector<LabelAndColor> &cardLabelsAndAssociatedColors,
             const QColor &defaultNodeRectColor);
+
+    void cardPropertiesToShowSettingOnWorkspaceUpdated(
+            const CardPropertiesToShow &workspaceSettingOfCardPropertiesToShow);
 
     void updateSettingBoxOnWorkspaceSetting(const int workspaceId, const SettingCategory category);
 
@@ -86,6 +89,8 @@ public:
 signals:
     void workspaceCardLabelToColorMappingUpdatedViaSettingBox(
             const int workspaceId, const CardLabelToColorMapping &cardLabelToColorMapping);
+    void workspaceCardPropertiesToShowUpdatedViaSettingBox(
+            const int workspaceId, const CardPropertiesToShow &cardPropertiesToShow);
     void hasWorkspaceSettingsPendingUpdateChanged(bool hasWorkspaceSettingsPendingUpdate);
 
 private:
@@ -103,6 +108,13 @@ private:
 
     QVector<LabelAndColor> cardLabelsAndAssociatedColors; // in the order of precedence (high to low)
     QColor defaultNodeRectColor;
+
+    struct CardPropertiesToShowSettings
+    {
+        CardPropertiesToShow onWorkspace;
+        CardPropertiesToShow onBoard;
+    };
+    CardPropertiesToShowSettings cardPropertiesToShowSettings;
 
     double zoomScale {1.0};
     double graphicsGeometryScaleFactor {1.0};
@@ -168,7 +180,7 @@ private:
     //!
     //! Call this when
     //!   - graphicsView is resized,
-    //!   - NodeRect or DataViewBox is added/moved/resized/removed,
+    //!   - NodeRect, DataViewBox, etc. is added/moved/resized/removed,
     //!   - canvas's scale is set.
     //!
     void adjustSceneRect();
@@ -181,6 +193,8 @@ private:
     void doApplyZoomAction(const ZoomAction zoomAction, const QPointF &anchorScenePos);
 
     void updateCanvasScale(const double scale, const QPointF &anchorScenePos);
+
+    void updateEffectiveCardPropertiesToShow();
 
     //
     class NodeRectsCollection
@@ -412,6 +426,7 @@ private:
 
         QSet<SettingTargetTypeAndCategory> getAllSettingBoxes() const;
         bool containsSetting(const SettingTargetTypeAndCategory targetTypeAndCategory) const;
+        QRectF getBoundingRectOfAllSettingBoxes() const; // returns QRectF() if no SettingBox exists
 
     private:
         BoardView *const boardView;
@@ -427,9 +442,10 @@ private:
 
         void createSettingDataForWorkspace(
                 const int workspaceId, const SettingCategory category,
-                std::function<void (AbstractSetting *setting)> callback); // `setting` be nullptr
-        AbstractSetting *createSettingDataForBoard(
-                const SettingCategory category); // can return nullptr
+                std::function<void (AbstractSetting *setting)> callback); // `setting` can be nullptr
+        void createSettingDataForBoard(
+                const int boardId, const SettingCategory category,
+                std::function<void (AbstractSetting *setting)> callback); // `setting` can be nullptr
 
         void applyWorkspaceSetting(
                 const int workspaceId, std::shared_ptr<AbstractSetting> settingData);

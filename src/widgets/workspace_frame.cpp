@@ -187,11 +187,14 @@ void WorkspaceFrame::loadWorkspace(
             workspaceName = routine->workspaceData.name;
             workspaceToolBar->setWorkspaceName(routine->workspaceData.name);
             cardLabelToColorMapping = routine->workspaceData.cardLabelToColorMapping;
+            cardPropertiesToShow = routine->workspaceData.cardPropertiesToShow;
 
             // set `boardView`'s card color mapping to the same as this->cardLabelToColorMapping
             boardView->setColorsAssociatedWithLabels(
                     cardLabelToColorMapping.cardLabelsAndAssociatedColors,
                     cardLabelToColorMapping.defaultNodeRectColor);
+            boardView->cardPropertiesToShowSettingOnWorkspaceUpdated(
+                    routine->workspaceData.cardPropertiesToShow);
         }
 
         callback(!routine->errorFlag, routine->highlightedCardIdChanged);
@@ -317,11 +320,23 @@ void WorkspaceFrame::setUpConnections() {
             [this](const int workspaceId, const CardLabelToColorMapping &cardLabelToColorMapping) {
         if (this->workspaceId != workspaceId) {
             qWarning().noquote()
-                    << QString("SettingBox edits setting of a workspace other than the current one");
+                    << "SettingBox edits setting of a workspace other than the current one";
             return;
         }
 
         onCardLabelToColorMappingUpdated(cardLabelToColorMapping);
+    });
+
+    connect(boardView, &BoardView::workspaceCardPropertiesToShowUpdatedViaSettingBox,
+            this,
+            [this](const int workspaceId, const CardPropertiesToShow &cardPropertiesToShow) {
+        if (this->workspaceId != workspaceId) {
+            qWarning().noquote()
+                    << "SettingBox edits setting of a workspace other than the current one";
+            return;
+        }
+
+        onCardPropertiesToShowUpdated(cardPropertiesToShow);
     });
 
     connect(boardView, &BoardView::hasWorkspaceSettingsPendingUpdateChanged,
@@ -676,6 +691,23 @@ void WorkspaceFrame::onCardLabelToColorMappingUpdated(
     //
     WorkspaceNodePropertiesUpdate update;
     update.cardLabelToColorMapping = cardLabelToColorMapping_;
+
+    Services::instance()->getAppData()->updateWorkspaceNodeProperties(
+                EventSource(this), workspaceId, update);
+}
+
+void WorkspaceFrame::onCardPropertiesToShowUpdated(
+        const CardPropertiesToShow &cardPropertiesToShow_) {
+    Q_ASSERT(workspaceId != -1);
+
+    cardPropertiesToShow = cardPropertiesToShow_;
+
+    //
+    boardView->cardPropertiesToShowSettingOnWorkspaceUpdated(cardPropertiesToShow);
+
+    //
+    WorkspaceNodePropertiesUpdate update;
+    update.cardPropertiesToShow = cardPropertiesToShow_;
 
     Services::instance()->getAppData()->updateWorkspaceNodeProperties(
             EventSource(this), workspaceId, update);

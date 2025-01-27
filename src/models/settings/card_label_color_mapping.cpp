@@ -41,9 +41,7 @@ bool CardLabelToColorMapping::setFromJsonStr(const QString &jsonStr) {
     if (!other.has_value())
         return false;
 
-    cardLabelsAndAssociatedColors = other.value().cardLabelsAndAssociatedColors;
-    defaultNodeRectColor = other.value().defaultNodeRectColor;
-
+    (*this) = other.value();
     return true;
 }
 

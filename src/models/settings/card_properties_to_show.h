@@ -1,6 +1,7 @@
 #ifndef CARD_PROPERTIES_TO_SHOW_H
 #define CARD_PROPERTIES_TO_SHOW_H
 
+#include <optional>
 #include "models/settings/abstract_setting.h"
 
 struct ValueDisplayFormat
@@ -26,7 +27,15 @@ struct CardPropertiesToShow : public AbstractWorkspaceOrBoardSetting
 public:
     explicit CardPropertiesToShow();
 
-    QVector<std::pair<QString, ValueDisplayFormat>> propertyNamesAndDisplayFormats;
+    using PropertiesAndDisplayFormats = QVector<std::pair<QString, ValueDisplayFormat>>;
+
+    //!
+    //! \return the setting for a card with labels `cardLabels`
+    //!
+    PropertiesAndDisplayFormats getSetting(const QSet<QString> &cardLabels) const;
+
+    //
+    void updateWith(const CardPropertiesToShow &other);
 
     //
     QString toJsonStr(const QJsonDocument::JsonFormat format) const override;
@@ -36,6 +45,18 @@ public:
 
     static std::optional<CardPropertiesToShow> fromJsonStr(
             const QString &jsonStr, QString *errorMsg = nullptr);
+
+    CardPropertiesToShow &operator = (const CardPropertiesToShow &other);
+
+private:
+
+
+//    QVector<std::pair<QString, PropertiesAndDisplayFormats>> cardLabelsAndSettings;
+    QHash<QString, PropertiesAndDisplayFormats> cardLabelToSetting;
+    QVector<QString> cardLabelsOrdering;
+
+    static PropertiesAndDisplayFormats merge(
+            const PropertiesAndDisplayFormats &vec1, const PropertiesAndDisplayFormats &vec2);
 };
 
 #endif // CARD_PROPERTIES_TO_SHOW_H

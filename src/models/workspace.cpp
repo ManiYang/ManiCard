@@ -7,7 +7,8 @@ QJsonObject Workspace::getNodePropertiesJson() const {
         {"name", name},
         {"boardsOrdering", toJsonArray(boardsOrdering)},
         {"lastOpenedBoardId", lastOpenedBoardId},
-        {"cardLabelToColorMapping", cardLabelToColorMapping.toJsonStr(QJsonDocument::Compact)}
+        {"cardLabelToColorMapping", cardLabelToColorMapping.toJsonStr(QJsonDocument::Compact)},
+        {"cardPropertiesToShow", cardPropertiesToShow.toJsonStr(QJsonDocument::Compact)}
     };
 }
 
@@ -32,6 +33,20 @@ void Workspace::updateNodeProperties(const QJsonObject &obj) {
             cardLabelToColorMapping = CardLabelToColorMapping();
         }
     }
+    if (const QJsonValue v = obj.value("cardPropertiesToShow"); v.isString()) {
+        QString errorMsg;
+        const auto dataOpt = CardPropertiesToShow::fromJsonStr(v.toString(), &errorMsg);
+        if (dataOpt.has_value()) {
+            cardPropertiesToShow = dataOpt.value();
+        }
+        else {
+            qWarning().noquote()
+                    << QString("could not parse the string as a CardPropertiesToShow");
+            qWarning().noquote() << QString("  | string -- %1").arg(v.toString());
+            qWarning().noquote() << QString("  | error msg -- %1").arg(errorMsg);
+            cardPropertiesToShow = CardPropertiesToShow();
+        }
+    }
 }
 
 void Workspace::updateNodeProperties(const WorkspaceNodePropertiesUpdate &update) {
@@ -43,6 +58,7 @@ void Workspace::updateNodeProperties(const WorkspaceNodePropertiesUpdate &update
     UPDATE_PROPERTY(boardsOrdering);
     UPDATE_PROPERTY(lastOpenedBoardId);
     UPDATE_PROPERTY(cardLabelToColorMapping);
+    UPDATE_PROPERTY(cardPropertiesToShow);
 
 #undef UPDATE_PROPERTY
 }
@@ -63,6 +79,12 @@ QJsonObject WorkspaceNodePropertiesUpdate::toJson() const {
         obj.insert(
                 "cardLabelToColorMapping",
                 cardLabelToColorMapping.value().toJsonStr(QJsonDocument::Compact));
+    }
+
+    if (cardPropertiesToShow.has_value()) {
+        obj.insert(
+                "cardPropertiesToShow",
+                cardPropertiesToShow.value().toJsonStr(QJsonDocument::Compact));
     }
 
     return obj;
