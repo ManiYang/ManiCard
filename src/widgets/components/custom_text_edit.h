@@ -25,6 +25,7 @@ public:
     void setReadOnly(const bool readonly);
     void enableSetEveryWheelEventAccepted(const bool enable);
     void obtainFocus();
+    void setVerticalScrollBarTurnedOn(const bool b);
 
     void setLineHeightPercent(const int percentage);
     void setParagraphSpacing(const double spacing);

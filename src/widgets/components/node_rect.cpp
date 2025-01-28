@@ -4,6 +4,7 @@
 #include "app_data_readonly.h"
 #include "node_rect.h"
 #include "services.h"
+#include "utilities/colors_util.h"
 #include "utilities/margins_util.h"
 #include "widgets/components/custom_graphics_text_item.h"
 #include "widgets/components/custom_text_edit.h"
@@ -15,6 +16,7 @@ NodeRect::NodeRect(const int cardId, QGraphicsItem *parent)
     : BoardBoxItem(getCreationParameters(), parent)
     , cardId(cardId)
     , titleItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
+    , propertiesItem(new CustomGraphicsTextItem) // parent is set in setUpContents()
     , textEdit(new CustomTextEdit(nullptr))
     , textEditProxyWidget(new QGraphicsProxyWidget) // parent is set in setUpContents()
     , textEditFocusIndicator(new QGraphicsRectItem(this)){
@@ -41,6 +43,11 @@ void NodeRect::setNodeLabels(const QStringList &labels) {
 
 void NodeRect::setTitle(const QString &title) {
     titleItem->setPlainText(title);
+    adjustContents();
+}
+
+void NodeRect::setPropertiesDisplay(const QString &propertiesDisplayText) {
+    propertiesItem->setPlainText(propertiesDisplayText);
     adjustContents();
 }
 
@@ -174,12 +181,40 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     titleItem->setParentItem(contentsContainer);
     titleItem->setEnableContextMenu(false);
 
-    //
-    textEditProxyWidget->setParentItem(contentsContainer);
+    propertiesItem->setParentItem(contentsContainer);
+    propertiesItem->setTextSelectable(true);
 
     //
+    textEditProxyWidget->setParentItem(contentsContainer);
     textEdit->setVisible(false);
     textEditProxyWidget->setWidget(textEdit);
+
+    // get view's font
+    QFont fontOfView;
+    if (QGraphicsView *view = getView(); view != nullptr)
+        fontOfView = view->font();
+
+    // -- title
+    {
+        constexpr int fontPixelSize = 20;
+
+        QFont font = fontOfView;
+        font.setPixelSize(fontPixelSize);
+        font.setBold(true);
+
+        titleItem->setFont(font);
+    }
+
+    // -- properties
+    {
+        constexpr int fontPixelSize = 14;
+
+        QFont font = fontOfView;
+        font.setPixelSize(fontPixelSize);
+        font.setBold(true);
+
+        propertiesItem->setFont(font);
+    }
 
     //
     textEdit->enableSetEveryWheelEventAccepted(true);
@@ -238,6 +273,8 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
             plainText = textEdit->toPlainText();
             emit titleTextUpdated(std::nullopt, plainText);
         }
+        //
+        textEdit->setVerticalScrollBarTurnedOn(!plainText.isEmpty());
     });
 
     connect(textEdit, &CustomTextEdit::clicked, this, [this]() {
@@ -255,7 +292,8 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     //
     connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::isDarkThemeUpdated,
             this, [this](const bool isDarkTheme) {
-        titleItem->setDefaultTextColor(getTitleItemDefaultTextColor(isDarkTheme));
+        titleItem->setDefaultTextColor(getNormalTextColor(isDarkTheme));
+        propertiesItem->setDefaultTextColor(getDimTextColor(isDarkTheme));
         textEditFocusIndicator->setPen(
                 getTextEditFocusIndicator(isDarkTheme, textEditFocusIndicatorLineWidth));
     });
@@ -264,46 +302,54 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
 void NodeRect::adjustContents() {
     const QRectF contentsRect = getContentsRect();
 
-    // get view's font
-    QFont fontOfView;
-    if (QGraphicsView *view = getView(); view != nullptr)
-        fontOfView = view->font();
+    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
+    const QColor normalTextColor = getNormalTextColor(isDarkTheme);
+    const QColor dimTextColor = getDimTextColor(isDarkTheme);
 
     // title
-    double yTitleBottom = 0;
+    double yBottom = 0;
     {
         constexpr int padding = 3;
-        constexpr int fontPixelSize = 20;
+        const double minHeight = QFontMetrics(titleItem->font()).height();
 
-        const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
-        const QColor textColor = getTitleItemDefaultTextColor(isDarkTheme);
-
-        //
-        QFont font = fontOfView;
-        font.setPixelSize(fontPixelSize);
-        font.setBold(true);
-
-        const double minHeight = QFontMetrics(font).height();
-
-        //
         titleItem->setTextWidth(
                 std::max(contentsRect.width() - padding * 2, 0.0));
-        titleItem->setFont(font);
-        titleItem->setDefaultTextColor(textColor);
+        titleItem->setDefaultTextColor(normalTextColor);
         titleItem->setPos(contentsRect.topLeft() + QPointF(padding, padding));
 
-        yTitleBottom
-                = contentsRect.top()
+        yBottom = contentsRect.top()
                   + std::max(titleItem->boundingRect().height(), minHeight)
                   + padding * 2;
+    }
+
+    // properties
+    {
+        if (propertiesItem->toPlainText().isEmpty()) {
+            propertiesItem->setVisible(false);
+        }
+        else {
+            propertiesItem->setVisible(true);
+
+            constexpr int padding = 3;
+
+            propertiesItem->setDefaultTextColor(dimTextColor);
+            propertiesItem->setTextWidth(
+                    std::max(contentsRect.width() - padding * 2, 0.0));
+            propertiesItem->setPos(contentsRect.left() + padding, yBottom);
+
+            yBottom += propertiesItem->boundingRect().height() + padding;
+        }
     }
 
     // text
     double textEditHeight;
     {
+        textEdit->setVerticalScrollBarTurnedOn(!plainText.isEmpty());
+
+        //
         constexpr int leftPadding = 3;
 
-        textEditHeight = contentsRect.bottom() - yTitleBottom;
+        textEditHeight = contentsRect.bottom() - yBottom;
         if (textEditHeight < 0.1) {
             textEditProxyWidget->setVisible(false);
         }
@@ -312,12 +358,12 @@ void NodeRect::adjustContents() {
             textEditProxyWidget->setVisible(true);
         }
 
-        textEditProxyWidget->setPos(contentsRect.left() + leftPadding, yTitleBottom);
+        textEditProxyWidget->setPos(contentsRect.left() + leftPadding, yBottom);
     }
 
     // textEditFocusIndicator
     textEditFocusIndicator->setRect(
-            QRectF(contentsRect.left(), yTitleBottom - 2.0,
+            QRectF(contentsRect.left(), yBottom - 2.0,
                    contentsRect.width(), textEditHeight + 2.0)
                 .marginsRemoved(uniformMarginsF(textEditFocusIndicatorLineWidth / 2.0))
     );
@@ -350,8 +396,13 @@ bool NodeRect::computeTextEditEditable(
     return !textEditIsPreviewMode && nodeRectIsEditable;
 }
 
-QColor NodeRect::getTitleItemDefaultTextColor(const bool isDarkTheme) {
+QColor NodeRect::getNormalTextColor(const bool isDarkTheme) {
     return isDarkTheme ? QColor(darkThemeStandardTextColor) : QColor(Qt::black);
+}
+
+QColor NodeRect::getDimTextColor(const bool isDarkTheme) {
+    const QColor normalTextColor = getNormalTextColor(isDarkTheme);
+    return shiftHslLightness(normalTextColor, (isDarkTheme ? -0.3 : 0.4));
 }
 
 QPen NodeRect::getTextEditFocusIndicator(const bool isDarkTheme, const double indicatorLineWidth) {

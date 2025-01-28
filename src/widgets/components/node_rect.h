@@ -21,6 +21,7 @@ public:
     // Call these "set" methods only after this item is initialized:
     void setNodeLabels(const QStringList &labels);
     void setTitle(const QString &title);
+    void setPropertiesDisplay(const QString &propertiesDisplayText);
     void setText(const QString &text);
     void setEditable(const bool editable);
 
@@ -66,6 +67,8 @@ private:
     // content items
     // -- title
     CustomGraphicsTextItem *titleItem;
+    // -- properties
+    CustomGraphicsTextItem *propertiesItem;
     // -- text (Use QTextEdit rather than QGraphicsTextItem. The latter does not have scrolling
     //    functionality.)
     CustomTextEdit *textEdit;
@@ -84,7 +87,8 @@ private:
     static QString getNodeLabelsString(const QStringList &labels);
     static bool computeTextEditEditable(
             const bool nodeRectIsEditable, const bool textEditIsPreviewMode);
-    static QColor getTitleItemDefaultTextColor(const bool isDarkTheme);
+    static QColor getNormalTextColor(const bool isDarkTheme);
+    static QColor getDimTextColor(const bool isDarkTheme);
     static QPen getTextEditFocusIndicator(const bool isDarkTheme, const double indicatorLineWidth);
 };
 

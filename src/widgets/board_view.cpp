@@ -508,8 +508,22 @@ void BoardView::setUpConnections() {
         settingBoxesCollection.setAllSettingBoxesTextEditorIgnoreWheelEvent(false);
     });
 
-    //
-    connect(Services::instance()->getAppData(), &AppData::fontSizeScaleFactorChanged,
+    // AppData
+    connect(Services::instance()->getAppDataReadonly(), &AppDataReadonly::cardPropertiesUpdated,
+            this,
+            [this](EventSource eventSrc, const int cardId,
+                    const CardPropertiesUpdate &cardPropertiesUpdate) {
+        if (eventSrc.sourceWidget == this)
+            return;
+
+        qDebug() << "cardPropertiesUpdated not by boardView";
+
+
+
+    });
+
+    connect(Services::instance()->getAppDataReadonly(),
+            &AppDataReadonly::fontSizeScaleFactorChanged,
             this, [this](const QWidget *window, const double factor) {
         if (this->window() != window)
             return;
@@ -1677,17 +1691,69 @@ void BoardView::updateCanvasScale(const double scale, const QPointF &anchorScene
 }
 
 void BoardView::updateEffectiveCardPropertiesToShow() {
-    qDebug() << "updateEffectiveCardPropertiesToShow";
-
     // merge (cascade) workspace's setting with board's setting
     CardPropertiesToShow effectiveSetting = cardPropertiesToShowSettings.onWorkspace;
     effectiveSetting.updateWith(cardPropertiesToShowSettings.onBoard);
 
-    // apply `effectiveSetting`
+    //
+    const QSet<int> cardIds = nodeRectsCollection.getAllCardIds();
 
+    //
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QHash<int, Card> cards;
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
 
+    routine->addStep([this, routine, cardIds]() {
+        // get cards data
+        Services::instance()->getAppDataReadonly()->queryCards(
+                cardIds,
+                // callback
+                [routine](bool ok, const QHash<int, Card> &cards) {
+                    ContinuationContext context(routine);
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg = "Could not get cards data.";
+                        return;
+                    }
+                    routine->cards = cards;
+                },
+                this);
+    }, this);
 
+    routine->addStep([this, routine, effectiveSetting]() {
+        // apply `effectiveSetting` on every card
+        ContinuationContext context(routine);
 
+        for (auto it = routine->cards.constBegin(); it != routine->cards.constEnd(); ++it) {
+            const int &cardId = it.key();
+            const Card &cardData = it.value();
+
+            // determine properties display format by labels
+            const CardPropertiesToShow::PropertiesAndDisplayFormats propertiesDisplayFormat
+                    = effectiveSetting.getPropertiesToShow(cardData.getLabels());
+
+            // determine properties display text
+            const QString propertiesDisplay = computeCardPropertiesDisplay(
+                    propertiesDisplayFormat, cardData.getCustomProperties());
+
+            //
+            nodeRectsCollection.get(cardId)->setPropertiesDisplay(propertiesDisplay);
+        }
+
+    }, this);
+
+    routine->addStep([this, routine]() {
+        // final step
+        ContinuationContext context(routine);
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+            showWarningMessageBox(this, " ", routine->errorMsg);
+    }, this);
+
+    routine->start();
 }
 
 void BoardView::updateRelationshipBundles() {
@@ -1964,6 +2030,37 @@ QLineF BoardView::computeArrowLineConnectingRects(
     return {startPoint, endPoint};
 }
 
+QString BoardView::computeCardPropertiesDisplay(
+        const CardPropertiesToShow::PropertiesAndDisplayFormats &propertiesDisplayFormat,
+        const QHash<QString, QJsonValue> &cardProperties) {
+    QStringList displayOfProperties;
+    for (const auto &[propertyName, format]: propertiesDisplayFormat) {
+        QString valueDisplay;
+        if (!cardProperties.contains(propertyName)) {
+            if (format.stringIfNotExists.has_value())
+                valueDisplay = format.stringIfNotExists.value();
+            else
+                continue;
+        }
+        else {
+            const QJsonValue value = cardProperties.value(propertyName);
+            valueDisplay = format.getValueDisplayText(value);
+        }
+
+        //
+        QString propertyDisplay;
+        if (!format.hideLabel)
+            propertyDisplay = QString("%1: %2").arg(propertyName, valueDisplay);
+        else
+            propertyDisplay = valueDisplay;
+
+        //
+        displayOfProperties << propertyDisplay;
+    }
+
+    return displayOfProperties.join("\n");
+}
+
 //====
 
 NodeRect *BoardView::NodeRectsCollection::createNodeRect(
@@ -2193,8 +2290,21 @@ NodeRect *BoardView::NodeRectsCollection::get(const int cardId) const {
     return cardIdToNodeRect.value(cardId);
 }
 
+std::optional<QRectF> BoardView::NodeRectsCollection::getNodeRectRect(const int cardId) const {
+    if (!cardIdToNodeRect.contains(cardId))
+        return std::nullopt;
+    return cardIdToNodeRect.value(cardId)->getRect();
+}
+
 QSet<int> BoardView::NodeRectsCollection::getAllCardIds() const {
     return keySet(cardIdToNodeRect);
+}
+
+QHash<int, QSet<QString> > BoardView::NodeRectsCollection::getCardIdToLabels() const {
+    QHash<int, QSet<QString> > cardIdToLabels;
+    for (auto it = cardIdToNodeRect.constBegin(); it != cardIdToNodeRect.constEnd(); ++it)
+        cardIdToLabels.insert(it.key(), it.value()->getNodeLabels());
+    return cardIdToLabels;
 }
 
 QColor BoardView::NodeRectsCollection::getNodeRectOwnColor(const int cardId) const {
@@ -2327,14 +2437,17 @@ QVector<RelationshipId> BoardView::RelationshipsCollection::sortRelationshipIds(
 
 QLineF BoardView::RelationshipsCollection::computeEdgeArrowLine(
         const RelationshipId &relId, const int parallelIndex, const int parallelCount) {
-    NodeRect *startNodeRect = boardView->nodeRectsCollection.get(relId.startCardId);
-    Q_ASSERT(startNodeRect != nullptr);
+    const auto rectOfStartNodeRectOpt
+            = boardView->nodeRectsCollection.getNodeRectRect(relId.startCardId);
+    Q_ASSERT(rectOfStartNodeRectOpt.has_value());
 
-    NodeRect *endNodeRect = boardView->nodeRectsCollection.get(relId.endCardId);
-    Q_ASSERT(endNodeRect != nullptr);
+    const auto rectOfEndNodeRectOpt
+            = boardView->nodeRectsCollection.getNodeRectRect(relId.endCardId);
+    Q_ASSERT(rectOfEndNodeRectOpt.has_value());
 
     return computeArrowLineConnectingRects(
-            startNodeRect->getRect(), endNodeRect->getRect(), parallelIndex, parallelCount);
+            rectOfStartNodeRectOpt.value(), rectOfEndNodeRectOpt.value(),
+            parallelIndex, parallelCount);
 }
 
 DataViewBox *BoardView::DataViewBoxesCollection::createDataViewBox(
@@ -2516,10 +2629,10 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
             }
         }
         for (const int cardId: descendantCards) {
-            NodeRect *nodeRect = boardView->nodeRectsCollection.get(cardId);
-            if (nodeRect != nullptr) {
+            const auto nodeRectRectOpt = boardView->nodeRectsCollection.getNodeRectRect(cardId);
+            if (nodeRectRectOpt.has_value()) {
                 boardView->comovingStateData.followerCardIdToInitialPos.insert(
-                        cardId, nodeRect->getRect().topLeft());
+                        cardId, nodeRectRectOpt.value().topLeft());
             }
         }
         boardView->comovingStateData.followeeInitialPos = groupBoxPtr->getRect().topLeft();
@@ -2544,8 +2657,10 @@ GroupBox *BoardView::GroupBoxesCollection::createGroupBox(
                     descendantItemsRects << groupBox->getRect();
             }
             for (const int cardId: descendantCards) {
-                if (auto *nodeRect = boardView->nodeRectsCollection.get(cardId); nodeRect != nullptr)
-                    descendantItemsRects << nodeRect->getRect();
+                const auto nodeRectRectOpt
+                        = boardView->nodeRectsCollection.getNodeRectRect(cardId);
+                if (nodeRectRectOpt.has_value())
+                    descendantItemsRects << nodeRectRectOpt.value();
             }
 
             const QRectF boundingRectOfChildItems = boundingRectOfRects(descendantItemsRects);
@@ -3002,16 +3117,17 @@ QLineF BoardView::RelationshipBundlesCollection::computeEdgeArrowLine(
 
     GroupBox *groupBox = boardView->groupBoxesCollection.get(bundle.groupBoxId);
     Q_ASSERT(groupBox != nullptr);
-    NodeRect *nodeRect = boardView->nodeRectsCollection.get(bundle.externalCardId);
-    Q_ASSERT(nodeRect != nullptr);
+    const std::optional<QRectF> nodeRectRectOpt
+            = boardView->nodeRectsCollection.getNodeRectRect(bundle.externalCardId);
+    Q_ASSERT(nodeRectRectOpt.has_value());
 
     if (bundle.direction == RelationshipsBundle::Direction::IntoGroup) {
-        startRect = nodeRect->getRect();
+        startRect = nodeRectRectOpt.value();
         endRect = groupBox->getRect();
     }
     else {
         startRect = groupBox->getRect();
-        endRect = nodeRect->getRect();
+        endRect = nodeRectRectOpt.value();
     }
     return computeArrowLineConnectingRects(startRect, endRect, parallelIndex, parallelCount);
 }

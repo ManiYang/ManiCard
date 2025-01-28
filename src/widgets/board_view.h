@@ -229,7 +229,10 @@ private:
 
         bool contains(const int cardId) const;
         NodeRect *get(const int cardId) const;
+        std::optional<QRectF> getNodeRectRect(const int cardId) const;
+                // returns nullopt if NodeRect not found
         QSet<int> getAllCardIds() const;
+        QHash<int, QSet<QString>> getCardIdToLabels() const;
         QColor getNodeRectOwnColor(const int cardId) const;
         QRectF getBoundingRectOfAllNodeRects() const; // returns QRectF() if no NodeRect exists
 
@@ -556,6 +559,11 @@ private:
     static QLineF computeArrowLineConnectingRects(
             const QRectF &fromRect, const QRectF &toRect,
             const int parallelIndex, const int parallelCount);
+
+    static QString computeCardPropertiesDisplay(
+            const CardPropertiesToShow::PropertiesAndDisplayFormats &propertiesDisplayFormat,
+            const QHash<QString, QJsonValue> &cardProperties);
+
 };
 
 #endif // BOARDVIEW_H

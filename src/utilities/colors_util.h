@@ -19,4 +19,17 @@ inline QColor invertHslLightness(const QColor &color) {
     return QColor::fromHslF(h, s, ll);
 }
 
+inline QColor shiftHslLightness(const QColor &color, const double lightnessShift) {
+    double h;
+    double s;
+    double l;
+    color.getHslF(&h, &s, &l);
+
+    l += lightnessShift;
+    l = std::max(0.0, l);
+    l = std::min(1.0, l);
+
+    return QColor::fromHslF(h, s, l);
+}
+
 #endif // COLORS_UTIL_H

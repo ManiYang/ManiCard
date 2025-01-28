@@ -76,6 +76,10 @@ void CustomTextEdit::obtainFocus() {
     textEdit->setFocus();
 }
 
+void CustomTextEdit::setVerticalScrollBarTurnedOn(const bool b) {
+    textEdit->setVerticalScrollBarPolicy(b ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff);
+}
+
 void CustomTextEdit::setLineHeightPercent(const int percentage) {
     textChangeIsByUser = false;
 

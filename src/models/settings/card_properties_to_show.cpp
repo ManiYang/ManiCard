@@ -3,6 +3,58 @@
 
 #define SET_ERROR_MSG(msg) if (errorMsg != nullptr) *errorMsg = msg;
 
+QString ValueDisplayFormat::getValueDisplayText(const QJsonValue &value) const {
+    Q_ASSERT(!value.isUndefined());
+
+    QString printedValue;
+    if (value.isString()) {
+        if (addQuotesForString)
+            printedValue = QString("\"%1\"").arg(value.toString());
+        else
+            printedValue = value.toString();
+    }
+    else if (value.isBool()) {
+        printedValue = value.toBool() ? "true" : "false";
+    }
+    else if (value.isDouble()) {
+        if (jsonValueIsInt(value))
+            printedValue = QString::number(value.toInt());
+        else
+            printedValue = QString::number(value.toDouble());
+    }
+    else if (value.isArray()) {
+        constexpr bool compact = true;
+        printedValue = printJson(value.toArray(), compact);
+    }
+    else if (value.isObject()) {
+        constexpr bool compact = true;
+        printedValue = printJson(value.toObject(), compact);
+    }
+    else if (value.isNull()) {
+        printedValue = "null";
+    }
+    else { // (should not happen)
+        printedValue = "";
+    }
+
+    //
+    QString displayString;
+    if (caseValueToString.contains(printedValue))
+        displayString = caseValueToString.value(printedValue);
+    else
+        displayString = defaultStringIfExists;
+
+    // split with "$$"
+    QStringList splitted = displayString.split("$$");
+
+    // replace '$' by `printedValue`
+    for (int i = 0; i < splitted.count(); ++i)
+         splitted[i].replace(QChar('$'), printedValue);
+
+    // join with "$"
+    return splitted.join("$");
+}
+
 QJsonObject ValueDisplayFormat::toJson() const {
     QJsonObject obj;
 
@@ -110,7 +162,7 @@ CardPropertiesToShow::CardPropertiesToShow()
     : AbstractWorkspaceOrBoardSetting(SettingCategory::CardPropertiesToShow) {
 }
 
-CardPropertiesToShow::PropertiesAndDisplayFormats CardPropertiesToShow::getSetting(
+CardPropertiesToShow::PropertiesAndDisplayFormats CardPropertiesToShow::getPropertiesToShow(
         const QSet<QString> &cardLabels) const {
     // find first label in `cardLabelsOrdering` that `cardLabels` contains
     auto it = std::find_if(
