@@ -516,10 +516,36 @@ void BoardView::setUpConnections() {
         if (eventSrc.sourceWidget == this)
             return;
 
-        qDebug() << "cardPropertiesUpdated not by boardView";
+        //
+        if (!nodeRectsCollection.contains(cardId))
+            return;
 
+        Services::instance()->getAppDataReadonly()->queryCards(
+                {cardId},
+                // callback
+                [this, cardId, cardPropertiesUpdate](bool ok, const QHash<int, Card> &cards) {
+                    if (!ok) {
+                        qWarning().noquote() << "could not get card data";
+                        return;
+                    }
+                    if (!cards.contains(cardId))
+                        return;
 
+                    //
+                    Card cardData = cards.value(cardId);
 
+                    if (!cardPropertiesUpdate.getCustomProperties().isEmpty()) {
+                        nodeRectsCollection.updateNodeRectPropertiesDisplay(
+                                cardId, cardData.getLabels(), cardData.getCustomProperties());
+                    }
+
+                    if (cardPropertiesUpdate.title.has_value()
+                            || cardPropertiesUpdate.text.has_value()) {
+                        Q_ASSERT(false); // card's title and text should be editable only via BoardView
+                    }
+                },
+                this
+        );
     });
 
     connect(Services::instance()->getAppDataReadonly(),
@@ -933,7 +959,7 @@ void BoardView::onUserToDuplicateCard(const QPointF &scenePos) {
 
         //
         QSizeF newNodeRectSize = nodeRectsCollection.contains(cardIdToDuplicate)
-                ? nodeRectsCollection.get(cardIdToDuplicate)->getRect().size()
+                ? nodeRectsCollection.getNodeRectRect(cardIdToDuplicate).value().size()
                 : quantize(defaultNewNodeRectSize, boardSnapGridSize);
         routine->nodeRectData.rect = QRectF(
                 quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
@@ -1732,15 +1758,8 @@ void BoardView::updateEffectiveCardPropertiesToShow() {
             const int &cardId = it.key();
             const Card &cardData = it.value();
 
-            // determine properties display format by labels
-            const CardPropertiesToShow::PropertiesAndDisplayFormats propertiesDisplayFormat
-                    = effectiveSetting.getPropertiesToShow(cardData.getLabels());
-
-            // determine properties display text
             const QString propertiesDisplay = computeCardPropertiesDisplay(
-                    propertiesDisplayFormat, cardData.getCustomProperties());
-
-            //
+                    effectiveSetting, cardData.getLabels(), cardData.getCustomProperties());
             nodeRectsCollection.get(cardId)->setPropertiesDisplay(propertiesDisplay);
         }
 
@@ -1838,12 +1857,12 @@ void BoardView::savePositionsOfComovingItems(const ComovingStateData &comovingSt
     }
 
     for (const int cardId: cardIds) {
-        NodeRect *nodeRect = nodeRectsCollection.get(cardId);
-        if (nodeRect == nullptr)
+        const auto nodeRectRectOpt = nodeRectsCollection.getNodeRectRect(cardId);
+        if (!nodeRectRectOpt.has_value())
             return;
 
         NodeRectDataUpdate update;
-        update.rect = nodeRect->getRect();
+        update.rect = nodeRectRectOpt.value();
 
         Services::instance()->getAppData()->updateNodeRectProperties(
                 EventSource(this), this->boardId, cardId, update);
@@ -2031,19 +2050,24 @@ QLineF BoardView::computeArrowLineConnectingRects(
 }
 
 QString BoardView::computeCardPropertiesDisplay(
-        const CardPropertiesToShow::PropertiesAndDisplayFormats &propertiesDisplayFormat,
-        const QHash<QString, QJsonValue> &cardProperties) {
+        CardPropertiesToShow effectiveCardPropertiesToShowSetting, const QSet<QString> &cardLabels,
+        const QHash<QString, QJsonValue> &cardCustomProperties) {
+    // 1. determine properties display format by labels
+    const CardPropertiesToShow::PropertiesAndDisplayFormats propertiesDisplayFormat
+            = effectiveCardPropertiesToShowSetting.getPropertiesToShow(cardLabels);
+
+    // 2. determine properties display text
     QStringList displayOfProperties;
     for (const auto &[propertyName, format]: propertiesDisplayFormat) {
         QString valueDisplay;
-        if (!cardProperties.contains(propertyName)) {
+        if (!cardCustomProperties.contains(propertyName)) {
             if (format.stringIfNotExists.has_value())
                 valueDisplay = format.stringIfNotExists.value();
             else
                 continue;
         }
         else {
-            const QJsonValue value = cardProperties.value(propertyName);
+            const QJsonValue value = cardCustomProperties.value(propertyName);
             valueDisplay = format.getValueDisplayText(value);
         }
 
@@ -2061,7 +2085,7 @@ QString BoardView::computeCardPropertiesDisplay(
     return displayOfProperties.join("\n");
 }
 
-//====
+//======
 
 NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         const int cardId, const Card &cardData, const QRectF &rect,
@@ -2236,6 +2260,21 @@ void BoardView::NodeRectsCollection::closeNodeRect(
     //
     if (nodeRect->getIsHighlighted())
         *highlightedCardIdUpdated = true;
+}
+
+void BoardView::NodeRectsCollection::updateNodeRectPropertiesDisplay(
+        const int cardId, const QSet<QString> &cardLabels,
+        const QHash<QString, QJsonValue> &cardCustomProperties) {
+    if (!cardIdToNodeRect.contains(cardId))
+        return;
+
+    // merge (cascade) workspace's setting with board's setting
+    CardPropertiesToShow effectiveSetting = boardView->cardPropertiesToShowSettings.onWorkspace;
+    effectiveSetting.updateWith(boardView->cardPropertiesToShowSettings.onBoard);
+
+    const QString propertiesDisplay = computeCardPropertiesDisplay(
+            effectiveSetting, cardLabels, cardCustomProperties);
+    cardIdToNodeRect.value(cardId)->setPropertiesDisplay(propertiesDisplay);
 }
 
 void BoardView::NodeRectsCollection::setHighlightedCardIds(const QSet<int> &cardIdsToHighlight) {

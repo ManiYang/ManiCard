@@ -220,6 +220,10 @@ private:
                 const int cardId, const bool removeConnectedEdgeArrows,
                 bool *highlightedCardIdUpdated);
 
+        void updateNodeRectPropertiesDisplay(
+                const int cardId, const QSet<QString> &cardLabels,
+                const QHash<QString, QJsonValue> &cardCustomProperties);
+
         void setHighlightedCardIds(const QSet<int> &cardIdsToHighlight);
         QSet<int> addToHighlightedCards(const QSet<int> &cardIdsToHighlight);
                 // returns all cards that are in highlighted state
@@ -561,9 +565,9 @@ private:
             const int parallelIndex, const int parallelCount);
 
     static QString computeCardPropertiesDisplay(
-            const CardPropertiesToShow::PropertiesAndDisplayFormats &propertiesDisplayFormat,
-            const QHash<QString, QJsonValue> &cardProperties);
-
+            CardPropertiesToShow effectiveCardPropertiesToShowSetting,
+            const QSet<QString> &cardLabels,
+            const QHash<QString, QJsonValue> &cardCustomProperties);
 };
 
 #endif // BOARDVIEW_H
