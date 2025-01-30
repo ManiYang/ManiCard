@@ -194,7 +194,7 @@ private:
 
     void updateCanvasScale(const double scale, const QPointF &anchorScenePos);
 
-    void updateEffectiveCardPropertiesToShow();
+    void updatePropertiesDisplayOfAllCards();
 
     //
     class NodeRectsCollection
@@ -208,7 +208,7 @@ private:
         NodeRect *createNodeRect(
                 const int cardId, const Card &cardData, const QRectF &rect,
                 const QColor &displayColor, const QColor &nodeRectOwnColor,
-                const QStringList &userLabelsList);
+                const QStringList &userLabelsList, const QString &propertiesDisplay);
 
         //!
         //! Does not check NodeRect::canClose().
@@ -222,7 +222,8 @@ private:
 
         void updateNodeRectPropertiesDisplay(
                 const int cardId, const QSet<QString> &cardLabels,
-                const QHash<QString, QJsonValue> &cardCustomProperties);
+                const QHash<QString, QJsonValue> &cardCustomProperties,
+                const CardPropertiesToShow &effectiveCardPropertiesToShow);
 
         void setHighlightedCardIds(const QSet<int> &cardIdsToHighlight);
         QSet<int> addToHighlightedCards(const QSet<int> &cardIdsToHighlight);

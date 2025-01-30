@@ -62,9 +62,12 @@ void NodeRect::setText(const QString &text) {
 }
 
 void NodeRect::setEditable(const bool editable) {
-    titleItem->setEditable(editable);
-
     nodeRectIsEditable = editable;
+
+    using TextInteractionState = CustomGraphicsTextItem::TextInteractionState;
+    titleItem->setTextInteractionState(
+            editable ? TextInteractionState::Editable : TextInteractionState::Selectable);
+
     textEdit->setReadOnly(
             !computeTextEditEditable(nodeRectIsEditable, textEditIsPreviewMode));
 }
@@ -182,7 +185,9 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     titleItem->setEnableContextMenu(false);
 
     propertiesItem->setParentItem(contentsContainer);
-    propertiesItem->setTextSelectable(true);
+
+    using TextInteractionState = CustomGraphicsTextItem::TextInteractionState;
+    propertiesItem->setTextInteractionState(TextInteractionState::Selectable);
 
     //
     textEditProxyWidget->setParentItem(contentsContainer);

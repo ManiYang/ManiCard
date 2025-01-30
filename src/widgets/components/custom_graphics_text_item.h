@@ -13,11 +13,17 @@ class CustomGraphicsTextItem : public QGraphicsObject
 {
     Q_OBJECT
 public:
+    enum class TextInteractionState {
+        None, //!> not selectable & not editable
+        Selectable, //!> selectable & not editable
+        Editable //!> selectable & editable
+    };
+
+public:
     explicit CustomGraphicsTextItem(QGraphicsItem *parent = nullptr);
 
     void setPlainText(const QString &text);
-    void setEditable(const bool editable);
-    void setTextSelectable(const bool selectable);
+    void setTextInteractionState(const TextInteractionState state);
     void setTextWidth(const double width);
     void setFont(const QFont &font);
     void setDefaultTextColor(const QColor &color);
@@ -41,6 +47,7 @@ private:
     GraphicsTextItemTweak *graphicsTextItem;
     bool textChangeIsByUser {true};
     double height;
+    TextInteractionState textInteractionState {TextInteractionState::None};
 };
 
 

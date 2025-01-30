@@ -110,9 +110,10 @@ void SettingBox::setUpContents(QGraphicsItem *contentsContainer) {
     settingErrorMsgItem = new CustomGraphicsTextItem(contentsContainer);
 
     //
-    titleItem->setEditable(false);
-    descriptionItem->setEditable(false);
-    schemaItem->setTextSelectable(true);
+    using TextInteractionState = CustomGraphicsTextItem::TextInteractionState;
+    titleItem->setTextInteractionState(TextInteractionState::Selectable);
+    descriptionItem->setTextInteractionState(TextInteractionState::Selectable);
+    schemaItem->setTextInteractionState(TextInteractionState::Selectable);
     textEdit->setReadOnly(false);
     textEdit->setReplaceTabBySpaces(4);
 

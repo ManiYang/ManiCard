@@ -52,9 +52,13 @@ void DataViewBox::setQuery(const QString &cypher, const QJsonObject &parameters)
 }
 
 void DataViewBox::setEditable(const bool editable) {
-    titleItem->setEditable(editable);
-    queryCypherItem->setEditable(editable);
-    queryParametersItem->setEditable(editable);
+    using TextInteractionState = CustomGraphicsTextItem::TextInteractionState;
+    const TextInteractionState state = editable
+             ? TextInteractionState::Editable : TextInteractionState::Selectable;
+
+    titleItem->setTextInteractionState(state);
+    queryCypherItem->setTextInteractionState(state);
+    queryParametersItem->setTextInteractionState(state);
 }
 
 void DataViewBox::setTextEditorIgnoreWheelEvent(const bool b) {

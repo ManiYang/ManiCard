@@ -213,6 +213,12 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>lineEdit</tabstop>
+  <tabstop>comboBoxRelType</tabstop>
+  <tabstop>radioButtonFrom</tabstop>
+  <tabstop>radioButtonTo</tabstop>
+ </tabstops>
  <resources>
   <include location="../../resources.qrc"/>
  </resources>

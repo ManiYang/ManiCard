@@ -203,6 +203,10 @@ void BoardView::loadBoard(
                 = Services::instance()->getAppDataReadonly()->getAutoAdjustCardColorsForDarkTheme();
 
         // NodeRect's
+        CardPropertiesToShow effectiveCardPropertiesToShow
+                = cardPropertiesToShowSettings.onWorkspace;
+        effectiveCardPropertiesToShow.updateWith(routine->board.cardPropertiesToShow);
+
         for (auto it = routine->cardsData.constBegin();
                 it != routine->cardsData.constEnd(); ++it) {
             const int &cardId = it.key();
@@ -215,10 +219,14 @@ void BoardView::loadBoard(
                     cardLabelsAndAssociatedColors, defaultNodeRectColor,
                     autoAdjustCardColorsForDarkTheme && isDarkTheme);
 
+            const QString propertiesDisplay = computeCardPropertiesDisplay(
+                    effectiveCardPropertiesToShow,
+                    cardData.getLabels(), cardData.getCustomProperties());
+
             NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
                     cardId, cardData, nodeRectData.rect,
                     displayColor, nodeRectData.ownColor,
-                    routine->userLabelsList);
+                    routine->userLabelsList, propertiesDisplay);
             nodeRect->setEditable(true);
         }
 
@@ -346,7 +354,6 @@ void BoardView::loadBoard(
         ContinuationContext context(routine);
 
         cardPropertiesToShowSettings.onBoard = routine->board.cardPropertiesToShow;
-        updateEffectiveCardPropertiesToShow();
 
         zoomScale = routine->board.zoomRatio;
         canvas->setScale(zoomScale * graphicsGeometryScaleFactor); // (1)
@@ -403,7 +410,7 @@ void BoardView::setColorsAssociatedWithLabels(
 void BoardView::cardPropertiesToShowSettingOnWorkspaceUpdated(
         const CardPropertiesToShow &workspaceSettingOfCardPropertiesToShow) {
     cardPropertiesToShowSettings.onWorkspace = workspaceSettingOfCardPropertiesToShow;
-    updateEffectiveCardPropertiesToShow();
+    updatePropertiesDisplayOfAllCards();
 }
 
 void BoardView::updateSettingBoxOnWorkspaceSetting(
@@ -535,8 +542,14 @@ void BoardView::setUpConnections() {
                     Card cardData = cards.value(cardId);
 
                     if (!cardPropertiesUpdate.getCustomProperties().isEmpty()) {
+                        // card's custom properties updated
+                        CardPropertiesToShow effectiveSetting
+                                = cardPropertiesToShowSettings.onWorkspace;
+                        effectiveSetting.updateWith(cardPropertiesToShowSettings.onBoard);
+
                         nodeRectsCollection.updateNodeRectPropertiesDisplay(
-                                cardId, cardData.getLabels(), cardData.getCustomProperties());
+                                cardId, cardData.getLabels(), cardData.getCustomProperties(),
+                                effectiveSetting);
                     }
 
                     if (cardPropertiesUpdate.title.has_value()
@@ -674,6 +687,10 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
         const bool autoAdjustCardColorsForDarkTheme
                 = Services::instance()->getAppDataReadonly()->getAutoAdjustCardColorsForDarkTheme();
 
+        CardPropertiesToShow effectiveCardPropertiesToShow
+                = cardPropertiesToShowSettings.onWorkspace;
+        effectiveCardPropertiesToShow.updateWith(cardPropertiesToShowSettings.onBoard);
+
         //
         routine->nodeRectData.rect = QRectF(
                 quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
@@ -686,10 +703,14 @@ void BoardView::onUserToOpenExistingCard(const QPointF &scenePos) {
                 cardLabelsAndAssociatedColors, defaultNodeRectColor,
                 autoAdjustCardColorsForDarkTheme && isDarkTheme);
 
+        const QString propertiesDisplay = computeCardPropertiesDisplay(
+                effectiveCardPropertiesToShow,
+                routine->cardData.getLabels(), routine->cardData.getCustomProperties());
+
         auto *nodeRect = nodeRectsCollection.createNodeRect(
                 cardId, routine->cardData, routine->nodeRectData.rect,
                 displayColor, routine->nodeRectData.ownColor,
-                routine->userLabelsList);
+                routine->userLabelsList, propertiesDisplay);
         nodeRect->setEditable(true);
 
         adjustSceneRect();
@@ -821,6 +842,10 @@ void BoardView::onUserToCreateNewCard(const QPointF &scenePos) {
         const bool autoAdjustCardColorsForDarkTheme
                 = Services::instance()->getAppDataReadonly()->getAutoAdjustCardColorsForDarkTheme();
 
+        CardPropertiesToShow effectiveCardPropertiesToShow
+                = cardPropertiesToShowSettings.onWorkspace;
+        effectiveCardPropertiesToShow.updateWith(cardPropertiesToShowSettings.onBoard);
+
         //
         routine->nodeRectData.rect = QRectF(
                 quantize(canvas->mapFromScene(scenePos), boardSnapGridSize),
@@ -832,10 +857,14 @@ void BoardView::onUserToCreateNewCard(const QPointF &scenePos) {
                 routine->nodeRectData.ownColor, cardLabels, cardLabelsAndAssociatedColors,
                 defaultNodeRectColor, autoAdjustCardColorsForDarkTheme && isDarkTheme);
 
+        const QString propertiesDisplay = computeCardPropertiesDisplay(
+                effectiveCardPropertiesToShow,
+                routine->card.getLabels(), routine->card.getCustomProperties());
+
         NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
                 routine->newCardId, routine->card, routine->nodeRectData.rect,
                 displayColor, routine->nodeRectData.ownColor,
-                routine->userLabelsList);
+                routine->userLabelsList, propertiesDisplay);
         nodeRect->setEditable(true);
 
         adjustSceneRect();
@@ -957,6 +986,10 @@ void BoardView::onUserToDuplicateCard(const QPointF &scenePos) {
         const bool autoAdjustCardColorsForDarkTheme
                 = Services::instance()->getAppDataReadonly()->getAutoAdjustCardColorsForDarkTheme();
 
+        CardPropertiesToShow effectiveCardPropertiesToShow
+                = cardPropertiesToShowSettings.onWorkspace;
+        effectiveCardPropertiesToShow.updateWith(cardPropertiesToShowSettings.onBoard);
+
         //
         QSizeF newNodeRectSize = nodeRectsCollection.contains(cardIdToDuplicate)
                 ? nodeRectsCollection.getNodeRectRect(cardIdToDuplicate).value().size()
@@ -972,10 +1005,14 @@ void BoardView::onUserToDuplicateCard(const QPointF &scenePos) {
                 cardLabelsAndAssociatedColors, defaultNodeRectColor,
                 autoAdjustCardColorsForDarkTheme && isDarkTheme);
 
+        const QString propertiesDisplay = computeCardPropertiesDisplay(
+                effectiveCardPropertiesToShow,
+                routine->cardData.getLabels(), routine->cardData.getCustomProperties());
+
         NodeRect *nodeRect = nodeRectsCollection.createNodeRect(
                 routine->newCardId, routine->cardData, routine->nodeRectData.rect,
                 displayColor, routine->nodeRectData.ownColor,
-                routine->userLabelsList);
+                routine->userLabelsList, propertiesDisplay);
         nodeRect->setEditable(true);
 
         adjustSceneRect();
@@ -1313,7 +1350,40 @@ void BoardView::onUserToSetLabels(const int cardId) {
 
         nodeRect->setNodeLabels(updatedLabels);
         nodeRect->setColor(nodeRectColor);
+    }, this);
 
+    routine->addStep([this, routine, cardId]() {
+        // update properties display
+        Services::instance()->getAppDataReadonly()->queryCards(
+                {cardId},
+                // callback
+                [this, routine, cardId](bool ok, const QHash<int, Card> &cards) {
+                    ContinuationContext context(routine);
+
+                    if (!ok) {
+                        qWarning().noquote() << "could not get card data";
+                        return;
+                    }
+                    if (!cards.contains(cardId)) {
+                        return;
+                    }
+
+                    //
+                    const QSet<QString> updatedLabels (
+                            routine->updatedLabels.value().constBegin(),
+                            routine->updatedLabels.value().constEnd());
+
+                    const auto customProperties = cards.value(cardId).getCustomProperties();
+
+                    CardPropertiesToShow effectiveSetting
+                            = cardPropertiesToShowSettings.onWorkspace;
+                    effectiveSetting.updateWith(cardPropertiesToShowSettings.onBoard);
+
+                    nodeRectsCollection.updateNodeRectPropertiesDisplay(
+                            cardId, updatedLabels, customProperties, effectiveSetting);
+                },
+                this
+        );
     }, this);
 
     routine->addStep([this, routine, cardId]() {
@@ -1716,7 +1786,7 @@ void BoardView::updateCanvasScale(const double scale, const QPointF &anchorScene
     adjustSceneRect();
 }
 
-void BoardView::updateEffectiveCardPropertiesToShow() {
+void BoardView::updatePropertiesDisplayOfAllCards() {
     // merge (cascade) workspace's setting with board's setting
     CardPropertiesToShow effectiveSetting = cardPropertiesToShowSettings.onWorkspace;
     effectiveSetting.updateWith(cardPropertiesToShowSettings.onBoard);
@@ -1757,10 +1827,8 @@ void BoardView::updateEffectiveCardPropertiesToShow() {
         for (auto it = routine->cards.constBegin(); it != routine->cards.constEnd(); ++it) {
             const int &cardId = it.key();
             const Card &cardData = it.value();
-
-            const QString propertiesDisplay = computeCardPropertiesDisplay(
-                    effectiveSetting, cardData.getLabels(), cardData.getCustomProperties());
-            nodeRectsCollection.get(cardId)->setPropertiesDisplay(propertiesDisplay);
+            nodeRectsCollection.updateNodeRectPropertiesDisplay(
+                    cardId, cardData.getLabels(), cardData.getCustomProperties(),effectiveSetting);
         }
 
     }, this);
@@ -2090,7 +2158,7 @@ QString BoardView::computeCardPropertiesDisplay(
 NodeRect *BoardView::NodeRectsCollection::createNodeRect(
         const int cardId, const Card &cardData, const QRectF &rect,
         const QColor &displayColor, const QColor &nodeRectOwnColor,
-        const QStringList &userLabelsList) {
+        const QStringList &userLabelsList, const QString &propertiesDisplay) {
     Q_ASSERT(!cardIdToNodeRect.contains(cardId));
 
     auto *nodeRect = new NodeRect(cardId, boardView->canvas);
@@ -2106,6 +2174,7 @@ NodeRect *BoardView::NodeRectsCollection::createNodeRect(
     nodeRect->setNodeLabels(QStringList(nodeLabelsVec.cbegin(), nodeLabelsVec.cend()));
     nodeRect->setRect(rect);
     nodeRect->setColor(displayColor);
+    nodeRect->setPropertiesDisplay(propertiesDisplay);
 
     // set up connections
     QPointer<NodeRect> nodeRectPtr(nodeRect);
@@ -2264,16 +2333,13 @@ void BoardView::NodeRectsCollection::closeNodeRect(
 
 void BoardView::NodeRectsCollection::updateNodeRectPropertiesDisplay(
         const int cardId, const QSet<QString> &cardLabels,
-        const QHash<QString, QJsonValue> &cardCustomProperties) {
+        const QHash<QString, QJsonValue> &cardCustomProperties,
+        const CardPropertiesToShow &effectiveCardPropertiesToShow) {
     if (!cardIdToNodeRect.contains(cardId))
         return;
 
-    // merge (cascade) workspace's setting with board's setting
-    CardPropertiesToShow effectiveSetting = boardView->cardPropertiesToShowSettings.onWorkspace;
-    effectiveSetting.updateWith(boardView->cardPropertiesToShowSettings.onBoard);
-
     const QString propertiesDisplay = computeCardPropertiesDisplay(
-            effectiveSetting, cardLabels, cardCustomProperties);
+            effectiveCardPropertiesToShow, cardLabels, cardCustomProperties);
     cardIdToNodeRect.value(cardId)->setPropertiesDisplay(propertiesDisplay);
 }
 
@@ -3702,7 +3768,7 @@ void BoardView::SettingBoxesCollection::applyBoardSetting(
         }
 
         boardView->cardPropertiesToShowSettings.onBoard = *cardPropertiesToShow;
-        boardView->updateEffectiveCardPropertiesToShow();
+        boardView->updatePropertiesDisplayOfAllCards();
 
         //
         BoardNodePropertiesUpdate update;
