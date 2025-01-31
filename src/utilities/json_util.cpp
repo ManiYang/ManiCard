@@ -103,6 +103,18 @@ QJsonArray parseAsJsonArray(const QString &json, QString *errorMsg) {
     return doc.array();
 }
 
+QString printJson(const QJsonObject &object, const bool compact) {
+    const auto byteArray = QJsonDocument(object).toJson(
+            compact ? QJsonDocument::Compact : QJsonDocument::Indented);
+    return QString::fromUtf8(byteArray);
+}
+
+QString printJson(const QJsonArray &array, const bool compact) {
+    const auto byteArray =  QJsonDocument(array).toJson(
+            compact ? QJsonDocument::Compact : QJsonDocument::Indented);
+    return QString::fromUtf8(byteArray);
+}
+
 QSet<QString> keySet(const QJsonObject &obj) {
     QSet<QString> result;
     for (auto it = obj.constBegin(); it != obj.constEnd(); ++it)

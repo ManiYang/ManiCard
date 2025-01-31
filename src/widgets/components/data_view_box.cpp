@@ -515,7 +515,54 @@ void DataViewBox::runQuery(
 }
 
 void DataViewBox::exportQueryResult(const QVector<QJsonObject> &queryResult) const {
+    const QString outputDir = Services::instance()->getAppDataReadonly()->getExportOutputDir();
 
+    //
+    const static QRegularExpression regexpSlashesAndPipe(R"%([\\/\|])%");
+
+    QString title = titleItem->toPlainText().trimmed();
+
+    // -- replaces characters that cannot be in a file name
+    title.replace("*", "＊");
+    title.replace("\"", "'");
+    title.replace(regexpSlashesAndPipe, "_");
+    title.replace("<", "_");
+    title.replace(">", "_");
+    title.replace(":", "：");
+    title.replace("?", "？");
+
+    const QString filename = QString("%1 %2.json").arg(customDataQueryId).arg(title);
+
+    //
+    QJsonArray array;
+    for (const QJsonObject &obj: queryResult)
+        array << obj;
+
+    //
+    QWidget *view = this->scene()->views().isEmpty() ? nullptr : this->scene()->views().first();
+
+    QSaveFile file(QDir(outputDir).filePath(filename));
+    bool ok = file.open(QIODevice::WriteOnly);
+    if (!ok) {
+        QMessageBox::warning(
+                view, " ",
+                QString("Could not open file for writing: \"%1\"").arg(file.fileName()));
+        return;
+    }
+    file.write(QJsonDocument(array).toJson(QJsonDocument::Indented));
+    ok = file.commit();
+    if (ok) {
+        QMessageBox::information(
+                view, " ",
+                QString("Successfuly exported to \"%1\"").arg(file.fileName()));
+        return;
+    }
+    else {
+        QMessageBox::warning(
+                view, " ",
+                QString("Failed to write to file \"%1\"").arg(file.fileName()));
+        return;
+    }
 }
 
 QColor DataViewBox::getTitleItemDefaultTextColor(const bool isDarkTheme) {

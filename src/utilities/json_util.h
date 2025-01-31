@@ -45,12 +45,8 @@ QJsonDocument readJsonFile(const QString &filePath, QString *errorMsg = nullptr)
 QJsonObject parseAsJsonObject(const QString &json, QString *errorMsg = nullptr);
 QJsonArray parseAsJsonArray(const QString &json, QString *errorMsg = nullptr);
 
-inline QString printJson(const QJsonObject &object, const bool compact = true) {
-    return QJsonDocument(object).toJson(compact ? QJsonDocument::Compact : QJsonDocument::Indented);
-}
-inline QString printJson(const QJsonArray &array, const bool compact = true) {
-    return QJsonDocument(array).toJson(compact ? QJsonDocument::Compact : QJsonDocument::Indented);
-}
+QString printJson(const QJsonObject &object, const bool compact = true);
+QString printJson(const QJsonArray &array, const bool compact = true);
 
 QSet<QString> keySet(const QJsonObject &obj);
 
