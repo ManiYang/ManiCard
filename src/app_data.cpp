@@ -93,6 +93,10 @@ bool AppData::getAutoAdjustCardColorsForDarkTheme() {
     return persistedDataAccess->getAutoAdjustCardColorsForDarkTheme();
 }
 
+QString AppData::getExportOutputDir(){
+    return persistedDataAccess->getExportOutputDir();
+}
+
 void AppData::createNewCardWithId(
         const EventSource &/*eventSrc*/, const int cardId, const Card &card) {
     // 1. persist
@@ -367,6 +371,13 @@ void AppData::updateAutoAdjustCardColorsForDarkTheme(
 
     // 2. update all variables and emit "updated" signals
     emit autoAdjustCardColorsForDarkThemeUpdated(autoAdjust);
+}
+
+void AppData::updateExportOutputDir(const EventSource &/*eventSrc*/, const QString &outputDir) {
+    // 1. persist
+    persistedDataAccess->saveExportOutputDir(outputDir);
+
+    // 2. update all variables and emit "updated" signals
 }
 
 int AppData::getSingleHighlightedCardId() const {

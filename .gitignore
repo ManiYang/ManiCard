@@ -1,6 +1,6 @@
 build-*/
 config.json
-db_dump/
+data/
 *.pro.user
 secret/
 

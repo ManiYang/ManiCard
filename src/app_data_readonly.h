@@ -82,6 +82,8 @@ public:
 
     virtual bool getAutoAdjustCardColorsForDarkTheme() = 0;
 
+    virtual QString getExportOutputDir() = 0;
+
     // ==== non-persisted independent data ====
 
     //!

@@ -1,3 +1,4 @@
+#include <QFileDialog>
 #include "app_data.h"
 #include "app_data_readonly.h"
 #include "dialog_options.h"
@@ -10,15 +11,6 @@ DialogOptions::DialogOptions(QWidget *parent)
     ui->setupUi(this);
 
     setWindowTitle("Options");
-
-    setStyleSheet(
-            "QDialog QFrame {"
-            "  background: none;"
-            "}"
-            "* {"
-            "  font-size: 11pt;"
-            "}");
-
     setUpWidgets();
 }
 
@@ -41,4 +33,33 @@ void DialogOptions::setUpWidgets() {
         Services::instance()->getAppData()->updateAutoAdjustCardColorsForDarkTheme(
                 EventSource(this), checked);
     });
+
+    //
+    ui->lineEditExportOutputDir->setReadOnly(true);
+    ui->lineEditExportOutputDir->setText(
+            Services::instance()->getAppDataReadonly()->getExportOutputDir());
+
+    connect(ui->buttonSelectExportOutputDir, &QPushButton::clicked, this, [this]() {
+        const QString oldOutputDir = ui->lineEditExportOutputDir->text();
+
+        const QString newOutputDir = QFileDialog::getExistingDirectory(
+                this, "Select output directory", oldOutputDir);
+        ui->lineEditExportOutputDir->setText(newOutputDir);
+
+        Services::instance()->getAppData()->updateExportOutputDir(EventSource(this), newOutputDir);
+    });
+
+    //
+    setStyleSheet(
+            "QDialog QFrame {"
+            "  background: none;"
+            "}"
+            "* {"
+            "  font-size: 11pt;"
+            "}"
+            "#labelSectionAppearance, #labelSectionExport {"
+            "  font-weight: bold;"
+            "  font-size: 12pt;"
+            "  margin-top: 8px;"
+            "}");
 }

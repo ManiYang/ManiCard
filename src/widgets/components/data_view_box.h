@@ -82,7 +82,8 @@ private:
     //!
     std::pair<bool, bool> validateQueryParameters();
 
-    void runQuery();
+    void runQuery(std::function<void (bool ok, const QVector<QJsonObject> &result)> callback);
+    void exportQueryResult(const QVector<QJsonObject> &queryResult) const;
 
     static QColor getTitleItemDefaultTextColor(const bool isDarkTheme);
 };

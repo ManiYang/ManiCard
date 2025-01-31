@@ -106,6 +106,8 @@ public:
 
     bool getAutoAdjustCardColorsForDarkTheme();
 
+    QString getExportOutputDir();
+
     // ==== write ====
 
     // A write operation fails if data cannot be saved to DB or file. In this case, a record of
@@ -213,6 +215,8 @@ public:
     void saveIsDarkTheme(const bool isDarkTheme);
 
     void saveAutoAdjustCardColorsForDarkTheme(const bool autoAdjust);
+
+    void saveExportOutputDir(const QString &outputDir);
 
 private:
     DebouncedDbAccess *debouncedDbAccess;

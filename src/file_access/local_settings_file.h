@@ -23,6 +23,7 @@ public:
     std::pair<bool, std::optional<int>> readLastOpenedWorkspaceId();
     std::pair<bool, std::optional<QPointF>> readTopLeftPosOfBoard(const int boardId);
     std::pair<bool, std::optional<QRect>> readMainWindowSizePos();
+    std::pair<bool, std::optional<QString>> readExportOutputDirectory();
 
     // ==== write operations ====
 
@@ -33,6 +34,7 @@ public:
     bool writeTopLeftPosOfBoard(const int boardId, const QPointF &topLeftPos);
     bool removeBoard(const int boardId);
     bool writeMainWindowSizePos(const QRect &rect);
+    bool writeExportOutputDirectory(const QString &outputDir);
 
 private:
     QString filePath;

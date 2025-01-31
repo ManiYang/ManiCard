@@ -89,7 +89,17 @@ QMenu *DataViewBox::createCaptionBarContextMenu() {
         auto *action = contextMenu->addAction("Run");
         contextMenuActionToIcon.insert(action, Icon::PlayArrow);
         connect(action, &QAction::triggered, this, [this]() {
-            runQuery();
+            runQuery([](bool /*ok*/, const QVector<QJsonObject> &/*result*/) {});
+        });
+    }
+    {
+        auto *action = contextMenu->addAction("Run and Export");
+        contextMenuActionToIcon.insert(action, Icon::PlayArrow);
+        connect(action, &QAction::triggered, this, [this]() {
+            runQuery([this](bool ok, const QVector<QJsonObject> &result) {
+                if (ok)
+                    this->exportQueryResult(result);
+            });
         });
     }
     contextMenu->addSeparator();
@@ -458,10 +468,13 @@ std::pair<bool, bool> DataViewBox::validateQueryParameters() {
     return {validateOk, displayErrorMsg != oldErrorMsg};
 }
 
-void DataViewBox::runQuery() {
+void DataViewBox::runQuery(
+        std::function<void (bool ok, const QVector<QJsonObject> &result)> callback) {
     const bool validateOk = validateQueryCypher().first && validateQueryParameters().first;
-    if (!validateOk)
+    if (!validateOk) {
+        callback(false, {});
         return;
+    }
 
     //
     textEdit->setPlainText("performing query...");
@@ -482,20 +495,27 @@ void DataViewBox::runQuery() {
             queryCypherItem->toPlainText(),
             parameters,
             // callback
-            [this](bool ok, const QVector<QJsonObject> &rows) {
+            [this, callback](bool ok, const QVector<QJsonObject> &rows) {
                 if (!ok) {
                     const QString errorMsg = rows.at(0).value("errorMsg").toString();
                     textEdit->setPlainText(QString("Query failed:\n%1").arg(errorMsg));
+                    //
+                    callback(false, {});
                 }
                 else {
                     QStringList lines;
                     for (const QJsonObject &row: rows)
                         lines << printJson(row);
                     textEdit->setPlainText(lines.join("\n\n"));
+                    callback(true, rows);
                 }
             },
             this
     );
+}
+
+void DataViewBox::exportQueryResult(const QVector<QJsonObject> &queryResult) const {
+
 }
 
 QColor DataViewBox::getTitleItemDefaultTextColor(const bool isDarkTheme) {

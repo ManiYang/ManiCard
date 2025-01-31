@@ -1,9 +1,10 @@
+#include <QApplication>
 #include <QDateTime>
 #include <QReadLocker>
+#include <QStandardPaths>
 #include <QWriteLocker>
 #include "persisted_data_access.h"
 #include "db_access/debounced_db_access.h"
-//#include "db_access/queued_db_access.h"
 #include "file_access/local_settings_file.h"
 #include "file_access/unsaved_update_records_file.h"
 #include "utilities/async_routine.h"
@@ -558,6 +559,26 @@ bool PersistedDataAccess::getAutoAdjustCardColorsForDarkTheme() {
     bool autoAdjust = ok ? autoAdjustOpt.value_or(false) : false;
     cache.autoAdjustCardColorsForDarkTheme = autoAdjust;
     return autoAdjust;
+}
+
+QString PersistedDataAccess::getExportOutputDir() {
+    // 1. gets the parts that are already cached
+
+    // 2. reads from file and update the cache.
+    const auto [ok, outputDirOpt] = localSettingsFile->readExportOutputDirectory();
+
+    QStringList fallbackPaths = QStandardPaths::standardLocations(QStandardPaths::DesktopLocation);
+    if (fallbackPaths.isEmpty())
+        fallbackPaths = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
+    if (fallbackPaths.isEmpty()) {
+        Q_ASSERT(false);
+        return qApp->applicationDirPath();
+    }
+
+    if (!ok || !outputDirOpt.has_value())
+        return fallbackPaths.at(0);
+    else
+        return outputDirOpt.value();
 }
 
 void PersistedDataAccess::createNewCardWithId(const int cardId, const Card &card) {
@@ -1165,6 +1186,23 @@ void PersistedDataAccess::saveAutoAdjustCardColorsForDarkTheme(const bool autoAd
         unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
 
         showMsgOnFailedToSaveToFile("appearance option");
+    }
+}
+
+void PersistedDataAccess::saveExportOutputDir(const QString &outputDir) {
+    // synchronously updates the cache
+
+    // write file
+    const bool ok = localSettingsFile->writeExportOutputDirectory(outputDir);
+    if (!ok) {
+        const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
+        const QString updateTitle = "saveExportOutputDir";
+        const QString updateDetails = printJson(QJsonObject {
+            {"outputDir", outputDir},
+        }, false);
+        unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
+
+        showMsgOnFailedToSaveToFile("export option");
     }
 }
 

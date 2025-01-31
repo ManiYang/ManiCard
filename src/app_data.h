@@ -95,6 +95,8 @@ public:
 
     bool getAutoAdjustCardColorsForDarkTheme() override;
 
+    QString getExportOutputDir() override;
+
     // ---- persisted data: update ----
 
     // If persistence fails, a record of unsaved update is added and a message box is shown.
@@ -219,6 +221,8 @@ public:
     void updateIsDarkTheme(const EventSource &eventSrc, const bool isDarkTheme);
 
     void updateAutoAdjustCardColorsForDarkTheme(const EventSource &eventSrc, const bool autoAdjust);
+
+    void updateExportOutputDir(const EventSource &eventSrc, const QString &outputDir);
 
     // ==== non-persisted independent data ====
 

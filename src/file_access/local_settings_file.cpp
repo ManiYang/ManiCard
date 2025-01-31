@@ -14,6 +14,9 @@
  *     "isDarkTheme": false,
  *     "autoAdjustCardColorsForDarkTheme: false
  *   }
+ *   "export": {
+ *     "outputDir": "..."
+ *   }
  *   "mainWindow": {
  *     "size": [1000, 800],
  *     "pos: [200, 100]
@@ -44,6 +47,7 @@ constexpr char sectionAppearance[] = "appearance";
 constexpr char sectionMainWindow[] = "mainWindow";
 constexpr char sectionWorkspaces[] = "workspaces";
 constexpr char sectionBoards[] = "boards";
+constexpr char sectionExport[] = "export";
 
 constexpr char keySize[] = "size";
 constexpr char keyPos[] = "pos";
@@ -52,6 +56,7 @@ constexpr char keyLastOpenedWorkspaceId[] = "lastOpenedWorkspaceId";
 constexpr char keyTopLeftPos[] = "topLeftPos";
 constexpr char keyIsDarkTheme[] = "isDarkTheme";
 constexpr char keyAutoAdjustCardColorsForDarkTheme[] = "autoAdjustCardColorsForDarkTheme";
+constexpr char keyOutputDir[] = "outputDir";
 
 LocalSettingsFile::LocalSettingsFile(const QString &appLocalDataDir)
         : filePath(QDir(appLocalDataDir).filePath(fileName)) {
@@ -83,13 +88,13 @@ std::pair<bool, std::optional<int> > LocalSettingsFile::readLastOpenedBoardIdOfW
     const QJsonValue v
             = JsonReader(obj)[sectionWorkspaces][QString::number(workspaceId)][keyLastOpenedBoardId].get();
     if (v.isUndefined())
-        return {true, std::optional<int>()};
+        return {true, std::nullopt};
 
     if (!jsonValueIsInt(v)) {
         qWarning().noquote()
                 << QString("value of %1 for workspace %2 is not an integer")
                    .arg(keyLastOpenedBoardId).arg(workspaceId);
-        return {false, std::optional<int>()};
+        return {false, std::nullopt};
     }
 
     return {true, v.toInt()};
@@ -99,12 +104,12 @@ std::pair<bool, std::optional<int> > LocalSettingsFile::readLastOpenedWorkspaceI
     const QJsonObject obj = read();
     const QJsonValue v = JsonReader(obj)[sectionWorkspaces][keyLastOpenedWorkspaceId].get();
     if (v.isUndefined())
-        return {true, std::optional<int>()};
+        return {true, std::nullopt};
 
     if (!jsonValueIsInt(v)) {
         qWarning().noquote()
                 << QString("value of %1 is not an integer").arg(keyLastOpenedWorkspaceId);
-        return {false, std::optional<int>()};
+        return {false, std::nullopt};
     }
 
     return {true, v.toInt()};
@@ -145,6 +150,20 @@ std::pair<bool, std::optional<QRect> > LocalSettingsFile::readMainWindowSizePos(
         return {true, QRect(posOpt.value(), sizeOpt.value())};
     else
         return {true, std::nullopt};
+}
+
+std::pair<bool, std::optional<QString> > LocalSettingsFile::readExportOutputDirectory() {
+    const QJsonObject obj = read();
+    const QJsonValue v = JsonReader(obj)[sectionExport][keyOutputDir].get();
+    if (v.isUndefined())
+        return {true, std::nullopt};
+
+    if (!v.isString()) {
+        qWarning().noquote() << QString("value of %1 is not a string").arg(keyOutputDir);
+        return {false, std::nullopt};
+    }
+
+    return {true, v.toString()};
 }
 
 bool LocalSettingsFile::writeIsDarkTheme(const bool isDarkTheme) {
@@ -245,6 +264,20 @@ bool LocalSettingsFile::writeMainWindowSizePos(const QRect &rect) {
     mainWindowObj[keyPos] = QJsonArray {rect.x(), rect.y()};
 
     obj[sectionMainWindow] = mainWindowObj;
+
+    //
+    const bool ok = write(obj);
+    return ok;
+}
+
+bool LocalSettingsFile::writeExportOutputDirectory(const QString &outputDir) {
+    QJsonObject obj = read();
+
+    // set obj[sectionExport][keyOutputDir] = outputDir
+    QJsonObject exportObj = obj[sectionExport].toObject();
+    exportObj[keyOutputDir] = outputDir;
+
+    obj[sectionExport] = exportObj;
 
     //
     const bool ok = write(obj);
