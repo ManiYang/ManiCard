@@ -63,6 +63,7 @@ SOURCES += \
     widgets/components/custom_tab_bar.cpp \
     widgets/components/custom_text_edit.cpp \
     widgets/components/data_view_box.cpp \
+    widgets/components/drag_point_events_handler.cpp \
     widgets/components/edge_arrow.cpp \
     widgets/components/graphics_item_move_resize.cpp \
     widgets/components/graphics_scene.cpp \
@@ -156,6 +157,7 @@ HEADERS += \
     widgets/components/custom_tab_bar.h \
     widgets/components/custom_text_edit.h \
     widgets/components/data_view_box.h \
+    widgets/components/drag_point_events_handler.h \
     widgets/components/edge_arrow.h \
     widgets/components/graphics_item_move_resize.h \
     widgets/components/graphics_scene.h \

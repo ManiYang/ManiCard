@@ -2448,6 +2448,12 @@ EdgeArrow *BoardView::RelationshipsCollection::createEdgeArrow(
     edgeArrow->setLineColor(edgeArrowData.lineColor);
     edgeArrow->setLabelColor(edgeArrowData.labelColor);
 
+    // [test] ///////////////////
+    if (relId == RelationshipId(0, 135, "TEST")) {
+        edgeArrow->setJoints({QPointF(600, -50), QPointF(800, -50)});
+    }
+
+
     //
     return edgeArrow;
 }

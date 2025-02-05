@@ -2,6 +2,7 @@
 #define GEOMETRY_UTIL_H
 
 #include <QLineF>
+#include <QPainterPath>
 #include <QPointF>
 #include <QRectF>
 
@@ -21,5 +22,23 @@ bool rectEdgeIntersectsWithLine(
 QMarginsF diffMargins(const QRectF &enclosingRect, const QRectF &enclosedRect);
 
 QRectF boundingRectOfRects(const QVector<QRectF> &rects);
+
+QRectF rectCenteredAt(const QPointF &center, const QSizeF &size);
+QRectF squareCenteredAt(const QPointF &center, const double &size);
+
+//!
+//! \return the shape resulting from adding \e lineThickness to \e line
+//!
+QPainterPath tiltedRect(const QLineF &line, const double lineThickness);
+
+//!
+//! \param point
+//! \param line
+//! \param limitToLineSegment: If true, the returned point is on the line segment defined by \e
+//!             line. Otherwise, the returned point can be on an extended part of the line segment.
+//!
+QPointF getProjectionOnLine(
+        const QPointF &point, const QLineF &line, const bool limitToLineSegment);
+
 
 #endif // GEOMETRY_UTIL_H
