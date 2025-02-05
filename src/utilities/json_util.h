@@ -40,9 +40,15 @@ QJsonDocument readJsonFile(const QString &filePath, QString *errorMsg = nullptr)
 //!
 //! \param json
 //! \param errorMsg: will be non-empty if there is error
-//! \return empty object/array if there is error
+//! \return empty object if there is error
 //!
 QJsonObject parseAsJsonObject(const QString &json, QString *errorMsg = nullptr);
+
+//!
+//! \param json
+//! \param errorMsg: will be non-empty if there is error
+//! \return empty array if there is error
+//!
 QJsonArray parseAsJsonArray(const QString &json, QString *errorMsg = nullptr);
 
 QString printJson(const QJsonObject &object, const bool compact = true);

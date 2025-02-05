@@ -32,8 +32,8 @@ QJsonObject RelationshipId::toJson() const {
 
 RelationshipId RelationshipId::fromJson(const QJsonObject &obj) {
     return RelationshipId(
-            obj.value("startCardId").toInt(),
-            obj.value("endCardId").toInt(),
+            obj.value("startCardId").toInt(-1),
+            obj.value("endCardId").toInt(-1),
             obj.value("type").toString()
     );
 }

@@ -2,12 +2,19 @@
 #include "board.h"
 #include "utilities/json_util.h"
 
+namespace {
+QString convertRelIdToJointsDataToJsonStr(
+        const QHash<RelationshipId, QVector<QPointF>> &relIdToJoints);
+QHash<RelationshipId, QVector<QPointF>> getRelIdToJointsDataFromJsonStr(const QString &s);
+}
+
 QJsonObject Board::getNodePropertiesJson() const {
     return QJsonObject {
         {"name", name},
         {"topLeftPos", QJsonArray {topLeftPos.x(), topLeftPos.y()}},
         {"zoomRatio", zoomRatio},
         {"cardPropertiesToShow", cardPropertiesToShow.toJsonStr(QJsonDocument::Compact)},
+        {"relIdToJoints", convertRelIdToJointsDataToJsonStr(relIdToJoints)}
     };
 }
 
@@ -41,6 +48,10 @@ void Board::updateNodeProperties(const QJsonObject &obj) {
             cardPropertiesToShow = CardPropertiesToShow();
         }
     }
+
+    if (const auto v = obj.value("relIdToJoints"); !v.isUndefined()) {
+        relIdToJoints = getRelIdToJointsDataFromJsonStr(v.toString());
+    }
 }
 
 void Board::updateNodeProperties(const BoardNodePropertiesUpdate &update) {
@@ -52,6 +63,7 @@ void Board::updateNodeProperties(const BoardNodePropertiesUpdate &update) {
     UPDATE_PROPERTY(topLeftPos);
     UPDATE_PROPERTY(zoomRatio);
     UPDATE_PROPERTY(cardPropertiesToShow);
+    UPDATE_PROPERTY(relIdToJoints);
 
 #undef UPDATE_PROPERTY
 }
@@ -141,9 +153,73 @@ QJsonObject BoardNodePropertiesUpdate::toJson() const {
                 cardPropertiesToShow.value().toJsonStr(QJsonDocument::Compact));
     }
 
+    if (relIdToJoints.has_value()) {
+        obj.insert(
+                "relIdToJoints",
+                convertRelIdToJointsDataToJsonStr(relIdToJoints.value()));
+    }
+
     return obj;
 }
 
 QSet<QString> BoardNodePropertiesUpdate::keys() const {
     return keySet(toJson());
 }
+
+//====
+
+namespace {
+QString convertRelIdToJointsDataToJsonStr(
+        const QHash<RelationshipId, QVector<QPointF>> &relIdToJoints) {
+    QJsonArray array;
+    for (auto it = relIdToJoints.constBegin(); it != relIdToJoints.constEnd(); ++it) {
+        const RelationshipId &relId = it.key();
+        const QVector<QPointF> &joints = it.value();
+
+        QJsonArray jointsArray;
+        for (const QPointF &p: joints)
+            jointsArray << QJsonArray {p.x(), p.y()};
+
+        array << QJsonArray {relId.toJson(), jointsArray};
+    }
+
+    constexpr bool compact = true;
+    return printJson(array, compact);
+}
+
+QHash<RelationshipId, QVector<QPointF>> getRelIdToJointsDataFromJsonStr(const QString &s) {
+    QHash<RelationshipId, QVector<QPointF>> result;
+
+    const QJsonArray array = parseAsJsonArray(s);
+    for (const QJsonValue &relItem: array) {
+        if (!jsonValueIsArrayOfSize(relItem, 2))
+            continue;
+        if (!relItem[0].isObject())
+            continue;
+
+        //
+        const auto relId = RelationshipId::fromJson(relItem[0].toObject());
+        if (relId.startCardId == -1)
+            continue;
+
+        //
+        if (!relItem[1].isArray())
+            continue;
+        const QJsonArray jointsArray = relItem[1].toArray();
+
+        QVector<QPointF> joints;
+        for (const QJsonValue &jointItem: jointsArray) {
+            if (!jsonValueIsArrayOfSize(jointItem, 2))
+                continue;
+            if (!jointItem[0].isDouble() || !jointItem[1].isDouble())
+                continue;
+            joints << QPointF(jointItem[0].toDouble(), jointItem[1].toDouble());
+        }
+
+        //
+        result.insert(relId, joints);
+    }
+
+    return result;
+}
+} // namespace

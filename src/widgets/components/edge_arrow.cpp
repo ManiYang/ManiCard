@@ -14,7 +14,6 @@ constexpr double vicinityCriterion = 4;
 
 EdgeArrow::EdgeArrow(QGraphicsItem *parent)
         : QGraphicsObject(parent)
-//        , lineItem(new QGraphicsLineItem(this))
         , labelItem(new QGraphicsSimpleTextItem(this))
         , arrowHeadItem(new QGraphicsPolygonItem(this))
         , dragPointEventsHandler(new DragPointEventsHandler(this)) {
@@ -63,6 +62,10 @@ void EdgeArrow::setJoints(const QVector<QPointF> &joints_){
     adjustChildItems();
 }
 
+void EdgeArrow::setAllowAddingJoints(const bool allow) {
+    allowAddingJoints = allow;
+}
+
 QRectF EdgeArrow::boundingRect() const {
     return currentShape.boundingRect();
 }
@@ -77,6 +80,10 @@ void EdgeArrow::paint(
 }
 
 void EdgeArrow::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
+    if (!allowAddingJoints)
+        return;
+
+    //
     int jointIndex = -1;
     int lineIndex = -1;
     for (int i = 0; i < joints.count(); ++i) {
@@ -117,13 +124,6 @@ void EdgeArrow::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 
 void EdgeArrow::hoverLeaveEvent(QGraphicsSceneHoverEvent */*event*/) {
     dragPoint.remove();
-}
-
-bool EdgeArrow::sceneEventFilter(QGraphicsItem *watched, QEvent *event) {
-//    if (watched == dragPoint.dragPointItem())
-//        return eventFilterForDragPoint(event);
-
-    return QGraphicsItem::sceneEventFilter(watched, event);
 }
 
 void EdgeArrow::setUpConnections() {
@@ -176,11 +176,6 @@ void EdgeArrow::setUpConnections() {
 }
 
 void EdgeArrow::adjustChildItems() {
-    // line
-//    QLineF line(startPoint, endPoint);
-//    lineItem->setLine(line);
-//    lineItem->setPen(QPen(QBrush(lineColor), lineWidth));
-
     // lines
     // -- create/remove line items if necessary
     if (lineItems.count() != joints.count() + 1) {
@@ -208,7 +203,6 @@ void EdgeArrow::adjustChildItems() {
     // arrow head
     const double arrowHeadSize = (4.0 * lineWidth * lineWidth + 16) / (lineWidth + 1.0);
 
-//    const QPolygonF polygon = computeArrowHeadPolygon(line, arrowHeadSize);
     const QPolygonF polygon = computeArrowHeadPolygon(
             lineItems.last()->line(), arrowHeadSize);
     arrowHeadItem->setPolygon(polygon);
@@ -220,10 +214,9 @@ void EdgeArrow::adjustChildItems() {
 
     constexpr double labelAndLineSpacing = 2.0;
     constexpr bool textIsAbove = true;
-//    const auto [textPos, textRotationClockwise] = computeLabelPositionAndRotation(
-//            line, textBoundingSize, labelAndLineSpacing, textIsAbove);
     const auto [textPos, textRotationClockwise] = computeLabelPositionAndRotation(
             lineItems.first()->line(), textBoundingSize, labelAndLineSpacing, textIsAbove);
+            // put the label besides first line segment
 
     labelItem->setPos(textPos);
     labelItem->setRotation(textRotationClockwise);

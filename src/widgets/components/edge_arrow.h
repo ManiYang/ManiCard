@@ -24,6 +24,8 @@ public:
     void setLineColor(const QColor &color);
     void setJoints(const QVector<QPointF> &joints);
 
+    void setAllowAddingJoints(const bool allow);
+
     //
     QRectF boundingRect() const override;
     QPainterPath shape() const override;
@@ -37,27 +39,23 @@ protected:
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void hoverLeaveEvent(QGraphicsSceneHoverEvent *event) override;
 
-    bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) override;
-
 private:
     QPointF startPoint;
     QPointF endPoint;
     double lineWidth {2.0};
     QColor lineColor {100, 100, 100};
     QString label;
+    bool allowAddingJoints {false};
     QVector<QPointF> joints;
 
-//    enum class State { Normal, DraggingJoint };
-//    State state {State::Normal};
     QPainterPath currentShape;
 
     // child items
-//    QGraphicsLineItem *lineItem;
     QVector<QGraphicsLineItem *> lineItems;
     QGraphicsSimpleTextItem *labelItem;
     QGraphicsPolygonItem *arrowHeadItem;
 
-    // drag point
+    // drag point for creating/moving/removing joints
     struct DragPoint
     {
         explicit DragPoint(EdgeArrow *edgeArrow);
@@ -66,7 +64,6 @@ private:
         void moveTo(const QPointF &center);
         void remove();
         //
-//        QGraphicsItem *dragPointItem() const; // can be nullptr
         QPointF center() const;
     private:
         EdgeArrow *const edgeArrow;

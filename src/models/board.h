@@ -22,6 +22,7 @@ struct Board {
     double zoomRatio {1.0};
 
     CardPropertiesToShow cardPropertiesToShow;
+    QHash<RelationshipId, QVector<QPointF>> relIdToJoints;
 
     //
     QHash<int, NodeRectData> cardIdToNodeRectData;
@@ -58,6 +59,7 @@ struct BoardNodePropertiesUpdate
     std::optional<QPointF> topLeftPos;
     std::optional<double> zoomRatio;
     std::optional<CardPropertiesToShow> cardPropertiesToShow;
+    std::optional<QHash<RelationshipId, QVector<QPointF>>> relIdToJoints;
 
     QJsonObject toJson() const;
     QSet<QString> keys() const;
