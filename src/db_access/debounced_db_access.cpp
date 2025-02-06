@@ -204,7 +204,7 @@ void DebouncedDbAccess::createRelationship(const RelationshipId &id) {
                     const QString time = QDateTime::currentDateTime().toString(Qt::ISODate);
                     const QString updateTitle = "createRelationship";
                     const QString updateDetails = printJson(QJsonObject {
-                        {"id", id.toString()}
+                        {"id", id.toStringRepr()}
                     }, false);
                     unsavedUpdateRecordsFile->append(time, updateTitle, updateDetails);
 

@@ -28,7 +28,8 @@ struct RelationshipId
 
     bool operator == (const RelationshipId &other) const;
 
-    QString toString() const;
+    QString toStringRepr() const;
+    static RelationshipId fromStringRepr(const QString &s);
 
     QJsonObject toJson() const;
     static RelationshipId fromJson(const QJsonObject &obj);

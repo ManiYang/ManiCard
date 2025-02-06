@@ -25,6 +25,10 @@ inline double vectorLength(const QPointF v) {
     return std::sqrt(v.x() * v.x() + v.y() * v.y());
 }
 
+inline double quantize(const double &x, const double step) {
+    return std::floor(x / step + 0.5) * step;
+}
+
 inline QPointF quantize(const QPointF &p, const double step) {
     return {
         std::floor(p.x() / step + 0.5) * step,

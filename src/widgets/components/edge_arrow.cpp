@@ -66,6 +66,10 @@ void EdgeArrow::setAllowAddingJoints(const bool allow) {
     allowAddingJoints = allow;
 }
 
+QVector<QPointF> EdgeArrow::getJoints() const {
+    return joints;
+}
+
 QRectF EdgeArrow::boundingRect() const {
     return currentShape.boundingRect();
 }
@@ -142,6 +146,9 @@ void EdgeArrow::setUpConnections() {
         Q_ASSERT(jointIndex >= 0 && jointIndex < joints.count());
         joints[jointIndex] = pos;
         adjustChildItems();
+
+        //
+        emit jointMoved();
     });
 
     connect(dragPointEventsHandler, &DragPointEventsHandler::movingStarted,
@@ -160,7 +167,7 @@ void EdgeArrow::setUpConnections() {
 
     connect(dragPointEventsHandler, &DragPointEventsHandler::movingFinished,
             this, [this](const int /*itemId*/) {
-        emit jointsUpdated(joints);
+        emit finishedUpdatingJoints(joints);
     });
 
     connect(dragPointEventsHandler, &DragPointEventsHandler::doubleClicked,
@@ -169,6 +176,7 @@ void EdgeArrow::setUpConnections() {
             // remove the joint
             joints.remove(dragPointData.atJointIndex);
             adjustChildItems();
+            emit finishedUpdatingJoints(joints);
 
             dragPointData.atJointIndex = -1;
         }

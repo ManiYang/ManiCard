@@ -48,6 +48,7 @@ SOURCES += \
     utilities/geometry_util.cpp \
     utilities/json_util.cpp \
     utilities/logging.cpp \
+    utilities/map_update.cpp \
     utilities/message_box.cpp \
     utilities/periodic_checker.cpp \
     utilities/periodic_timer.cpp \
@@ -134,6 +135,7 @@ HEADERS += \
     utilities/json_util.h \
     utilities/lists_vectors_util.h \
     utilities/logging.h \
+    utilities/map_update.h \
     utilities/maps_util.h \
     utilities/margins_util.h \
     utilities/message_box.h \

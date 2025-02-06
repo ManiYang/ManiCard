@@ -1,6 +1,7 @@
 #include <QJsonArray>
 #include "board.h"
 #include "utilities/json_util.h"
+#include "utilities/numbers_util.h"
 
 namespace {
 QString convertRelIdToJointsDataToJsonStr(
@@ -175,12 +176,15 @@ QString convertRelIdToJointsDataToJsonStr(
     for (auto it = relIdToJoints.constBegin(); it != relIdToJoints.constEnd(); ++it) {
         const RelationshipId &relId = it.key();
         const QVector<QPointF> &joints = it.value();
+        if (joints.isEmpty())
+            continue;
 
         QJsonArray jointsArray;
         for (const QPointF &p: joints)
-            jointsArray << QJsonArray {p.x(), p.y()};
+            jointsArray << QJsonArray {quantize(p.x(), 0.1), quantize(p.y(), 0.1)};
 
-        array << QJsonArray {relId.toJson(), jointsArray};
+        const QJsonArray relItem {relId.toStringRepr(), jointsArray};
+        array << relItem;
     }
 
     constexpr bool compact = true;
@@ -194,11 +198,11 @@ QHash<RelationshipId, QVector<QPointF>> getRelIdToJointsDataFromJsonStr(const QS
     for (const QJsonValue &relItem: array) {
         if (!jsonValueIsArrayOfSize(relItem, 2))
             continue;
-        if (!relItem[0].isObject())
+        if (!relItem[0].isString())
             continue;
 
         //
-        const auto relId = RelationshipId::fromJson(relItem[0].toObject());
+        const auto relId = RelationshipId::fromStringRepr(relItem[0].toString());
         if (relId.startCardId == -1)
             continue;
 

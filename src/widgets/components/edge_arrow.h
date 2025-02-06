@@ -27,13 +27,17 @@ public:
     void setAllowAddingJoints(const bool allow);
 
     //
+    QVector<QPointF> getJoints() const;
+
+    //
     QRectF boundingRect() const override;
     QPainterPath shape() const override;
     void paint(
             QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
 signals:
-    void jointsUpdated(const QVector<QPointF> &joints);
+    void jointMoved();
+    void finishedUpdatingJoints(const QVector<QPointF> &joints);
 
 protected:
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;

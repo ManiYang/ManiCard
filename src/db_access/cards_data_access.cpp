@@ -800,7 +800,7 @@ void CardsDataAccess::createRelationship(
                     return;
                 }
 
-                qInfo().noquote() << QString("created relationship %1").arg(id.toString());
+                qInfo().noquote() << QString("created relationship %1").arg(id.toStringRepr());
                 callback(true, true);
             },
             callbackContext

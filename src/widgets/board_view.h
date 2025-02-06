@@ -262,6 +262,7 @@ private:
                 const RelationshipId relId, const EdgeArrowData &edgeArrowData);
 
         //!
+        //! Updates endpoints and label(s) of EdgeArrow('s).
         //! \param relId
         //! \param updateOtherEdgeArrows: If = true, will also update the other EdgeArrows that
         //!                               connect the same pair of cards.
@@ -276,6 +277,7 @@ private:
         void hideEdgeArrows(const QSet<RelationshipId> &relIds);
 
         QSet<RelationshipId> getAllRelationshipIds() const;
+        QHash<RelationshipId, QVector<QPointF>> getRelIdToJoints() const;
 
     private:
         BoardView *const boardView;
@@ -284,10 +286,13 @@ private:
                 // "parallel relationships" := those connecting the same pair of cards
 
         void updateSingleEdgeArrow(
-                const RelationshipId &relId, const int parallelIndex, const int parallelCount);
+                const RelationshipId &relId,
+                const int parallelIndex, const int countOfParallelRelsWithoutJoint);
         static QVector<RelationshipId> sortRelationshipIds(const QSet<RelationshipId> relIds);
-        QLineF computeEdgeArrowLine(
+        QLineF computeEdgeArrowLineWithoutJoint(
                 const RelationshipId &relId, const int parallelIndex, const int parallelCount);
+        std::pair<QPointF, QPointF> computeEndpointsOfEdgeArrowWithJoint(
+                const RelationshipId &relId, const QPointF &firstJoint, const QPointF &lastJoint);
     };
     RelationshipsCollection relationshipsCollection {this};
 

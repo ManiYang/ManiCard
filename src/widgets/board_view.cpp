@@ -236,11 +236,14 @@ void BoardView::loadBoard(
             edgeArrowData.lineColor = getEdgeArrowLineColor();
             edgeArrowData.lineWidth = defaultEdgeArrowLineWidth;
             edgeArrowData.labelColor = getEdgeArrowLabelColor();
+
         }
 
         const auto relIds = keySet(routine->relationshipsData);
-        for (const auto &relId: relIds)
+        for (const auto &relId: relIds) {
+            edgeArrowData.joints = routine->board.relIdToJoints.value(relId);
             relationshipsCollection.createEdgeArrow(relId, edgeArrowData);
+        }
 
         // DataViewBox's
         for (auto it = routine->customDataQueriesData.constBegin();
@@ -1529,7 +1532,7 @@ void BoardView::onUserToCreateRelationship(const int cardId) {
             // (one of the start/end cards is not opened in this board)
             QMessageBox::information(
                     this, " ",
-                    QString("Relationship %1 created.").arg(routine->relIdToCreate.toString()));
+                    QString("Relationship %1 created.").arg(routine->relIdToCreate.toStringRepr()));
             return;
         }
 
@@ -1587,12 +1590,21 @@ void BoardView::onUserToCloseNodeRect(const int cardId) {
     }
 
     // call AppData
+    // -- highlighted card
     if (updatedHighlightedCardId.has_value()) {
         Services::instance()->getAppData()->setSingleHighlightedCardId(
                 EventSource(this), updatedHighlightedCardId.value());
     }
 
+    // -- remove NodeRect
     Services::instance()->getAppData()->removeNodeRect(EventSource(this), boardId, cardId);
+
+    // -- joints of EdgeArrow's
+    BoardNodePropertiesUpdate update;
+    update.relIdToJoints = relationshipsCollection.getRelIdToJoints();
+
+    Services::instance()->getAppData()->updateBoardNodeProperties(
+            EventSource(this), boardId, update);
 }
 
 void BoardView::onUserToCloseDataViewBox(const int customDataQueryId) {
@@ -2449,6 +2461,35 @@ EdgeArrow *BoardView::RelationshipsCollection::createEdgeArrow(
     edgeArrow->setLabelColor(edgeArrowData.labelColor);
 
     edgeArrow->setAllowAddingJoints(true);
+    edgeArrow->setJoints(edgeArrowData.joints);
+
+    // connections
+    QPointer<EdgeArrow> edgeArrowPtr(edgeArrow);
+
+    connect(edgeArrow, &EdgeArrow::finishedUpdatingJoints,
+            boardView, [this, edgeArrowPtr, relId](const QVector<QPointF> &/*joints*/) {
+        if (edgeArrowPtr.isNull())
+            return;
+
+        //
+        constexpr bool updateOtherEdgeArrows = true;
+        updateEdgeArrow(relId, updateOtherEdgeArrows);
+
+        // call AppData
+        BoardNodePropertiesUpdate update;
+        update.relIdToJoints = getRelIdToJoints();
+
+        Services::instance()->getAppData()->updateBoardNodeProperties(
+                EventSource(boardView), boardView->boardId, update);
+    });
+
+    connect(edgeArrow, &EdgeArrow::jointMoved, boardView, [this, edgeArrowPtr, relId]() {
+        if (edgeArrowPtr.isNull())
+            return;
+
+        Q_ASSERT(!edgeArrowPtr->getJoints().isEmpty());
+        updateSingleEdgeArrow(relId, -1, 0);
+    });
 
     //
     return edgeArrow;
@@ -2458,17 +2499,32 @@ void BoardView::RelationshipsCollection::updateEdgeArrow(
         const RelationshipId &relId, const bool updateOtherEdgeArrows) {
     Q_ASSERT(relIdToEdgeArrow.contains(relId));
 
-    const QSet<RelationshipId> allRelIds // all relationships connecting the 2 cards
+    const QSet<RelationshipId> parallelRelIds // all relationships connecting the 2 cards
             = cardIdPairToParallelRels.value(QSet<int> {relId.startCardId, relId.endCardId});
-    Q_ASSERT(allRelIds.contains(relId));
-    const QVector<RelationshipId> allRelIdsSorted = sortRelationshipIds(allRelIds);
+    Q_ASSERT(parallelRelIds.contains(relId));
 
-    for (int i = 0; i < allRelIdsSorted.count(); ++i) {
-        const auto relId1 = allRelIdsSorted.at(i);
-        const bool update = (relId1 == relId) || updateOtherEdgeArrows;
-        if (update)
-            updateSingleEdgeArrow(relId1, i, allRelIdsSorted.count());
+    QSet<RelationshipId> parallelRelsWithoutJoint;
+    for (const RelationshipId &relId: parallelRelIds) {
+        if (relIdToEdgeArrow.value(relId)->getJoints().isEmpty())
+            parallelRelsWithoutJoint << relId;
     }
+
+    const QVector<RelationshipId> sortedParallelRelsWithoutJoint
+            = sortRelationshipIds(parallelRelsWithoutJoint);
+
+    //
+    QSet<RelationshipId> relsToUpdate = updateOtherEdgeArrows
+            ? parallelRelIds : QSet<RelationshipId> {relId};
+    for (const RelationshipId &relId1: relsToUpdate) {
+        const int index = sortedParallelRelsWithoutJoint.indexOf(relId1); // can be -1
+        updateSingleEdgeArrow(relId1, index, sortedParallelRelsWithoutJoint.count());
+    }
+//    for (int i = 0; i < sortedParallelRelsWithJoint .count(); ++i) {
+//        const auto relId1 = sortedParallelRelsWithJoint .at(i);
+//        const bool update = (relId1 == relId) || updateOtherEdgeArrows;
+//        if (update)
+//            updateSingleEdgeArrow(relId1, i, sortedParallelRelsWithJoint .count());
+//    }
 }
 
 void BoardView::RelationshipsCollection::removeEdgeArrows(const QSet<RelationshipId> &relIds) {
@@ -2477,9 +2533,11 @@ void BoardView::RelationshipsCollection::removeEdgeArrows(const QSet<Relationshi
             continue;
 
         EdgeArrow *edgeArrow = relIdToEdgeArrow.take(relId);
+
         boardView->graphicsScene->removeItem(edgeArrow);
         delete edgeArrow;
 
+        //
         const QSet<int> cardIdPair {relId.startCardId, relId.endCardId};
         cardIdPairToParallelRels[cardIdPair].remove(relId);
         if (cardIdPairToParallelRels[cardIdPair].isEmpty())
@@ -2512,20 +2570,50 @@ QSet<RelationshipId> BoardView::RelationshipsCollection::getAllRelationshipIds()
     return keySet(relIdToEdgeArrow);
 }
 
+QHash<RelationshipId, QVector<QPointF>>
+BoardView::RelationshipsCollection::getRelIdToJoints() const {
+    QHash<RelationshipId, QVector<QPointF>> relIdToJoints;
+    for (auto it = relIdToEdgeArrow.constBegin(); it != relIdToEdgeArrow.constEnd(); ++it) {
+        const auto joints = it.value()->getJoints();
+        if (!joints.isEmpty())
+            relIdToJoints.insert(it.key(), joints);
+    }
+    return relIdToJoints;
+}
+
 //!
+//! Updates endpoints and label of the EdgeArrow for \e relId.
 //! \param relId
 //! \param parallelIndex: index of \e relId in the sorted list of all parallel relationships
-//! \param parallelCount: number of all parallel relationships
+//!             without joint. -1 means \e relId has joint.
+//! \param countOfParallelRelsWithoutJoint: number of all parallel relationships that have no
+//!             joint. Used only if \e relId has no joint.
 //!
 void BoardView::RelationshipsCollection::updateSingleEdgeArrow(
-        const RelationshipId &relId, const int parallelIndex, const int parallelCount) {
-    Q_ASSERT(parallelCount >= 1);
-    Q_ASSERT(parallelIndex < parallelCount);
-
-    const QLineF line = computeEdgeArrowLine(relId, parallelIndex, parallelCount);
+        const RelationshipId &relId,
+        const int parallelIndex, const int countOfParallelRelsWithoutJoint) {
+    if (parallelIndex != -1) {
+        Q_ASSERT(countOfParallelRelsWithoutJoint >= 1);
+        Q_ASSERT(parallelIndex < countOfParallelRelsWithoutJoint);
+    }
 
     auto *edgeArrow = relIdToEdgeArrow.value(relId);
-    edgeArrow->setStartEndPoint(line.p1(), line.p2());
+    const auto joints = edgeArrow->getJoints();
+
+    //
+    if (joints.isEmpty()) {
+        Q_ASSERT (parallelIndex != -1);
+        const QLineF line = computeEdgeArrowLineWithoutJoint(
+                relId, parallelIndex, countOfParallelRelsWithoutJoint);
+        edgeArrow->setStartEndPoint(line.p1(), line.p2());
+    }
+    else {
+        const auto [startPoint, endPoint]
+                = computeEndpointsOfEdgeArrowWithJoint(relId, joints.first(), joints.last());
+        edgeArrow->setStartEndPoint(startPoint, endPoint);
+    }
+
+    //
     edgeArrow->setLabel(relId.type);
 }
 
@@ -2542,7 +2630,7 @@ QVector<RelationshipId> BoardView::RelationshipsCollection::sortRelationshipIds(
     return result;
 }
 
-QLineF BoardView::RelationshipsCollection::computeEdgeArrowLine(
+QLineF BoardView::RelationshipsCollection::computeEdgeArrowLineWithoutJoint(
         const RelationshipId &relId, const int parallelIndex, const int parallelCount) {
     const auto rectOfStartNodeRectOpt
             = boardView->nodeRectsCollection.getNodeRectRect(relId.startCardId);
@@ -2555,6 +2643,44 @@ QLineF BoardView::RelationshipsCollection::computeEdgeArrowLine(
     return computeArrowLineConnectingRects(
             rectOfStartNodeRectOpt.value(), rectOfEndNodeRectOpt.value(),
             parallelIndex, parallelCount);
+}
+
+std::pair<QPointF, QPointF>
+BoardView::RelationshipsCollection::computeEndpointsOfEdgeArrowWithJoint(
+        const RelationshipId &relId, const QPointF &firstJoint, const QPointF &lastJoint) {
+    QPointF startPoint;
+    {
+        const auto rectOfStartNodeRectOpt
+                = boardView->nodeRectsCollection.getNodeRectRect(relId.startCardId);
+        Q_ASSERT(rectOfStartNodeRectOpt.has_value());
+
+        const QLineF line(rectOfStartNodeRectOpt.value().center(), firstJoint);
+        QPointF intersectionPoint;
+        const bool intersects = rectEdgeIntersectsWithLine(
+                rectOfStartNodeRectOpt.value(), line, &intersectionPoint);
+        if (intersects)
+            startPoint = intersectionPoint;
+        else
+            startPoint = rectOfStartNodeRectOpt.value().center();
+    }
+
+    QPointF endPoint;
+    {
+        const auto rectOfEndNodeRectOpt
+                = boardView->nodeRectsCollection.getNodeRectRect(relId.endCardId);
+        Q_ASSERT(rectOfEndNodeRectOpt.has_value());
+
+        const QLineF line(rectOfEndNodeRectOpt.value().center(), lastJoint);
+        QPointF intersectionPoint;
+        const bool intersects = rectEdgeIntersectsWithLine(
+                rectOfEndNodeRectOpt.value(), line, &intersectionPoint);
+        if (intersects)
+            endPoint = intersectionPoint;
+        else
+            endPoint = rectOfEndNodeRectOpt.value().center();
+    }
+
+    return {startPoint, endPoint};
 }
 
 DataViewBox *BoardView::DataViewBoxesCollection::createDataViewBox(

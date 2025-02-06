@@ -1,3 +1,4 @@
+#include <QRegularExpression>
 #include "relationship.h"
 
 bool RelationshipId::connectsCard(const int cardId, int *theOtherCard) const {
@@ -18,8 +19,38 @@ bool RelationshipId::operator ==(const RelationshipId &other) const {
             && type == other.type;
 }
 
-QString RelationshipId::toString() const {
+QString RelationshipId::toStringRepr() const {
     return QString("(%1)-[%2]->(%3)").arg(startCardId).arg(type).arg(endCardId);
+}
+
+RelationshipId RelationshipId::fromStringRepr(const QString &s) {
+    static const QRegularExpression re(R"%(^\((\d+)\)-\[(\w+)\]->\((\d+)\)$)%");
+
+    const QString errorMsg = QString("could not parse \"%1\" as a RelationshipId").arg(s);
+
+    const auto m = re.match(s);
+    if (!m.hasMatch()) {
+        qWarning().noquote() << errorMsg;
+        return RelationshipId(-1, -1, "");
+    }
+
+    Q_ASSERT(m.lastCapturedIndex() == 3);
+    bool ok;
+    const int startCardId = m.captured(1).toInt(&ok);
+    if (!ok) {
+        qWarning().noquote() << errorMsg;
+        return RelationshipId(-1, -1, "");
+    }
+
+    const QString relType = m.captured(2);
+
+    const int endCardId = m.captured(3).toInt(&ok);
+    if (!ok) {
+        qWarning().noquote() << errorMsg;
+        return RelationshipId(-1, -1, "");
+    }
+
+    return RelationshipId(startCardId, endCardId, relType);
 }
 
 QJsonObject RelationshipId::toJson() const {
