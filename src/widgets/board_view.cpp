@@ -2453,15 +2453,15 @@ EdgeArrow *BoardView::RelationshipsCollection::createEdgeArrow(
 
     edgeArrow->setZValue(zValueForEdgeArrows);
 
-    constexpr bool updateOtherEdgeArrows = true;
-    updateEdgeArrow(relId, updateOtherEdgeArrows);
-
     edgeArrow->setLineWidth(edgeArrowData.lineWidth);
     edgeArrow->setLineColor(edgeArrowData.lineColor);
     edgeArrow->setLabelColor(edgeArrowData.labelColor);
 
     edgeArrow->setAllowAddingJoints(true);
     edgeArrow->setJoints(edgeArrowData.joints);
+
+    constexpr bool updateOtherEdgeArrows = true;
+    updateEdgeArrow(relId, updateOtherEdgeArrows);
 
     // connections
     QPointer<EdgeArrow> edgeArrowPtr(edgeArrow);
@@ -2519,12 +2519,6 @@ void BoardView::RelationshipsCollection::updateEdgeArrow(
         const int index = sortedParallelRelsWithoutJoint.indexOf(relId1); // can be -1
         updateSingleEdgeArrow(relId1, index, sortedParallelRelsWithoutJoint.count());
     }
-//    for (int i = 0; i < sortedParallelRelsWithJoint .count(); ++i) {
-//        const auto relId1 = sortedParallelRelsWithJoint .at(i);
-//        const bool update = (relId1 == relId) || updateOtherEdgeArrows;
-//        if (update)
-//            updateSingleEdgeArrow(relId1, i, sortedParallelRelsWithJoint .count());
-//    }
 }
 
 void BoardView::RelationshipsCollection::removeEdgeArrows(const QSet<RelationshipId> &relIds) {
