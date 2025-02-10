@@ -6,7 +6,7 @@ A tool for viewing and editing textual contents and relationships of nodes store
 It can be used to organize notes and visualize relations between them, similar to Obsidian's 
 Canvas view but backed with a graph database.
 
-Currently it is still in very early phase of development.
+Note that this project is still in very early phase of development.
 
 ## Screenshots
 
@@ -16,17 +16,47 @@ Currently it is still in very early phase of development.
 
 ## Features
 
-+ Light & dark theme.
+Card, Board & Workspace
 
++ A card is a node in the DB with label `Card` and properties `id`, `title`, and `text` (together with other custom labels and properties).
++ A card can be opened in multiple boards.
++ On a board, all relationships between opened cards are shown.
++ The arrow representing a relationship can be adjusted manually by adding/dragging joints on it.
++ Related boards can be contained in a workspace.
++ Associate colors to labels of cards.
+    + Different label-color mappings can be set on different workspaces.
+
+Groups
+
++ Cards can be grouped together so that
+    + they move together
+    + if a card ouside the group has relationships of the same type to every of the cards in the group, the relationships are displayed as a bundled arrow to the group's box (this is to reduce visual clutter).
++ Groups (and cards) can also be grouped together.
+
+Card Properties
+
++ View, add, and edit properties of the selected card in right sidebar.
++ Set which properties are shown directly in the cards' display boxes, for cards with specific label.
+
+Query
+
++ Run (read-only) Cypher query and view the result as JSON objects or markdown table.
++ Save the result of Cypher query to a JSON file.
+
+View
+
++ Light & dark theme.
++ Basic markdown preview.
++ High-DPI scaling on Windows.
 
 ## Build & Run the App
 
 Qt 5 and Qt Creator are needed to build the app.
 
-To run the app, you need
+To run the app, you need to
 
-+ a self-managed Neo4j DB (Neo4j Aura is not supported)
-+ DB setup
++ install a self-managed Neo4j DB (Neo4j Aura is not supported)
++ setup the DB:
     + Create constraints requiring unique value of `id` property for nodes with label `Card`, `CustomDataQuery`, `GroupBox`, `Board`,  and `Workspace`.
     ```cypher
     CREATE CONSTRAINT unique_card_id
@@ -59,8 +89,10 @@ To run the app, you need
         ON CREATE SET n.value = 0
         RETURN n;
         ```
-+ a `config.json` file put under the same directory as the executable (see `src/config.example.json` 
++ create a `config.json` file under the same directory as the executable (see `src/config.example.json` 
   for an example)
+
+It is recommended that you choose a dedicated DB for this app and backup the DB from time to time.
 
 ### Current Limitations
 
@@ -70,4 +102,4 @@ To run the app, you need
   same Neo4j DB instance. It is recommended to run the app on single device at a time.
 + Updates that cannot be saved to DB because of connection issues are recorded in a text file, but they are not 
   retried. After resolving DB connection issues, you need to re-open the app, and apply the unsaved 
-  updates manually. It is recommended to install the Neo4j DB locally (i.e., on the device where the app is running).
+  updates manually. It is recommended to install the Neo4j DB locally (i.e., on the device where the app is running) to avoid this problem.
