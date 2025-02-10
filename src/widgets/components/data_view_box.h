@@ -39,6 +39,9 @@ private:
     const int customDataQueryId;
     bool textEditIgnoreWheelEvent {false};
 
+    enum class ResultDisplayFormat { JsonObjects, MarkdownTable };
+    ResultDisplayFormat resultDisplayFormat {ResultDisplayFormat::JsonObjects};
+
     QHash<QAction *, Icon> contextMenuActionToIcon;
 
     // content items
@@ -70,6 +73,9 @@ private:
     void onMouseLeftPressed(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) override;
     void onMouseLeftClicked(const bool isOnCaptionBar, const Qt::KeyboardModifiers modifiers) override;
 
+    //
+    void setResultDisplayFormat(const ResultDisplayFormat format);
+
     //!
     //! Updates the text of `queryCypherErrorMsgItem`.
     //! \return (is-validation-OK?, is-error-msg-changed?)
@@ -86,6 +92,9 @@ private:
     void exportQueryResult(const QVector<QJsonObject> &queryResult) const;
 
     static QColor getTitleItemDefaultTextColor(const bool isDarkTheme);
+    static QString getResultDisplay(
+            const QVector<QJsonObject> &resultRows, const ResultDisplayFormat format);
+    static QString printJsonValue(const QJsonValue &v);
 };
 
 #endif // DATAVIEWBOX_H

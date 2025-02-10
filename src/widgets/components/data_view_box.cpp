@@ -1,3 +1,4 @@
+#include <QActionGroup>
 #include <QApplication>
 #include <QDebug>
 #include <QGraphicsScene>
@@ -101,6 +102,42 @@ QMenu *DataViewBox::createCaptionBarContextMenu() {
                     this->exportQueryResult(result);
             });
         });
+    }
+    contextMenu->addSeparator();
+    {
+        auto *submenu = contextMenu->addMenu("Result Display Format");
+        auto *actionGroup = new QActionGroup(this);
+        QAction *actionToCheck = nullptr;
+        {
+            const ResultDisplayFormat corrspondingFormat = ResultDisplayFormat::JsonObjects;
+            //
+            auto *action = new QAction("JSON Objects", actionGroup);
+            submenu->addAction(action);
+            action->setCheckable(true);
+            connect(action, &QAction::triggered, this, [this]() {
+                setResultDisplayFormat(corrspondingFormat);
+            });
+            //
+            if (resultDisplayFormat == corrspondingFormat)
+                actionToCheck = action;
+        }
+        {
+            const ResultDisplayFormat corrspondingFormat = ResultDisplayFormat::MarkdownTable;
+            //
+            auto *action = new QAction("Markdown Table", actionGroup);
+            submenu->addAction(action);
+            action->setCheckable(true);
+            connect(action, &QAction::triggered, this, [this]() {
+                setResultDisplayFormat(corrspondingFormat);
+            });
+            //
+            if (resultDisplayFormat == corrspondingFormat)
+                actionToCheck = action;
+        }
+        if (actionToCheck != nullptr)
+            actionToCheck->setChecked(true);
+        else
+            Q_ASSERT(false); // some item of ResultDisplayFormat is not considered
     }
     contextMenu->addSeparator();
     {
@@ -442,6 +479,14 @@ void DataViewBox::onMouseLeftClicked(
     // do nothing
 }
 
+void DataViewBox::setResultDisplayFormat(const ResultDisplayFormat format) {
+    if (resultDisplayFormat == format)
+        return;
+
+    resultDisplayFormat = format;
+    textEdit->setPlainText(""); // clear result
+}
+
 std::pair<bool, bool> DataViewBox::validateQueryCypher() {
     const QString cypher = queryCypherItem->toPlainText();
     QString errorMsg;
@@ -503,10 +548,12 @@ void DataViewBox::runQuery(
                     callback(false, {});
                 }
                 else {
-                    QStringList lines;
-                    for (const QJsonObject &row: rows)
-                        lines << printJson(row);
-                    textEdit->setPlainText(lines.join("\n\n"));
+                    const QString resultDisplay = getResultDisplay(rows, resultDisplayFormat);
+                    textEdit->setPlainText(resultDisplay);
+//                    QStringList lines;
+//                    for (const QJsonObject &row: rows)
+//                        lines << printJson(row);
+//                    textEdit->setPlainText(lines.join("\n\n"));
                     callback(true, rows);
                 }
             },
@@ -567,4 +614,74 @@ void DataViewBox::exportQueryResult(const QVector<QJsonObject> &queryResult) con
 
 QColor DataViewBox::getTitleItemDefaultTextColor(const bool isDarkTheme) {
     return isDarkTheme ? QColor(darkThemeStandardTextColor) : QColor(Qt::black);
+}
+
+QString DataViewBox::getResultDisplay(
+        const QVector<QJsonObject> &resultRows, const ResultDisplayFormat format) {
+    switch (format) {
+    case ResultDisplayFormat::JsonObjects:
+    {
+        QStringList lines;
+        for (const QJsonObject &row: resultRows)
+            lines << printJson(row);
+        return lines.join("\n\n");
+    }
+    case ResultDisplayFormat::MarkdownTable:
+    {
+        if (resultRows.isEmpty())
+            return "";
+
+        const QStringList columnNames = resultRows.at(0).keys();
+        if (columnNames.isEmpty())
+            return "";
+
+        QString headerLine = "|";
+        QString separatorLine = "|";
+        for (const QString &columnName: columnNames) {
+            headerLine += QString(" %1 |").arg(columnName);
+            separatorLine += " ---- |";
+        }
+
+        QStringList lines = {headerLine, separatorLine};
+        for (const QJsonObject &row: resultRows) {
+            QString line = "|";
+            for (const QString &columnName: columnNames)
+                line += QString(" %1 |").arg(printJsonValue(row.value(columnName)));
+            lines << line;
+        }
+        return lines.join("\n");
+    }
+    }
+    Q_ASSERT(false); // case not implemented
+    return "";
+}
+
+QString DataViewBox::printJsonValue(const QJsonValue &v) {
+    switch (v.type()) {
+    case QJsonValue::Null:
+        return "null";
+
+    case QJsonValue::Bool:
+        return v.toBool() ? "true" : "false";
+
+    case QJsonValue::Double:
+        if (jsonValueIsInt(v))
+            return QString::number(v.toInt());
+        else
+            return QString::number(v.toDouble());
+
+    case QJsonValue::String:
+        return v.toString();
+
+    case QJsonValue::Array:
+        return printJson(v.toArray());
+
+    case QJsonValue::Object:
+        return printJson(v.toObject());
+
+    case QJsonValue::Undefined:
+        return "";
+    }
+    Q_ASSERT(false); // case not implemented
+    return "";
 }
