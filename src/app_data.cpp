@@ -384,6 +384,10 @@ int AppData::getSingleHighlightedCardId() const {
     return singleHighlightedCardId;
 }
 
+double AppData::getFontSizeScaleFactor(const QWidget *window) const {
+    return windowToFontSizeScaleFactor.value(window, 1.0);
+}
+
 void AppData::setSingleHighlightedCardId(const EventSource &eventSrc, const int cardId) {
     // synchornously update derived variables and emit "updated" signals
     singleHighlightedCardId = cardId;
@@ -391,6 +395,8 @@ void AppData::setSingleHighlightedCardId(const EventSource &eventSrc, const int 
 }
 
 void AppData::updateFontSizeScaleFactor(const QWidget *window, const double factor) {
+    windowToFontSizeScaleFactor[window] = factor;
+
     // synchornously update derived variables and emit "updated" signals
     emit fontSizeScaleFactorChanged(window, factor);
 }

@@ -71,6 +71,8 @@ SOURCES += \
     widgets/components/group_box.cpp \
     widgets/components/node_rect.cpp \
     widgets/components/property_value_editor.cpp \
+    widgets/components/search_bar.cpp \
+    widgets/components/search_page.cpp \
     widgets/components/setting_box.cpp \
     widgets/components/simple_toolbar.cpp \
     widgets/dialogs/dialog_create_relationship.cpp \
@@ -167,6 +169,8 @@ HEADERS += \
     widgets/components/group_box.h \
     widgets/components/node_rect.h \
     widgets/components/property_value_editor.h \
+    widgets/components/search_bar.h \
+    widgets/components/search_page.h \
     widgets/components/setting_box.h \
     widgets/components/simple_toolbar.h \
     widgets/dialogs/dialog_create_relationship.h \
@@ -184,6 +188,7 @@ HEADERS += \
     widgets/workspaces_list.h
 
 FORMS += \
+    widgets/components/search_bar.ui \
     widgets/dialogs/dialog_create_relationship.ui \
     widgets/dialogs/dialog_options.ui \
     widgets/dialogs/dialog_set_labels.ui \

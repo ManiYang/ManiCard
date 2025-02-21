@@ -228,6 +228,8 @@ public:
 
     int getSingleHighlightedCardId() const override; // can return -1
 
+    double getFontSizeScaleFactor(const QWidget *window) const override;
+
     //!
     //! \param eventSrc
     //! \param cardId: -1 if no card or more than one card is highlighted
@@ -246,6 +248,8 @@ private:
     int singleHighlightedCardId {-1};
             // If exactly one card is highlighted, this is set to that card.
             // Otherwise, this is set to -1.
+
+    QHash<const QWidget *, double> windowToFontSizeScaleFactor;
 
     // derived data (can be cached or not)
     // - cache can be nullopt (not computed yet)

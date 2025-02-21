@@ -20,6 +20,7 @@
 #include "utilities/screens_utils.h"
 #include "widgets/app_style_sheet.h"
 #include "widgets/board_view.h"
+#include "widgets/components/search_page.h"
 #include "widgets/dialogs/dialog_options.h"
 #include "widgets/dialogs/dialog_user_card_labels.h"
 #include "widgets/dialogs/dialog_user_relationship_types.h"
@@ -308,7 +309,7 @@ void MainWindow::setUpWidgets() {
         // tool bar
         auto *hLayout = new QHBoxLayout;
         leftSideBarLayout->addLayout(hLayout);
-        hLayout->setContentsMargins(0, 0, 0, 0);
+        hLayout->setContentsMargins(0, 0, 4, 0); // <^>v
         hLayout->setSpacing(4);
         {
             {
@@ -325,9 +326,6 @@ void MainWindow::setUpWidgets() {
                 buttonWorkspacesPage->setIconSize({24, 24});
                 buttonWorkspacesPage->setToolTip("Workspaces");
                 hLayout->addWidget(buttonWorkspacesPage);
-                connect(buttonWorkspacesPage, &QToolButton::clicked, this, [this]() {
-                    qDebug() << "open workspaces page...";
-                });
             }
             {
                 buttonSearchPage = new QToolButton;
@@ -335,9 +333,6 @@ void MainWindow::setUpWidgets() {
                 buttonSearchPage->setIconSize({24, 24});
                 buttonSearchPage->setToolTip("Search");
                 hLayout->addWidget(buttonSearchPage);
-                connect(buttonSearchPage, &QToolButton::clicked, this, [this]() {
-                    qDebug() << "open search page...";
-                });
             }
         }
 
@@ -349,7 +344,7 @@ void MainWindow::setUpWidgets() {
             leftSidebar.addPage(workspacesList, buttonWorkspacesPage);
 
             // search page
-            searchPage = new QFrame;
+            searchPage = new SearchPage;
             leftSidebar.addPage(searchPage, buttonSearchPage);
         }
         leftSidebar.setCurrentPage(workspacesList);
@@ -411,7 +406,7 @@ void MainWindow::setUpConnections() {
         buttonOpenMainMenu->update(); // without this, the button's appearence stay in hover state
     });
 
-    // workspacesList
+    // `workspacesList`
     connect(workspacesList, &WorkspacesList::workspaceSelected,
             this, [this](int newWorkspaceId, int /*previousWorkspaceId*/) {
         onWorkspaceSelectedByUser(newWorkspaceId);
@@ -435,12 +430,17 @@ void MainWindow::setUpConnections() {
         saveWorkspacesOrdering();
     });
 
+    // `searchPage`
+    connect(searchPage, &SearchPage::getCurrentWorkspaceId, this, [this](int *workspaceId) {
+        *workspaceId = workspacesList->selectedWorkspaceId();
+    }, Qt::DirectConnection);
+
     // `workspaceFrame`
     connect(workspaceFrame, &WorkspaceFrame::openRightSidebar, this, [this]() {
         ui->frameRightSideBar->setVisible(true);
     });
 
-    // rightSidebar
+    // `rightSidebar`
     connect(rightSidebar, &RightSidebar::closeRightSidebar, this, [this]() {
         ui->frameRightSideBar->setVisible(false);
         workspaceFrame->showButtonRightSidebar();
@@ -1101,6 +1101,8 @@ void MainWindow::checkIsScreenChanged() {
 MainWindow::LeftSidebar::LeftSidebar(MainWindow *mainWindow_)
         : mainWindow(mainWindow_) {
     stackedWidget = new QStackedWidget;
+    stackedWidget->setFrameShape(QFrame::NoFrame);
+
     buttonGroup = new QButtonGroup(mainWindow);
 }
 

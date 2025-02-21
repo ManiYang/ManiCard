@@ -25,6 +25,7 @@ enum class Icon {
 namespace Icons {
 enum class Theme {Light, Dark};
 QIcon getIcon(const Icon icon, const Theme theme);
+QPixmap getPixmap(const Icon icon, const Theme theme, const int size);
 } // namespace Icons
 
 #endif // ICONS_H

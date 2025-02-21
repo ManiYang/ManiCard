@@ -18,6 +18,7 @@ class MainWindow;
 
 class ActionDebouncer;
 class RightSidebar;
+class SearchPage;
 class WorkspaceFrame;
 class WorkspacesList;
 
@@ -60,6 +61,7 @@ private:
         explicit LeftSidebar(MainWindow *mainWindow);
         void addStackedWidgetToLayout(QLayout *layout);
         void addPage(QWidget *widget, QToolButton *button);
+                // QToolButton::clicked() signal will be connected
         void setCurrentPage(QWidget *widget);
     private:
         MainWindow *mainWindow;
@@ -72,7 +74,7 @@ private:
     QToolButton *buttonOpenMainMenu {nullptr};
 
     WorkspacesList *workspacesList {nullptr};
-    QFrame *searchPage {nullptr};
+    SearchPage *searchPage {nullptr};
 
     // -- right side bar
     RightSidebar *rightSidebar {nullptr};

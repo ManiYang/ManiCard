@@ -5,6 +5,7 @@
 
 namespace {
 QIcon createIconForDarkTheme(const QString &imageFileForLightTheme);
+std::pair<QPixmap, QPixmap> createPixmapsForDarkTheme(const QPixmap &pixmapForLightTheme);
 }
 
 namespace Icons {
@@ -54,7 +55,7 @@ QString getImageFileForLightTheme(const Icon icon) {
     case Icon::PlayArrow:
         return ":/icons/play_arrow_24";
     case Icon::Search:
-        return ":/icons/search_24";
+        return ":/icons/search_72";
     }
     Q_ASSERT(false); // case not implemented
     return "";
@@ -75,6 +76,29 @@ QIcon getIcon(const Icon icon, const Theme theme) {
     Q_ASSERT(false); // case not implemented
     return QIcon();
 }
+
+QPixmap getPixmap(const Icon icon, const Theme theme, const int size) {
+    const QString imageFileForLightTheme = getImageFileForLightTheme(icon);
+    if (imageFileForLightTheme.isEmpty())
+        return QPixmap();
+
+    //
+    auto pixmap = QPixmap(imageFileForLightTheme);
+    if (pixmap.width() != size)
+        pixmap = pixmap.scaledToWidth(size, Qt::SmoothTransformation);
+
+    //
+    switch (theme) {
+    case Theme::Light:
+        return pixmap;
+
+    case Theme::Dark:
+        return createPixmapsForDarkTheme(pixmap).first;
+    }
+    Q_ASSERT(false); // case not implemented
+    return QPixmap();
+}
+
 } // namespace Icons
 
 namespace {
@@ -83,10 +107,23 @@ namespace {
 //! \return an icon with white foreground and transparent background
 //!
 QIcon createIconForDarkTheme(const QString &imageFileForLightTheme) {
-    QImage image(imageFileForLightTheme);
+    const auto [pixmapNormalMode, pixmapDisabledMode]
+            = createPixmapsForDarkTheme(QPixmap(imageFileForLightTheme));
+
+    QIcon icon(pixmapNormalMode);
+    icon.addPixmap(pixmapDisabledMode, QIcon::Disabled);
+    return icon;
+}
+
+//!
+//! \param pixmapForLightTheme: must have black foreground and transparent background
+//! \return (pixmap-for-normal-mode, pixmap-for-disabled-mode)
+//!
+std::pair<QPixmap, QPixmap> createPixmapsForDarkTheme(const QPixmap &pixmapForLightTheme) {
+    QImage image = pixmapForLightTheme.toImage();
     if (image.isNull()) {
-        qWarning().noquote() << QString("could not load image %1").arg(imageFileForLightTheme);
-        return QIcon();
+        qWarning().noquote() << QString("could not load image from pixmap");
+        return {QPixmap(), QPixmap()};
     }
 
     if (image.format() != QImage::Format_ARGB32)
@@ -137,8 +174,6 @@ QIcon createIconForDarkTheme(const QString &imageFileForLightTheme) {
     const QPixmap pixmapDisabledMode = QPixmap::fromImage(image);
 
     //
-    QIcon icon(pixmapNormalMode);
-    icon.addPixmap(pixmapDisabledMode, QIcon::Disabled);
-    return icon;
+    return {pixmapNormalMode, pixmapDisabledMode};
 }
 } // namespace

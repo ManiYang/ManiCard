@@ -91,6 +91,10 @@ QString getLightThemeStyleSheet() {
         "  background: #c0c0c0;"
         "}"
 
+        "QFrame" + styleClassSelector(StyleClass::frameWithSolidBorder) + " {" +
+        "  border: 1px solid #c0c0c0;"
+        "}"
+
         "";
 }
 
@@ -202,6 +206,10 @@ QString getDarkThemeStyleSheet() {
         "}"
         "QAbstractButton:pressed" + styleClassSelector(StyleClass::flatPushButton) + " {" +
         "  background: #5a5a5a;"
+        "}"
+
+        "QFrame" + styleClassSelector(StyleClass::frameWithSolidBorder) + " {" +
+        "  border: 1px solid #5a5a5a;"
         "}"
 
         "";

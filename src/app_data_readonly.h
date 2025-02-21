@@ -91,6 +91,8 @@ public:
     //!
     virtual int getSingleHighlightedCardId() const = 0; // can return -1
 
+    virtual double getFontSizeScaleFactor(const QWidget *window) const = 0;
+
 signals:
     void cardPropertiesUpdated(
             EventSource eventSrc,
