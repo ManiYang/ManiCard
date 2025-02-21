@@ -8,6 +8,7 @@
 #include "app_data_readonly.h"
 #include "services.h"
 #include "utilities/async_routine.h"
+#include "utilities/filenames_util.h"
 #include "utilities/lists_vectors_util.h"
 #include "utilities/maps_util.h"
 #include "utilities/message_box.h"
@@ -483,6 +484,30 @@ void WorkspaceFrame::onUserToRenameBoard(const int boardId) {
     Services::instance()->getAppData()->updateBoardNodeProperties(EventSource(this), boardId, update);
 }
 
+void WorkspaceFrame::onUserToRenameExportBoardToImage(const int boardId) {
+    if (boardId != getCurrentBoardId()) {
+        qWarning().noquote()
+                << "exporting a board that is not currently opened is not implemented yet";
+        return;
+    }
+
+    //
+    const QString boardName = boardsTabBar->getItemNameById(boardId);
+    const QString fileName
+            = QString("%1__%2.png")
+              .arg(makeValidFileName(workspaceName), makeValidFileName(boardName));
+    const QImage image = boardView->renderAsImage();
+
+    //
+    const QString outputDir = Services::instance()->getAppDataReadonly()->getExportOutputDir();
+    const QString filePath = QDir(outputDir).filePath(fileName);
+    const bool ok = image.save(filePath);
+    if (ok)
+        QMessageBox::information(this, " ", "Successfully exported to " + filePath);
+    else
+        QMessageBox::warning(this, " ", "Failed to write image file " + filePath);
+}
+
 void WorkspaceFrame::onUserSelectedBoard(const int boardId) {
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
     {
@@ -907,10 +932,17 @@ WorkspaceFrame::ContextMenu::ContextMenu(WorkspaceFrame *workspaceFrame_)
         : workspaceFrame(workspaceFrame_) {
     menu = new QMenu(workspaceFrame);
     {
-        auto *action = menu->addAction("Rename Board");
+        auto *action = menu->addAction("Rename Board...");
         actionToIcon.insert(action, Icon::EditSquare);
         connect(action, &QAction::triggered, workspaceFrame, [this]() {
             workspaceFrame->onUserToRenameBoard(boardTabContextMenuTargetBoardId);
+        });
+    }
+    {
+        auto *action = menu->addAction("Export to Image");
+        actionToIcon.insert(action, Icon::FileSave);
+        connect(action, &QAction::triggered, workspaceFrame, [this]() {
+            workspaceFrame->onUserToRenameExportBoardToImage(boardTabContextMenuTargetBoardId);
         });
     }
     {

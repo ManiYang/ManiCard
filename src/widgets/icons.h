@@ -6,6 +6,7 @@
 enum class Icon {
     Add, AddBox, OpenInNew,
     EditSquare, ContentCopy,
+    FileSave,
     CloseBox, Delete,
 
     ArrowSouth, ArrowEast, ArrowNorth, ArrowWest,

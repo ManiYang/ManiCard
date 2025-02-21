@@ -18,5 +18,6 @@
         <file alias="open_right_panel_24">resources/icons/open_right_panel_24.png</file>
         <file alias="label_black_24">resources/icons/label_black_24.png</file>
         <file alias="play_arrow_24">resources/icons/play_arrow_24.png</file>
+        <file alias="file_save_24">resources/icons/file_save_24.png</file>
     </qresource>
 </RCC>

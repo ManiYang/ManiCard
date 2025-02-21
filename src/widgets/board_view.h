@@ -84,6 +84,9 @@ public:
     bool canClose() const;
 
     //
+    QImage renderAsImage();
+
+    //
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 signals:
@@ -278,6 +281,7 @@ private:
 
         QSet<RelationshipId> getAllRelationshipIds() const;
         QHash<RelationshipId, QVector<QPointF>> getRelIdToJoints() const;
+        QRectF getBoundingRectOfAllEdgeArrows() const; // returns QRectF() if no EdgeArrow exists
 
     private:
         BoardView *const boardView;
@@ -342,6 +346,7 @@ private:
 
         GroupBox *get(const int groupBoxId); // returns nullptr if not found
         QSet<int> getAllGroupBoxIds() const;
+        QRectF getBoundingRectOfAllGroupBoxes() const; // returns QRectF() if no GroupBox exists
 
         //!
         //! Returns the deepest (smallest) of the group-boxes enclosing `boardBoxItem` (not
@@ -379,6 +384,7 @@ private:
         //
         QSet<RelationshipsBundle> getBundlesOfGroupBox(const int groupBoxId) const;
         QSet<RelationshipId> getBundledRelationships() const;
+        QRectF getBoundingRectOfAllArrows() const; // returns QRectF() if no bundle exists
 
         //
         void setLineColorAndLabelColorOfAllEdgeArrows(
@@ -542,6 +548,8 @@ private:
     // tools
     void getWorkspaceId(std::function<void (const int workspaceId)> callback);
             // `workspaceId` can be -1
+
+    QRectF getContentsRectInCanvasCoordinates() const;
 
     static QColor getSceneBackgroundColor(const bool isDarkTheme);
     QColor getEdgeArrowLineColor() const; // calls AppDataReadonly

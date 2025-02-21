@@ -8,6 +8,7 @@
 #include "data_view_box.h"
 #include "models/custom_data_query.h"
 #include "services.h"
+#include "utilities/filenames_util.h"
 #include "utilities/json_util.h"
 #include "widgets/widgets_constants.h"
 
@@ -565,20 +566,8 @@ void DataViewBox::exportQueryResult(const QVector<QJsonObject> &queryResult) con
     const QString outputDir = Services::instance()->getAppDataReadonly()->getExportOutputDir();
 
     //
-    const static QRegularExpression regexpSlashesAndPipe(R"%([\\/\|])%");
-
-    QString title = titleItem->toPlainText().trimmed();
-
-    // -- replaces characters that cannot be in a file name
-    title.replace("*", "＊");
-    title.replace("\"", "'");
-    title.replace(regexpSlashesAndPipe, "_");
-    title.replace("<", "_");
-    title.replace(">", "_");
-    title.replace(":", "：");
-    title.replace("?", "？");
-
-    const QString filename = QString("%1 %2.json").arg(customDataQueryId).arg(title);
+    const QString title1 = makeValidFileName(titleItem->toPlainText().trimmed());
+    const QString filename = QString("%1 %2.json").arg(customDataQueryId).arg(title1);
 
     //
     QJsonArray array;

@@ -23,6 +23,8 @@ QString getImageFileForLightTheme(const Icon icon) {
         return ":/icons/edit_square_black_24";
     case Icon::ContentCopy:
         return ":/icons/content_copy_24";
+    case Icon::FileSave:
+        return ":/icons/file_save_24";
     case Icon::CloseBox:
         return ":/icons/close_box_black_24";
     case Icon::Delete:

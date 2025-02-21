@@ -19,6 +19,7 @@
 #include "utilities/geometry_util.h"
 #include "utilities/lists_vectors_util.h"
 #include "utilities/maps_util.h"
+#include "utilities/margins_util.h"
 #include "utilities/message_box.h"
 #include "utilities/numbers_util.h"
 #include "utilities/periodic_checker.h"
@@ -437,6 +438,40 @@ double BoardView::getZoomRatio() const {
 
 bool BoardView::canClose() const {
     return true;
+}
+
+QImage BoardView::renderAsImage() {
+    constexpr double margin = 20;
+    const QRectF contentsRectInCanvas
+            = getContentsRectInCanvasCoordinates().marginsAdded(uniformMarginsF(margin));
+
+    // set canvas scale to 1.0
+    const double originalScale = canvas->scale();
+    canvas->setScale(1.0);
+
+    //
+    const QPointF topLeftInScene = canvas->mapToScene(contentsRectInCanvas.topLeft());
+    const QPointF bottomRightInScene = canvas->mapToScene(contentsRectInCanvas.bottomRight());
+            // in scene coordinates
+    const QRectF contentsRectInScene(
+            QPointF(nearestInteger(topLeftInScene.x()), nearestInteger(topLeftInScene.y())),
+            QPointF(nearestInteger(bottomRightInScene.x()), nearestInteger(bottomRightInScene.y()))
+    );
+
+    QImage image(
+            nearestInteger(contentsRectInScene.width()),
+            nearestInteger(contentsRectInScene.height()),
+            QImage::Format_ARGB32);
+
+    QPainter painter(&image);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    graphicsScene->render(&painter, QRectF(), contentsRectInScene);
+
+    // resume to original canvas scale
+    canvas->setScale(originalScale);
+
+    //
+    return image;
 }
 
 bool BoardView::eventFilter(QObject *watched, QEvent *event) {
@@ -1739,21 +1774,15 @@ void BoardView::adjustSceneRect() {
     if (scene == nullptr)
         return;
 
-    QRectF contentsRectInCanvas; // in canvas coordinates
-    {
-        const QRectF boundingRect1 = nodeRectsCollection.getBoundingRectOfAllNodeRects();
-        const QRectF boundingRect2 = dataViewBoxesCollection.getBoundingRectOfAllDataViewBoxes();
-        const QRectF boundingRect3 = settingBoxesCollection.getBoundingRectOfAllSettingBoxes();
-        contentsRectInCanvas = boundingRectOfRects({boundingRect1, boundingRect2, boundingRect3});
-    }
-
+    const QRectF contentsRectInCanvas
+            = getContentsRectInCanvasCoordinates(); // in canvas coordinates
     const QRectF contentsRectInScene = contentsRectInCanvas.isNull()
             ? QRectF(0, 0, 10, 10)
             : QRectF(
                   canvas->mapToScene(contentsRectInCanvas.topLeft()),
                   canvas->mapToScene(contentsRectInCanvas.bottomRight()));
 
-    // finite margins prevent user from drag-scrolling too far away from contents
+    // finite margins to prevent user from drag-scrolling too far away from contents
     constexpr double fraction = 0.8;
     const double marginX = graphicsView->width() * fraction; // (pixel)
     const double marginY = graphicsView->height() * fraction; // (pixel)
@@ -1970,6 +1999,20 @@ void BoardView::getWorkspaceId(std::function<void (const int workspaceId)> callb
                 callback(workspaceId);
             },
             this
+    );
+}
+
+QRectF BoardView::getContentsRectInCanvasCoordinates() const {
+    const QRectF boundingRect1 = nodeRectsCollection.getBoundingRectOfAllNodeRects();
+    const QRectF boundingRect2 = relationshipsCollection.getBoundingRectOfAllEdgeArrows();
+    const QRectF boundingRect3 = dataViewBoxesCollection.getBoundingRectOfAllDataViewBoxes();
+    const QRectF boundingRect4 = groupBoxesCollection.getBoundingRectOfAllGroupBoxes();
+    const QRectF boundingRect5 = relationshipBundlesCollection.getBoundingRectOfAllArrows();
+    const QRectF boundingRect6 = settingBoxesCollection.getBoundingRectOfAllSettingBoxes();
+
+    return boundingRectOfRects(
+            { boundingRect1, boundingRect2, boundingRect3,
+              boundingRect4, boundingRect5, boundingRect6 }
     );
 }
 
@@ -2575,6 +2618,17 @@ BoardView::RelationshipsCollection::getRelIdToJoints() const {
     return relIdToJoints;
 }
 
+QRectF BoardView::RelationshipsCollection::getBoundingRectOfAllEdgeArrows() const {
+    QRectF result;
+    for (auto it = relIdToEdgeArrow.constBegin(); it != relIdToEdgeArrow.constEnd(); ++it) {
+        if (result.isNull())
+            result = it.value()->boundingRect();
+        else
+            result = result.united(it.value()->boundingRect());
+    }
+    return result;
+}
+
 //!
 //! Updates endpoints and label of the EdgeArrow for \e relId.
 //! \param relId
@@ -3054,6 +3108,17 @@ QSet<int> BoardView::GroupBoxesCollection::getAllGroupBoxIds() const {
     return keySet(groupBoxes);
 }
 
+QRectF BoardView::GroupBoxesCollection::getBoundingRectOfAllGroupBoxes() const {
+    QRectF result;
+    for (auto it = groupBoxes.constBegin(); it != groupBoxes.constEnd(); ++it) {
+        if (result.isNull())
+            result = it.value()->boundingRect();
+        else
+            result = result.united(it.value()->boundingRect());
+    }
+    return result;
+}
+
 std::optional<int> BoardView::GroupBoxesCollection::getDeepestEnclosingGroupBox(
         const BoardBoxItem *boardBoxItem, const QSet<int> &groupBoxIdsToExclude) {
     const QRectF rect = boardBoxItem->boundingRect();
@@ -3278,6 +3343,18 @@ QSet<RelationshipsBundle> BoardView::RelationshipBundlesCollection::getBundlesOf
 
 QSet<RelationshipId> BoardView::RelationshipBundlesCollection::getBundledRelationships() const {
     return bundledRels;
+}
+
+QRectF BoardView::RelationshipBundlesCollection::getBoundingRectOfAllArrows() const {
+    QRectF result;
+    for (auto it = relBundleToEdgeArrow.constBegin();
+            it != relBundleToEdgeArrow.constEnd(); ++it) {
+        if (result.isNull())
+            result = it.value()->boundingRect();
+        else
+            result = result.united(it.value()->boundingRect());
+    }
+    return result;
 }
 
 void BoardView::RelationshipBundlesCollection::setLineColorAndLabelColorOfAllEdgeArrows(

@@ -128,6 +128,7 @@ HEADERS += \
     utilities/binary_search.h \
 #    utilities/directed_graph.h \
     utilities/colors_util.h \
+    utilities/filenames_util.h \
     utilities/fonts_util.h \
     utilities/functor.h \
     utilities/geometry_util.h \
