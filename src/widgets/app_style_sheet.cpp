@@ -80,6 +80,9 @@ QString getLightThemeStyleSheet() {
         "QAbstractButton:hover" + styleClassSelector(StyleClass::flatToolButton) + " {"  +
         "  background: #e0e0e0;"
         "}"
+        "QAbstractButton:checked" + styleClassSelector(StyleClass::flatToolButton) + " {"  +
+        "  background: #e0e0e0;"
+        "}"
 
         "QAbstractButton:hover" + styleClassSelector(StyleClass::flatPushButton) + " {" +
         "  background: #e0e0e0;"
@@ -188,6 +191,9 @@ QString getDarkThemeStyleSheet() {
         "}"
 
         "QAbstractButton:hover" + styleClassSelector(StyleClass::flatToolButton) + " {" +
+        "  background: #484848;"
+        "}"
+        "QAbstractButton:checked" + styleClassSelector(StyleClass::flatToolButton) + " {" +
         "  background: #484848;"
         "}"
 

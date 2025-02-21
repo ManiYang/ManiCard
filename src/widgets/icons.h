@@ -16,8 +16,10 @@ enum class Icon {
 
     CloseRightPanel, OpenRightPanel,
 
+    Folder,
     Label,
-    PlayArrow
+    PlayArrow,
+    Search
 };
 
 namespace Icons {

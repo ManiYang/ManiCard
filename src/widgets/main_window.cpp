@@ -299,6 +299,8 @@ void MainWindow::setUpWidgets() {
     ui->frameLeftSideBar->setMinimumWidth(leftSideBarWidthMin);
 
     // set up ui->frameLeftSideBar
+    QToolButton *buttonWorkspacesPage = nullptr;
+    QToolButton *buttonSearchPage = nullptr;
     {
         auto *leftSideBarLayout = dynamic_cast<QBoxLayout *>(ui->frameLeftSideBar->layout());
         Q_ASSERT(leftSideBarLayout != nullptr);
@@ -307,19 +309,50 @@ void MainWindow::setUpWidgets() {
         auto *hLayout = new QHBoxLayout;
         leftSideBarLayout->addLayout(hLayout);
         hLayout->setContentsMargins(0, 0, 0, 0);
+        hLayout->setSpacing(4);
         {
-            buttonOpenMainMenu = new QToolButton;
-            buttonToIcon.insert(buttonOpenMainMenu, Icon::Menu4);
-            buttonOpenMainMenu->setIconSize({24, 24});
-            hLayout->addWidget(buttonOpenMainMenu);
-
-            //
+            {
+                buttonOpenMainMenu = new QToolButton;
+                buttonToIcon.insert(buttonOpenMainMenu, Icon::Menu4);
+                buttonOpenMainMenu->setIconSize({24, 24});
+                buttonOpenMainMenu->setToolTip("Open Main Menu");
+                hLayout->addWidget(buttonOpenMainMenu);
+            }
             hLayout->addStretch();
+            {
+                buttonWorkspacesPage = new QToolButton;
+                buttonToIcon.insert(buttonWorkspacesPage, Icon::Folder);
+                buttonWorkspacesPage->setIconSize({24, 24});
+                buttonWorkspacesPage->setToolTip("Workspaces");
+                hLayout->addWidget(buttonWorkspacesPage);
+                connect(buttonWorkspacesPage, &QToolButton::clicked, this, [this]() {
+                    qDebug() << "open workspaces page...";
+                });
+            }
+            {
+                buttonSearchPage = new QToolButton;
+                buttonToIcon.insert(buttonSearchPage, Icon::Search);
+                buttonSearchPage->setIconSize({24, 24});
+                buttonSearchPage->setToolTip("Search");
+                hLayout->addWidget(buttonSearchPage);
+                connect(buttonSearchPage, &QToolButton::clicked, this, [this]() {
+                    qDebug() << "open search page...";
+                });
+            }
         }
 
-        // workspaces list widget
-        workspacesList = new WorkspacesList;
-        leftSideBarLayout->addWidget(workspacesList);
+        //
+        leftSidebar.addStackedWidgetToLayout(leftSideBarLayout);
+        {
+            // workspaces-list page
+            workspacesList = new WorkspacesList;
+            leftSidebar.addPage(workspacesList, buttonWorkspacesPage);
+
+            // search page
+            searchPage = new QFrame;
+            leftSidebar.addPage(searchPage, buttonSearchPage);
+        }
+        leftSidebar.setCurrentPage(workspacesList);
     }
 
     // set up ui->frameCentralArea
@@ -355,6 +388,8 @@ void MainWindow::setUpWidgets() {
     setStyleClasses(ui->frameLeftSideBar, {StyleClass::highContrastBackground});
 
     setStyleClasses(buttonOpenMainMenu, {StyleClass::flatToolButton});
+    setStyleClasses(buttonSearchPage, {StyleClass::flatToolButton});
+    setStyleClasses(buttonWorkspacesPage, {StyleClass::flatToolButton});
 
     noWorkspaceOpenSign->setStyleSheet(
             "QLabel {"
@@ -1059,4 +1094,37 @@ void MainWindow::checkIsScreenChanged() {
 
         Services::instance()->getAppData()->updateFontSizeScaleFactor(this, factor);
     }
+}
+
+//====
+
+MainWindow::LeftSidebar::LeftSidebar(MainWindow *mainWindow_)
+        : mainWindow(mainWindow_) {
+    stackedWidget = new QStackedWidget;
+    buttonGroup = new QButtonGroup(mainWindow);
+}
+
+void MainWindow::LeftSidebar::addStackedWidgetToLayout(QLayout *layout) {
+    layout->addWidget(stackedWidget);
+}
+
+void MainWindow::LeftSidebar::addPage(QWidget *widget, QToolButton *button) {
+    stackedWidget->addWidget(widget);
+
+    button->setCheckable(true);
+    buttonGroup->addButton(button);
+    QObject::connect(button, &QToolButton::clicked, mainWindow, [this, widget](bool checked) {
+        if (checked)
+            stackedWidget->setCurrentWidget(widget);
+    });
+
+    pageToButton.insert(widget, button);
+}
+
+void MainWindow::LeftSidebar::setCurrentPage(QWidget *widget) {
+    stackedWidget->setCurrentWidget(widget);
+
+    auto *button = pageToButton.value(widget);
+    Q_ASSERT(button != nullptr);
+    button->setChecked(true);
 }

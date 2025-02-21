@@ -47,10 +47,14 @@ QString getImageFileForLightTheme(const Icon icon) {
         return ":/icons/close_right_panel_24";
     case Icon::OpenRightPanel:
         return ":/icons/open_right_panel_24";
+    case Icon::Folder:
+        return ":/icons/folder_24";
     case Icon::Label:
         return ":/icons/label_black_24";
     case Icon::PlayArrow:
         return ":/icons/play_arrow_24";
+    case Icon::Search:
+        return ":/icons/search_24";
     }
     Q_ASSERT(false); // case not implemented
     return "";

@@ -2,10 +2,12 @@
 #define MAIN_WINDOW_H
 
 #include <QAbstractButton>
+#include <QButtonGroup>
 #include <QLabel>
 #include <QMainWindow>
 #include <QPointer>
 #include <QScreen>
+#include <QStackedWidget>
 #include <QToolButton>
 #include "utilities/periodic_checker.h"
 #include "widgets/icons.h"
@@ -49,12 +51,30 @@ private:
     Ui::MainWindow *ui;
 
     // component widgets
-    WorkspacesList *workspacesList {nullptr};
     WorkspaceFrame *workspaceFrame {nullptr};
-
     QLabel *noWorkspaceOpenSign {nullptr};
+
+    // -- left sidebar
+    struct LeftSidebar
+    {
+        explicit LeftSidebar(MainWindow *mainWindow);
+        void addStackedWidgetToLayout(QLayout *layout);
+        void addPage(QWidget *widget, QToolButton *button);
+        void setCurrentPage(QWidget *widget);
+    private:
+        MainWindow *mainWindow;
+        QStackedWidget *stackedWidget;
+        QButtonGroup *buttonGroup;
+        QHash<QWidget *, QToolButton *> pageToButton;
+    };
+    LeftSidebar leftSidebar {this};
+
     QToolButton *buttonOpenMainMenu {nullptr};
 
+    WorkspacesList *workspacesList {nullptr};
+    QFrame *searchPage {nullptr};
+
+    // -- right side bar
     RightSidebar *rightSidebar {nullptr};
 
     // menus and actions
