@@ -49,7 +49,7 @@ public:
     //!
     int getCurrentBoardId();
 
-    QSet<int> getAllBoardIds() const;
+    QVector<int> getAllBoardIds() const;
 
     QPointF getBoardViewTopLeftPos() const; // in canvas coordinates
     double getBoardViewZoomRatio() const;

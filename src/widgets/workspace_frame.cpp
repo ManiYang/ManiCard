@@ -235,9 +235,8 @@ int WorkspaceFrame::getCurrentBoardId() {
     return boardView->getBoardId();
 }
 
-QSet<int> WorkspaceFrame::getAllBoardIds() const {
-    const QVector<int> ids = boardsTabBar->getAllItemIds();
-    return QSet<int>(ids.constBegin(), ids.constEnd());
+QVector<int> WorkspaceFrame::getAllBoardIds() const {
+    return boardsTabBar->getAllItemIds();
 }
 
 QPointF WorkspaceFrame::getBoardViewTopLeftPos() const {

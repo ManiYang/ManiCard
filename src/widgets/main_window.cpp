@@ -431,8 +431,8 @@ void MainWindow::setUpConnections() {
     });
 
     // `searchPage`
-    connect(searchPage, &SearchPage::getCurrentWorkspaceId, this, [this](int *workspaceId) {
-        *workspaceId = workspacesList->selectedWorkspaceId();
+    connect(searchPage, &SearchPage::getCurrentBoardId, this, [this](int *boardId) {
+        *boardId = workspaceFrame->getCurrentBoardId();
     }, Qt::DirectConnection);
 
     // `workspaceFrame`

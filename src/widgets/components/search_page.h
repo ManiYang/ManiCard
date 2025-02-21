@@ -5,6 +5,7 @@
 #include <QFrame>
 #include <QLabel>
 #include <QLineEdit>
+#include <QTextBrowser>
 
 class SearchBar;
 
@@ -15,19 +16,18 @@ public:
     explicit SearchPage(QWidget *parent = nullptr);
 
 signals:
-    void getCurrentWorkspaceId(int *workspaceId);
+    void getCurrentBoardId(int *boardId);
+//    void getBoardIdsOfCurrentWorkspace(QVector<int> *boardIds);
 
 private:
     SearchBar *searchBar {nullptr};
     QLabel *labelMessage {nullptr};
+    QTextBrowser *resultBrowser {nullptr};
 
     void setUpWidgets();
     void setUpConnections();
 
     void clearSearchResult();
-
-
-
 
 
     //
@@ -59,7 +59,9 @@ private:
     void submitSearch(const SearchData &searchData);
     void startSearch(const SearchData &searchData);
     void doSearch(const SearchData &searchData, std::function<void ()> callbackOnFinish);
+
     void searchCardId(const int cardId, std::function<void ()> callbackOnFinish);
+
     void searchTitleAndText(const QString &substring, std::function<void ()> callbackOnFinish);
 
     static SearchData parseSearchText(const QString &searchText);

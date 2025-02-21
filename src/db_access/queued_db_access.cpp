@@ -422,6 +422,46 @@ void QueuedDbAccess::getBoardData(
     addToQueue(func);
 }
 
+void QueuedDbAccess::getCardIdsOpenedInBoard(
+        const int boardId, std::function<void (bool, const QSet<int> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    true // is readonly?
+                    , const QSet<int> & // result type (`Void` if no result argument)
+                    , decltype(boardId) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->getCardIdsOpenedInBoard(args...); // method
+            },
+            boardId, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
+void QueuedDbAccess::getBoardIdsShowingCard(
+        const int cardId, std::function<void (bool, const QSet<int> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    auto func = createTask<
+                    true // is readonly?
+                    , const QSet<int> & // result type (`Void` if no result argument)
+                    , decltype(cardId) // input types
+                >(
+            [this](auto... args) {
+                boardsDataAccess->getBoardIdsShowingCard(args...); // method
+            },
+            cardId, // input parameters
+            callback, callbackContext
+    );
+
+    addToQueue(func);
+}
+
 void QueuedDbAccess::createNewWorkspaceWithId(
         const int workspaceId, const Workspace &workspace,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {

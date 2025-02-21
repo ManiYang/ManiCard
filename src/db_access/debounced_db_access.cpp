@@ -378,6 +378,20 @@ void DebouncedDbAccess::getBoardData(
     boardsDataAccess->getBoardData(boardId, callback, callbackContext);
 }
 
+void DebouncedDbAccess::getCardIdsOpenedInBoard(
+        const int boardId, std::function<void (bool, const QSet<int> &)> callback,
+        QPointer<QObject> callbackContext) {
+    closeDebounceSession();
+    boardsDataAccess->getCardIdsOpenedInBoard(boardId, callback, callbackContext);
+}
+
+void DebouncedDbAccess::getBoardIdsShowingCard(
+        const int cardId, std::function<void (bool, const QSet<int> &)> callback,
+        QPointer<QObject> callbackContext) {
+    closeDebounceSession();
+    boardsDataAccess->getBoardIdsShowingCard(cardId, callback, callbackContext);
+}
+
 void DebouncedDbAccess::requestNewBoardId(
         std::function<void (bool, int)> callback, QPointer<QObject> callbackContext) {
     closeDebounceSession();

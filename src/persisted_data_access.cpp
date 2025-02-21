@@ -445,6 +445,45 @@ void PersistedDataAccess::getBoardData(
     routine->start();
 }
 
+void PersistedDataAccess::getCardIdsOpenedInBoard(
+        const int boardId, std::function<void (bool, const QSet<int> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    // 1. get the parts that are already cached
+    if (cache.boards.contains(boardId)) {
+        const auto board = cache.boards.value(boardId);
+        const QSet<int> cardIds = keySet(board.cardIdToNodeRectData);
+        invokeAction(callbackContext, [callback, cardIds]() {
+            callback(true, cardIds);
+        });
+        return;
+    }
+
+    // 2. query DB
+    debouncedDbAccess->getCardIdsOpenedInBoard(
+            boardId,
+            [callback](bool ok, const QSet<int> &cardIds) {
+                // (won't update cache here, as the query result is not whole Board data)
+                // invoke callback
+                callback(ok, cardIds);
+            },
+            callbackContext
+    );
+}
+
+void PersistedDataAccess::getBoardIdsShowingCard(
+        const int cardId, std::function<void (bool, const QSet<int> &)> callback,
+        QPointer<QObject> callbackContext) {
+    debouncedDbAccess->getBoardIdsShowingCard(
+            cardId,
+            [callback](bool ok, const QSet<int> &boardIds) {
+                callback(ok, boardIds);
+            },
+            callbackContext
+    );
+}
+
 void PersistedDataAccess::requestNewBoardId(
         std::function<void (std::optional<int>)> callback,
         QPointer<QObject> callbackContext) {

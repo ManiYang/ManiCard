@@ -62,6 +62,16 @@ public:
             std::function<void (bool ok, std::optional<Board> board)> callback,
             QPointer<QObject> callbackContext) = 0;
 
+    virtual void getCardIdsOpenedInBoard(
+            const int boardId,
+            std::function<void (bool ok, const QSet<int> &cardIds)> callback,
+            QPointer<QObject> callbackContext) = 0;
+
+    virtual void getBoardIdsShowingCard(
+            const int cardId,
+            std::function<void (bool ok, const QSet<int> &boardIDs)> callback,
+            QPointer<QObject> callbackContext) = 0;
+
     virtual void requestNewBoardId(
             std::function<void (std::optional<int> boardId)> callback,
             QPointer<QObject> callbackContext) = 0;

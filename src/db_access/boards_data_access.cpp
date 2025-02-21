@@ -377,6 +377,87 @@ void BoardsDataAccess::getBoardData(
     routine->start();
 }
 
+void BoardsDataAccess::getCardIdsOpenedInBoard(
+        const int boardId, std::function<void (bool, const QSet<int> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (b:Board {id: $boardId})
+                          -[:HAS]->(:NodeRect)-[:SHOWS]->(c:Card)
+                    RETURN c.id AS cardId
+                )!",
+                QJsonObject {
+                    {"boardId", boardId}
+                }
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false, {});
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                if (result.isEmpty()) {
+                    callback(true, {});
+                    return;
+                }
+
+                QSet<int> cardIds;
+                for (int r = 0; r < result.rowCount(); ++r) {
+                    const auto cardIdOpt = result.intValueAt(r, "cardId");
+                    if (cardIdOpt.has_value())
+                        cardIds << cardIdOpt.value();
+                }
+                callback(true, cardIds);
+            },
+            callbackContext
+    );
+}
+
+void BoardsDataAccess::getBoardIdsShowingCard(
+        const int cardId, std::function<void (bool, const QSet<int> &)> callback,
+        QPointer<QObject> callbackContext) {
+    Q_ASSERT(callback);
+
+    neo4jHttpApiClient->queryDb(
+            QueryStatement {
+                R"!(
+                    MATCH (b:Board)-[:HAS]->(:NodeRect)-[:SHOWS]->(c:Card {id: $cardId})
+                    RETURN b.id AS boardId
+                )!",
+                QJsonObject {
+                    {"cardId", cardId}
+                }
+            },
+            // callback
+            [callback](const QueryResponseSingleResult &queryResponse) {
+                if (!queryResponse.getResult().has_value()) {
+                    callback(false, {});
+                    return;
+                }
+
+                const auto result = queryResponse.getResult().value();
+                if (result.isEmpty()) {
+                    callback(true, {});
+                    return;
+                }
+
+                QSet<int> boardIds;
+                for (int r = 0; r < result.rowCount(); ++r) {
+                    const auto boardIdOpt = result.intValueAt(r, "boardId");
+                    if (boardIdOpt.has_value())
+                        boardIds << boardIdOpt.value();
+                }
+                callback(true, boardIds);
+            },
+            callbackContext
+    );
+}
+
 void BoardsDataAccess::createNewWorkspaceWithId(
         const int workspaceId, const Workspace &workspace,
         std::function<void (bool)> callback, QPointer<QObject> callbackContext) {
