@@ -51,6 +51,12 @@ public:
 
     void prepareToClose();
 
+    //!
+    //! Highlight and center on the NodeRect for \e cardId.
+    //! \return false if \e cardId is not found
+    //!
+    bool highlightAndCenterNodeRect(const int cardId);
+
     void applyZoomAction(const ZoomAction zoomAction);
     void toggleCardPreview();
 

@@ -116,9 +116,8 @@ void SearchPage::setUpConnections() {
     //
     connect(resultBrowser, &CustomTextBrowser::anchorClicked, this, [this](const QUrl &link) {
         const auto [workspaceId, boardId, cardId] = parseUrlToNodeRect(link);
-        qDebug() << workspaceId << boardId << cardId;
         if (workspaceId != -1)
-            emit userToOpenBoard(workspaceId, boardId);
+            emit userToOpenBoard(workspaceId, boardId, cardId);
     });
 }
 
@@ -383,7 +382,10 @@ void SearchPage::showSearchCardIdResult(const SearchCardIdResult &result, const 
         cursor.insertBlock();
 
         for (const int boardId: boardIds) {
-            const QString boardName = result.boardIdToName.value(boardId);
+            QString boardName = result.boardIdToName.value(boardId);
+            if (boardId == result.currentBoardId)
+                boardName += " (current)";
+
             if (!noLink) {
                 const QString link = createHyperLinkToNodeRect(
                         workspaceId, boardId, boardName, result.cardId);
@@ -393,9 +395,6 @@ void SearchPage::showSearchCardIdResult(const SearchCardIdResult &result, const 
             else {
                 cursor.insertText(QString("- board %1").arg(boardName));
             }
-
-            if (boardId == result.currentBoardId)
-                cursor.insertText(" (current)");
             cursor.insertBlock();
         }
     }

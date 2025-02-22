@@ -389,6 +389,28 @@ void BoardView::prepareToClose() {
     handleSettingsEditedDebouncer->actNow();
 }
 
+bool BoardView::highlightAndCenterNodeRect(const int cardId) {
+    if (boardId == -1)
+        return false;
+
+    if (!nodeRectsCollection.contains(cardId))
+        return false;
+
+    //
+    nodeRectsCollection.setHighlightedCardIds({cardId});
+
+    //
+    const QPointF rectCenterInCanvas
+            = nodeRectsCollection.getNodeRectRect(cardId).value().center();
+    const QPointF rectCenterInScene = canvas->mapToScene(rectCenterInCanvas);
+    moveSceneRelativeToView(getViewCenterInScene() - rectCenterInScene);
+
+    adjustSceneRect();
+
+    //
+    return true;
+}
+
 void BoardView::applyZoomAction(const ZoomAction zoomAction) {
     const auto anchorScenePos = getViewCenterInScene();
     doApplyZoomAction(zoomAction, anchorScenePos);

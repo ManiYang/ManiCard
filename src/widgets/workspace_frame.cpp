@@ -151,7 +151,7 @@ void WorkspaceFrame::loadWorkspace(
                     ? boardIdToOpen
                     : routine->workspaceData.lastOpenedBoardId;
             routine->boardIdToOpen = sortedBoardIds.contains(boardToOpen1)
-                    ? routine->workspaceData.lastOpenedBoardId
+                    ? boardToOpen1
                     : sortedBoardIds.at(0);
 
             boardsTabBar->setCurrentItemId(routine->boardIdToOpen);
@@ -209,8 +209,30 @@ void WorkspaceFrame::loadWorkspace(
     routine->start();
 }
 
-void WorkspaceFrame::openBoard(const int boardId) {
-    qDebug() << "open board" << boardId;
+void WorkspaceFrame::openBoard(const int boardId, std::function<void (bool)> callback) {
+    Q_ASSERT(callback);
+
+    if (workspaceId == -1) {
+        callback(false);
+        return;
+    }
+
+    if (!boardsTabBar->getAllItemIds().contains(boardId)) {
+        callback(false);
+        return;
+    }
+
+    if (boardView->getBoardId() == boardId) {
+        callback(true);
+        return;
+    }
+
+    boardsTabBar->setCurrentItemId(boardId);
+    loadBoard(boardId, callback);
+}
+
+bool WorkspaceFrame::highlightAndCenterOnNodeRect(const int cardId) {
+    return boardView->highlightAndCenterNodeRect(cardId);
 }
 
 void WorkspaceFrame::changeWorkspaceName(const QString newName) {
@@ -315,7 +337,7 @@ void WorkspaceFrame::setUpConnections() {
     });
 
     connect(boardsTabBar, &CustomTabBar::tabSelectedByUser, this, [this](const int boardId) {
-        onUserSelectedBoard(boardId);
+        loadBoard(boardId, [](bool /*ok*/) {});
     });
 
     connect(boardsTabBar, &CustomTabBar::tabsReorderedByUser,
@@ -516,73 +538,6 @@ void WorkspaceFrame::onUserToRenameExportBoardToImage(const int boardId) {
         QMessageBox::warning(this, " ", "Failed to write image file " + filePath);
 }
 
-void WorkspaceFrame::onUserSelectedBoard(const int boardId) {
-    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
-    {
-    public:
-        QString errorMsg;
-    };
-    auto *routine = new AsyncRoutineWithVars;
-
-    //
-    routine->addStep([this, routine]() {
-        // prepare to close `boardView`
-        boardsTabBar->setEnabled(false);
-
-        saveTopLeftPosAndZoomRatioOfCurrentBoard();
-
-        boardView->setVisible(true);
-        noBoardSign->setVisible(false);
-        boardView->prepareToClose();
-
-        // wait until boardView->canClose() returns true
-        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
-            ->setPredicate([this]() {
-                return boardView->canClose();
-            })
-            ->onPredicateReturnsTrue([routine]() {
-                routine->nextStep();
-            })
-            ->onTimeOut([routine]() {
-                qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
-                routine->nextStep();
-            })
-            ->setAutoDelete()->start();
-    }, this);
-
-    routine->addStep([this, routine, boardId]() {
-        // load board
-        boardView->loadBoard(
-                boardId,
-                // callback
-                [this, routine, boardId](bool ok, bool highlightedCardIdChanged) {
-                    ContinuationContext context(routine);
-                    if (!ok) {
-                        context.setErrorFlag();
-                        routine->errorMsg = QString("Could not load board %1").arg(boardId);
-                    }
-
-                    if (highlightedCardIdChanged) {
-                        Services::instance()->getAppData()
-                                ->setSingleHighlightedCardId(EventSource(this), -1);
-                    }
-                }
-        );
-    }, this);
-
-    routine->addStep([this, routine]() {
-        // final step
-        ContinuationContext context(routine);
-
-        if (routine->errorFlag && !routine->errorMsg.isEmpty())
-            showWarningMessageBox(this, " ", routine->errorMsg);
-
-        boardsTabBar->setEnabled(true);
-    }, this);
-
-    routine->start();
-}
-
 void WorkspaceFrame::onUserToRemoveBoard(const int boardIdToRemove) {
     if (boardIdToRemove == -1)
         return;
@@ -743,7 +698,79 @@ void WorkspaceFrame::onCardPropertiesToShowUpdated(
     update.cardPropertiesToShow = cardPropertiesToShow_;
 
     Services::instance()->getAppData()->updateWorkspaceNodeProperties(
-            EventSource(this), workspaceId, update);
+                EventSource(this), workspaceId, update);
+}
+
+void WorkspaceFrame::loadBoard(const int boardId, std::function<void (bool)> callback) {
+    Q_ASSERT(boardsTabBar->getAllItemIds().contains(boardId));
+    Q_ASSERT(callback);
+
+    class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
+    {
+    public:
+        QString errorMsg;
+    };
+    auto *routine = new AsyncRoutineWithVars;
+
+    //
+    routine->addStep([this, routine]() {
+        // prepare to close `boardView`
+        boardsTabBar->setEnabled(false);
+
+        saveTopLeftPosAndZoomRatioOfCurrentBoard();
+
+        boardView->setVisible(true);
+        noBoardSign->setVisible(false);
+        boardView->prepareToClose();
+
+        // wait until boardView->canClose() returns true
+        (new PeriodicChecker)->setPeriod(50)->setTimeOut(20000)
+            ->setPredicate([this]() {
+                return boardView->canClose();
+            })
+            ->onPredicateReturnsTrue([routine]() {
+                routine->nextStep();
+            })
+            ->onTimeOut([routine]() {
+                qWarning().noquote() << "time-out while awaiting BoardView::canClose()";
+                routine->nextStep();
+            })
+            ->setAutoDelete()->start();
+    }, this);
+
+    routine->addStep([this, routine, boardId]() {
+        // load board
+        boardView->loadBoard(
+                boardId,
+                // callback
+                [this, routine, boardId](bool ok, bool highlightedCardIdChanged) {
+                    ContinuationContext context(routine);
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg = QString("Could not load board %1").arg(boardId);
+                    }
+
+                    if (highlightedCardIdChanged) {
+                        Services::instance()->getAppData()
+                                ->setSingleHighlightedCardId(EventSource(this), -1);
+                    }
+                }
+        );
+    }, this);
+
+    routine->addStep([this, routine, callback]() {
+        // final step
+        ContinuationContext context(routine);
+
+        if (routine->errorFlag && !routine->errorMsg.isEmpty())
+            showWarningMessageBox(this, " ", routine->errorMsg);
+
+        boardsTabBar->setEnabled(true);
+
+        callback(!routine->errorFlag);
+    }, this);
+
+    routine->start();
 }
 
 void WorkspaceFrame::saveTopLeftPosAndZoomRatioOfCurrentBoard() {

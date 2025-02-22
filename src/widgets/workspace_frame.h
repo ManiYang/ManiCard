@@ -34,7 +34,18 @@ public:
             const int workspaceId, const int boardId,
             std::function<void (bool ok, bool highlightedCardIdChanged)> callback);
 
-    void openBoard(const int boardId);
+    //!
+    //! \param boardId
+    //! \param callback: argument \e ok will be false if \e boardId is not found in current
+    //!                  workspace
+    //!
+    void openBoard(const int boardId, std::function<void (bool ok)> callback);
+
+    //!
+    //! Highlight and center on the NodeRect for \e cardId, if it is found in current board.
+    //! \return false if \e cardId is not found in current board
+    //!
+    bool highlightAndCenterOnNodeRect(const int cardId);
 
     void changeWorkspaceName(const QString newName);
     void showButtonRightSidebar();
@@ -94,12 +105,17 @@ private:
     void onUserToAddBoard();
     void onUserToRenameBoard(const int boardId);
     void onUserToRenameExportBoardToImage(const int boardId);
-    void onUserSelectedBoard(const int boardId);
     void onUserToRemoveBoard(const int boardIdToRemove);
     void onUserToSetCardColors();
 
     void onCardLabelToColorMappingUpdated(const CardLabelToColorMapping &cardLabelToColorMapping);
     void onCardPropertiesToShowUpdated(const CardPropertiesToShow &cardPropertiesToShow);
+
+    //!
+    //! \param boardId: must exists in current workspace
+    //! \param callback
+    //!
+    void loadBoard(const int boardId, std::function<void (bool ok)> callback);
 
     //!
     //! save the data for the board currently shown in `boardView`

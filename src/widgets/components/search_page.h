@@ -21,7 +21,12 @@ signals:
     void getCurrentBoardId(int *boardId);
     void getWorkspaceIdsList(QVector<int> *workspaceIds);
 
-    void userToOpenBoard(const int workspaceId, const int boardId);
+    //!
+    //! \param workspaceId: workspace to open
+    //! \param boardId: board to open
+    //! \param cardId: card (NodeRect) to highlight and center on
+    //!
+    void userToOpenBoard(const int workspaceId, const int boardId, const int cardId);
 
 protected:
     void showEvent(QShowEvent *event) override;

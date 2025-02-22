@@ -440,14 +440,14 @@ void MainWindow::setUpConnections() {
     }, Qt::DirectConnection);
 
     connect(searchPage, &SearchPage::userToOpenBoard,
-            this, [this](const int workspaceId, const int boardId) {
+            this, [this](const int workspaceId, const int boardId, const int cardId) {
         if (!workspacesList->getWorkspaceIds().contains(workspaceId)) {
             qWarning().noquote() << QString("workspace %1 not found").arg(workspaceId);
             return;
         }
 
         workspacesList->setSelectedWorkspaceId(workspaceId);
-        onUserToOpenWorkspace(workspaceId, boardId);
+        onUserToOpenWorkspace(workspaceId, boardId, cardId);
     });
 
     // `workspaceFrame`
@@ -571,9 +571,27 @@ void MainWindow::onShownForFirstTime() {
     }
 }
 
-void MainWindow::onUserToOpenWorkspace(const int workspaceId, const int boardId) {
+void MainWindow::onUserToOpenWorkspace(const int workspaceId, const int boardId, const int cardId) {
     if (workspaceFrame->getWorkspaceId() == workspaceId) {
-        workspaceFrame->openBoard(boardId);
+        // (`workspaceId` is already the current workspace)
+        workspaceFrame->openBoard(
+                boardId,
+                // callback:
+                [this, cardId](bool ok) {
+                    if (!ok)
+                        return;
+
+                    if (cardId == -1)
+                        return;
+
+                    const bool highlightCardOk
+                            = workspaceFrame->highlightAndCenterOnNodeRect(cardId);
+                    if (highlightCardOk) {
+                        Services::instance()->getAppData()->setSingleHighlightedCardId(
+                            EventSource(this), cardId);
+                    }
+                }
+        );
         return;
     }
 
@@ -602,7 +620,7 @@ void MainWindow::onUserToOpenWorkspace(const int workspaceId, const int boardId)
             ->setAutoDelete()->start();
     }, this);
 
-    routine->addStep([this, routine, workspaceId, boardId]() {
+    routine->addStep([this, routine, workspaceId, boardId, cardId]() {
         // load `workspaceId`
         noWorkspaceOpenSign->setVisible(false);
         workspaceFrame->setVisible(true);
@@ -610,15 +628,22 @@ void MainWindow::onUserToOpenWorkspace(const int workspaceId, const int boardId)
         workspaceFrame->loadWorkspace(
                 workspaceId, boardId,
                 // callback:
-                [this, routine, workspaceId](bool loadOk, bool highlightedCardIdChanged) {
+                [this, routine, workspaceId, cardId](bool loadOk, bool highlightedCardIdChanged) {
+                    bool highlightCardOk = false;
                     if (!loadOk) {
                         QMessageBox::warning(
                                 this, " ", QString("Could not load workspace %1").arg(workspaceId));
                     }
-                    if (highlightedCardIdChanged) {
+                    else {
+                        if (cardId != -1)
+                            highlightCardOk = workspaceFrame->highlightAndCenterOnNodeRect(cardId);
+                    }
+
+                    if (highlightedCardIdChanged || highlightCardOk) {
                         // call AppData
-                        Services::instance()->getAppData()
-                                ->setSingleHighlightedCardId(EventSource(this), -1);
+                        const int newHighlightedCardId = highlightCardOk ? cardId : -1;
+                        Services::instance()->getAppData()->setSingleHighlightedCardId(
+                                EventSource(this), newHighlightedCardId);
                     }
 
                     workspacesList->setEnabled(true);

@@ -107,8 +107,16 @@ private:
 
     void onShownForFirstTime();
 
-    void onUserToOpenWorkspace(const int workspaceId, const int boardId = -1);
-            // boardId: if is -1, will open last-opened board
+    //!
+    //! \param workspaceId
+    //! \param boardId: the board to open (if found in \e workspaceId). If is -1, will open
+    //!                 the last-opened board.
+    //! \param cardId: the opened card (NodeRect) to highlight and to center on (if found
+    //!                in \e boardId)
+    //!
+    void onUserToOpenWorkspace(
+            const int workspaceId, const int boardId = -1, const int cardId = -1);
+
     void onUserToCreateNewWorkspace();
     void onUserRenamedWorkspace(const int workspaceId, const QString &newName);
     void onUserToRemoveWorkspace(const int workspaceId);
