@@ -480,14 +480,8 @@ void MainWindow::setUpButtonsWithIcons() {
 
 void MainWindow::setUpMainMenu() {
     {
-        auto *action = mainMenu->addAction("Reload", this, [this]() {
-            onUserToReload();
-        });
-        action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_R));
-        this->addAction(action); // without this, the shortcut won't work
-    }
-    {
         auto *submenu = mainMenu->addMenu("Graph");
+
         {
             submenu->addAction("Labels...", this, [this]() {
                 onUserToSetCardLabelsList();
@@ -498,7 +492,19 @@ void MainWindow::setUpMainMenu() {
         }
     }
     {
+        auto *submenu = mainMenu->addMenu("Edit");
+
+        {
+            auto *action = submenu->addAction("Search", this, [this]() {
+                leftSidebar.setCurrentPage(searchPage);
+            });
+            action->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_F));
+            this->addAction(action); // without this, the shortcut won't work
+        }
+    }
+    {
         auto *submenu = mainMenu->addMenu("View");
+
         {
             auto *action = submenu->addAction("Toggle Card Preview", this, [this]() {
                 if (workspaceFrame->isVisible())
@@ -530,6 +536,14 @@ void MainWindow::setUpMainMenu() {
                     workspaceFrame->applyZoomAction(ZoomAction::ResetZoom);
             });
             action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_0));
+            this->addAction(action); // without this, the shortcut won't work
+        }
+        submenu->addSeparator();
+        {
+            auto *action = submenu->addAction("Reload", this, [this]() {
+                onUserToReload();
+            });
+            action->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_R));
             this->addAction(action); // without this, the shortcut won't work
         }
     }
