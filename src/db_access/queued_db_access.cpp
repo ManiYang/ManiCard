@@ -422,38 +422,18 @@ void QueuedDbAccess::getBoardData(
     addToQueue(func);
 }
 
-void QueuedDbAccess::getCardIdsOpenedInBoard(
-        const int boardId, std::function<void (bool, const QSet<int> &)> callback,
+void QueuedDbAccess::getBoardsShowingCard(
+        const int cardId, std::function<void (bool, const QHash<int, QString> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
     auto func = createTask<
                     true // is readonly?
-                    , const QSet<int> & // result type (`Void` if no result argument)
-                    , decltype(boardId) // input types
-                >(
-            [this](auto... args) {
-                boardsDataAccess->getCardIdsOpenedInBoard(args...); // method
-            },
-            boardId, // input parameters
-            callback, callbackContext
-    );
-
-    addToQueue(func);
-}
-
-void QueuedDbAccess::getBoardIdsShowingCard(
-        const int cardId, std::function<void (bool, const QSet<int> &)> callback,
-        QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    auto func = createTask<
-                    true // is readonly?
-                    , const QSet<int> & // result type (`Void` if no result argument)
+                    , const QHash<int, QString> & // result type (`Void` if no result argument)
                     , decltype(cardId) // input types
                 >(
             [this](auto... args) {
-                boardsDataAccess->getBoardIdsShowingCard(args...); // method
+                boardsDataAccess->getBoardsShowingCard(args...); // method
             },
             cardId, // input parameters
             callback, callbackContext

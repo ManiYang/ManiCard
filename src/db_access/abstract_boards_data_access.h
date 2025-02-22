@@ -39,19 +39,9 @@ public:
             std::function<void (bool ok, std::optional<Board> board)> callback,
             QPointer<QObject> callbackContext) = 0;
 
-    //!
-    //! \param boardId
-    //! \param callback: argument \e cardIds will be empty if the board ID is not found
-    //! \param callbackContext
-    //!
-    virtual void getCardIdsOpenedInBoard(
-            const int boardId,
-            std::function<void (bool ok, const QSet<int> &cardIds)> callback,
-            QPointer<QObject> callbackContext) = 0;
-
-    virtual void getBoardIdsShowingCard(
+    virtual void getBoardsShowingCard(
             const int cardId,
-            std::function<void (bool ok, const QSet<int> &boardIDs)> callback,
+            std::function<void (bool ok, const QHash<int, QString> &boardsIdToName)> callback,
             QPointer<QObject> callbackContext) = 0;
 };
 

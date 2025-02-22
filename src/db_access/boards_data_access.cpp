@@ -377,49 +377,8 @@ void BoardsDataAccess::getBoardData(
     routine->start();
 }
 
-void BoardsDataAccess::getCardIdsOpenedInBoard(
-        const int boardId, std::function<void (bool, const QSet<int> &)> callback,
-        QPointer<QObject> callbackContext) {
-    Q_ASSERT(callback);
-
-    neo4jHttpApiClient->queryDb(
-            QueryStatement {
-                R"!(
-                    MATCH (b:Board {id: $boardId})
-                          -[:HAS]->(:NodeRect)-[:SHOWS]->(c:Card)
-                    RETURN c.id AS cardId
-                )!",
-                QJsonObject {
-                    {"boardId", boardId}
-                }
-            },
-            // callback
-            [callback](const QueryResponseSingleResult &queryResponse) {
-                if (!queryResponse.getResult().has_value()) {
-                    callback(false, {});
-                    return;
-                }
-
-                const auto result = queryResponse.getResult().value();
-                if (result.isEmpty()) {
-                    callback(true, {});
-                    return;
-                }
-
-                QSet<int> cardIds;
-                for (int r = 0; r < result.rowCount(); ++r) {
-                    const auto cardIdOpt = result.intValueAt(r, "cardId");
-                    if (cardIdOpt.has_value())
-                        cardIds << cardIdOpt.value();
-                }
-                callback(true, cardIds);
-            },
-            callbackContext
-    );
-}
-
-void BoardsDataAccess::getBoardIdsShowingCard(
-        const int cardId, std::function<void (bool, const QSet<int> &)> callback,
+void BoardsDataAccess::getBoardsShowingCard(
+        const int cardId, std::function<void (bool, const QHash<int, QString> &)> callback,
         QPointer<QObject> callbackContext) {
     Q_ASSERT(callback);
 
@@ -427,7 +386,7 @@ void BoardsDataAccess::getBoardIdsShowingCard(
             QueryStatement {
                 R"!(
                     MATCH (b:Board)-[:HAS]->(:NodeRect)-[:SHOWS]->(c:Card {id: $cardId})
-                    RETURN b.id AS boardId
+                    RETURN b.id AS boardId, b.name AS boardName
                 )!",
                 QJsonObject {
                     {"cardId", cardId}
@@ -446,13 +405,14 @@ void BoardsDataAccess::getBoardIdsShowingCard(
                     return;
                 }
 
-                QSet<int> boardIds;
+                QHash<int, QString> boardsIdToName;
                 for (int r = 0; r < result.rowCount(); ++r) {
                     const auto boardIdOpt = result.intValueAt(r, "boardId");
-                    if (boardIdOpt.has_value())
-                        boardIds << boardIdOpt.value();
+                    const auto boardNameOpt = result.stringValueAt(r, "boardName");
+                    if (boardIdOpt.has_value() && boardNameOpt.has_value())
+                        boardsIdToName.insert(boardIdOpt.value(), boardNameOpt.value());
                 }
-                callback(true, boardIds);
+                callback(true, boardsIdToName);
             },
             callbackContext
     );

@@ -126,14 +126,9 @@ public:
                 std::function<void (bool ok, std::optional<Board> board)> callback,
                 QPointer<QObject> callbackContext) override;
 
-    void getCardIdsOpenedInBoard(
-            const int boardId,
-            std::function<void (bool ok, const QSet<int> &cardIds)> callback,
-            QPointer<QObject> callbackContext) override;
-
-    void getBoardIdsShowingCard(
+    void getBoardsShowingCard(
             const int cardId,
-            std::function<void (bool ok, const QSet<int> &boardIDs)> callback,
+            std::function<void (bool ok, const QHash<int, QString> &boardsIdToName)> callback,
             QPointer<QObject> callbackContext) override;
 
     // write operations

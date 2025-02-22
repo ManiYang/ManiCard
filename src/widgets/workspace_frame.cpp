@@ -28,7 +28,8 @@ WorkspaceFrame::WorkspaceFrame(QWidget *parent)
 }
 
 void WorkspaceFrame::loadWorkspace(
-        const int workspaceIdToLoad, std::function<void (bool, bool)> callback) {
+        const int workspaceIdToLoad, const int boardIdToOpen,
+        std::function<void (bool, bool)> callback) {
     if (workspaceId == workspaceIdToLoad) {
         callback(true, false);
         return;
@@ -130,7 +131,7 @@ void WorkspaceFrame::loadWorkspace(
         );
     }, this);
 
-    routine->addStep([this, routine]() {
+    routine->addStep([this, routine, boardIdToOpen]() {
         // populate `boardsTabBar` and determine `routine->boardIdToOpen`
         ContinuationContext context(routine);
 
@@ -146,9 +147,13 @@ void WorkspaceFrame::loadWorkspace(
             routine->boardIdToOpen = -1;
         }
         else {
-            routine->boardIdToOpen = sortedBoardIds.contains(routine->workspaceData.lastOpenedBoardId)
+            const int boardToOpen1 = (boardIdToOpen != -1)
+                    ? boardIdToOpen
+                    : routine->workspaceData.lastOpenedBoardId;
+            routine->boardIdToOpen = sortedBoardIds.contains(boardToOpen1)
                     ? routine->workspaceData.lastOpenedBoardId
                     : sortedBoardIds.at(0);
+
             boardsTabBar->setCurrentItemId(routine->boardIdToOpen);
         }
     }, this);
@@ -202,6 +207,10 @@ void WorkspaceFrame::loadWorkspace(
     }, this);
 
     routine->start();
+}
+
+void WorkspaceFrame::openBoard(const int boardId) {
+    qDebug() << "open board" << boardId;
 }
 
 void WorkspaceFrame::changeWorkspaceName(const QString newName) {

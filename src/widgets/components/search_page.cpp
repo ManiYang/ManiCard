@@ -9,6 +9,7 @@
 #include "utilities/action_debouncer.h"
 #include "utilities/async_routine.h"
 #include "utilities/lists_vectors_util.h"
+#include "utilities/maps_util.h"
 #include "widgets/app_style_sheet.h"
 #include "widgets/components/custom_text_browser.h"
 #include "widgets/components/search_bar.h"
@@ -32,6 +33,11 @@ SearchPage::SearchPage(QWidget *parent)
     );
 }
 
+void SearchPage::showEvent(QShowEvent *event) {
+    QFrame::showEvent(event);
+    searchBar->setFocus();
+}
+
 void SearchPage::resizeEvent(QResizeEvent *event) {
     QFrame::resizeEvent(event);
     debouncedHandlerForResizeEvent->tryAct();
@@ -46,6 +52,9 @@ void SearchPage::setUpWidgets() {
         // search bar
         searchBar = new SearchBar;
         rootLayout->addWidget(searchBar);
+
+        searchBar->setPlaceholderText("Search...");
+        searchBar->setFontPointSize(11);
 
         // message
         labelMessage = new QLabel;
@@ -82,6 +91,7 @@ void SearchPage::setUpWidgets() {
     resultBrowser->setStyleSheet(
             "QTextBrowser {"
             "  border: none;"
+            "  font-size: 10.5pt;"
             "}"
     );
     labelSearching->setStyleSheet(
@@ -97,7 +107,7 @@ void SearchPage::setUpConnections() {
         labelMessage->setText(searchData.getMessage());
     });
 
-    connect(searchBar, &SearchBar::editingFinished, this, [this](const QString &text) {
+    connect(searchBar, &SearchBar::submitted, this, [this](const QString &text) {
         SearchData searchData = parseSearchText(text);
         labelMessage->setText(searchData.getMessage());
         submitSearch(searchData);
@@ -105,10 +115,10 @@ void SearchPage::setUpConnections() {
 
     //
     connect(resultBrowser, &CustomTextBrowser::anchorClicked, this, [this](const QUrl &link) {
-        qDebug() << "link clicked:" << link;
-
-
-
+        const auto [workspaceId, boardId, cardId] = parseUrlToNodeRect(link);
+        qDebug() << workspaceId << boardId << cardId;
+        if (workspaceId != -1)
+            emit userToOpenBoard(workspaceId, boardId);
     });
 }
 
@@ -128,6 +138,33 @@ void SearchPage::relayoutOnResultBrowserContentsUpdated() {
     });
 }
 
+SearchPage::SearchData SearchPage::parseSearchText(const QString &searchText_) {
+    const QString searchText = searchText_.trimmed();
+
+    if (searchText.isEmpty())
+        return SearchData();
+
+    static const QRegularExpression regexpForIdSearch(R"(^id:(.*)$)");
+    const auto m = regexpForIdSearch.match(searchText);
+
+    if (m.hasMatch()) {
+        // search card ID's
+        bool ok;
+        const int cardId = m.captured(1).toInt(&ok);
+        if (!ok)
+            return SearchData();
+
+        return SearchData::ofCardIdSearch(cardId);
+    }
+    else {
+        // search titles or texts
+        if (searchText.count() < 3)
+            return SearchData();
+
+        return SearchData::ofTitleAndTextSearch(searchText);
+    }
+}
+
 void SearchPage::submitSearch(const SearchData &searchData) {
     if (!isPerformingSearch)
         startSearch(searchData);
@@ -137,12 +174,14 @@ void SearchPage::submitSearch(const SearchData &searchData) {
 
 void SearchPage::startSearch(const SearchData &searchData) {
     isPerformingSearch = true;
+    labelSearching->setVisible(true);
     doSearch(
             searchData,
-            // callback
+            // callbackOnFinish:
             [this]() {
                 if (!pendingSearchData.has_value()) {
                     isPerformingSearch = false;
+                    labelSearching->setVisible(false);
                 }
                 else {
                     const auto searchData = pendingSearchData.value();
@@ -182,17 +221,18 @@ void SearchPage::searchCardId(const int cardId, std::function<void ()> callbackO
     {
     public:
         Card cardData;
-        int currentBoardId {-1}; // can be -1
-        QSet<int> foundBoardIds;
         QHash<int, Workspace> workspaces;
+        QVector<int> workspacesList;
+        int currentBoardId {-1}; // can be -1
+        SearchCardIdResult resultFromCache;
+        SearchCardIdResult completeResult;
         QString errorMsg;
     };
     auto *routine = new AsyncRoutineWithVars;
 
+    //
     routine->addStep([this, routine, cardId]() {
-        labelSearching->setVisible(true);
-
-        // get the card data
+        // 1. query card
         Services::instance()->getAppDataReadonly()->queryCards(
                 {cardId},
                 // callback
@@ -214,32 +254,8 @@ void SearchPage::searchCardId(const int cardId, std::function<void ()> callbackO
         );
     }, this);
 
-    routine->addStep([this, routine, cardId]() {
-        emit getCurrentBoardId(&routine->currentBoardId);
-
-        Services::instance()->getAppDataReadonly()->getBoardIdsShowingCard(
-                cardId,
-                // callback
-                [routine](bool ok, const QSet<int> &boardIds) {
-                    ContinuationContext context(routine);
-                    if (!ok) {
-                        context.setErrorFlag();
-                        routine->errorMsg = "search failed";
-                        return;
-                    }
-                    routine->foundBoardIds = boardIds;
-                },
-                this
-        );
-    }, this);
-
     routine->addStep([this, routine]() {
-        if (routine->foundBoardIds.isEmpty()) {
-            routine->nextStep();
-            return;
-        }
-
-        // get workspaces data
+        // 2. get workspaces data
         Services::instance()->getAppDataReadonly()->getWorkspaces(
                 [routine](bool ok, const QHash<int, Workspace> &workspaces) {
                     ContinuationContext context(routine);
@@ -254,93 +270,66 @@ void SearchPage::searchCardId(const int cardId, std::function<void ()> callbackO
         );
     }, this);
 
+    routine->addStep([this, routine]() {
+        // 3. get workspaces list & current Board ID
+        ContinuationContext context(routine);
+        emit getWorkspaceIdsList(&routine->workspacesList);
+        emit getCurrentBoardId(&routine->currentBoardId);
+
+    }, this);
+
     routine->addStep([this, routine, cardId]() {
+        // 4. search using only cached boards data
         ContinuationContext context(routine);
 
-        // get the list of boards where the card is shown, grouped by workspaces
-        using WorkspaceAndBoards = std::pair<int, QVector<int>>;
-        QVector<WorkspaceAndBoards> workspaceAndBoardsList;
-        {
-            int currentWorkspaceId = -1;
-            QHash<int, QSet<int>> workspaceIdToFoundBoards;
-            for (auto it = routine->workspaces.constBegin();
-                    it != routine->workspaces.constEnd(); ++it) {
-                const int workspaceId = it.key();
-                const QSet<int> allBoardIds = it.value().boardIds;
+        const QHash<int, QString> foundBoardsIdToName
+                = Services::instance()->getAppDataReadonly()->getBoardsShowingCardFromCache(cardId);
 
-                //
-                if (allBoardIds.contains(routine->currentBoardId))
-                    currentWorkspaceId = workspaceId;
+        routine->resultFromCache = SearchCardIdResult(
+                cardId, routine->cardData.title, foundBoardsIdToName, routine->workspaces,
+                routine->workspacesList, routine->currentBoardId);
+        showSearchCardIdResult(routine->resultFromCache);
+    }, this);
 
-                //
-                const QSet<int> foundBoardIdInWorkspace = allBoardIds & routine->foundBoardIds;
-                if (!foundBoardIdInWorkspace.isEmpty())
-                    workspaceIdToFoundBoards.insert(workspaceId, foundBoardIdInWorkspace);
-            }
+    routine->addStep([this, routine, cardId]() {
+        // 5. search completely
+        Services::instance()->getAppDataReadonly()->getBoardsShowingCard(
+                cardId,
+                // callback
+                [routine, cardId](bool ok, const QHash<int, QString> &boardsIdToName) {
+                    ContinuationContext context(routine);
+                    if (!ok) {
+                        context.setErrorFlag();
+                        routine->errorMsg = "search failed";
+                        return;
+                    }
 
-            QVector<int> workspacesList;
-            if (workspaceIdToFoundBoards.contains(currentWorkspaceId))
-                workspacesList << currentWorkspaceId; // let current workspace be thw first
-            for (auto it = workspaceIdToFoundBoards.constBegin();
-                    it != workspaceIdToFoundBoards.constEnd(); ++it) {
-                if (it.key() == currentWorkspaceId)
-                    continue;
-                workspacesList << it.key();
-            }
+                    routine->completeResult = SearchCardIdResult(
+                            cardId, routine->cardData.title, boardsIdToName, routine->workspaces,
+                            routine->workspacesList, routine->currentBoardId);
+                },
+                this
+        );
+    }, this);
 
-
-            for (const int workspaceId: qAsConst(workspacesList)) {
-                const QSet<int> foundBoardIds = workspaceIdToFoundBoards.value(workspaceId);
-
-                //
-                QVector<int> boardsOrdering = routine->workspaces.value(workspaceId).boardsOrdering;
-                if (workspaceId == currentWorkspaceId) {
-                    const int p = boardsOrdering.indexOf(routine->currentBoardId);
-                    if (p != -1)
-                        boardsOrdering.move(p, 0); // let current Board be the first
-                }
-
-                const QVector<int> boardsList = sortByOrdering(foundBoardIds, boardsOrdering, false);
-                workspaceAndBoardsList.append(std::make_pair(workspaceId, boardsList));
-            }
-        }
-
-        // update `resultBrowser`
-        resultBrowser->clear();
-        auto cursor = resultBrowser->textCursor();
-
-        cursor.insertHtml(
-                QString("Card %1 (<b>%2</b>)").arg(cardId).arg(routine->cardData.title));
-        cursor.insertBlock();
-
-        if (!workspaceAndBoardsList.isEmpty()) {
-            cursor.insertText("is opened in the following boards:");
-            cursor.insertBlock();
-            cursor.insertBlock();
+    routine->addStep([this, routine]() {
+        // 6. show complete result
+        if (!routine->resultFromCache.hasNoBoard()) {
+            // show after delay
+            showSearchCardIdResult(
+                    routine->resultFromCache,
+                    true // noLink
+            );
+            QTimer::singleShot(500, this, [this, routine]() {
+                ContinuationContext context(routine);
+                showSearchCardIdResult(routine->completeResult);
+            });
         }
         else {
-            cursor.insertText("is not opened in any board.");
-            cursor.insertBlock();
+            // show immediately
+            ContinuationContext context(routine);
+            showSearchCardIdResult(routine->completeResult);
         }
-
-        for (const auto &[workspaceId, boardIds]: qAsConst(workspaceAndBoardsList)) {
-            const QString workspaceName = routine->workspaces.value(workspaceId).name;
-            cursor.insertHtml(QString("workspace <b>%1</b>").arg(workspaceName));
-            cursor.insertBlock();
-
-            for (const int boardId: boardIds) {
-                const QString boardName = QString::number(boardId); // [temp]
-                cursor.insertHtml(
-                        QString("- board <a href=\"file:%1_%2_%3\">%4</a>")
-                        .arg(workspaceId).arg(boardId).arg(cardId)
-                        .arg(boardName)
-                );
-                cursor.insertBlock();
-            }
-        }
-
-        resultBrowser->setTextCursor(cursor);
-        relayoutOnResultBrowserContentsUpdated();
     }, this);
 
     routine->addStep([this, routine, callbackOnFinish]() {
@@ -351,11 +340,69 @@ void SearchPage::searchCardId(const int cardId, std::function<void ()> callbackO
             resultBrowser->setPlainText(routine->errorMsg);
             relayoutOnResultBrowserContentsUpdated();
         }
-        labelSearching->setVisible(false);
         callbackOnFinish();
     }, this);
 
     routine->start();
+}
+
+void SearchPage::showSearchCardIdResult(const SearchCardIdResult &result, const bool noLink) {
+    resultBrowser->clear();
+    auto cursor = resultBrowser->textCursor();
+
+    cursor.insertHtml(
+            QString("Card %1 (<b>%2</b>)").arg(result.cardId).arg(result.cardTitle));
+    {
+        // set line height (won't work if this is before first `cursor.insertXxx()`.
+        QTextBlockFormat format = cursor.blockFormat();
+        format.setLineHeight(115, QTextBlockFormat::ProportionalHeight);
+        cursor.setBlockFormat(format);
+    }
+    cursor.insertBlock();
+
+    if (!result.hasNoBoard()) {
+        cursor.insertText("is opened in the following boards:");
+        cursor.insertBlock();
+        cursor.insertBlock();
+    }
+    else {
+        cursor.insertText("is not opened in any board.");
+        cursor.insertBlock();
+    }
+
+    for (auto it = result.workspaceIdToFoundBoardIds.constBegin();
+            it != result.workspaceIdToFoundBoardIds.constEnd(); ++it) {
+        const int workspaceId = it.key();
+        const QVector<int> &boardIds = it.value();
+
+        const QString workspaceName = result.workspaceIdToName.value(workspaceId);
+        cursor.insertHtml(QString("workspace <b>%1</b>").arg(workspaceName));
+        cursor.setCharFormat({});
+        if (workspaceId == result.currentWorkspaceId)
+            cursor.insertText(" (current)");
+        cursor.insertBlock();
+
+        for (const int boardId: boardIds) {
+            const QString boardName = result.boardIdToName.value(boardId);
+            if (!noLink) {
+                const QString link = createHyperLinkToNodeRect(
+                        workspaceId, boardId, boardName, result.cardId);
+                cursor.insertHtml(QString("- board %1").arg(link));
+                cursor.setCharFormat({});
+            }
+            else {
+                cursor.insertText(QString("- board %1").arg(boardName));
+            }
+
+            if (boardId == result.currentBoardId)
+                cursor.insertText(" (current)");
+            cursor.insertBlock();
+        }
+    }
+
+    //
+    resultBrowser->setTextCursor(cursor);
+    relayoutOnResultBrowserContentsUpdated();
 }
 
 void SearchPage::searchTitleAndText(
@@ -363,36 +410,33 @@ void SearchPage::searchTitleAndText(
     callbackOnFinish();
 
 
-
-
 }
 
+QString SearchPage::createHyperLinkToNodeRect(
+        const int workspaceId, const int boardId, const QString &boardName, const int cardId) {
+    return QString("<a href=\"file:%1_%2_%3\">%4</a>")
+            .arg(workspaceId).arg(boardId).arg(cardId).arg(boardName);
+}
 
-SearchPage::SearchData SearchPage::parseSearchText(const QString &searchText_) {
-    const QString searchText = searchText_.trimmed();
+std::tuple<int, int, int> SearchPage::parseUrlToNodeRect(const QUrl &url) {
+    static const QRegularExpression re(R"(^file:(\d+)_(\d+)_(\d+)$)");
 
-    if (searchText.isEmpty())
-        return SearchData();
+    const auto m = re.match(url.toString());
+    if (!m.hasMatch())
+        return {-1, -1, -1};
 
-    static const QRegularExpression regexpForIdSearch(R"(^id:(.*)$)");
-    const auto m = regexpForIdSearch.match(searchText);
+    bool ok;
+    const int workspaceId = m.captured(1).toInt(&ok);
+    if (!ok)
+        return {-1, -1, -1};
+    const int boardId = m.captured(2).toInt(&ok);
+    if (!ok)
+        return {-1, -1, -1};
+    const int cardId = m.captured(3).toInt(&ok);
+    if (!ok)
+        return {-1, -1, -1};
 
-    if (m.hasMatch()) {
-        // search card ID's
-        bool ok;
-        const int cardId = m.captured(1).toInt(&ok);
-        if (!ok)
-            return SearchData();
-
-        return SearchData::ofCardIdSearch(cardId);
-    }
-    else {
-        // search titles or texts
-        if (searchText.count() < 3)
-            return SearchData();
-
-        return SearchData::ofTitleAndTextSearch(searchText);
-    }
+    return {workspaceId, boardId, cardId};
 }
 
 //====
@@ -448,3 +492,62 @@ QString SearchPage::SearchData::getMessage() const {
     Q_ASSERT(false); // case not implemented
     return "";
 }
+
+//====
+
+SearchPage::SearchCardIdResult::SearchCardIdResult(
+        const int cardId_, const QString &cardTitle_,
+        const QHash<int, QString> &foundBoardsIdToName,
+        const QHash<int, Workspace> &workspaces, const QVector<int> workspacesList,
+        const int currentBoardId_) {
+    // `cardId` & `cardTitle`
+    cardId = cardId_;
+    cardTitle = cardTitle_;
+
+    // `workspaceIdToFoundBoardIds` & `currentWorkspaceId`
+    currentWorkspaceId = -1;
+
+    const QSet<int> allFoundBoardIds = keySet(foundBoardsIdToName);
+    for (auto it = workspaces.constBegin(); it != workspaces.constEnd(); ++it) {
+        if (it.value().boardIds.contains(currentBoardId_))
+            currentWorkspaceId = it.key();
+
+        //
+        const QSet<int> foundBoards = it.value().boardIds & allFoundBoardIds;
+        if (foundBoards.isEmpty())
+            continue;
+
+        QVector<int> boardsOrdering = it.value().boardsOrdering;
+        if (foundBoards.contains(currentBoardId_)) {
+            const int p = boardsOrdering.indexOf(currentBoardId_);
+            if (p != -1 && p != 0)
+                boardsOrdering.move(p, 0); // move current board to first
+        }
+
+        workspaceIdToFoundBoardIds.insert(
+                it.key(),
+                sortByOrdering(foundBoards, boardsOrdering, false)
+        );
+    }
+
+    // `workspacesOrdering`
+    workspacesOrdering = workspacesList;
+    const int p = workspacesOrdering.indexOf(currentWorkspaceId);
+    if (p != -1 && p != 0)
+        workspacesOrdering.move(p, 0); // move current workspace to first
+
+    // `workspaceIdToName`
+    for (auto it = workspaces.constBegin(); it != workspaces.constEnd(); ++it)
+        workspaceIdToName.insert(it.key(), it.value().name);
+
+    // `boardIdToName`
+    boardIdToName = foundBoardsIdToName;
+
+    // `currentBoardId`
+    currentBoardId = currentBoardId_;
+}
+
+bool SearchPage::SearchCardIdResult::hasNoBoard() const {
+    return workspaceIdToFoundBoardIds.isEmpty();
+}
+

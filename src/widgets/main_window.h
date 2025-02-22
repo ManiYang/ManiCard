@@ -107,7 +107,8 @@ private:
 
     void onShownForFirstTime();
 
-    void onWorkspaceSelectedByUser(const int workspaceId);
+    void onUserToOpenWorkspace(const int workspaceId, const int boardId = -1);
+            // boardId: if is -1, will open last-opened board
     void onUserToCreateNewWorkspace();
     void onUserRenamedWorkspace(const int workspaceId, const QString &newName);
     void onUserToRemoveWorkspace(const int workspaceId);

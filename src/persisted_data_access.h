@@ -86,15 +86,13 @@ public:
             std::function<void (bool ok, std::optional<Board> board)> callback,
             QPointer<QObject> callbackContext);
 
-    void getCardIdsOpenedInBoard(
-            const int boardId,
-            std::function<void (bool ok, const QSet<int> &cardIds)> callback,
+    void getBoardsShowingCard(
+            const int cardId,
+            std::function<void (bool ok, const QHash<int, QString> &boardsIdToName)> callback,
             QPointer<QObject> callbackContext);
 
-    void getBoardIdsShowingCard(
-            const int cardId,
-            std::function<void (bool ok, const QSet<int> &boardIDs)> callback,
-            QPointer<QObject> callbackContext);
+    QHash<int, QString> getBoardsShowingCardFromCache(const int cardId);
+            // returns a map from board ID to board name
 
     void requestNewBoardId(
             std::function<void (std::optional<int> boardId)> callback,

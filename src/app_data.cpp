@@ -62,16 +62,14 @@ void AppData::getBoardData(
     persistedDataAccess->getBoardData(boardId, callback, callbackContext);
 }
 
-void AppData::getCardIdsOpenedInBoard(
-        const int boardId, std::function<void (bool, const QSet<int> &)> callback,
+void AppData::getBoardsShowingCard(
+        const int cardId, std::function<void (bool, const QHash<int, QString> &)> callback,
         QPointer<QObject> callbackContext) {
-    persistedDataAccess->getCardIdsOpenedInBoard(boardId, callback, callbackContext);
+    persistedDataAccess->getBoardsShowingCard(cardId, callback, callbackContext);
 }
 
-void AppData::getBoardIdsShowingCard(
-        const int cardId, std::function<void (bool, const QSet<int> &)> callback,
-        QPointer<QObject> callbackContext) {
-    persistedDataAccess->getBoardIdsShowingCard(cardId, callback, callbackContext);
+QHash<int, QString> AppData::getBoardsShowingCardFromCache(const int cardId) {
+    return persistedDataAccess->getBoardsShowingCardFromCache(cardId);
 }
 
 void AppData::requestNewBoardId(

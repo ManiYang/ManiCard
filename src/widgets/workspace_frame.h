@@ -27,11 +27,14 @@ public:
     //!   + \c this must be visible
     //!   + \c canClose() must return true
     //! \param workspaceId: if is -1, will only close the workspace
+    //! \param boardId: if is -1, will opened the last-opened board
     //! \param callback
     //!
     void loadWorkspace(
-            const int workspaceId,
+            const int workspaceId, const int boardId,
             std::function<void (bool ok, bool highlightedCardIdChanged)> callback);
+
+    void openBoard(const int boardId);
 
     void changeWorkspaceName(const QString newName);
     void showButtonRightSidebar();

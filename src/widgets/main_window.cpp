@@ -94,7 +94,7 @@ void MainWindow::load(std::function<void (bool)> callback) {
     routine->addStep([this, routine]() {
         // close `workspaceFrame`
         workspaceFrame->loadWorkspace(
-                -1,
+                -1, -1,
                 // callback
                 [this, routine](bool loadOk, bool highlightedCardIdChanged) {
                     ContinuationContext context(routine);
@@ -177,7 +177,7 @@ void MainWindow::load(std::function<void (bool)> callback) {
             noWorkspaceOpenSign->setVisible(false);
 
             workspaceFrame->loadWorkspace(
-                    lastOpenedWorkspaceId,
+                    lastOpenedWorkspaceId, -1,
                     // callback
                     [this, routine, lastOpenedWorkspaceId](bool loadOk, bool highlightedCardIdChanged) {
                         ContinuationContext context(routine);
@@ -409,7 +409,7 @@ void MainWindow::setUpConnections() {
     // `workspacesList`
     connect(workspacesList, &WorkspacesList::workspaceSelected,
             this, [this](int newWorkspaceId, int /*previousWorkspaceId*/) {
-        onWorkspaceSelectedByUser(newWorkspaceId);
+        onUserToOpenWorkspace(newWorkspaceId);
     });
 
     connect(workspacesList, &WorkspacesList::userRenamedWorkspace,
@@ -434,6 +434,21 @@ void MainWindow::setUpConnections() {
     connect(searchPage, &SearchPage::getCurrentBoardId, this, [this](int *boardId) {
         *boardId = workspaceFrame->getCurrentBoardId();
     }, Qt::DirectConnection);
+
+    connect(searchPage, &SearchPage::getWorkspaceIdsList, this, [this](QVector<int> *workspaceIds) {
+        *workspaceIds = workspacesList->getWorkspaceIds();
+    }, Qt::DirectConnection);
+
+    connect(searchPage, &SearchPage::userToOpenBoard,
+            this, [this](const int workspaceId, const int boardId) {
+        if (!workspacesList->getWorkspaceIds().contains(workspaceId)) {
+            qWarning().noquote() << QString("workspace %1 not found").arg(workspaceId);
+            return;
+        }
+
+        workspacesList->setSelectedWorkspaceId(workspaceId);
+        onUserToOpenWorkspace(workspaceId, boardId);
+    });
 
     // `workspaceFrame`
     connect(workspaceFrame, &WorkspaceFrame::openRightSidebar, this, [this]() {
@@ -556,7 +571,13 @@ void MainWindow::onShownForFirstTime() {
     }
 }
 
-void MainWindow::onWorkspaceSelectedByUser(const int workspaceId) {
+void MainWindow::onUserToOpenWorkspace(const int workspaceId, const int boardId) {
+    if (workspaceFrame->getWorkspaceId() == workspaceId) {
+        workspaceFrame->openBoard(boardId);
+        return;
+    }
+
+    //
     auto *routine = new AsyncRoutine;
 
     routine->addStep([this, routine]() {
@@ -581,13 +602,13 @@ void MainWindow::onWorkspaceSelectedByUser(const int workspaceId) {
             ->setAutoDelete()->start();
     }, this);
 
-    routine->addStep([this, routine, workspaceId]() {
+    routine->addStep([this, routine, workspaceId, boardId]() {
         // load `workspaceId`
         noWorkspaceOpenSign->setVisible(false);
         workspaceFrame->setVisible(true);
 
         workspaceFrame->loadWorkspace(
-                workspaceId,
+                workspaceId, boardId,
                 // callback:
                 [this, routine, workspaceId](bool loadOk, bool highlightedCardIdChanged) {
                     if (!loadOk) {
@@ -793,7 +814,7 @@ void MainWindow::onUserToRemoveWorkspace(const int workspaceIdToRemove) {
         }
 
         workspaceFrame->loadWorkspace(
-                -1,
+                -1, -1,
                 // callback
                 [this, routine](bool ok, bool highlightedCardIdChanged) {
                     ContinuationContext context(routine);
@@ -1111,6 +1132,11 @@ void MainWindow::LeftSidebar::addStackedWidgetToLayout(QLayout *layout) {
 }
 
 void MainWindow::LeftSidebar::addPage(QWidget *widget, QToolButton *button) {
+    if (stackedWidget->indexOf(widget) != -1) {
+        Q_ASSERT(false); // widget already added
+        return;
+    }
+
     stackedWidget->addWidget(widget);
 
     button->setCheckable(true);
