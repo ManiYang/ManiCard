@@ -78,7 +78,10 @@ void MainWindow::load(std::function<void (bool)> callback) {
     }
 
     workspacesList->setEnabled(false);
+    searchPage->clearResult();
+    searchPage->setEnabled(false);
     workspaceFrame->setEnabled(false);
+
 
     //
     class AsyncRoutineWithVars : public AsyncRoutineWithErrorFlag
@@ -214,6 +217,7 @@ void MainWindow::load(std::function<void (bool)> callback) {
         ContinuationContext context(routine);
 
         workspacesList->setEnabled(true);
+        searchPage->setEnabled(true);
         workspaceFrame->setEnabled(true);
 
         if (routine->errorFlag) {
@@ -263,6 +267,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         closingState = ClosingState::Closing;
 
         workspacesList->setEnabled(false);
+        searchPage->setEnabled(false);
         workspaceFrame->setEnabled(false);
 
         onUserCloseWindow();
@@ -1063,6 +1068,7 @@ void MainWindow::onUserCloseWindow() {
 
         if (routine->errorFlag) {
             workspacesList->setEnabled(true);
+            searchPage->setEnabled(true);
             workspaceFrame->setEnabled(true);
             closingState = ClosingState::NotClosing;
         }

@@ -33,6 +33,10 @@ SearchPage::SearchPage(QWidget *parent)
     );
 }
 
+void SearchPage::clearResult() {
+    clearSearchResult();
+}
+
 void SearchPage::showEvent(QShowEvent *event) {
     QFrame::showEvent(event);
     searchBar->setFocus();
@@ -406,9 +410,11 @@ void SearchPage::showSearchCardIdResult(const SearchCardIdResult &result, const 
 
 void SearchPage::searchTitleAndText(
         const QString &substring, std::function<void ()> callbackOnFinish) {
+    // todo...
+
+    // [temp]
+    clearSearchResult();
     callbackOnFinish();
-
-
 }
 
 QString SearchPage::createHyperLinkToNodeRect(

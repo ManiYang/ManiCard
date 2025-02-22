@@ -17,6 +17,8 @@ class SearchPage : public QFrame
 public:
     explicit SearchPage(QWidget *parent = nullptr);
 
+    void clearResult();
+
 signals:
     void getCurrentBoardId(int *boardId);
     void getWorkspaceIdsList(QVector<int> *workspaceIds);
