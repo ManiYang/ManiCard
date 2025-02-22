@@ -144,6 +144,10 @@ void CustomTextEdit::setContextMenuPolicy(Qt::ContextMenuPolicy policy) {
     textEdit->setContextMenuPolicy(policy);
 }
 
+void CustomTextEdit::setFocusPolicy(const Qt::FocusPolicy policy) {
+    textEdit->setFocusPolicy(policy);
+}
+
 QString CustomTextEdit::toPlainText() const {
     return textEdit->toPlainText();
 }

@@ -62,6 +62,7 @@ SOURCES += \
     widgets/components/custom_graphics_text_item.cpp \
     widgets/components/custom_list_widget.cpp \
     widgets/components/custom_tab_bar.cpp \
+    widgets/components/custom_text_browser.cpp \
     widgets/components/custom_text_edit.cpp \
     widgets/components/data_view_box.cpp \
     widgets/components/drag_point_events_handler.cpp \
@@ -160,6 +161,7 @@ HEADERS += \
     widgets/components/custom_graphics_text_item.h \
     widgets/components/custom_list_widget.h \
     widgets/components/custom_tab_bar.h \
+    widgets/components/custom_text_browser.h \
     widgets/components/custom_text_edit.h \
     widgets/components/data_view_box.h \
     widgets/components/drag_point_events_handler.h \

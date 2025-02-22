@@ -246,6 +246,8 @@ void DataViewBox::setUpContents(QGraphicsItem *contentsContainer) {
     textEdit->setVisible(false);
     textEditProxyWidget->setWidget(textEdit);
 
+    textEditProxyWidget->setFocusPolicy(Qt::ClickFocus); // prevents tab focus
+
     textEdit->enableSetEveryWheelEventAccepted(true);
     textEdit->setReadOnly(true);
     textEdit->setFrameShape(QFrame::NoFrame);

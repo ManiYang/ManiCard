@@ -5,8 +5,9 @@
 #include <QFrame>
 #include <QLabel>
 #include <QLineEdit>
-#include <QTextBrowser>
 
+class ActionDebouncer;
+class CustomTextBrowser;
 class SearchBar;
 
 class SearchPage : public QFrame
@@ -17,18 +18,23 @@ public:
 
 signals:
     void getCurrentBoardId(int *boardId);
-//    void getBoardIdsOfCurrentWorkspace(QVector<int> *boardIds);
+
+protected:
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     SearchBar *searchBar {nullptr};
     QLabel *labelMessage {nullptr};
-    QTextBrowser *resultBrowser {nullptr};
+    CustomTextBrowser *resultBrowser {nullptr};
+    QLabel *labelSearching {nullptr};
+
+    ActionDebouncer *debouncedHandlerForResizeEvent;
 
     void setUpWidgets();
     void setUpConnections();
 
     void clearSearchResult();
-
+    void relayoutOnResultBrowserContentsUpdated();
 
     //
     struct SearchData

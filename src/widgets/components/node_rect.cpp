@@ -222,6 +222,8 @@ void NodeRect::setUpContents(QGraphicsItem *contentsContainer) {
     }
 
     //
+    textEditProxyWidget->setFocusPolicy(Qt::ClickFocus); // prevents tab focus
+
     textEdit->enableSetEveryWheelEventAccepted(true);
     textEdit->setReadOnly(!computeTextEditEditable(nodeRectIsEditable, textEditIsPreviewMode));
     textEdit->setReplaceTabBySpaces(4);

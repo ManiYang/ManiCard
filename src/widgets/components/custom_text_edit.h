@@ -42,6 +42,8 @@ public:
     //!
     void setContextMenuPolicy(Qt::ContextMenuPolicy policy);
 
+    void setFocusPolicy(const Qt::FocusPolicy policy);
+
     //
 
     QString toPlainText() const;

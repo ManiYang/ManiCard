@@ -1,13 +1,16 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QRegularExpression>
+#include <QTimer>
 #include <QVBoxLayout>
 #include "app_data_readonly.h"
 #include "search_page.h"
 #include "services.h"
+#include "utilities/action_debouncer.h"
 #include "utilities/async_routine.h"
 #include "utilities/lists_vectors_util.h"
 #include "widgets/app_style_sheet.h"
+#include "widgets/components/custom_text_browser.h"
 #include "widgets/components/search_bar.h"
 #include "widgets/icons.h"
 
@@ -17,11 +20,24 @@ SearchPage::SearchPage(QWidget *parent)
         : QFrame(parent) {
     setUpWidgets();
     setUpConnections();
+
+    //
+    debouncedHandlerForResizeEvent = new ActionDebouncer(
+            100,
+            ActionDebouncer::Option::Delay,
+            [this]() {
+                resultBrowser->updateGeometry();
+            },
+            this
+    );
+}
+
+void SearchPage::resizeEvent(QResizeEvent *event) {
+    QFrame::resizeEvent(event);
+    debouncedHandlerForResizeEvent->tryAct();
 }
 
 void SearchPage::setUpWidgets() {
-//    const bool isDarkTheme = Services::instance()->getAppDataReadonly()->getIsDarkTheme();
-
     auto *rootLayout = new QVBoxLayout;
     setLayout(rootLayout);
     rootLayout->setContentsMargins(0, 0, 4, 0); // <^>v
@@ -38,18 +54,25 @@ void SearchPage::setUpWidgets() {
         labelMessage->setWordWrap(true);
 
         // result
-        resultBrowser = new QTextBrowser;
+        resultBrowser = new CustomTextBrowser;
         rootLayout->addWidget(resultBrowser);
 
-        QSizePolicy policy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        policy.setVerticalStretch(1);
-        resultBrowser->setSizePolicy(policy);
-
         resultBrowser->setOpenLinks(false);
+        resultBrowser->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+        //
+        labelSearching = new QLabel("searching...");
+        rootLayout->addWidget(labelSearching);
+
+        labelSearching->setVisible(false);
+
+        //
+        rootLayout->addStretch(1);
     }
 
     //
     setStyleClasses(labelMessage, {StyleClass::mediumContrastTextColor});
+    setStyleClasses(labelSearching, {StyleClass::mediumContrastTextColor});
 
     labelMessage->setStyleSheet(
             "QLabel {"
@@ -59,6 +82,11 @@ void SearchPage::setUpWidgets() {
     resultBrowser->setStyleSheet(
             "QTextBrowser {"
             "  border: none;"
+            "}"
+    );
+    labelSearching->setStyleSheet(
+            "QLabel {"
+            "  font-style: italic;"
             "}"
     );
 }
@@ -76,7 +104,7 @@ void SearchPage::setUpConnections() {
     });
 
     //
-    connect(resultBrowser, &QTextBrowser::anchorClicked, this, [this](const QUrl &link) {
+    connect(resultBrowser, &CustomTextBrowser::anchorClicked, this, [this](const QUrl &link) {
         qDebug() << "link clicked:" << link;
 
 
@@ -86,7 +114,18 @@ void SearchPage::setUpConnections() {
 
 void SearchPage::clearSearchResult() {
     resultBrowser->clear();
-    resultBrowser->setCurrentCharFormat({});
+    relayoutOnResultBrowserContentsUpdated();
+}
+
+void SearchPage::relayoutOnResultBrowserContentsUpdated() {
+    resultBrowser->updateGeometry();
+    QTimer::singleShot(0, this, [this]() {
+        resultBrowser->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        resultBrowser->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        // The scroll bar remains shown when the widget is expanded to just large enough to
+        // accommodate the contents. Here we force the scroll bar to hide, and than show it if
+        // needed.
+    });
 }
 
 void SearchPage::submitSearch(const SearchData &searchData) {
@@ -151,6 +190,8 @@ void SearchPage::searchCardId(const int cardId, std::function<void ()> callbackO
     auto *routine = new AsyncRoutineWithVars;
 
     routine->addStep([this, routine, cardId]() {
+        labelSearching->setVisible(true);
+
         // get the card data
         Services::instance()->getAppDataReadonly()->queryCards(
                 {cardId},
@@ -266,7 +307,6 @@ void SearchPage::searchCardId(const int cardId, std::function<void ()> callbackO
 
         // update `resultBrowser`
         resultBrowser->clear();
-        resultBrowser->setCurrentCharFormat({});
         auto cursor = resultBrowser->textCursor();
 
         cursor.insertHtml(
@@ -300,6 +340,7 @@ void SearchPage::searchCardId(const int cardId, std::function<void ()> callbackO
         }
 
         resultBrowser->setTextCursor(cursor);
+        relayoutOnResultBrowserContentsUpdated();
     }, this);
 
     routine->addStep([this, routine, callbackOnFinish]() {
@@ -307,9 +348,10 @@ void SearchPage::searchCardId(const int cardId, std::function<void ()> callbackO
         ContinuationContext context(routine);
         if (routine->errorFlag) {
             resultBrowser->clear();
-            resultBrowser->setCurrentCharFormat({});
             resultBrowser->setPlainText(routine->errorMsg);
+            relayoutOnResultBrowserContentsUpdated();
         }
+        labelSearching->setVisible(false);
         callbackOnFinish();
     }, this);
 
@@ -318,7 +360,7 @@ void SearchPage::searchCardId(const int cardId, std::function<void ()> callbackO
 
 void SearchPage::searchTitleAndText(
         const QString &substring, std::function<void ()> callbackOnFinish) {
-
+    callbackOnFinish();
 
 
 

@@ -174,6 +174,8 @@ void SettingBox::setUpContents(QGraphicsItem *contentsContainer) {
     }
 
     // textEdit
+    textEditProxyWidget->setFocusPolicy(Qt::ClickFocus); // prevents tab focus
+
     textEdit->enableSetEveryWheelEventAccepted(true);
     textEdit->setFrameShape(QFrame::NoFrame);
     textEdit->setMinimumHeight(10);
